@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mt. Kapigpiglatan &mdash; MMS Open Climbs 2026</title>
+    <link rel="icon" type="image/png" href="../images/MMS.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -274,6 +275,29 @@
             .back-nav { padding: 12px 16px; }
             .header { padding: 0 16px; }
         }
+
+        /* MOUNTAIN PROFILE */
+        .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 4px; }
+        .profile-stat { text-align: center; padding: 14px 8px; background: rgba(0,0,0,0.03); border-radius: 10px; }
+        .stat-value { font-family: var(--font-head); font-size: 1.4rem; font-weight: 900; color: var(--accent); line-height: 1.1; }
+        .stat-label { font-size: 0.62rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
+        .profile-desc { font-size: 0.86rem; line-height: 1.6; color: var(--ink-soft); margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.06); }
+
+        /* CAUTION */
+        .caution-card { background: #fff8e1; border-left: 4px solid var(--gold); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+        .caution-card:last-child { margin-bottom: 0; }
+        .caution-title { font-family: var(--font-head); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #7a5800; margin-bottom: 7px; }
+        .caution-body { font-size: 0.83rem; color: var(--ink); line-height: 1.55; }
+        .caution-body strong { color: #7a5800; }
+
+        /* MAP */
+        .map-frame { width: 100%; height: 300px; border: none; border-radius: 10px; display: block; }
+
+        /* WEATHER */
+        .weather-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+        .weather-link { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; background: rgba(0,0,0,0.04); border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: var(--ink); border: 1px solid rgba(0,0,0,0.08); transition: background 0.15s; text-decoration: none; }
+        .weather-link:hover { background: rgba(0,0,0,0.09); }
+        .weather-note { font-size: 0.77rem; color: var(--ink-soft); margin-top: 12px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -299,27 +323,92 @@
         </h2>
         <div class="event-meta">
             <div class="event-meta-item"><span class="icon">&#128197;</span> <span><strong>July 4&ndash;5, 2026</strong></span></div>
-            <div class="event-meta-item"><span class="icon">&#128205;</span> <span>TBA</span></div>
-            <div class="event-meta-item"><span class="icon">&#9968;</span> <span>Minor</span></div>
+            <div class="event-meta-item"><span class="icon">&#128205;</span> <span>Brgy. Omaya, San Narciso, Zambales</span></div>
+            <div class="event-meta-item"><span class="icon">&#9968;</span> <span>678 MASL &bull; Difficulty 3/9</span></div>
         </div>
     </div>
 </section>
 
 <main class="content">
 
-        <div class="section-card">
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#9968;</span><h3>Mountain Profile</h3></div>
+        <div class="section-body">
+            <div class="profile-grid">
+                <div class="profile-stat"><div class="stat-value">678</div><div class="stat-label">MASL</div></div>
+                <div class="profile-stat"><div class="stat-value">3 / 9</div><div class="stat-label">Difficulty</div></div>
+                <div class="profile-stat"><div class="stat-value">Minor</div><div class="stat-label">Climb Type</div></div>
+                <div class="profile-stat"><div class="stat-value">2 Days</div><div class="stat-label">Recommended</div></div>
+            </div>
+            <div class="profile-desc">
+                <strong>Location:</strong> Brgy. Omaya, San Narciso, Zambales<br>
+                <strong>Features:</strong> Ridge trails, river crossings, panoramic views, and Veto Falls<br><br>
+                Known as the <em>"Little Bukidnon of Zambales,"</em> Mt. Kapigpiglatan is celebrated for its rolling hills, golden cogon grasslands, and the scenic Veto Falls. A 2-day <strong>Summit-to-Surf</strong> itinerary allows hikers to enjoy the mountain and then relax at the nearby beaches of San Narciso or San Felipe.
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
         <div class="section-header"><span class="icon">&#128506;</span><h3>Itinerary</h3></div>
         <div class="section-body">
             <div class="day-block">
-                <div class="day-label">Day 0 &mdash; Friday (July 4)</div>
-                <div class="time-entry"><span class="time">TBA</span><span class="activity"><strong>Assembly &amp; Departure</strong> &mdash; Details TBA</span></div>
+                <div class="day-label">Day 1 &mdash; Saturday (July 4) &mdash; The Ascent &amp; Falls</div>
+                <div class="time-entry"><span class="time">01:00</span><span class="activity"><strong>Departure from Manila</strong> &mdash; Victory Liner or Private Vehicle</span></div>
+                <div class="time-entry"><span class="time">05:00</span><span class="activity"><strong>Arrive at San Narciso</strong> &mdash; tricycle to Brgy. Omaya (Jump-off)</span></div>
+                <div class="time-entry"><span class="time">05:30</span><span class="activity"><strong>Registration, briefing</strong> &amp; securing guides</span></div>
+                <div class="time-entry"><span class="time">06:00</span><span class="activity"><strong>Start Trek</strong></span></div>
+                <div class="time-entry"><span class="time">09:00</span><span class="activity"><strong>Summit Arrival</strong> &mdash; rest &amp; photo ops (the "Bukidnon" ridge views)</span></div>
+                <div class="time-entry"><span class="time">10:30</span><span class="activity"><strong>Start descent</strong> toward Veto Falls</span></div>
+                <div class="time-entry"><span class="time">11:30</span><span class="activity"><strong>Lunch &amp; swimming</strong> at Veto Falls</span></div>
+                <div class="time-entry"><span class="time">14:00</span><span class="activity"><strong>Arrival back at Jump-off</strong> &mdash; wash up</span></div>
+                <div class="time-entry"><span class="time">16:00</span><span class="activity"><strong>Check-in at beach resort</strong> in San Narciso (e.g., Liwliwa area)</span></div>
+                <div class="time-entry"><span class="time">18:00</span><span class="activity"><strong>Dinner and socials</strong></span></div>
             </div>
             <div class="day-block">
-                <div class="day-label">Day 1 &mdash; Saturday (July 5)</div>
-                <div class="time-entry"><span class="time">TBA</span><span class="activity"><strong>Start trek</strong> to Mt. Kapigpiglatan</span></div>
-                <div class="time-entry"><span class="time">TBA</span><span class="activity"><strong>Summit</strong> &amp; descent</span></div>
-                <div class="time-entry"><span class="time">TBA</span><span class="activity"><strong>Return travel</strong></span></div>
+                <div class="day-label">Day 2 &mdash; Sunday (July 5) &mdash; Coastal Relaxation</div>
+                <div class="time-entry"><span class="time">07:00</span><span class="activity"><strong>Breakfast by the beach</strong></span></div>
+                <div class="time-entry"><span class="time">09:00</span><span class="activity"><strong>Free time</strong> &mdash; surfing, swimming, or visiting Capones/Anawangin via boat</span></div>
+                <div class="time-entry"><span class="time">12:00</span><span class="activity"><strong>Check out and lunch</strong></span></div>
+                <div class="time-entry"><span class="time">14:00</span><span class="activity"><strong>Side trip</strong> to San Sebastian Church or buy local mangoes</span></div>
+                <div class="time-entry"><span class="time">16:00</span><span class="activity"><strong>Board bus back to Manila</strong></span></div>
             </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#128167;</span><h3>Water Source Information</h3></div>
+        <div class="section-body">
+            <div class="caution-card">
+                <div class="caution-title">&#9888; Caution &mdash; Water Potability</div>
+                <div class="caution-body">Natural water sources are <strong>not recommended for drinking</strong> even if they look clear. The area upstream is a grazing ground for carabaos and cattle. If you plan to use water from the falls for cooking or drinking, a <strong>high-quality filtration system or boiling is mandatory.</strong></div>
+            </div>
+            <ul class="info-list" style="margin-top:12px;">
+                <li><strong>Rivers at Base:</strong> Available for cooling off or washing; not for drinking.</li>
+                <li><strong>Veto Falls (Descent):</strong> Reliable water source &mdash; treat or boil before drinking.</li>
+                <li><strong>Carry at least 2&ndash;3 L per person</strong> for the entire hike.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#128205;</span><h3>Map &amp; Route</h3></div>
+        <div class="section-body">
+            <p style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:12px;">Jump-off: Brgy. Omaya, San Narciso, Zambales. Take Victory Liner to Olongapo or San Narciso, then a tricycle to the barangay hall.</p>
+            <iframe class="map-frame" src="https://www.openstreetmap.org/export/embed.html?bbox=119.885%2C15.667%2C119.985%2C15.767&amp;layer=mapnik&amp;marker=15.717%2C119.935" title="Mt. Kapigpiglatan location map" loading="lazy"></iframe>
+            <p style="font-size:0.7rem;color:var(--ink-soft);margin-top:8px;">Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:var(--accent);">OpenStreetMap</a> contributors</p>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#127780;</span><h3>Weather &amp; Forecast</h3></div>
+        <div class="section-body">
+            <p style="font-size:0.84rem;color:var(--ink-soft);margin-bottom:14px;">San Narciso, Zambales has a tropical climate. July falls within the rainy season &mdash; expect afternoon showers and humid conditions. Check the forecast 24&ndash;48 hours before departure.</p>
+            <div class="weather-links">
+                <a class="weather-link" href="https://www.windy.com/15.717/119.935?15.717,119.935,10" target="_blank" rel="noopener">&#127788; Windy.com</a>
+                <a class="weather-link" href="https://www.pagasa.dost.gov.ph/weather" target="_blank" rel="noopener">&#127782; PAG-ASA Forecast</a>
+                <a class="weather-link" href="https://weather.com/weather/tenday/l/San+Narciso+Zambales+Philippines" target="_blank" rel="noopener">&#9925; Weather.com</a>
+            </div>
+            <p class="weather-note">&#9888; Monitor PAG-ASA Tropical Cyclone bulletins, especially during July&ndash;September. The climb may be cancelled or rescheduled due to bad weather.</p>
         </div>
     </div>
 
@@ -328,12 +417,13 @@
             <div class="section-header"><span class="icon">&#127890;</span><h3>Things to Bring</h3></div>
             <div class="section-body">
                 <ul class="info-list">
-                    <li>Day pack / Overnight pack</li>
-                    <li>Water, 2&ndash;3 liters per day</li>
+                    <li>Day pack (summit) + overnight bag (beach)</li>
+                    <li>Water, at least 2&ndash;3 liters</li>
+                    <li>Water filter or purification tablets</li>
                     <li>Snacks / Trail Food</li>
                     <li>Packed lunch / breakfast</li>
                     <li>Mess Kit</li>
-                    <li>Sunscreen / Umbrella</li>
+                    <li>Sunscreen &amp; sunglasses</li>
                     <li>Jacket (preferably rainproof)</li>
                     <li>Rain Gear</li>
                     <li>Emergency blanket</li>
@@ -342,6 +432,7 @@
                     <li>Head Lamp</li>
                     <li>Camera / Mobile Phone</li>
                     <li>Plastic Bag / Trash Bag</li>
+                    <li>Swimwear &amp; towel (for beach Day 2)</li>
                     <li>Trekking Poles (optional)</li>
                 </ul>
             </div>
@@ -373,9 +464,10 @@
     <div class="section-card">
         <div class="section-header"><span class="icon">&#128176;</span><h3>Estimated Expenses</h3></div>
         <div class="section-body">
-                        <div class="expense-row"><div><div class="expense-label">Transportation</div><div class="expense-note">Round trip</div></div><div class="expense-amount">TBA</div></div>
-            <div class="expense-row"><div><div class="expense-label">Registration / Fees</div></div><div class="expense-amount">TBA</div></div>
-            <div class="expense-row"><div><div class="expense-label">Food &amp; Accommodation</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Transportation</div><div class="expense-note">Round trip, Manila&ndash;San Narciso</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Registration / Guide Fee</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Beach Resort (Night 1)</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Food &amp; Meals</div></div><div class="expense-amount">TBA</div></div>
         </div>
     </div>
 

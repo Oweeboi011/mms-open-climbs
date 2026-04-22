@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MMS Open Climbs 2026</title>
+    <link rel="icon" type="image/png" href="images/MMS.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -462,6 +463,44 @@
     /* ── Hidden ── */
     .card-link.hidden { display: none; }
 
+    /* ── Itinerary pending ribbon ── */
+    .itinerary-pending::after {
+        content: '';
+        background-image: none;
+    }
+    .card-itinerary-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-family: var(--font-head);
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        background: rgba(0,0,0,0.28);
+        color: rgba(255,255,255,0.65);
+        border: 1px dashed rgba(255,255,255,0.3);
+        padding: 2px 9px;
+        border-radius: 8px;
+        margin-top: 5px;
+    }
+    .card-itinerary-ready {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-family: var(--font-head);
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        background: rgba(80,200,120,0.22);
+        color: #a8ffbc;
+        border: 1px solid rgba(80,200,120,0.35);
+        padding: 2px 9px;
+        border-radius: 8px;
+        margin-top: 5px;
+    }
+
     /* ─────────────────────────────────────────────────────────
        FOOTER
     ───────────────────────────────────────────────────────── */
@@ -550,7 +589,8 @@
                 <div class="card-month">JUL</div>
                 <div class="card-date">04&ndash;05</div>
                 <div class="card-name">Mt. Kapigpiglatan</div>
-                <div class="card-location">&nbsp;</div>
+                <div class="card-location">San Narciso, Zambales</div>
+                <span class="card-itinerary-ready">&#10003; Itinerary Ready</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-minor">Minor</span>
@@ -565,7 +605,8 @@
                 <div class="card-month">JUL</div>
                 <div class="card-date">18&ndash;19</div>
                 <div class="card-name">Mount Irid</div>
-                <div class="card-location">&nbsp;</div>
+                <div class="card-location">Gen. Nakar, Quezon</div>
+                <span class="card-itinerary-ready">&#10003; Itinerary Ready</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-major">Major</span>
@@ -584,6 +625,7 @@
                 <div class="card-date">01&ndash;02</div>
                 <div class="card-name">Mt. Kalisungan &amp; Mt. Mabilog</div>
                 <div class="card-location">Twin Hike</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-minor">Minor</span>
@@ -599,6 +641,7 @@
                 <div class="card-date">15&ndash;16</div>
                 <div class="card-name">Tarak Ridge</div>
                 <div class="card-location">&nbsp;</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-minor">Minor</span>
@@ -614,6 +657,7 @@
                 <div class="card-date">29&ndash;31</div>
                 <div class="card-name">Sicapoo</div>
                 <div class="card-location">Orig Trail</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-major">Major</span>
@@ -632,6 +676,7 @@
                 <div class="card-date">12&ndash;13</div>
                 <div class="card-name">Mt. Manalmon</div>
                 <div class="card-location">&nbsp;</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-minor">Minor</span>
@@ -647,6 +692,7 @@
                 <div class="card-date">18&ndash;22</div>
                 <div class="card-name">Mt. Apo</div>
                 <div class="card-location">Davao del Sur &mdash; Highest Peak in the Philippines</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-special">Special</span>
@@ -662,6 +708,7 @@
                 <div class="card-date">26&ndash;27</div>
                 <div class="card-name">Mt. Pulag</div>
                 <div class="card-location">Akiki Trail</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-major">Major</span>
@@ -680,6 +727,7 @@
                 <div class="card-date">10&ndash;11</div>
                 <div class="card-name">Mt. Marami</div>
                 <div class="card-location">&nbsp;</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-minor">Minor</span>
@@ -695,6 +743,7 @@
                 <div class="card-date">24&ndash;25</div>
                 <div class="card-name">Pinatubo</div>
                 <div class="card-location">via Sapang Uwak</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-major">Major</span>
@@ -713,6 +762,7 @@
                 <div class="card-date">07&ndash;08</div>
                 <div class="card-name">Mt. Mabilog</div>
                 <div class="card-location">&nbsp;</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-minor">Minor</span>
@@ -727,6 +777,7 @@
                 <div class="card-month">NOV 29 &ndash; DEC 02</div>
                 <div class="card-date" style="font-size:1.8rem; letter-spacing:0;">Mt. Kinabalu</div>
                 <div class="card-location">Kota Kinabalu, Sabah, Malaysia &mdash; International</div>
+                <span class="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
             </div>
             <div class="card-footer">
                 <span class="card-badge badge-special">Special</span>

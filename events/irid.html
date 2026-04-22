@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="../images/MMS.png">
     <title>Mount Irid &mdash; MMS Open Climbs 2026</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -274,6 +275,29 @@
             .back-nav { padding: 12px 16px; }
             .header { padding: 0 16px; }
         }
+
+        /* MOUNTAIN PROFILE */
+        .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 4px; }
+        .profile-stat { text-align: center; padding: 14px 8px; background: rgba(0,0,0,0.03); border-radius: 10px; }
+        .stat-value { font-family: var(--font-head); font-size: 1.4rem; font-weight: 900; color: var(--accent); line-height: 1.1; }
+        .stat-label { font-size: 0.62rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
+        .profile-desc { font-size: 0.86rem; line-height: 1.6; color: var(--ink-soft); margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.06); }
+
+        /* CAUTION */
+        .caution-card { background: #fff8e1; border-left: 4px solid var(--gold); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+        .caution-card:last-child { margin-bottom: 0; }
+        .caution-title { font-family: var(--font-head); font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #7a5800; margin-bottom: 7px; }
+        .caution-body { font-size: 0.83rem; color: var(--ink); line-height: 1.55; }
+        .caution-body strong { color: #7a5800; }
+
+        /* MAP */
+        .map-frame { width: 100%; height: 300px; border: none; border-radius: 10px; display: block; }
+
+        /* WEATHER */
+        .weather-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+        .weather-link { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; background: rgba(0,0,0,0.04); border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: var(--ink); border: 1px solid rgba(0,0,0,0.08); transition: background 0.15s; text-decoration: none; }
+        .weather-link:hover { background: rgba(0,0,0,0.09); }
+        .weather-note { font-size: 0.77rem; color: var(--ink-soft); margin-top: 12px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -299,26 +323,93 @@
         </h2>
         <div class="event-meta">
             <div class="event-meta-item"><span class="icon">&#128197;</span> <span><strong>July 18&ndash;19, 2026</strong></span></div>
-            <div class="event-meta-item"><span class="icon">&#128205;</span> <span>TBA</span></div>
-            <div class="event-meta-item"><span class="icon">&#9968;</span> <span>Major</span></div>
+            <div class="event-meta-item"><span class="icon">&#128205;</span> <span>Brgy. Sta. Ines, Gen. Nakar, Quezon</span></div>
+            <div class="event-meta-item"><span class="icon">&#9968;</span> <span>1,467 MASL &bull; Difficulty 6/9</span></div>
         </div>
     </div>
 </section>
 
 <main class="content">
 
-        <div class="section-card">
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#9968;</span><h3>Mountain Profile</h3></div>
+        <div class="section-body">
+            <div class="profile-grid">
+                <div class="profile-stat"><div class="stat-value">1,467</div><div class="stat-label">MASL</div></div>
+                <div class="profile-stat"><div class="stat-value">6 / 9</div><div class="stat-label">Difficulty</div></div>
+                <div class="profile-stat"><div class="stat-value">Major</div><div class="stat-label">Climb Type</div></div>
+                <div class="profile-stat"><div class="stat-value">2 Days</div><div class="stat-label">Recommended</div></div>
+            </div>
+            <div class="profile-desc">
+                <strong>Location:</strong> Brgy. Sta. Ines, Gen. Nakar, Quezon (Rizal&ndash;Quezon border)<br>
+                <strong>Features:</strong> 11 river crossings (one way), dense mossy forests, limestone rock formations, Kinabuan Falls<br><br>
+                Mt. Irid is the <strong>highest peak in Rizal</strong> at 1,467 MASL. This Major Climb (Difficulty 6/9) is known for its challenging <strong>11 river crossings</strong> to reach the basecamp at Sitio Sadlak, a stunning mossy forest on the summit trail, and dramatic limestone formations near the peak.
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
         <div class="section-header"><span class="icon">&#128506;</span><h3>Itinerary</h3></div>
         <div class="section-body">
             <div class="day-block">
-                <div class="day-label">Day 0 &mdash; Friday (July 18)</div>
-                <div class="time-entry"><span class="time">TBA</span><span class="activity"><strong>Assembly &amp; Departure</strong></span></div>
+                <div class="day-label">Day 1 &mdash; Saturday (July 18) &mdash; River Crossings &amp; Basecamp</div>
+                <div class="time-entry"><span class="time">03:00</span><span class="activity"><strong>Meetup</strong> at Cogeo Gate 2, Antipolo</span></div>
+                <div class="time-entry"><span class="time">04:00</span><span class="activity"><strong>Ride "Monster Jeep"</strong> to Brgy. Sta. Ines (river crossings expected)</span></div>
+                <div class="time-entry"><span class="time">06:30</span><span class="activity"><strong>Arrival at Brgy. Sta. Ines</strong> &mdash; registration, guides &amp; military courtesy call</span></div>
+                <div class="time-entry"><span class="time">07:30</span><span class="activity"><strong>Start Trek</strong> &mdash; 11 river crossings begin</span></div>
+                <div class="time-entry"><span class="time">10:30</span><span class="activity"><strong>Kinabuan Falls</strong> &mdash; early lunch &amp; quick swim</span></div>
+                <div class="time-entry"><span class="time">12:00</span><span class="activity"><strong>Resume trek</strong> &mdash; start of ascent toward basecamp</span></div>
+                <div class="time-entry"><span class="time">14:30</span><span class="activity"><strong>Arrival at Sitio Sadlak</strong> (Basecamp)</span></div>
+                <div class="time-entry"><span class="time">15:30</span><span class="activity"><strong>Pitch tents / secure bunkhouse</strong> &mdash; refill water at source</span></div>
+                <div class="time-entry"><span class="time">18:00</span><span class="activity"><strong>Dinner and socials</strong></span></div>
+                <div class="time-entry"><span class="time">20:00</span><span class="activity"><strong>Lights out</strong> &mdash; early start for summit assault</span></div>
             </div>
             <div class="day-block">
-                <div class="day-label">Day 1 &mdash; Saturday (July 19)</div>
-                <div class="time-entry"><span class="time">TBA</span><span class="activity"><strong>Trek to Mount Irid summit</strong></span></div>
-                <div class="time-entry"><span class="time">TBA</span><span class="activity"><strong>Descent &amp; return travel</strong></span></div>
+                <div class="day-label">Day 2 &mdash; Sunday (July 19) &mdash; Summit Assault &amp; Descent</div>
+                <div class="time-entry"><span class="time">04:00</span><span class="activity"><strong>Wake-up call</strong> &mdash; light breakfast &amp; prepare assault pack</span></div>
+                <div class="time-entry"><span class="time">05:00</span><span class="activity"><strong>Start Summit Assault</strong> &mdash; enter the mossy forest</span></div>
+                <div class="time-entry"><span class="time">07:30</span><span class="activity"><strong>Limestone Rock Formations</strong> &mdash; passage through</span></div>
+                <div class="time-entry"><span class="time">08:30</span><span class="activity"><strong>Summit of Mt. Irid</strong> &mdash; 1,467 masl &bull; view of the Sierra Madre range</span></div>
+                <div class="time-entry"><span class="time">10:00</span><span class="activity"><strong>Start descent</strong> back to Sitio Sadlak</span></div>
+                <div class="time-entry"><span class="time">12:00</span><span class="activity"><strong>Back at Basecamp</strong> &mdash; lunch &amp; break camp</span></div>
+                <div class="time-entry"><span class="time">13:30</span><span class="activity"><strong>Start descent</strong> back to Brgy. Sta. Ines</span></div>
+                <div class="time-entry"><span class="time">16:30</span><span class="activity"><strong>Back at Brgy. Hall</strong> &mdash; wash up &amp; log out</span></div>
+                <div class="time-entry"><span class="time">17:30</span><span class="activity"><strong>Depart for Cogeo / Manila</strong></span></div>
             </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#128167;</span><h3>Water Source Information</h3></div>
+        <div class="section-body">
+            <ul class="info-list">
+                <li><strong>Station 1 &mdash; Agos River tributaries:</strong> Abundant but not for drinking due to community and livestock upstream. Use for cooling off or washing only.</li>
+                <li><strong>Station 2 &mdash; Kinabuan Falls:</strong> Reliable source for cooking or washing; treat or boil before drinking.</li>
+                <li><strong>Station 3 &mdash; Sitio Sadlak Basecamp:</strong> Spring or pipe water near the bunkhouse. Refill here for dinner and summit assault.</li>
+                <li><strong>Summit Trail:</strong> No water sources from basecamp to summit. Carry at least <strong>1.5 L</strong> for the assault.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#128205;</span><h3>Map &amp; Route</h3></div>
+        <div class="section-body">
+            <p style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:12px;">Meetup point: Cogeo Gate 2, Antipolo. Ride a jeepney or rented monster jeep to Brgy. Sta. Ines, Gen. Nakar, Quezon. Military courtesy call/clearance is required at the detachment before the trek.</p>
+            <iframe class="map-frame" src="https://www.openstreetmap.org/export/embed.html?bbox=121.450%2C14.670%2C121.580%2C14.780&amp;layer=mapnik&amp;marker=14.725%2C121.515" title="Mt. Irid location map" loading="lazy"></iframe>
+            <p style="font-size:0.7rem;color:var(--ink-soft);margin-top:8px;">Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:var(--accent);">OpenStreetMap</a> contributors</p>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header"><span class="icon">&#127780;</span><h3>Weather &amp; Forecast</h3></div>
+        <div class="section-body">
+            <p style="font-size:0.84rem;color:var(--ink-soft);margin-bottom:14px;">Gen. Nakar and the Sierra Madre range receive heavy rainfall year-round. July is within the rainy season &mdash; river levels can rise significantly after rains. Check conditions and river status 24&ndash;48 hours before departure.</p>
+            <div class="weather-links">
+                <a class="weather-link" href="https://www.windy.com/14.725/121.515?14.725,121.515,10" target="_blank" rel="noopener">&#127788; Windy.com</a>
+                <a class="weather-link" href="https://www.pagasa.dost.gov.ph/weather" target="_blank" rel="noopener">&#127782; PAG-ASA Forecast</a>
+                <a class="weather-link" href="https://weather.com/weather/tenday/l/General+Nakar+Quezon+Philippines" target="_blank" rel="noopener">&#9925; Weather.com</a>
+            </div>
+            <p class="weather-note">&#9888; River crossings may become impassable during or after heavy rains. The climb lead reserves the right to cancel or postpone. Monitor PAG-ASA Tropical Cyclone bulletins closely.</p>
         </div>
     </div>
 
@@ -327,19 +418,22 @@
             <div class="section-header"><span class="icon">&#127890;</span><h3>Things to Bring</h3></div>
             <div class="section-body">
                 <ul class="info-list">
-                    <li>Day pack / Overnight pack</li>
-                    <li>Water, 2&ndash;3 liters per day</li>
+                    <li>Overnight pack with waterproof dry bags</li>
+                    <li>Trekking sandals (Day 1 river crossings)</li>
+                    <li>Hiking shoes with good grip (Day 2 summit)</li>
+                    <li>Water, at least 1.5&ndash;2 L for summit day</li>
+                    <li>Water filter or purification tablets</li>
                     <li>Snacks / Trail Food</li>
-                    <li>Packed lunch / breakfast</li>
+                    <li>Packed meals (Day 1 lunch, dinner, Day 2 breakfast &amp; lunch)</li>
                     <li>Mess Kit</li>
-                    <li>Sunscreen / Umbrella</li>
-                    <li>Jacket (preferably rainproof)</li>
-                    <li>Rain Gear</li>
+                    <li>Tent or sleeping bag (for Sitio Sadlak)</li>
+                    <li>Jacket / rain gear (rainproof)</li>
                     <li>Emergency blanket</li>
                     <li>Individual first aid kit</li>
+                    <li>Salt or alcohol (for limatik / leeches)</li>
                     <li>Personal Toiletries</li>
-                    <li>Head Lamp</li>
-                    <li>Camera / Mobile Phone</li>
+                    <li>Head Lamp + extra batteries</li>
+                    <li>Camera / Mobile Phone (in waterproof case)</li>
                     <li>Plastic Bag / Trash Bag</li>
                     <li>Trekking Poles (optional)</li>
                 </ul>
@@ -370,11 +464,34 @@
     </div>
 
     <div class="section-card">
+        <div class="section-header"><span class="icon">&#9888;&#65039;</span><h3>Essential Gear &amp; Reminders</h3></div>
+        <div class="section-body">
+            <div class="caution-card">
+                <div class="caution-title">Footwear Strategy</div>
+                <div class="caution-body">Use <strong>trekking sandals</strong> for Day 1 (11 river crossings). Switch to <strong>hiking shoes with good grip</strong> at the basecamp for the muddy and rocky summit assault on Day 2.</div>
+            </div>
+            <div class="caution-card">
+                <div class="caution-title">&#128027; Limatik (Blood Leeches)</div>
+                <div class="caution-body">Mt. Irid is notorious for blood leeches, especially during the rainy season. <strong>Bring alcohol or salt</strong> to safely remove them. Do not pull them off forcefully.</div>
+            </div>
+            <div class="caution-card">
+                <div class="caution-title">&#128100; Military Clearance Required</div>
+                <div class="caution-body">A <strong>courtesy call and clearance</strong> from the local military detachment in Brgy. Sta. Ines is <strong>required</strong> before starting the hike. The climb lead must coordinate this in advance.</div>
+            </div>
+            <div class="caution-card">
+                <div class="caution-title">&#128167; Waterproofing is Essential</div>
+                <div class="caution-body">Place all electronics, clothes, and documents in <strong>dry bags</strong>. River crossings can reach <strong>waist-deep</strong> depending on recent rainfall. Assume everything will get wet.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
         <div class="section-header"><span class="icon">&#128176;</span><h3>Estimated Expenses</h3></div>
         <div class="section-body">
-                        <div class="expense-row"><div><div class="expense-label">Transportation</div></div><div class="expense-amount">TBA</div></div>
-            <div class="expense-row"><div><div class="expense-label">Registration / Fees</div></div><div class="expense-amount">TBA</div></div>
-            <div class="expense-row"><div><div class="expense-label">Food &amp; Accommodation</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Transportation</div><div class="expense-note">Round trip, Cogeo&ndash;Sta. Ines (Monster Jeep)</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Registration / Guide Fee</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Bunkhouse / Campsite Fee</div><div class="expense-note">Sitio Sadlak</div></div><div class="expense-amount">TBA</div></div>
+            <div class="expense-row"><div><div class="expense-label">Food &amp; Meals</div></div><div class="expense-amount">TBA</div></div>
         </div>
     </div>
 
