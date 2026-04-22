@@ -298,6 +298,127 @@
         .weather-link { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; background: rgba(0,0,0,0.04); border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: var(--ink); border: 1px solid rgba(0,0,0,0.08); transition: background 0.15s; text-decoration: none; }
         .weather-link:hover { background: rgba(0,0,0,0.09); }
         .weather-note { font-size: 0.77rem; color: var(--ink-soft); margin-top: 12px; line-height: 1.5; }
+
+        /* ELEVATION PROFILE */
+        .elev-section { margin-bottom: 24px; }
+        .elev-title {
+            font-family: var(--font-head);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--ink);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .elev-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-left: auto;
+            font-size: 0.58rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--ink-soft);
+        }
+        .elev-legend-item { display: flex; align-items: center; gap: 4px; }
+        .elev-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+        .elev-chart-wrap {
+            background: #fff;
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 10px;
+            padding: 16px 8px 8px;
+            margin-bottom: 12px;
+        }
+        .elev-chart { width: 100%; height: auto; display: block; }
+        .elev-grade-bar {
+            display: flex;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 4px 8px 0;
+        }
+        .elev-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 1px;
+            background: rgba(0,0,0,0.06);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 28px;
+        }
+        .elev-stat { text-align: center; padding: 12px 6px; background: #fff; }
+        .elev-stat-label {
+            font-family: var(--font-head);
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+            margin-bottom: 4px;
+        }
+        .elev-stat-value { font-family: var(--font-head); font-size: 1.1rem; font-weight: 900; color: var(--accent); }
+        .elev-stat-value.positive { color: #2e7d32; }
+        .elev-stat-value.negative { color: #c62828; }
+        .route-summary-title {
+            font-family: var(--font-head);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--ink);
+            margin-bottom: 14px;
+        }
+        .route-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .route-step:last-child { border-bottom: none; }
+        .route-step-num {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--accent); color: #fff;
+            font-family: var(--font-head); font-size: 0.85rem; font-weight: 900;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .route-step-title {
+            font-family: var(--font-head);
+            font-size: 0.85rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink);
+        }
+        .route-step-desc { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.5; margin-top: 3px; }
+        .elev-details {
+            margin-top: 24px;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            padding-top: 20px;
+        }
+        .elev-details-title {
+            font-family: var(--font-head);
+            font-size: 0.72rem; font-weight: 800;
+            letter-spacing: 3px; text-transform: uppercase;
+            color: var(--ink); margin-bottom: 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .elev-detail-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; background: rgba(0,0,0,0.02);
+            border-radius: 10px; margin-bottom: 8px;
+        }
+        .elev-detail-row:last-child { margin-bottom: 0; }
+        .elev-detail-left { display: flex; align-items: center; gap: 12px; }
+        .elev-detail-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .elev-detail-name {
+            font-family: var(--font-head); font-size: 0.85rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink);
+        }
+        .elev-detail-sub { font-size: 0.68rem; color: var(--ink-soft); margin-top: 1px; }
+        .elev-detail-value { font-family: var(--font-head); font-size: 1.2rem; font-weight: 900; color: var(--accent); }
+        .elev-detail-value.gain { color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -396,6 +517,171 @@
     <div class="section-card">
         <div class="section-header"><span class="icon">&#128205;</span><h3>Map &amp; Route</h3></div>
         <div class="section-body">
+
+            <!-- ELEVATION PROFILE -->
+            <div class="elev-section">
+                <div class="elev-title">
+                    <span class="icon">&#10138;</span> Elevation Profile
+                    <div class="elev-legend">
+                        <div class="elev-legend-item"><span class="elev-legend-dot" style="background:#4CAF50;"></span> Flat &lt;3%</div>
+                        <div class="elev-legend-item"><span class="elev-legend-dot" style="background:#8BC34A;"></span> Easy 3&ndash;6%</div>
+                        <div class="elev-legend-item"><span class="elev-legend-dot" style="background:#FFC107;"></span> Mod 6&ndash;10%</div>
+                        <div class="elev-legend-item"><span class="elev-legend-dot" style="background:#FF9800;"></span> Steep 10&ndash;15%</div>
+                        <div class="elev-legend-item"><span class="elev-legend-dot" style="background:#F44336;"></span> &gt;15%</div>
+                    </div>
+                </div>
+                <div class="elev-chart-wrap">
+                    <svg class="elev-chart" viewBox="0 0 600 210" preserveAspectRatio="xMidYMid meet" aria-label="Elevation profile chart for Mount Irid" role="img">
+                        <defs>
+                            <linearGradient id="iFill" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#8BC34A" stop-opacity="0.20"/>
+                                <stop offset="40%" stop-color="#FFC107" stop-opacity="0.28"/>
+                                <stop offset="100%" stop-color="#F44336" stop-opacity="0.22"/>
+                            </linearGradient>
+                            <linearGradient id="iLine" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#4CAF50"/>
+                                <stop offset="35%" stop-color="#FFC107"/>
+                                <stop offset="100%" stop-color="#F44336"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Grid lines -->
+                        <line x1="50" y1="20" x2="570" y2="20" stroke="rgba(0,0,0,0.06)" stroke-dasharray="4,4"/>
+                        <line x1="50" y1="60" x2="570" y2="60" stroke="rgba(0,0,0,0.06)" stroke-dasharray="4,4"/>
+                        <line x1="50" y1="100" x2="570" y2="100" stroke="rgba(0,0,0,0.06)" stroke-dasharray="4,4"/>
+                        <line x1="50" y1="140" x2="570" y2="140" stroke="rgba(0,0,0,0.06)" stroke-dasharray="4,4"/>
+                        <line x1="50" y1="180" x2="570" y2="180" stroke="rgba(0,0,0,0.08)"/>
+                        <!-- Y-axis labels -->
+                        <text x="46" y="24" text-anchor="end" fill="#999" font-size="9" font-family="Barlow, sans-serif">1467m</text>
+                        <text x="46" y="64" text-anchor="end" fill="#999" font-size="9" font-family="Barlow, sans-serif">1145m</text>
+                        <text x="46" y="104" text-anchor="end" fill="#999" font-size="9" font-family="Barlow, sans-serif">824m</text>
+                        <text x="46" y="144" text-anchor="end" fill="#999" font-size="9" font-family="Barlow, sans-serif">502m</text>
+                        <text x="46" y="184" text-anchor="end" fill="#999" font-size="9" font-family="Barlow, sans-serif">180m</text>
+                        <!-- Filled area -->
+                        <path d="M 50,180 L 93,178 137,176 180,173 223,166 267,155 310,140 353,122 397,103 440,83 483,60 527,36 570,20 L 570,180 Z" fill="url(#iFill)"/>
+                        <!-- Elevation line -->
+                        <path d="M 50,180 L 93,178 137,176 180,173 223,166 267,155 310,140 353,122 397,103 440,83 483,60 527,36 570,20" fill="none" stroke="url(#iLine)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <!-- Basecamp marker -->
+                        <circle cx="397" cy="103" r="4" fill="#FFC107" stroke="#fff" stroke-width="2"/>
+                        <text x="397" y="96" text-anchor="middle" fill="#b8860b" font-size="7" font-weight="700" font-family="Barlow Condensed, sans-serif">BASECAMP</text>
+                        <!-- Start / Summit dots -->
+                        <circle cx="50" cy="180" r="5" fill="#4CAF50" stroke="#fff" stroke-width="2"/>
+                        <circle cx="570" cy="20" r="5" fill="#F44336" stroke="#fff" stroke-width="2"/>
+                        <!-- X-axis labels -->
+                        <text x="50" y="198" text-anchor="middle" fill="#999" font-size="8" font-family="Barlow, sans-serif">0 km</text>
+                        <text x="137" y="198" text-anchor="middle" fill="#999" font-size="8" font-family="Barlow, sans-serif">2 km</text>
+                        <text x="223" y="198" text-anchor="middle" fill="#999" font-size="8" font-family="Barlow, sans-serif">4 km</text>
+                        <text x="310" y="198" text-anchor="middle" fill="#999" font-size="8" font-family="Barlow, sans-serif">6 km</text>
+                        <text x="397" y="198" text-anchor="middle" fill="#999" font-size="8" font-family="Barlow, sans-serif">8 km</text>
+                        <text x="483" y="198" text-anchor="middle" fill="#999" font-size="8" font-family="Barlow, sans-serif">10 km</text>
+                        <text x="570" y="198" text-anchor="middle" fill="#999" font-size="8" font-family="Barlow, sans-serif">12 km</text>
+                    </svg>
+                    <div class="elev-grade-bar">
+                        <div style="flex:1;background:#4CAF50;" title="Flat 1.5%"></div>
+                        <div style="flex:1;background:#4CAF50;" title="Flat 1.5%"></div>
+                        <div style="flex:1;background:#8BC34A;" title="Easy 3.0%"></div>
+                        <div style="flex:1;background:#8BC34A;" title="Easy 5.0%"></div>
+                        <div style="flex:1;background:#FFC107;" title="Moderate 8.0%"></div>
+                        <div style="flex:1;background:#FF9800;" title="Steep 11.0%"></div>
+                        <div style="flex:1;background:#FF9800;" title="Steep 14.0%"></div>
+                        <div style="flex:1;background:#F44336;" title="Very Steep 18.0%"></div>
+                        <div style="flex:1;background:#F44336;" title="Very Steep 16.0%"></div>
+                        <div style="flex:1;background:#F44336;" title="Very Steep 19.0%"></div>
+                        <div style="flex:1;background:#F44336;" title="Very Steep 19.0%"></div>
+                        <div style="flex:1;background:#FF9800;" title="Steep 12.7%"></div>
+                    </div>
+                </div>
+                <div class="elev-stats">
+                    <div class="elev-stat"><div class="elev-stat-label">Ascent</div><div class="elev-stat-value positive">+1,287m</div></div>
+                    <div class="elev-stat"><div class="elev-stat-label">Descent</div><div class="elev-stat-value negative">&minus;63m</div></div>
+                    <div class="elev-stat"><div class="elev-stat-label">Summit</div><div class="elev-stat-value">1,467m</div></div>
+                    <div class="elev-stat"><div class="elev-stat-label">Jumpoff</div><div class="elev-stat-value">180m</div></div>
+                    <div class="elev-stat"><div class="elev-stat-label">Avg Grade</div><div class="elev-stat-value">10.7%</div></div>
+                    <div class="elev-stat"><div class="elev-stat-label">Max Grade</div><div class="elev-stat-value">19.0%</div></div>
+                </div>
+
+                <div class="route-summary-title">Route Summary</div>
+                <div class="route-steps">
+                    <div class="route-step">
+                        <div class="route-step-num">1</div>
+                        <div>
+                            <div class="route-step-title">Starting Point (Jumpoff)</div>
+                            <div class="route-step-desc">Begin at 180m in Brgy. Sta. Ines after military clearance. Prepare trekking sandals for 11 river crossings ahead.</div>
+                        </div>
+                    </div>
+                    <div class="route-step">
+                        <div class="route-step-num">2</div>
+                        <div>
+                            <div class="route-step-title">River Crossings &amp; Kinabuan Falls</div>
+                            <div class="route-step-desc">Navigate 11 river crossings through the Agos River tributaries. Stop at Kinabuan Falls for lunch and a swim before the ascent steepens.</div>
+                        </div>
+                    </div>
+                    <div class="route-step">
+                        <div class="route-step-num">3</div>
+                        <div>
+                            <div class="route-step-title">Basecamp &mdash; Sitio Sadlak (800m)</div>
+                            <div class="route-step-desc">Arrive at basecamp at ~800m. Set up camp, refill water, and rest for the early morning summit assault.</div>
+                        </div>
+                    </div>
+                    <div class="route-step">
+                        <div class="route-step-num">4</div>
+                        <div>
+                            <div class="route-step-title">Summit Assault &mdash; Mossy Forest</div>
+                            <div class="route-step-desc">Gain 667m through dense mossy forest and dramatic limestone rock formations. The steepest section of the climb.</div>
+                        </div>
+                    </div>
+                    <div class="route-step">
+                        <div class="route-step-num">5</div>
+                        <div>
+                            <div class="route-step-title">Summit (1,467m)</div>
+                            <div class="route-step-desc">Reach the highest peak of Rizal province with sweeping views of the Sierra Madre range. Rest and capture the moment before descending.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="elev-details">
+                    <div class="elev-details-title">&#9881; Elevation Details</div>
+                    <div class="elev-detail-row">
+                        <div class="elev-detail-left">
+                            <span class="elev-detail-dot" style="background:#4CAF50;"></span>
+                            <div>
+                                <div class="elev-detail-name">Jumpoff Point</div>
+                                <div class="elev-detail-sub">Starting elevation</div>
+                            </div>
+                        </div>
+                        <div class="elev-detail-value">180m</div>
+                    </div>
+                    <div class="elev-detail-row">
+                        <div class="elev-detail-left">
+                            <span class="elev-detail-dot" style="background:#FFC107;"></span>
+                            <div>
+                                <div class="elev-detail-name">Basecamp (Sitio Sadlak)</div>
+                                <div class="elev-detail-sub">Overnight camp</div>
+                            </div>
+                        </div>
+                        <div class="elev-detail-value">800m</div>
+                    </div>
+                    <div class="elev-detail-row">
+                        <div class="elev-detail-left">
+                            <span class="elev-detail-dot" style="background:#F44336;"></span>
+                            <div>
+                                <div class="elev-detail-name">Summit</div>
+                                <div class="elev-detail-sub">Peak elevation</div>
+                            </div>
+                        </div>
+                        <div class="elev-detail-value">1,467m</div>
+                    </div>
+                    <div class="elev-detail-row">
+                        <div class="elev-detail-left">
+                            <span class="elev-detail-dot" style="background:transparent;border:2px solid #2e7d32;width:10px;height:10px;"></span>
+                            <div>
+                                <div class="elev-detail-name">Total Elevation Gain</div>
+                            </div>
+                        </div>
+                        <div class="elev-detail-value gain">+1,287m</div>
+                    </div>
+                </div>
+            </div>
+
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">
                 <div style="background:rgba(0,0,0,0.03);border-radius:10px;padding:12px;text-align:center;">
                     <div style="font-family:var(--font-head);font-size:1.1rem;font-weight:900;color:var(--accent);">Brgy. Sta. Ines</div>
