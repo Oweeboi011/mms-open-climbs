@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMS Open Climbs 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+    /* ─────────────────────────────────────────────────────────
+       TOKENS
+    ───────────────────────────────────────────────────────── */
+    :root {
+        --green-dark:  #0d2b12;
+        --green-mid:   #1a4d23;
+        --green-light: #2e7d32;
+        --green-pale:  #e8f5e9;
+        --gold:        #c8a000;
+        --gold-light:  #f0c800;
+        --gold-pale:   #fff8e1;
+        --white:       #ffffff;
+        --ink:         #1a1a1a;
+        --ink-soft:    #4a4a4a;
+        --surface:     #f7f9f5;
+        --border:      rgba(46,125,50,0.15);
+        --shadow-sm:   0 2px 8px rgba(0,0,0,0.07);
+        --shadow-md:   0 8px 30px rgba(0,0,0,0.11);
+        --shadow-lg:   0 20px 60px rgba(0,0,0,0.14);
+        --radius-sm:   8px;
+        --radius-md:   14px;
+        --radius-lg:   22px;
+        --font-head:   'Barlow Condensed', 'Arial Narrow', sans-serif;
+        --font-body:   'Barlow', Arial, sans-serif;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       RESET
+    ───────────────────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ─────────────────────────────────────────────────────────
+       BASE
+    ───────────────────────────────────────────────────────── */
+    body {
+        font-family: var(--font-body);
+        background-color: var(--surface);
+        color: var(--ink);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* ─────────────────────────────────────────────────────────
+       HEADER
+    ───────────────────────────────────────────────────────── */
+    .header {
+        position: sticky;
+        top: 0;
+        z-index: 300;
+        background: var(--green-dark);
+        border-bottom: 3px solid var(--gold);
+        padding: 0 32px;
+        height: 68px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+
+    .header-logo {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        object-fit: contain;
+        background: #fff;
+        padding: 2px;
+        border: 2px solid var(--gold);
+        flex-shrink: 0;
+    }
+
+    .header-text h1 {
+        font-family: var(--font-head);
+        font-size: clamp(0.85rem, 2vw, 1.05rem);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 2.5px;
+        color: #fff;
+        line-height: 1.2;
+    }
+
+    .header-text h1 em {
+        color: var(--gold-light);
+        font-style: normal;
+    }
+
+    .header-text p {
+        font-size: 0.62rem;
+        color: rgba(255,255,255,0.55);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-top: 1px;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       HERO BANNER
+    ───────────────────────────────────────────────────────── */
+    .hero {
+        background: var(--green-dark);
+        background-image:
+            radial-gradient(ellipse at 0% 100%, rgba(46,125,50,0.45) 0%, transparent 55%),
+            radial-gradient(ellipse at 100% 0%, rgba(200,160,0,0.12) 0%, transparent 50%);
+        color: #fff;
+        text-align: center;
+        padding: 64px 24px 52px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero::after {
+        content: '';
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 50px;
+        background: var(--surface);
+        clip-path: ellipse(55% 100% at 50% 100%);
+        z-index: 2;
+    }
+
+    .hero-eyebrow,
+    .hero-title,
+    .hero-divider,
+    .hero-tagline { position: relative; z-index: 1; }
+
+    .hero-eyebrow {
+        font-family: var(--font-head);
+        font-size: 0.7rem;
+        letter-spacing: 5px;
+        text-transform: uppercase;
+        color: var(--gold-light);
+        margin-bottom: 14px;
+        opacity: 0.9;
+    }
+
+    .hero-title {
+        font-family: var(--font-head);
+        font-size: clamp(3rem, 10vw, 6.5rem);
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        line-height: 0.95;
+    }
+
+    .hero-title .label-open  { color: var(--gold-light); display: block; }
+    .hero-title .label-climb { color: #fff; display: block; }
+
+    .hero-divider {
+        width: 60px;
+        height: 3px;
+        background: var(--gold);
+        margin: 22px auto 18px;
+        border-radius: 2px;
+        opacity: 0.8;
+    }
+
+    .hero-tagline {
+        font-size: 0.82rem;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.55);
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       STATS STRIP
+    ───────────────────────────────────────────────────────── */
+    .stats-bar {
+        display: flex;
+        justify-content: center;
+        gap: 0;
+        background: var(--white);
+        border-bottom: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+        flex-wrap: wrap;
+    }
+
+    .stat {
+        flex: 1 1 100px;
+        text-align: center;
+        padding: 18px 16px;
+        border-right: 1px solid var(--border);
+        min-width: 80px;
+        max-width: 160px;
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat-num {
+        font-family: var(--font-head);
+        font-size: 2.2rem;
+        font-weight: 900;
+        color: var(--green-light);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-top: 3px;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       FILTERS
+    ───────────────────────────────────────────────────────── */
+    .filters-wrap {
+        background: var(--white);
+        border-bottom: 1px solid var(--border);
+        padding: 14px 28px;
+        position: sticky;
+        top: 68px;
+        z-index: 200;
+    }
+
+    .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        justify-content: center;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .filter-btn {
+        font-family: var(--font-head);
+        padding: 5px 16px;
+        border-radius: 20px;
+        border: 1.5px solid var(--border);
+        background: transparent;
+        color: var(--ink-soft);
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        transition: all 0.18s ease;
+    }
+
+    .filter-btn:hover {
+        border-color: var(--green-light);
+        color: var(--green-light);
+        background: var(--green-pale);
+    }
+
+    .filter-btn.active {
+        background: var(--green-dark);
+        border-color: var(--green-dark);
+        color: #fff;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       SECTION MONTH LABEL
+    ───────────────────────────────────────────────────────── */
+    .section-month {
+        grid-column: 1 / -1;
+        font-family: var(--font-head);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 5px;
+        text-transform: uppercase;
+        color: var(--green-mid);
+        padding: 20px 0 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .section-month::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       GRID
+    ───────────────────────────────────────────────────────── */
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 18px;
+        padding: 28px 32px 80px;
+        max-width: 1300px;
+        margin: 0 auto;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       CARD
+    ───────────────────────────────────────────────────────── */
+    .card-link {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+    }
+
+    .card-link:focus-visible {
+        outline: 3px solid var(--gold);
+        outline-offset: 3px;
+    }
+
+    .card {
+        border-radius: var(--radius-md);
+        padding: 22px 20px 18px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 185px;
+        color: #fff;
+        transition: transform 0.22s cubic-bezier(.34,1.56,.64,1), box-shadow 0.22s ease;
+        box-shadow: var(--shadow-md);
+    }
+
+    /* shine overlay */
+    .card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 50%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 100%);
+        pointer-events: none;
+        border-radius: inherit;
+    }
+
+    /* subtle noise texture */
+    .card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        border-radius: inherit;
+        opacity: 0.6;
+    }
+
+    .card-link:hover .card {
+        transform: translateY(-7px) scale(1.02);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .card-link:hover .card-arrow {
+        background: rgba(255,255,255,0.30);
+        transform: translateX(3px);
+    }
+
+    .card-month {
+        font-family: var(--font-head);
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        opacity: 0.75;
+        margin-bottom: 2px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .card-date {
+        font-family: var(--font-head);
+        font-size: 2.6rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -1px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .card-name {
+        font-family: var(--font-head);
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-top: 12px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .card-location {
+        font-size: 0.68rem;
+        opacity: 0.7;
+        margin-top: 3px;
+        min-height: 14px;
+        font-weight: 500;
+        position: relative;
+        z-index: 1;
+    }
+
+    .card-footer {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        z-index: 1;
+    }
+
+    .card-badge {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 10px;
+        font-family: var(--font-head);
+        font-size: 0.65rem;
+        font-weight: 800;
+        font-style: italic;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .badge-minor   { background: rgba(255,255,255,0.20); color: #fff; }
+    .badge-major   { background: rgba(0,0,0,0.22); color: #fff; border: 1px solid rgba(255,255,255,0.18); }
+    .badge-special { background: rgba(200,160,0,0.28); color: #ffe066; border: 1px solid rgba(255,220,50,0.4); }
+
+    .card-arrow {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        transition: background 0.18s, transform 0.18s;
+    }
+
+
+
+    /* ── Card colour palette ── */
+    .c-slate     { background: linear-gradient(145deg, #37474f 0%, #1c313a 100%); }
+    .c-crimson   { background: linear-gradient(145deg, #c0392b 0%, #7b241c 100%); }
+    .c-purple    { background: linear-gradient(145deg, #7b3f9e 0%, #4a235a 100%); }
+    .c-teal      { background: linear-gradient(145deg, #00897b 0%, #00574b 100%); }
+    .c-ember     { background: linear-gradient(145deg, #e65100 0%, #a33900 100%); }
+    .c-forest    { background: linear-gradient(145deg, #2e7d32 0%, #1b5e20 100%); }
+    .c-olive     { background: linear-gradient(145deg, #6d6f28 0%, #4a4d1a 100%); }
+    .c-navy      { background: linear-gradient(145deg, #1565c0 0%, #0d3a7a 100%); }
+    .c-gold      { background: linear-gradient(145deg, #b8860b 0%, #7d5d00 100%); }
+    .c-magenta   { background: linear-gradient(145deg, #ad1457 0%, #6a0f37 100%); }
+    .c-indigo    { background: linear-gradient(145deg, #3949ab 0%, #1a237e 100%); }
+    .c-deep-teal { background: linear-gradient(145deg, #00695c 0%, #003d35 100%); }
+
+    /* ── Wide card ── */
+    @media (min-width: 660px) {
+        .card-wide { grid-column: span 2; }
+        .card-wide .card-date { font-size: 2rem; letter-spacing: 0; }
+    }
+
+    /* ── Hidden ── */
+    .card-link.hidden { display: none; }
+
+    /* ─────────────────────────────────────────────────────────
+       FOOTER
+    ───────────────────────────────────────────────────────── */
+    .footer {
+        background: var(--green-dark);
+        color: rgba(255,255,255,0.5);
+        text-align: center;
+        padding: 28px 24px;
+        font-size: 0.7rem;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        line-height: 2;
+    }
+
+    .footer strong { color: var(--gold-light); }
+
+    /* ─────────────────────────────────────────────────────────
+       RESPONSIVE
+    ───────────────────────────────────────────────────────── */
+    @media (max-width: 520px) {
+        .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px 14px 56px; }
+        .card-date { font-size: 1.9rem; }
+        .stat-num  { font-size: 1.7rem; }
+        .header { padding: 0 16px; }
+        .hero { padding: 48px 20px 44px; }
+        .filters-wrap { padding: 10px 14px; }
+    }
+
+    </style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────── -->
+<header class="header">
+    <img src="images/MMS.png" alt="MMS Logo" class="header-logo">
+    <div class="header-text">
+        <h1>Metropolitan <em>Mountaineering</em> Society</h1>
+        <p>Open Climbs 2026 &mdash; Schedule Plan</p>
+    </div>
+</header>
+
+<!-- ── HERO ────────────────────────────────────────── -->
+<section class="hero">
+    <p class="hero-eyebrow">Metropolitan Mountaineering Society &bull; Founded 1994</p>
+    <h2 class="hero-title">
+        <span class="label-open">Open Climb:</span>
+        <span class="label-climb">Schedule</span>
+    </h2>
+    <div class="hero-divider"></div>
+    <p class="hero-tagline">Welcome Participation from Interested Guests</p>
+</section>
+
+<!-- ── STATS ───────────────────────────────────────── -->
+<div class="stats-bar">
+    <div class="stat"><div class="stat-num">12</div><div class="stat-label">Total Climbs</div></div>
+    <div class="stat"><div class="stat-num">5</div><div class="stat-label">Major</div></div>
+    <div class="stat"><div class="stat-num">5</div><div class="stat-label">Minor</div></div>
+    <div class="stat"><div class="stat-num">2</div><div class="stat-label">Special</div></div>
+</div>
+
+<!-- ── FILTERS ─────────────────────────────────────── -->
+<div class="filters-wrap">
+    <div class="filters">
+        <button class="filter-btn active" type="button" data-filter="all">All</button>
+        <button class="filter-btn" type="button" data-filter="minor">Minor</button>
+        <button class="filter-btn" type="button" data-filter="major">Major</button>
+        <button class="filter-btn" type="button" data-filter="special">Special</button>
+        <button class="filter-btn" type="button" data-filter="jul">July</button>
+        <button class="filter-btn" type="button" data-filter="aug">August</button>
+        <button class="filter-btn" type="button" data-filter="sep">September</button>
+        <button class="filter-btn" type="button" data-filter="oct">October</button>
+        <button class="filter-btn" type="button" data-filter="nov">November</button>
+        <button class="filter-btn" type="button" data-filter="dec">December</button>
+    </div>
+</div>
+
+<!-- ── GRID ────────────────────────────────────────── -->
+<main class="grid" id="climbGrid">
+
+    <!-- JULY -->
+    <div class="section-month" data-month="jul">July 2026</div>
+
+    <a class="card-link" href="events/kapigpiglatan.html" data-tags="minor jul">
+        <div class="card c-slate">
+            <div>
+                <div class="card-month">JUL</div>
+                <div class="card-date">04&ndash;05</div>
+                <div class="card-name">Mt. Kapigpiglatan</div>
+                <div class="card-location">&nbsp;</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-minor">Minor</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <a class="card-link" href="events/irid.html" data-tags="major jul">
+        <div class="card c-crimson">
+            <div>
+                <div class="card-month">JUL</div>
+                <div class="card-date">18&ndash;19</div>
+                <div class="card-name">Mount Irid</div>
+                <div class="card-location">&nbsp;</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-major">Major</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <!-- AUGUST -->
+    <div class="section-month" data-month="aug">August 2026</div>
+
+    <a class="card-link" href="events/kalisungan-mabilog.html" data-tags="minor aug">
+        <div class="card c-purple">
+            <div>
+                <div class="card-month">AUG</div>
+                <div class="card-date">01&ndash;02</div>
+                <div class="card-name">Mt. Kalisungan &amp; Mt. Mabilog</div>
+                <div class="card-location">Twin Hike</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-minor">Minor</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <a class="card-link" href="events/tarak-ridge.html" data-tags="minor aug">
+        <div class="card c-teal">
+            <div>
+                <div class="card-month">AUG</div>
+                <div class="card-date">15&ndash;16</div>
+                <div class="card-name">Tarak Ridge</div>
+                <div class="card-location">&nbsp;</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-minor">Minor</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <a class="card-link" href="events/sicapoo.html" data-tags="major aug">
+        <div class="card c-ember">
+            <div>
+                <div class="card-month">AUG</div>
+                <div class="card-date">29&ndash;31</div>
+                <div class="card-name">Sicapoo</div>
+                <div class="card-location">Orig Trail</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-major">Major</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <!-- SEPTEMBER -->
+    <div class="section-month" data-month="sep">September 2026</div>
+
+    <a class="card-link" href="events/manalmon.html" data-tags="minor sep">
+        <div class="card c-forest">
+            <div>
+                <div class="card-month">SEP</div>
+                <div class="card-date">12&ndash;13</div>
+                <div class="card-name">Mt. Manalmon</div>
+                <div class="card-location">&nbsp;</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-minor">Minor</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <a class="card-link card-wide" href="events/apo.html" data-tags="special sep">
+        <div class="card c-olive">
+            <div>
+                <div class="card-month">SEP</div>
+                <div class="card-date">18&ndash;22</div>
+                <div class="card-name">Mt. Apo</div>
+                <div class="card-location">Davao del Sur &mdash; Highest Peak in the Philippines</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-special">Special</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <a class="card-link" href="events/pulag.html" data-tags="major sep">
+        <div class="card c-navy">
+            <div>
+                <div class="card-month">SEP</div>
+                <div class="card-date">26&ndash;27</div>
+                <div class="card-name">Mt. Pulag</div>
+                <div class="card-location">Akiki Trail</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-major">Major</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <!-- OCTOBER -->
+    <div class="section-month" data-month="oct">October 2026</div>
+
+    <a class="card-link" href="events/marami.html" data-tags="minor oct">
+        <div class="card c-gold">
+            <div>
+                <div class="card-month">OCT</div>
+                <div class="card-date">10&ndash;11</div>
+                <div class="card-name">Mt. Marami</div>
+                <div class="card-location">&nbsp;</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-minor">Minor</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <a class="card-link" href="events/pinatubo.html" data-tags="major oct">
+        <div class="card c-magenta">
+            <div>
+                <div class="card-month">OCT</div>
+                <div class="card-date">24&ndash;25</div>
+                <div class="card-name">Pinatubo</div>
+                <div class="card-location">via Sapang Uwak</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-major">Major</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <!-- NOVEMBER -->
+    <div class="section-month" data-month="nov">November 2026</div>
+
+    <a class="card-link" href="events/mabilog.html" data-tags="minor nov">
+        <div class="card c-indigo">
+            <div>
+                <div class="card-month">NOV</div>
+                <div class="card-date">07&ndash;08</div>
+                <div class="card-name">Mt. Mabilog</div>
+                <div class="card-location">&nbsp;</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-minor">Minor</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+    <a class="card-link card-wide" href="events/kinabalu.html" data-tags="special nov dec">
+        <div class="card c-deep-teal">
+            <div>
+                <div class="card-month">NOV 29 &ndash; DEC 02</div>
+                <div class="card-date" style="font-size:1.8rem; letter-spacing:0;">Mt. Kinabalu</div>
+                <div class="card-location">Kota Kinabalu, Sabah, Malaysia &mdash; International</div>
+            </div>
+            <div class="card-footer">
+                <span class="card-badge badge-special">Special</span>
+                <span class="card-arrow">&#8594;</span>
+            </div>
+        </div>
+    </a>
+
+</main>
+
+<!-- ── FOOTER ──────────────────────────────────────── -->
+<footer class="footer">
+    <p><strong>Metropolitan Mountaineering Society</strong> &bull; Open Climbs 2026</p>
+    <p>For inquiries, contact your MMS Open Climbs Coordinator.</p>
+</footer>
+
+<!-- ── FILTER SCRIPT ───────────────────────────────── -->
+<script>
+(function () {
+    const buttons      = document.querySelectorAll('.filter-btn');
+    const links        = document.querySelectorAll('.card-link[data-tags]');
+    const monthHeaders = document.querySelectorAll('.section-month');
+
+    function applyFilter(filter) {
+        links.forEach(link => {
+            const tags    = (link.dataset.tags || '').split(' ');
+            const visible = filter === 'all' || tags.includes(filter);
+            link.classList.toggle('hidden', !visible);
+        });
+
+        monthHeaders.forEach(header => {
+            const month = header.dataset.month;
+            const sibs  = document.querySelectorAll(`.card-link[data-tags~="${month}"]`);
+            const any   = Array.from(sibs).some(c => !c.classList.contains('hidden'));
+            header.style.display = (filter === 'all' || any) ? '' : 'none';
+        });
+    }
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFilter(btn.dataset.filter);
+        });
+    });
+})();
+</script>
+
+</body>
+</html>
