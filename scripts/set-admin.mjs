@@ -46,6 +46,7 @@ const body = {
     email:       { stringValue: email },
     role:        { stringValue: 'admin' },
     addedBy:     { stringValue: 'self' },
+    createdAt:   { timestampValue: new Date().toISOString() },
   }
 };
 

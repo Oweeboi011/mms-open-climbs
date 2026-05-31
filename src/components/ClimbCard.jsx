@@ -34,8 +34,8 @@ export default function ClimbCard({ climb }) {
             </div>
           )}
 
-          {climb.itineraryReady ? (
-            <span className="card-itinerary-ready">&#10003; Itinerary Ready</span>
+          {climb.itinerary?.length > 0 ? (
+            <span className="card-itinerary-ready">&#10003; Itinerary Available</span>
           ) : (
             <span className="card-itinerary-tag">&#8987; Itinerary Coming Soon</span>
           )}
