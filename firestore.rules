@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function climbIsOpen(climbId) {
+      return get(/databases/$(database)/documents/climbs/$(climbId)).data.status == 'open';
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && request.resource.data.role == 'member';
+      allow update: if isAdmin() || isOwner(userId);
+      allow delete: if isAdmin();
+    }
+
+    match /climbs/{climbId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /registrations/{regId} {
+      allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+      allow create: if isSignedIn() &&
+        isOwner(request.resource.data.userId) &&
+        climbIsOpen(request.resource.data.climbId);
+      allow update: if isAdmin() || isOwner(resource.data.userId);
+      allow delete: if isAdmin();
+    }
+  }
+}

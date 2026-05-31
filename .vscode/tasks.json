@@ -1,0 +1,396 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "shell": {
+      "executable": "powershell",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+    }
+  },
+  "tasks": [
+    // ========================================================================
+    // DEV SERVER
+    // ========================================================================
+    {
+      "label": "Dev: Start Vite Dev Server",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+): (error|warning) (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "VITE|vite",
+          "endsPattern": "(Local:|ready in|Network:)"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+
+    // ========================================================================
+    // BUILD
+    // ========================================================================
+    {
+      "label": "Build: Production Build",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Build: Preview Production Build",
+      "type": "npm",
+      "script": "preview",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+
+    // ========================================================================
+    // DEPENDENCIES
+    // ========================================================================
+    {
+      "label": "Install: npm install",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+
+    // ========================================================================
+    // FIREBASE
+    // ========================================================================
+    {
+      "label": "Firebase: Serve Locally (Hosting + Functions + Firestore)",
+      "type": "shell",
+      "command": "firebase emulators:start",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Firebase: Deploy All",
+      "type": "shell",
+      "command": "firebase deploy",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Firebase: Deploy Hosting Only",
+      "type": "shell",
+      "command": "firebase deploy --only hosting",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": ["Build: Production Build"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Firebase: Deploy Functions Only",
+      "type": "shell",
+      "command": "firebase deploy --only functions",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Firebase: Deploy Firestore Rules",
+      "type": "shell",
+      "command": "firebase deploy --only firestore:rules",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Firebase: Install Functions Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+
+    // ========================================================================
+    // PORT MANAGEMENT
+    // ========================================================================
+    {
+      "label": "Kill Dev Port (5173)",
+      "type": "shell",
+      "command": "$procs = Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port 5173\" } } else { Write-Host 'No process on port 5173' }",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    }
+  ]
+}
+      "type": "shell",
+      "command": "$azdPath = if (Get-Command azd -ErrorAction SilentlyContinue) { 'azd' } else { Join-Path $env:LOCALAPPDATA 'Programs\\Azure Dev CLI\\azd.exe' }; & $azdPath auth login --check-status 2>$null; if ($LASTEXITCODE -ne 0) { Write-Host '⚠️  Azure authentication required. Running azd auth login...'; & $azdPath auth login } else { Write-Host '✓ Azure authentication valid' }",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Kill Frontend Port",
+      "type": "shell",
+      "command": "$ports = @(3000, 3001); foreach ($port in $ports) { $procs = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port $port\" } } else { Write-Host \"No process on port $port\" } }",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "Kill Backend Port",
+      "type": "shell",
+      "command": "$procs = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port 8000\" } } else { Write-Host \"No process on port 8000\" }; Start-Sleep -Milliseconds 500",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "npm: dev - frontend",
+      "type": "npm",
+      "script": "dev",
+      "path": "src/frontend",
+      "isBackground": true,
+      "dependsOn": ["Kill Frontend Port"],
+      "problemMatcher": {
+        "owner": "typescript",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+): (error|warning) (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "VITE|vite",
+          "endsPattern": "(Local:|ready|Network:)"
+        }
+      }
+    },
+    {
+      "label": "npm: build - frontend",
+      "type": "npm",
+      "script": "build",
+      "path": "src/frontend",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "npm: install - frontend",
+      "type": "npm",
+      "script": "install",
+      "path": "src/frontend"
+    },
+    {
+      "label": "pip: install - backend",
+      "type": "shell",
+      "command": "$ErrorActionPreference = 'Stop'; try { py -m pip install --quiet uv; py -m uv sync --frozen; Write-Host '✅ Backend dependencies installed' } catch { Write-Host '❌ Failed to install backend dependencies:' $_.Exception.Message; exit 1 }",
+      "options": {
+        "cwd": "${workspaceFolder}/src/backend"
+      }
+    },
+    {
+      "label": "Install Backend Dependencies",
+      "type": "shell",
+      "command": "$ErrorActionPreference = 'Stop'; try { Write-Host '📦 Installing backend dependencies...'; py -m pip install --quiet --upgrade pip; py -m pip install --quiet uv; py -m uv sync --frozen; Write-Host '✅ Backend dependencies installed successfully' } catch { Write-Host '❌ Failed to install backend dependencies:' $_.Exception.Message; exit 1 }",
+      "options": {
+        "cwd": "${workspaceFolder}/src/backend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Install Frontend Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/src/frontend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Install Frontend Python Dependencies",
+      "type": "shell",
+      "command": "$ErrorActionPreference = 'Stop'; try { Write-Host '📦 Installing frontend Python dependencies...'; py -m pip install --quiet --upgrade pip; py -m pip install --quiet uv; py -m uv sync --frozen; Write-Host '✅ Frontend Python dependencies installed successfully' } catch { Write-Host '❌ Failed to install frontend Python dependencies:' $_.Exception.Message; exit 1 }",
+      "options": {
+        "cwd": "${workspaceFolder}/src/frontend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Install MCP Server Dependencies",
+      "type": "shell",
+      "command": "$ErrorActionPreference = 'Stop'; try { Write-Host '📦 Installing MCP server dependencies...'; py -m pip install --quiet --upgrade pip; py -m pip install --quiet uv; py -m uv sync --frozen; Write-Host '✅ MCP server dependencies installed successfully' } catch { Write-Host '❌ Failed to install MCP server dependencies:' $_.Exception.Message; exit 1 }",
+      "options": {
+        "cwd": "${workspaceFolder}/src/mcp_server"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "kill-port-8000-powershell",
+      "type": "shell",
+      "command": "Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' } | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }",
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Install All Dependencies",
+      "dependsOn": [
+        "Install Frontend Dependencies",
+        "Install Frontend Python Dependencies",
+        "Install Backend Dependencies",
+        "Install MCP Server Dependencies"
+      ],
+      "dependsOrder": "parallel",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true
+      }
+    },
+    {
+      "label": "Backend Pre-Launch",
+      "dependsOn": [
+        "Kill Backend Port"
+      ],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Start Full Stack",
+      "type": "shell",
+      "command": "${workspaceFolder}\\scripts\\start-local.ps1 -Service all -KillExisting",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

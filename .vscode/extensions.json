@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "dsznajder.es7-react-js-snippets",
+    "burkeholland.simple-react-snippets",
+    "christian-kohler.path-intellisense",
+    "formulahendry.auto-rename-tag",
+    "ms-vscode.live-server",
+    "toba.vsfire",
+    "github.copilot",
+    "github.copilot-chat"
+  ]
+}

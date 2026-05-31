@@ -1,0 +1,37 @@
+{
+  // Editor
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "editor.tabSize": 2,
+
+  // File associations
+  "files.associations": {
+    "*.jsx": "javascriptreact"
+  },
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.firebase": true
+  },
+
+  // JavaScript / TypeScript
+  "javascript.preferences.importModuleSpecifier": "relative",
+  "javascript.suggest.autoImports": true,
+
+  // ESLint
+  "eslint.validate": ["javascript", "javascriptreact"],
+
+  // Emmet for JSX
+  "emmet.includeLanguages": {
+    "javascriptreact": "html"
+  },
+
+  // Debug
+  "debug.terminal.clearBeforeReusing": true,
+  "debug.onTaskErrors": "showErrors",
+  "debug.showBreakpointsInOverviewRuler": true,
+  "debug.inlineValues": "on"
+}
