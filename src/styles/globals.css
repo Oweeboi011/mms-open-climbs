@@ -1740,10 +1740,25 @@ textarea {
     display: none;
   }
   .ham-btn {
-    display: flex;
+    display: flex !important;
+    flex-shrink: 0;
   }
   .mobile-nav-backdrop {
     display: block;
+  }
+  .header-brand {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .header-text {
+    overflow: hidden;
+    min-width: 0;
+  }
+  .header-text h1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .filters {
     flex-wrap: nowrap;
@@ -1758,6 +1773,67 @@ textarea {
   }
   .filters-wrap {
     overflow-x: hidden;
+  }
+
+  /* Admin table — horizontal scroll on tablet */
+  .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Admin page header stacks on tablet */
+  .admin-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Event hero padding */
+  .event-hero {
+    padding: 40px 20px 36px;
+  }
+
+  /* Content padding */
+  .content {
+    padding: 28px 20px 60px;
+  }
+
+  /* Registration page */
+  .register-content {
+    padding: 24px 20px 60px;
+  }
+  .register-form-card {
+    padding: 20px 20px;
+  }
+
+  /* Waiver print */
+  .waiver-print-page {
+    padding: 28px 20px 60px;
+  }
+  .waiver-participant-info {
+    grid-template-columns: 1fr;
+  }
+
+  /* Two col collapses */
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  /* Registration card header wraps */
+  .reg-card-header {
+    flex-wrap: wrap;
+  }
+  .reg-card-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Back nav */
+  .back-nav {
+    padding: 12px 20px;
+  }
+
+  /* Admin main */
+  .admin-main {
+    padding: 24px 20px 60px;
   }
 }
 
@@ -1795,7 +1871,7 @@ textarea {
     padding: 24px 16px 60px;
   }
   .auth-card {
-    padding: 28px 24px;
+    padding: 28px 20px;
   }
   .register-content {
     padding: 20px 16px 60px;
@@ -1810,7 +1886,53 @@ textarea {
     padding: 12px 16px;
   }
   .event-hero {
-    padding: 40px 20px 36px;
+    padding: 36px 16px 32px;
+  }
+  .event-meta {
+    gap: 12px;
+  }
+  .waiver-print-page {
+    padding: 20px 16px 60px;
+  }
+  .section-body {
+    padding: 16px;
+  }
+  .section-header {
+    padding: 12px 16px;
+  }
+  .admin-table th,
+  .admin-table td {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  .admin-stat-card {
+    padding: 16px;
+  }
+  .admin-stat-num {
+    font-size: 1.8rem;
+  }
+  .reg-card-header {
+    padding: 14px 16px;
+  }
+  .reg-card-body {
+    padding: 14px 16px;
+  }
+  .reg-card-actions {
+    padding: 10px 16px;
+    flex-wrap: wrap;
+  }
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+  .waiver-participant-info {
+    grid-template-columns: 1fr;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  .btn-lg {
+    padding: 12px 20px;
+    font-size: 0.78rem;
   }
 }
 
