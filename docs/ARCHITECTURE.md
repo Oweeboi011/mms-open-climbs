@@ -6,7 +6,7 @@ MMS Open Climbs is a single-page application backed by Firebase services.
 
 ```mermaid
 graph TD
-    SPA["React SPA\nVite build\nVercel hosted"]
+    SPA["React SPA\nVite build\nFirebase Hosting"]
     Auth["Firebase Auth\nEmail/Password + Google"]
     Firestore["Cloud Firestore\nopenclimbs DB"]
     CF["Cloud Functions v2\nNode 20\nTriggers + Callables"]
@@ -25,26 +25,41 @@ Database name: `openclimbs`
 
 ### Collection: climbs
 
-| Field             | Type      | Notes                                  |
-| ----------------- | --------- | -------------------------------------- |
-| title             | string    | Climb name                             |
-| dateLabel         | string    | Display date e.g. "July 19-20"         |
-| month             | string    | jul / aug / sep / oct / nov / dec      |
-| startDate         | timestamp | For ordering                           |
-| endDate           | timestamp |                                        |
-| location          | string    |                                        |
-| type              | string    | minor / major / special                |
-| status            | string    | draft / open / closed / completed      |
-| color             | string    | Card color token e.g. "c-slate"        |
-| maxParticipants   | number    |                                        |
-| registrationCount | number    | Maintained by Cloud Functions          |
-| isWide            | boolean   | Card spans 2 columns                   |
-| itineraryReady    | boolean   |                                        |
-| description       | string    | Rich text description                  |
-| thingsToBring     | string[]  |                                        |
-| expenses          | object[]  | {label, amount, note}                  |
-| officers          | object[]  | {name, role, mobile}                   |
-| itinerary         | object[]  | [{day, entries:[{time, description}]}] |
+| Field               | Type      | Notes                                        |
+| ------------------- | --------- | -------------------------------------------- |
+| title               | string    | Climb name                                   |
+| dateLabel           | string    | Display date e.g. "July 19-20"               |
+| month               | string    | jan / feb / ... / dec                        |
+| startDate           | timestamp | For ordering                                 |
+| endDate             | timestamp |                                              |
+| location            | string    |                                              |
+| type                | string    | minor / major / special                      |
+| status              | string    | draft / open / closed / completed            |
+| color               | string    | Card color token e.g. "c-slate"              |
+| maxParticipants     | number    |                                              |
+| registrationCount   | number    | Maintained by Cloud Functions                |
+| isWide              | boolean   | Card spans 2 columns                         |
+| itineraryReady      | boolean   |                                              |
+| description         | string    | Mountain description                         |
+| elevation           | string    | Summit elevation in MASL                     |
+| difficulty          | string    | Difficulty rating                            |
+| jumpOff             | string    | Jump-off point name                          |
+| jumpOffElevation    | string    | Jump-off elevation in meters                 |
+| elevationGain       | string    | Total elevation gain                         |
+| distanceToSummit    | string    | Jump-off to peak distance                    |
+| roundTripDistance   | string    | Total round trip distance                    |
+| recommendedDays     | string    | Recommended number of days                   |
+| features            | string    | Terrain features description                 |
+| googleMapsUrl       | string    | Google Maps URL for embedded map             |
+| allTrailsUrl        | string    | AllTrails link                               |
+| stravaUrl           | string    | Strava link                                  |
+| corosUrl            | string    | Coros link                                   |
+| waterSourceNote     | string    | Water source information                     |
+| weatherNote         | string    | Weather notes                                |
+| thingsToBring       | string[]  |                                              |
+| expenses            | object[]  | {label, amount, note}                        |
+| officers            | object[]  | {name, role, mobile}                         |
+| itinerary           | object[]  | [{day, entries:[{time, activity}]}]          |
 
 ### Collection: registrations
 
@@ -117,4 +132,4 @@ flowchart TD
 - Registration count is maintained by a Cloud Function trigger (not client-side) to prevent race conditions.
 - Firestore security rules enforce ownership and role checks server-side.
 - Email is sent by Cloud Functions only — the client never holds Brevo credentials.
-- The SPA is deployed to Vercel as a static build; all routing is handled client-side via React Router with `vercel.json` rewrites.
+- The SPA is deployed to Firebase Hosting as a static build; all routing is handled client-side via React Router with the `rewrites` rule in `firebase.json`.

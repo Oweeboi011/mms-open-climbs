@@ -10,7 +10,7 @@ const { getFirestore, FieldValue }             = require('firebase-admin/firesto
 initializeApp();
 
 const adminAuth = getAuth();
-const db        = getFirestore();
+const db        = getFirestore('openclimbs');
 
 // ── Email sender (Brevo REST API v3) ─────────────────────────────────────────
 async function sendEmail({ to, toName, subject, html }) {
@@ -103,7 +103,7 @@ function tplWelcome({ displayName, setupLink }) {
 }
 
 // ── Trigger: new registration → send confirmation email ───────────────────────
-exports.onRegistrationCreated = onDocumentCreated('registrations/{regId}', async (event) => {
+exports.onRegistrationCreated = onDocumentCreated({ document: 'registrations/{regId}', database: 'openclimbs' }, async (event) => {
   const reg = event.data.data();
   const { name, email, climbId } = reg;
 
@@ -115,7 +115,7 @@ exports.onRegistrationCreated = onDocumentCreated('registrations/{regId}', async
     // Increment registration count on the climb document
     await db.doc(`climbs/${climbId}`).update({ registrationCount: FieldValue.increment(1) });
 
-    const appUrl   = process.env.APP_URL || 'https://mms-open-climbs.vercel.app';
+    const appUrl   = process.env.APP_URL || 'https://mms-open-climbs.web.app';
     const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
 
     await sendEmail({
@@ -137,7 +137,7 @@ exports.onRegistrationCreated = onDocumentCreated('registrations/{regId}', async
 });
 
 // ── Trigger: registration status changed → send status email ─────────────────
-exports.onRegistrationUpdated = onDocumentUpdated('registrations/{regId}', async (event) => {
+exports.onRegistrationUpdated = onDocumentUpdated({ document: 'registrations/{regId}', database: 'openclimbs' }, async (event) => {
   const before = event.data.before.data();
   const after  = event.data.after.data();
 

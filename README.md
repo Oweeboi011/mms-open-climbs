@@ -1,12 +1,22 @@
 # MMS Open Climbs
 
-Event management portal for MMS mountaineering club climbs. Members browse the climb schedule, register for events, sign digital waivers, and track their registrations. Admins manage climbs, review registrations, and handle user accounts.
+Event management portal for MMS mountaineering club climbs. Members browse the climb schedule, view mountain profiles (elevation, difficulty, distances, itinerary), register for events, sign digital waivers, and track their registrations. Admins manage climbs, review registrations, and handle user accounts.
+
+## Features
+
+- Climb schedule with card grid — shows elevation, difficulty, and round-trip distance at a glance
+- Full mountain profile per climb: summit elevation, difficulty, jump-off point, elevation gain, distances, features, water source notes, and external links (AllTrails, Strava, Coros, Google Maps)
+- Member registration with digital waiver signature
+- Registration status tracking (pending / confirmed / waitlisted / cancelled)
+- Admin panel: climb management, registration review, user management
+- Cloud Function email notifications on registration create and status change
+- Google and email/password authentication
 
 ## System Overview
 
 ```mermaid
 graph TD
-    SPA["React SPA\nVite + React 18\nVercel hosted"]
+    SPA["React SPA\nVite + React 18\nFirebase Hosting"]
     Auth["Firebase Auth\nEmail/Password + Google"]
     Firestore["Cloud Firestore\nopenclimbs DB"]
     CF["Cloud Functions v2\nNode 20\nTriggers + Callables"]

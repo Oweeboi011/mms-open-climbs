@@ -78,7 +78,7 @@ Located at `firestore.rules`. Key rules:
 | ------------------------- | ----------------------------------------------------------------- |
 | Injection                 | Firestore SDK uses structured queries; no raw query strings       |
 | Broken Authentication     | Firebase Auth handles token lifecycle; JWTs validated server-side |
-| Sensitive Data Exposure   | No secrets in client bundle; HTTPS enforced by Vercel + Firebase  |
+| Sensitive Data Exposure   | No secrets in client bundle; HTTPS enforced by Firebase Hosting    |
 | Broken Access Control     | Firestore rules + route guards enforce role-based access          |
 | Security Misconfiguration | Firestore rules deployed explicitly; no open-write rules          |
 | XSS                       | React escapes output by default; no dangerouslySetInnerHTML used  |

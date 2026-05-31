@@ -5,7 +5,6 @@
 - Firebase CLI: `npm install -g firebase-tools`
 - Node.js 20+
 - A Firebase project with Firestore, Authentication, and Cloud Functions enabled
-- A Vercel account (or alternative static host)
 - A Brevo account for transactional email
 
 ---
@@ -54,7 +53,7 @@ firebase functions:secrets:set BREVO_FROM_EMAIL
 firebase functions:secrets:set APP_URL
 ```
 
-Set `APP_URL` to your production frontend URL, e.g. `https://mms-open-climbs.vercel.app`.
+Set `APP_URL` to your production Firebase Hosting URL, e.g. `https://<project-id>.web.app`.
 
 ### Deploy functions
 
@@ -64,37 +63,48 @@ firebase deploy --only functions
 
 ---
 
-## 4. Frontend (Vercel)
+## 4. Frontend (Firebase Hosting)
 
 ### Build
 
-```
+```bash
 npm run build
 ```
 
+This outputs the static site to the `dist/` folder, which `firebase.json` points Firebase Hosting at.
+
 ### Environment variables
 
-Set these in Vercel (Project Settings > Environment Variables):
+Create a `.env` file at the project root (copy from `.env.example`):
 
 ```
-VITE_FIREBASE_API_KEY
-VITE_FIREBASE_AUTH_DOMAIN
-VITE_FIREBASE_PROJECT_ID
-VITE_FIREBASE_STORAGE_BUCKET
-VITE_FIREBASE_MESSAGING_SENDER_ID
-VITE_FIREBASE_APP_ID
-VITE_APP_URL=https://mms-open-climbs.vercel.app
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
 ```
 
-### Deploy to Vercel
+These are baked into the bundle at build time by Vite. Do not commit `.env` to source control.
 
-Connect the GitHub repo to Vercel. The `vercel.json` in the root configures SPA rewrites:
+### Deploy hosting
 
+```bash
+firebase deploy --only hosting
 ```
-vercel --prod
+
+Or deploy everything at once:
+
+```bash
+firebase deploy
 ```
 
-Or push to the main branch if auto-deploy is enabled.
+SPA routing is handled by the catch-all rewrite in `firebase.json`:
+
+```json
+"rewrites": [{ "source": "**", "destination": "/index.html" }]
+```
 
 ---
 
@@ -115,7 +125,7 @@ This requires Application Default Credentials or a service account key.
 ```mermaid
 flowchart TD
     A["1. firebase deploy --only firestore\nrules + indexes"] --> B["2. firebase deploy --only functions\nrequires secrets to be set first"]
-    B --> C["3. vercel --prod\nor push to main branch"]
+    B --> C["3. npm run build\nthen firebase deploy --only hosting"]
     C --> D["4. node scripts/set-admin.mjs email\nfirst-time admin setup only"]
 ```
 
