@@ -1,39 +1,38 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   signOut,
   updateProfile,
   sendPasswordResetEmail,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, googleProvider } from '@/firebase/config';
+} from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db, googleProvider } from "@/firebase/config";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser]   = useState(null);
-  const [userProfile, setUserProfile]   = useState(null);
-  const [loading, setLoading]           = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   async function fetchProfile(uid) {
-    const snap = await getDoc(doc(db, 'users', uid));
+    const snap = await getDoc(doc(db, "users", uid));
     return snap.exists() ? snap.data() : null;
   }
 
   async function signup(email, password, displayName) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName });
-    await setDoc(doc(db, 'users', cred.user.uid), {
+    await setDoc(doc(db, "users", cred.user.uid), {
       displayName,
       email,
-      role:      'member',
+      role: "member",
       createdAt: serverTimestamp(),
-      addedBy:   'self',
+      addedBy: "self",
     });
     return cred;
   }
@@ -48,20 +47,24 @@ export function AuthProvider({ children }) {
       const cred = await signInWithPopup(auth, googleProvider);
       const existing = await fetchProfile(cred.user.uid);
       if (!existing) {
-        await setDoc(doc(db, 'users', cred.user.uid), {
+        await setDoc(doc(db, "users", cred.user.uid), {
           displayName: cred.user.displayName,
-          email:       cred.user.email,
-          photoURL:    cred.user.photoURL ?? null,
-          role:        'member',
-          createdAt:   serverTimestamp(),
-          addedBy:     'self',
+          email: cred.user.email,
+          photoURL: cred.user.photoURL ?? null,
+          role: "member",
+          createdAt: serverTimestamp(),
+          addedBy: "self",
         });
       }
       return cred;
     } catch (err) {
-      // Fall back to redirect if popup is blocked
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
-        return signInWithRedirect(auth, googleProvider);
+      if (err.code === "auth/popup-closed-by-user") return; // user dismissed — not an error
+      if (err.code === "auth/popup-blocked") {
+        const e = new Error(
+          "Popup was blocked. Please allow popups for this site, or use email sign-in.",
+        );
+        e.code = "auth/popup-blocked";
+        throw e;
       }
       throw err;
     }
@@ -75,20 +78,21 @@ export function AuthProvider({ children }) {
       try {
         const existing = await fetchProfile(cred.user.uid);
         if (!existing) {
-          await setDoc(doc(db, 'users', cred.user.uid), {
+          await setDoc(doc(db, "users", cred.user.uid), {
             displayName: cred.user.displayName,
-            email:       cred.user.email,
-            photoURL:    cred.user.photoURL ?? null,
-            role:        'member',
-            createdAt:   serverTimestamp(),
-            addedBy:     'self',
+            email: cred.user.email,
+            photoURL: cred.user.photoURL ?? null,
+            role: "member",
+            createdAt: serverTimestamp(),
+            addedBy: "self",
           });
         }
       } catch {
         // Rules not yet published — profile will be created on next sign-in
       }
     } catch (err) {
-      if (err.code !== 'auth/null-user') console.error('Redirect result:', err.code);
+      if (err.code !== "auth/null-user")
+        console.error("Redirect result:", err.code);
     }
   }
 
@@ -117,20 +121,22 @@ export function AuthProvider({ children }) {
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = userProfile?.role === "admin";
 
   return (
-    <AuthContext.Provider value={{
-      currentUser,
-      userProfile,
-      isAdmin,
-      loading,
-      signup,
-      login,
-      loginWithGoogle,
-      logout,
-      resetPassword,
-    }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        userProfile,
+        isAdmin,
+        loading,
+        signup,
+        login,
+        loginWithGoogle,
+        logout,
+        resetPassword,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );

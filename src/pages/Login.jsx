@@ -49,7 +49,9 @@ export default function Login() {
       await loginWithGoogle();
       navigate(from, { replace: true });
     } catch (err) {
-      setError(friendlyError(err.code));
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError(friendlyError(err.code));
+      }
     } finally {
       setLoading(false);
     }
@@ -228,6 +230,8 @@ function friendlyError(code) {
       return "Too many attempts. Please try again later.";
     case "auth/invalid-email":
       return "Invalid email address.";
+    case "auth/popup-blocked":
+      return "Popup was blocked by your browser. Please allow popups for this site, or use email sign-in.";
     default:
       return "Sign-in failed. Please try again.";
   }
