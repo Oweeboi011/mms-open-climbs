@@ -8,21 +8,19 @@ Ensure `@` alias is configured in `vite.config.js` and you ran `npm install`.
 
 ---
 
-### Blank page after deploy to Vercel
+### Blank page after deploy to Firebase Hosting
 
-Check that `vercel.json` has the SPA rewrite rule:
+Check that `firebase.json` has the SPA rewrite rule:
 
 ```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
+"rewrites": [{ "source": "**", "destination": "/index.html" }]
 ```
 
 ---
 
 ### Firebase config missing / "No Firebase App" error
 
-Ensure all `VITE_FIREBASE_*` environment variables are set in your `.env` file (locally) or in Vercel's environment variable settings (production).
+Ensure all `VITE_FIREBASE_*` environment variables are set in your `.env` file at the project root. These are baked into the bundle by Vite at build time. After changing `.env`, re-run `npm run build` before deploying.
 
 ---
 

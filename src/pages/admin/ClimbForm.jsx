@@ -11,7 +11,8 @@ import {
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { db, storage } from "@/firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -95,12 +96,18 @@ const EMPTY_FORM = {
   weatherNote: "",
   thingsToBring: [...DEFAULT_THINGS_TO_BRING],
   expenses: [
-    { label: "Transportation", amount: "TBA", note: "" },
-    { label: "Registration / Guide Fee", amount: "TBA", note: "" },
-    { label: "Food & Meals", amount: "TBA", note: "" },
+    { label: "Registration Fee", amount: "TBA", note: "", optional: false },
+    { label: "Guide Fee", amount: "TBA", note: "", optional: false },
+    { label: "Environmental Fee", amount: "TBA", note: "", optional: false },
+    { label: "Guest Fee", amount: "450", note: "Required for non-members / guests. Not charged to MMS members.", optional: true },
+    { label: "Transportation Fee", amount: "TBA", note: "Only if availing organized transport", optional: true },
+    { label: "Food & Meals", amount: "TBA", note: "Only if availing organized meals", optional: true },
   ],
   officers: [],
   itinerary: [],
+  gcashName: "",
+  gcashNumber: "",
+  gcashQrUrl: "",
 };
 
 export default function AdminClimbForm() {
@@ -114,6 +121,7 @@ export default function AdminClimbForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [users, setUsers] = useState([]);
+  const [gcashUploading, setGcashUploading] = useState(false);
 
   useEffect(() => {
     getDocs(query(collection(db, "users"), orderBy("displayName")))
@@ -153,6 +161,22 @@ export default function AdminClimbForm() {
   // Itinerary helpers
   function addDay() {
     addListItem("itinerary", { day: "", entries: [] });
+  }
+
+  async function handleGcashQrUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setGcashUploading(true);
+    try {
+      const storageRef = ref(storage, `gcash-qr/${id || "new"}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      set("gcashQrUrl", url);
+    } catch (err) {
+      setError("Failed to upload GCash QR image: " + err.message);
+    } finally {
+      setGcashUploading(false);
+    }
   }
   function removeDay(i) {
     removeListItem("itinerary", i);
@@ -791,6 +815,7 @@ export default function AdminClimbForm() {
                     label: "",
                     amount: "TBA",
                     note: "",
+                    optional: false,
                   })
                 }
               >
@@ -847,6 +872,19 @@ export default function AdminClimbForm() {
                   }
                   style={{ flex: "2 1 160px" }}
                 />
+                <label
+                  style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.8rem", whiteSpace: "nowrap", cursor: "pointer" }}
+                  title="Optional fees let participants choose whether to include them"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!exp.optional}
+                    onChange={(e) =>
+                      updateListItem("expenses", i, { ...exp, optional: e.target.checked })
+                    }
+                  />
+                  Optional
+                </label>
                 <button
                   type="button"
                   className="btn btn-danger btn-sm"
@@ -961,6 +999,59 @@ export default function AdminClimbForm() {
                 </button>
               </div>
             ))}
+          </div>
+
+          {/* ── GCash Payment ── */}
+          <div className="admin-card">
+            <div className="admin-card-title">GCash Payment Details</div>
+            <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: 16 }}>
+              These details are shown to registrants on the registration form so they know where to send payment.
+            </p>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">GCash Account Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Juan Dela Cruz"
+                  value={form.gcashName}
+                  onChange={(e) => set("gcashName", e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">GCash Number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 09XX XXX XXXX"
+                  value={form.gcashNumber}
+                  onChange={(e) => set("gcashNumber", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">GCash QR Code Image</label>
+              {form.gcashQrUrl && (
+                <div style={{ marginBottom: 8 }}>
+                  <img
+                    src={form.gcashQrUrl}
+                    alt="GCash QR"
+                    style={{ width: 160, height: 160, objectFit: "contain", border: "1px solid var(--border)", borderRadius: 8, background: "#fff" }}
+                  />
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="form-input"
+                onChange={handleGcashQrUpload}
+                disabled={gcashUploading}
+              />
+              {gcashUploading && <div className="form-hint">Uploading QR code…</div>}
+              {form.gcashQrUrl && !gcashUploading && (
+                <div className="form-hint" style={{ color: "var(--green-dark)" }}>QR code uploaded.</div>
+              )}
+            </div>
           </div>
 
           {/* Submit */}

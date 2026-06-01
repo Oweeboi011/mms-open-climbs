@@ -10,7 +10,8 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { db, storage } from "@/firebase/config";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -43,6 +44,11 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successRegId, setSuccessRegId] = useState(null);
+  const [paymentFiles, setPaymentFiles] = useState([]);
+  const [paymentPreviews, setPaymentPreviews] = useState([]);
+  const [paymentUploading, setPaymentUploading] = useState(false);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
 
   useEffect(() => {
     async function load() {
@@ -94,8 +100,40 @@ export default function Register() {
       setError("Please enter your complete name as your signature.");
       return;
     }
+    if (paymentFiles.length === 0) {
+      setError("Please upload your proof of payment before submitting.");
+      return;
+    }
+    const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
+    if (!amountPaid || isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError("Please enter the exact amount you paid via GCash.");
+      return;
+    }
 
     setSubmitting(true);
+    let paymentProofs = [];
+    try {
+      setPaymentUploading(true);
+      const timestamp = Date.now();
+      paymentProofs = await Promise.all(
+        paymentFiles.map(async (file) => {
+          const fileRef = storageRef(
+            storage,
+            `payment-proofs/${climbId}/${currentUser.uid}/${timestamp}_${file.name}`,
+          );
+          await uploadBytes(fileRef, file);
+          const url = await getDownloadURL(fileRef);
+          return { url, fileName: file.name };
+        }),
+      );
+      setPaymentUploading(false);
+    } catch (uploadErr) {
+      setPaymentUploading(false);
+      setSubmitting(false);
+      setError("Failed to upload proof of payment. Please try again.");
+      return;
+    }
+
     try {
       const regData = {
         climbId,
@@ -123,13 +161,23 @@ export default function Register() {
         waiverSigned: true,
         waiverSignedAt: serverTimestamp(),
         waiverSignedName: sigName.trim(),
+        // Payment
+        paymentProofs,
+        paymentStatus: "submitted",
+        amountPaid: parseFloat(String(amountPaid).replace(/[^0-9.]/g, "")),
+        feeBreakdown: (climb.expenses || []).map((exp) => ({
+          label: exp.label,
+          amount: exp.amount,
+          optional: !!exp.optional,
+          selected: exp.optional ? !!optionalFeeSelections[exp.label] : true,
+        })),
         // Status
         status: "pending",
         createdAt: serverTimestamp(),
       };
 
-      const ref = await addDoc(collection(db, "registrations"), regData);
-      setSuccessRegId(ref.id);
+      const docRef = await addDoc(collection(db, "registrations"), regData);
+      setSuccessRegId(docRef.id);
     } catch (err) {
       console.error(err);
       setError("Registration failed. Please try again.");
@@ -450,14 +498,258 @@ export default function Register() {
             </div>
           </div>
 
+          {/* Fee Breakdown */}
+          {climb.expenses?.length > 0 && (() => {
+            const isJoiner = form.memberType === "joiner";
+            // Required: non-optional fees + guest fee when participant is a joiner
+            const required = climb.expenses.filter((e) => {
+              if (!e.optional) return true;
+              return /guest/i.test(e.label) && isJoiner;
+            });
+            // Optional: optional fees excluding guest fee
+            const optional = climb.expenses.filter((e) => {
+              if (!e.optional) return false;
+              if (/guest/i.test(e.label)) return false; // handled in required
+              return true;
+            });
+            let expectedTotal = 0;
+            let hasTba = false;
+            [...required, ...optional.filter((e) => optionalFeeSelections[e.label])].forEach((e) => {
+              const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
+              if (!isNaN(n)) expectedTotal += n;
+              else hasTba = true;
+            });
+            const totalDisplay = hasTba
+              ? `₱${expectedTotal.toLocaleString("en-PH")} + TBA`
+              : `₱${expectedTotal.toLocaleString("en-PH")}`;
+            return (
+              <div className="register-form-card">
+                <div className="form-section-title">Fee Breakdown</div>
+                <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: 14 }}>
+                  Review all fees below. Check any optional services you will be availing.
+                </p>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                      <th style={{ width: 28 }}></th>
+                      <th style={{ textAlign: "left", padding: "6px 0", fontWeight: 700, color: "var(--ink-soft)", fontSize: "0.68rem", letterSpacing: 2, textTransform: "uppercase" }}>Item</th>
+                      <th style={{ textAlign: "right", padding: "6px 0", fontWeight: 700, color: "var(--ink-soft)", fontSize: "0.68rem", letterSpacing: 2, textTransform: "uppercase" }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {required.map((exp, i) => (
+                      <tr key={`req-${i}`} style={{ borderBottom: "1px solid var(--border)" }}>
+                        <td style={{ padding: "10px 0", paddingRight: 8 }}>
+                          <span style={{ color: "var(--green-dark)", fontWeight: 800, fontSize: "1rem" }}>✓</span>
+                        </td>
+                        <td style={{ padding: "10px 0" }}>
+                          <div style={{ fontWeight: 600 }}>{exp.label}</div>
+                          {exp.note && <div style={{ fontSize: "0.74rem", color: "var(--ink-soft)", marginTop: 2 }}>{exp.note}</div>}
+                          <div style={{ fontSize: "0.68rem", color: "var(--ink-soft)", marginTop: 2, fontStyle: "italic" }}>Required</div>
+                        </td>
+                        <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 700, whiteSpace: "nowrap" }}>
+                          {exp.amount || "TBA"}
+                        </td>
+                      </tr>
+                    ))}
+                    {optional.map((exp, i) => {
+                      const checked = !!optionalFeeSelections[exp.label];
+                      return (
+                        <tr
+                          key={`opt-${i}`}
+                          style={{ borderBottom: "1px solid var(--border)", background: checked ? "var(--surface-alt)" : "transparent", cursor: "pointer" }}
+                          onClick={() => setOptionalFeeSelections((p) => ({ ...p, [exp.label]: !p[exp.label] }))}
+                        >
+                          <td style={{ padding: "10px 0", paddingRight: 8 }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => setOptionalFeeSelections((p) => ({ ...p, [exp.label]: !p[exp.label] }))}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ width: 16, height: 16, cursor: "pointer" }}
+                            />
+                          </td>
+                          <td style={{ padding: "10px 0" }}>
+                            <div style={{ fontWeight: 600 }}>{exp.label}</div>
+                            {exp.note && <div style={{ fontSize: "0.74rem", color: "var(--ink-soft)", marginTop: 2 }}>{exp.note}</div>}
+                            <div style={{ fontSize: "0.68rem", color: "var(--ink-soft)", marginTop: 2, fontStyle: "italic" }}>Optional — check if availing</div>
+                          </td>
+                          <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 700, whiteSpace: "nowrap", color: checked ? "var(--ink)" : "var(--ink-soft)" }}>
+                            {exp.amount || "TBA"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: "2px solid var(--border)" }}>
+                      <td></td>
+                      <td style={{ padding: "12px 0", fontWeight: 800, fontSize: "0.95rem" }}>
+                        Expected Total
+                        <div style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--ink-soft)" }}>Based on your selections above</div>
+                      </td>
+                      <td style={{ padding: "12px 0", textAlign: "right", fontWeight: 900, fontSize: "1.1rem", color: "var(--green-dark)" }}>
+                        {totalDisplay}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <p style={{ fontSize: "0.74rem", color: "var(--ink-soft)", marginTop: 10 }}>
+                  * Amounts are estimates. Final amounts will be confirmed by the climb officers.
+                </p>
+              </div>
+            );
+          })()}
+
+          {/* GCash Payment */}
+          <div className="register-form-card">
+            <div className="form-section-title">Payment via GCash</div>
+            <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)", marginBottom: 16 }}>
+              Send your registration fee via GCash, then upload your screenshot or photo of the receipt below.
+            </p>
+
+            {(climb.gcashQrUrl || climb.gcashNumber || climb.gcashName) ? (
+              <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20, alignItems: "flex-start" }}>
+                <div style={{ textAlign: "center" }}>
+                  <img
+                    src={climb.gcashQrUrl || "/gcash-qr-placeholder.svg"}
+                    alt="GCash QR Code"
+                    style={{ width: 160, height: 160, objectFit: "contain", border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "block" }}
+                  />
+                  <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)", marginTop: 4 }}>
+                    {climb.gcashQrUrl ? "Scan to pay" : "QR code coming soon"}
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  {climb.gcashName && (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 2 }}>Account Name</div>
+                      <div style={{ fontWeight: 700, fontSize: "1rem" }}>{climb.gcashName}</div>
+                    </div>
+                  )}
+                  {climb.gcashNumber && (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 2 }}>GCash Number</div>
+                      <div style={{ fontWeight: 700, fontSize: "1.1rem", letterSpacing: 1 }}>{climb.gcashNumber}</div>
+                    </div>
+                  )}
+                  <div style={{ fontSize: "0.8rem", color: "var(--ink-soft)", marginTop: 4 }}>
+                    Please use your full name as the payment reference/note.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20, alignItems: "flex-start" }}>
+                <div style={{ textAlign: "center" }}>
+                  <img
+                    src="/gcash-qr-placeholder.svg"
+                    alt="GCash QR Code Placeholder"
+                    style={{ width: 160, height: 160, objectFit: "contain", border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "block", opacity: 0.75 }}
+                  />
+                  <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)", marginTop: 4 }}>QR code coming soon</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
+                    GCash payment details are being set up by the organizer. Please contact the climb officers for the GCash number. You may still complete and submit this registration form — attach your proof of payment once available.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="form-label required">Amount Paid via GCash</label>
+              <div style={{ position: "relative", maxWidth: 220 }}>
+                <span style={{
+                  position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                  fontWeight: 700, fontSize: "1rem", color: "var(--ink-soft)", pointerEvents: "none",
+                }}>₱</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  className="form-input"
+                  placeholder="0.00"
+                  required
+                  style={{ paddingLeft: 28, fontWeight: 700, fontSize: "1rem" }}
+                  value={amountPaid}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                />
+              </div>
+              <div className="form-hint">
+                Enter the exact amount you sent via GCash. This must match your receipt.
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label required">Upload Proof of Payment</label>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="form-input"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files);
+                  if (files.length === 0) return;
+                  setPaymentFiles(files);
+                  Promise.all(
+                    files.map(
+                      (file) =>
+                        new Promise((resolve) => {
+                          if (file.type.startsWith("image/")) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => resolve({ name: file.name, preview: ev.target.result, isImage: true });
+                            reader.readAsDataURL(file);
+                          } else {
+                            resolve({ name: file.name, preview: null, isImage: false });
+                          }
+                        }),
+                    ),
+                  ).then(setPaymentPreviews);
+                }}
+              />
+              <div className="form-hint">
+                You can select multiple files. Accepted formats: images (JPG, PNG) or PDF.
+              </div>
+              {paymentPreviews.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
+                  {paymentPreviews.map((item, i) => (
+                    <div key={i} style={{ position: "relative", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "var(--surface-alt)" }}>
+                      {item.isImage ? (
+                        <img
+                          src={item.preview}
+                          alt={item.name}
+                          style={{ width: 110, height: 110, objectFit: "cover", display: "block" }}
+                        />
+                      ) : (
+                        <div style={{ width: 110, height: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                          <span style={{ fontSize: "2rem" }}>&#128196;</span>
+                          <span style={{ fontSize: "0.65rem", color: "var(--ink-soft)", padding: "0 6px", textAlign: "center", wordBreak: "break-all" }}>PDF</span>
+                        </div>
+                      )}
+                      <div style={{ fontSize: "0.65rem", color: "var(--ink-soft)", padding: "4px 6px", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {paymentFiles.length > 0 && (
+                <div style={{ fontSize: "0.78rem", color: "var(--green-dark)", marginTop: 6 }}>
+                  &#10003; {paymentFiles.length} file{paymentFiles.length > 1 ? "s" : ""} selected
+                </div>
+              )}
+            </div>
+          </div>
+
           <button
             className="btn btn-primary btn-block btn-lg"
             type="submit"
-            disabled={submitting || !waiverAgreed}
+            disabled={submitting || !waiverAgreed || paymentFiles.length === 0 || !amountPaid}
           >
             {submitting ? (
               <>
-                <span className="spinner spinner-sm" /> Submitting…
+                <span className="spinner spinner-sm" />{" "}
+                {paymentUploading ? "Uploading payment…" : "Submitting…"}
               </>
             ) : (
               "Submit Registration"

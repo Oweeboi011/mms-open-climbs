@@ -208,7 +208,7 @@ exports.createUser = onCall(async (request) => {
   });
 
   // Generate password setup link (user sets their own password)
-  const appUrl    = process.env.APP_URL || 'https://mms-open-climbs.vercel.app';
+  const appUrl    = process.env.APP_URL || 'https://mms-open-climbs.web.app';
   const setupLink = await adminAuth.generatePasswordResetLink(email, { url: `${appUrl}/login` });
 
   await sendEmail({

@@ -21,6 +21,8 @@ import AdminClimbsManage from '@/pages/admin/ClimbsManage';
 import AdminClimbForm from '@/pages/admin/ClimbForm';
 import AdminClimbDetail from '@/pages/admin/ClimbDetail';
 import AdminUsersManage from '@/pages/admin/UsersManage';
+import AllRegistrations from '@/pages/admin/AllRegistrations';
+import ManagePayments from '@/pages/admin/ManagePayments';
 
 export default function App() {
   return (
@@ -47,6 +49,8 @@ export default function App() {
         <Route path="/admin/climbs/:id/edit" element={<AdminClimbForm />} />
         <Route path="/admin/climbs/:id" element={<AdminClimbDetail />} />
         <Route path="/admin/users" element={<AdminUsersManage />} />
+        <Route path="/admin/registrations" element={<AllRegistrations />} />
+        <Route path="/admin/payments" element={<ManagePayments />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

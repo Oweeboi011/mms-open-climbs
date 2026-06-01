@@ -9,6 +9,7 @@ import {
   getCountFromServer,
   addDoc,
   serverTimestamp,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { SCHEDULE_2026 } from "@/data/schedule2026";
@@ -16,14 +17,14 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
+const STATUS_LABEL = { draft: "Draft", open: "Open", closed: "Closed", completed: "Completed" };
+const STATUS_COLOR = { draft: "#888", open: "var(--green-dark)", closed: "var(--ink-soft)", completed: "#0070E0" };
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    climbs: 0,
-    totalRegs: 0,
-    pending: 0,
-    users: 0,
-  });
+  const [stats, setStats] = useState({ climbs: 0, totalRegs: 0, pending: 0, users: 0, awaitingPayment: 0 });
   const [recentRegs, setRecentRegs] = useState([]);
+  const [climbs, setClimbs] = useState([]);
+  const [climbRegStats, setClimbRegStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState("");
@@ -58,36 +59,55 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    async function loadStats() {
-      const [climbsSnap, totalRegsSnap, pendingSnap, usersSnap] =
-        await Promise.all([
-          getCountFromServer(collection(db, "climbs")),
-          getCountFromServer(collection(db, "registrations")),
-          getCountFromServer(
-            query(
-              collection(db, "registrations"),
-              where("status", "==", "pending"),
-            ),
-          ),
-          getCountFromServer(collection(db, "users")),
-        ]);
+    async function loadAll() {
+      // Load climbs
+      const climbsSnap = await getDocs(query(collection(db, "climbs"), orderBy("startDate", "asc")));
+      const climbList = climbsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
+          const db2 = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
+          return da - db2;
+        });
+      setClimbs(climbList);
+
+      // Load all registrations once for per-climb stats
+      const regsSnap = await getDocs(collection(db, "registrations"));
+      const allRegs = regsSnap.docs.map((d) => d.data());
+
+      // Build per-climb breakdown
+      const breakdown = {};
+      for (const reg of allRegs) {
+        if (!reg.climbId) continue;
+        if (!breakdown[reg.climbId]) {
+          breakdown[reg.climbId] = { total: 0, confirmed: 0, pending: 0, waitlisted: 0, cancelled: 0, paymentSubmitted: 0 };
+        }
+        breakdown[reg.climbId].total++;
+        if (reg.status) breakdown[reg.climbId][reg.status] = (breakdown[reg.climbId][reg.status] || 0) + 1;
+        if (reg.paymentStatus === "submitted") breakdown[reg.climbId].paymentSubmitted++;
+      }
+      setClimbRegStats(breakdown);
+
+      // Global stats
+      const [totalRegsSnap, pendingSnap, usersSnap, awaitingSnap] = await Promise.all([
+        getCountFromServer(collection(db, "registrations")),
+        getCountFromServer(query(collection(db, "registrations"), where("status", "==", "pending"))),
+        getCountFromServer(collection(db, "users")),
+        getCountFromServer(query(collection(db, "registrations"), where("paymentStatus", "==", "submitted"))),
+      ]);
       setStats({
-        climbs: climbsSnap.data().count,
+        climbs: climbList.length,
         totalRegs: totalRegsSnap.data().count,
         pending: pendingSnap.data().count,
         users: usersSnap.data().count,
+        awaitingPayment: awaitingSnap.data().count,
       });
     }
 
-    const q = query(
-      collection(db, "registrations"),
-      orderBy("createdAt", "desc"),
-    );
+    const q = query(collection(db, "registrations"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
-      setRecentRegs(
-        snap.docs.slice(0, 10).map((d) => ({ id: d.id, ...d.data() })),
-      );
-      loadStats().finally(() => setLoading(false));
+      setRecentRegs(snap.docs.slice(0, 20).map((d) => ({ id: d.id, ...d.data() })));
+      loadAll().finally(() => setLoading(false));
     });
     return unsub;
   }, []);
@@ -103,73 +123,173 @@ export default function AdminDashboard() {
     <div className="admin-layout">
       <Header />
       <main className="admin-main">
+        {/* Page Header */}
         <div className="admin-page-header">
           <div>
             <div className="admin-page-title">Dashboard</div>
-            <div className="admin-page-subtitle">
-              MMS Open Climbs 2026 — Admin Portal
-            </div>
+            <div className="admin-page-subtitle">MMS Open Climbs 2026 — Admin Portal</div>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link to="/admin/climbs/new" className="btn btn-primary">
-              + New Climb
-            </Link>
-            <Link to="/admin/users" className="btn btn-outline">
-              Manage Users
-            </Link>
-            {!loading && stats.climbs === 0 && (
-              <button
-                className="btn btn-gold btn-sm"
-                onClick={handleSeed}
-                disabled={seeding}
-              >
-                {seeding ? "Importing…" : "⬇ Import 2026 Schedule"}
-              </button>
-            )}
-          </div>
-          {seedResult && (
-            <div className="alert alert-success" style={{ marginTop: 10 }}>
-              {seedResult}
-            </div>
+          {!loading && stats.climbs === 0 && (
+            <button className="btn btn-gold btn-sm" onClick={handleSeed} disabled={seeding}>
+              {seeding ? "Importing…" : "⬇ Import 2026 Schedule"}
+            </button>
           )}
+          {seedResult && <div className="alert alert-success" style={{ marginTop: 10 }}>{seedResult}</div>}
         </div>
 
-        {loading ? (
-          <LoadingSpinner />
-        ) : (
+        {/* Admin Nav Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 28 }}>
+          {[
+            { to: "/admin/climbs", label: "Manage Climbs", desc: "View, edit, create climbs", icon: "⛰", color: "var(--green-dark)" },
+            { to: "/admin/registrations", label: "Manage Registrations", desc: "Review & approve participants", icon: "📋", color: "#0070E0" },
+            { to: "/admin/payments", label: "Manage Payments", desc: "Cash flow, QR & transport per climb", icon: "💳", color: "#e67e00" },
+            { to: "/admin/users", label: "Manage Users", desc: "Admin & member accounts", icon: "👥", color: "#7b2d8b" },
+          ].map(({ to, label, desc, icon, color }) => (
+            <Link
+              key={to}
+              to={to}
+              style={{
+                display: "flex", alignItems: "center", gap: 14, padding: "16px 18px",
+                background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12,
+                textDecoration: "none", color: "var(--ink)", transition: "box-shadow 0.15s",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.12)"}
+              onMouseLeave={(e) => e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"}
+            >
+              <div style={{ fontSize: "1.8rem", lineHeight: 1, flexShrink: 0 }}>{icon}</div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "0.9rem", color }}>{label}</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--ink-soft)", marginTop: 2 }}>{desc}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {loading ? <LoadingSpinner /> : (
           <>
-            <div className="admin-stats">
-              <div className="admin-stat-card">
+            {/* Global Stats */}
+            <div className="admin-stats" style={{ marginBottom: 28 }}>
+              <Link to="/admin/climbs" className="admin-stat-card" style={{ textDecoration: "none" }}>
                 <div className="admin-stat-num">{stats.climbs}</div>
                 <div className="admin-stat-label">Total Climbs</div>
-              </div>
-              <div className="admin-stat-card accent">
+              </Link>
+              <Link to="/admin/registrations" className="admin-stat-card accent" style={{ textDecoration: "none" }}>
                 <div className="admin-stat-num">{stats.totalRegs}</div>
                 <div className="admin-stat-label">Registrations</div>
-              </div>
-              <div className="admin-stat-card gold">
+              </Link>
+              <Link to="/admin/registrations?filter=payment" className="admin-stat-card gold" style={{ textDecoration: "none" }}>
+                <div className="admin-stat-num">{stats.awaitingPayment}</div>
+                <div className="admin-stat-label">Awaiting Payment Review</div>
+              </Link>
+              <div className="admin-stat-card">
                 <div className="admin-stat-num">{stats.pending}</div>
                 <div className="admin-stat-label">Pending Confirmation</div>
               </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-num">{stats.users}</div>
-                <div className="admin-stat-label">Users</div>
-              </div>
             </div>
 
+            {/* Climbs Overview Table */}
+            <div className="admin-section-bar">
+              <span className="admin-section-label">Climbs Overview</span>
+              <Link to="/admin/climbs" className="btn btn-outline btn-sm">Manage Climbs</Link>
+            </div>
+            <div className="admin-table-wrap" style={{ marginBottom: 32 }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Climb</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: "center" }}>Slots</th>
+                    <th style={{ textAlign: "center" }}>Confirmed</th>
+                    <th style={{ textAlign: "center" }}>Pending</th>
+                    <th style={{ textAlign: "center" }}>Waitlisted</th>
+                    <th style={{ textAlign: "center" }}>Cancelled</th>
+                    <th style={{ textAlign: "center" }}>Awaiting Payment</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {climbs.length === 0 ? (
+                    <tr><td colSpan={10} className="admin-table-empty">No climbs yet.</td></tr>
+                  ) : climbs.map((climb) => {
+                    const s = climbRegStats[climb.id] || {};
+                    const total = s.total || 0;
+                    const max = climb.maxParticipants ?? null;
+                    const slotsLeft = max != null ? max - (s.confirmed || 0) : null;
+                    const isFull = slotsLeft != null && slotsLeft <= 0;
+                    return (
+                      <tr key={climb.id}>
+                        <td>
+                          <div style={{ fontWeight: 700 }}>{climb.title}</div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)" }}>{climb.location}</div>
+                        </td>
+                        <td style={{ whiteSpace: "nowrap", fontSize: "0.82rem" }}>{climb.dateLabel || "—"}</td>
+                        <td>
+                          <span style={{
+                            display: "inline-block", padding: "2px 10px", borderRadius: 99,
+                            fontSize: "0.72rem", fontWeight: 700, letterSpacing: 0.5,
+                            background: climb.status === "open" ? "#e6f4ec" : "var(--surface-alt)",
+                            color: STATUS_COLOR[climb.status] || "var(--ink-soft)",
+                            border: `1px solid ${STATUS_COLOR[climb.status] || "var(--border)"}22`,
+                          }}>
+                            {STATUS_LABEL[climb.status] || climb.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 700 }}>{total}</span>
+                          {max && <span style={{ color: "var(--ink-soft)", fontSize: "0.8rem" }}> / {max}</span>}
+                          {isFull && <span className="status-badge status-closed" style={{ marginLeft: 6, fontSize: "0.65rem" }}>Full</span>}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: "var(--green-dark)" }}>{s.confirmed || 0}</span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ fontWeight: 700, color: "#e67e00" }}>{s.pending || 0}</span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ color: "var(--ink-soft)" }}>{s.waitlisted || 0}</span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ color: "#c0392b" }}>{s.cancelled || 0}</span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {s.paymentSubmitted > 0 ? (
+                            <Link
+                              to={`/admin/registrations?filter=payment&climb=${climb.id}`}
+                              style={{ fontWeight: 700, color: "#e67e00", textDecoration: "underline" }}
+                            >
+                              {s.paymentSubmitted}
+                            </Link>
+                          ) : (
+                            <span style={{ color: "var(--ink-soft)" }}>0</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="admin-table-actions">
+                            <Link to={`/admin/climbs/${climb.id}`} className="btn btn-outline btn-sm">Registrants</Link>
+                            <Link to={`/admin/climbs/${climb.id}/edit`} className="btn btn-accent btn-sm">Edit</Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Recent Registrations */}
             <div className="admin-section-bar">
               <span className="admin-section-label">Recent Registrations</span>
-              <Link to="/admin/climbs" className="btn btn-outline btn-sm">
-                All Climbs
-              </Link>
+              <Link to="/admin/registrations" className="btn btn-outline btn-sm">View All</Link>
             </div>
-
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th>Participant</th>
                     <th>Climb</th>
+                    <th>Payment</th>
                     <th>Status</th>
                     <th>Date</th>
                     <th>Actions</th>
@@ -177,42 +297,32 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {recentRegs.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="admin-table-empty">
-                        No registrations yet.
+                    <tr><td colSpan={6} className="admin-table-empty">No registrations yet.</td></tr>
+                  ) : recentRegs.map((reg) => (
+                    <tr key={reg.id}>
+                      <td>
+                        <div className="admin-table-name">{reg.name}</div>
+                        <div className="admin-table-sub">{reg.email}</div>
+                      </td>
+                      <td>{reg.climbTitle}</td>
+                      <td>
+                        {reg.paymentStatus ? (
+                          <span className={`status-badge ${reg.paymentStatus === "verified" ? "status-confirmed" : reg.paymentStatus === "rejected" ? "status-cancelled" : "status-pending"}`}>
+                            {reg.paymentStatus}
+                          </span>
+                        ) : <span style={{ color: "var(--ink-soft)", fontSize: "0.78rem" }}>—</span>}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${STATUS_CLASS[reg.status] || ""}`}>{reg.status}</span>
+                      </td>
+                      <td className="admin-table-date">
+                        {reg.createdAt?.toDate?.().toLocaleDateString("en-PH") || "—"}
+                      </td>
+                      <td>
+                        <Link to={`/admin/climbs/${reg.climbId}`} className="btn btn-outline btn-sm">View</Link>
                       </td>
                     </tr>
-                  ) : (
-                    recentRegs.map((reg) => (
-                      <tr key={reg.id}>
-                        <td>
-                          <div className="admin-table-name">{reg.name}</div>
-                          <div className="admin-table-sub">{reg.email}</div>
-                        </td>
-                        <td>{reg.climbTitle}</td>
-                        <td>
-                          <span
-                            className={`status-badge ${STATUS_CLASS[reg.status] || ""}`}
-                          >
-                            {reg.status}
-                          </span>
-                        </td>
-                        <td className="admin-table-date">
-                          {reg.createdAt
-                            ?.toDate?.()
-                            .toLocaleDateString("en-PH") || "—"}
-                        </td>
-                        <td>
-                          <Link
-                            to={`/admin/climbs/${reg.climbId}`}
-                            className="btn btn-outline btn-sm"
-                          >
-                            View
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>

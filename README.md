@@ -29,56 +29,124 @@ graph TD
     CF --> Brevo
 ```
 
-## User Paths
+## End-to-End Flow
 
-### Member Registration Flow
+From member registration through payment, transportation, and admin approval with email notifications.
+
+### Step-by-Step
+
+**Member — Registration**
+
+1. Member opens the schedule and browses available climbs on the card grid.
+2. Member clicks a climb card to open the event page — reviews the mountain profile (elevation, difficulty, distances, itinerary, map) and checks remaining slots.
+3. Member signs in with email/password or Google if not already authenticated.
+4. Member opens the registration form and fills in personal details, emergency contact, experience level, and medical conditions.
+5. Member selects optional fees — if the climb has an organized transport option (Transportation Fee), member checks it to avail. Non-optional fees (registration fee, guide fee, meals) are always included.
+6. Member reviews the fee breakdown showing required fees plus any selected optional fees.
+7. Member reads and digitally signs the liability waiver by typing their full name.
+
+**Member — Payment via GCash**
+
+8. Member scans the climb's GCash QR code or sends to the GCash number shown on the form.
+9. Member enters the exact amount paid and uploads a screenshot or photo of the GCash receipt.
+10. Member submits the form — Firestore registration document is created with `status: pending` and `paymentStatus: submitted`.
+11. Member sees the registration under **My Registrations** with status `pending`.
+
+**Cloud Functions — Automatic (on submit)**
+
+12. `onRegistrationCreated` trigger fires:
+    - Increments `registrationCount` on the climb document (seat counter updates in real time).
+    - Sends a "Registration Received" email to the member via Brevo with climb details and a link to print their waiver.
+
+**Admin — Payment Verification**
+
+13. Admin navigates to **Admin > Payments** — sees all registrations grouped by climb with payment status badges (submitted / verified / rejected).
+14. Admin opens a registration row and views the uploaded GCash proof image.
+15. Admin checks the amount paid against the expected fee breakdown.
+16. Admin sets `paymentStatus` to:
+    - **Verified** — payment confirmed, amount matches.
+    - **Rejected** — screenshot unclear or amount incorrect; member must resubmit.
+
+**Admin — Transportation Tracking**
+
+17. On the Manage Payments page, admin sees the transportation breakdown per climb:
+    - Count of members availing organized transport (selected Transportation Fee).
+    - Count of members arranging their own transport.
+    - Percentage availing organized transport — used for vehicle headcount and booking.
+18. Admin uses this data to coordinate vehicles, confirm pickup points, and communicate logistics to drivers.
+
+**Admin — Registration Approval**
+
+19. Admin navigates to **Admin > Climbs > [Climb Name]** or **Admin > All Registrations**.
+20. Admin reviews each registration (personal details, experience level, medical notes, payment status, proof images).
+21. Admin updates the `status`:
+    - **Confirmed** — spot is secured.
+    - **Waitlisted** — climb is full; member is on the waitlist.
+    - **Cancelled** — registration rejected or withdrawn.
+22. Admin can add internal admin notes to any registration (not visible to the member).
+
+**Cloud Functions — Notifications (on status change)**
+
+23. `onRegistrationUpdated` trigger fires when `status` changes:
+    - **confirmed** → Brevo sends "You're Confirmed!" email. Member's My Registrations updates to `confirmed`.
+    - **waitlisted** → Brevo sends "Added to Waitlist" email. Member's My Registrations updates to `waitlisted`.
+    - **cancelled** → Brevo sends "Registration Cancelled" email (includes cancellation reason if provided). `registrationCount` is decremented. Member's My Registrations updates to `cancelled`.
+24. Admin can later promote a `waitlisted` member to `confirmed` — a new confirmation email is sent automatically.
+
+---
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as Member
-    participant FE as React SPA
-    participant FA as Firebase Auth
+    actor M as Member
+    participant RF as Register Form
+    participant ST as Firebase Storage
     participant FS as Firestore
     participant CF as Cloud Functions
     participant EM as Brevo Email
+    actor AD as Admin
 
-    U->>FE: Browse climb schedule
-    U->>FA: Sign in (email or Google)
-    FA-->>FE: Auth token + user profile
-    U->>FE: Open climb and click Register
-    FE->>FE: Validate form + waiver signature
-    FE->>FS: Create registration (status: pending)
-    FS->>CF: Trigger onRegistrationCreated
+    M->>RF: Fill details, select optional transport fee
+    M->>RF: Sign digital waiver
+    M->>RF: Scan GCash QR, pay fee, enter amount + upload receipt
+    RF->>ST: Upload GCash proof image(s)
+    ST-->>RF: proofUrl(s)
+    RF->>FS: Create registration {status:pending, paymentStatus:submitted}
+    FS-->>M: My Registrations — pending
+
+    FS->>CF: onRegistrationCreated trigger
     CF->>FS: Increment registrationCount on climb
-    CF->>EM: Send confirmation email to member
-    EM-->>U: Registration confirmation
-```
+    CF->>EM: "Registration Received" email + waiver link
+    EM-->>M: Registration confirmation email
 
-### Admin Approval Flow
+    Note over AD,FS: Admin — Payment & Transport
+    AD->>FS: Open Admin > Payments
+    AD->>FS: View proof image, check amount
+    AD->>FS: Set paymentStatus = verified / rejected
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant AD as Admin
-    participant FE as React SPA
-    participant FS as Firestore
-    participant CF as Cloud Functions
-    participant EM as Brevo Email
-    participant U as Member
+    Note over AD,FS: Transport headcount visible in Manage Payments
+    AD->>AD: Count transport vs own transport per climb
 
-    AD->>FE: Open climb detail in admin panel
+    Note over AD,FS: Admin — Approval
+    AD->>FS: Open climb registrations list
     AD->>FS: Update registration status
-    FS->>CF: Trigger onRegistrationUpdated
-    CF->>EM: Send status update email
 
     alt confirmed
-        EM-->>U: Registration confirmed email
+        FS->>CF: onRegistrationUpdated trigger
+        CF->>EM: "You're Confirmed!" email
+        EM-->>M: Confirmation email
+        FS-->>M: My Registrations — confirmed
     else waitlisted
-        EM-->>U: Waitlist notification email
+        FS->>CF: onRegistrationUpdated trigger
+        CF->>EM: "Added to Waitlist" email
+        EM-->>M: Waitlist email
+        FS-->>M: My Registrations — waitlisted
     else cancelled
+        FS->>CF: onRegistrationUpdated trigger
         CF->>FS: Decrement registrationCount
-        EM-->>U: Cancellation email
+        CF->>EM: "Registration Cancelled" email
+        EM-->>M: Cancellation email
+        FS-->>M: My Registrations — cancelled
     end
 ```
 
