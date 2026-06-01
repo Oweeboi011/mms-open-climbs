@@ -33,6 +33,14 @@
         { "fieldPath": "startDate", "order": "ASCENDING" },
         { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "climbs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "officerIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "startDate", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

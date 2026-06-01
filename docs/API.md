@@ -55,8 +55,9 @@ graph TD
 **Path:** `registrations/{regId}` on update
 
 **What it does:**
-1. If `status` changed to `cancelled`, decrements `registrationCount` on the climb.
-2. If `status` changed to `confirmed`, `cancelled`, or `waitlisted`, sends a status update email to the participant.
+1. Watches for changes to the `status` field only — `paymentStatus` changes do not trigger this function.
+2. If `status` changed to `cancelled`, decrements `registrationCount` on the climb.
+3. If `status` changed to `confirmed`, `cancelled`, or `waitlisted`, sends a status update email to the participant. The email includes a cancellation reason when `cancellationReason` is set.
 
 ---
 

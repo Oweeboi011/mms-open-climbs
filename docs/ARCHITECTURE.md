@@ -57,31 +57,44 @@ Database name: `openclimbs`
 | waterSourceNote     | string    | Water source information                     |
 | weatherNote         | string    | Weather notes                                |
 | thingsToBring       | string[]  |                                              |
-| expenses            | object[]  | {label, amount, note}                        |
+| expenses            | object[]  | {label, amount, note, optional}              |
 | officers            | object[]  | {name, role, mobile}                         |
 | itinerary           | object[]  | [{day, entries:[{time, activity}]}]          |
+| gcashName           | string    | GCash account name for payment               |
+| gcashNumber         | string    | GCash number for payment                     |
+| gcashQrUrl          | string    | Uploaded GCash QR code image URL             |
 
 ### Collection: registrations
 
 | Field             | Type      | Notes                                        |
 | ----------------- | --------- | -------------------------------------------- |
-| climbId           | string    | Ref to climbs doc                            |
-| userId            | string    | Firebase Auth UID                            |
-| status            | string    | pending / confirmed / waitlisted / cancelled |
-| name              | string    | Full name                                    |
-| email             | string    |                                              |
-| mobile            | string    |                                              |
-| dateOfBirth       | string    |                                              |
-| address           | string    |                                              |
-| emergencyContact  | object    | {name, mobile, relationship}                 |
-| medicalConditions | string    |                                              |
-| experienceLevel   | string    | beginner / intermediate / experienced        |
-| waiverSigned      | boolean   |                                              |
-| waiverSignedAt    | timestamp |                                              |
-| waiverSignedName  | string    | Digital signature name                       |
-| adminNotes        | string    | Admin-only notes                             |
-| createdAt         | timestamp |                                              |
-| updatedAt         | timestamp |                                              |
+| climbId            | string    | Ref to climbs doc                            |
+| climbTitle         | string    | Denormalized climb name                      |
+| climbDate          | string    | Denormalized dateLabel                       |
+| climbLocation      | string    | Denormalized location                        |
+| userId             | string    | Firebase Auth UID                            |
+| status             | string    | pending / confirmed / waitlisted / cancelled |
+| memberType         | string    | member / guest                               |
+| name               | string    | Full name                                    |
+| email              | string    |                                              |
+| mobile             | string    |                                              |
+| dateOfBirth        | string    |                                              |
+| address            | string    |                                              |
+| emergencyContact   | object    | {name, mobile, relationship}                 |
+| medicalConditions  | string    |                                              |
+| experienceLevel    | string    | beginner / intermediate / experienced        |
+| waiverSigned       | boolean   |                                              |
+| waiverSignedAt     | timestamp |                                              |
+| waiverSignedName   | string    | Digital signature name                       |
+| paymentStatus      | string    | submitted / verified / rejected              |
+| amountPaid         | number    | Exact amount sent via GCash                  |
+| paymentProofs      | object[]  | [{url, fileName}] — uploaded receipt images  |
+| feeBreakdown       | object[]  | [{label, amount, optional, selected}]        |
+| adminNotes         | string    | Admin-only notes                             |
+| cancellationReason | string    | Optional reason when status = cancelled      |
+| confirmedAt        | timestamp | Set when status changes to confirmed         |
+| createdAt          | timestamp |                                              |
+| updatedAt          | timestamp |                                              |
 
 ### Collection: users
 
@@ -112,6 +125,8 @@ Database name: `openclimbs`
 | /admin/climbs/:id/edit  | Admin        | Edit climb                   |
 | /admin/climbs/:id       | Admin        | Climb detail + registrations |
 | /admin/users            | Admin        | User management              |
+| /admin/registrations    | Admin        | All registrations across all climbs |
+| /admin/payments         | Admin        | GCash payment verification + transport headcount |
 
 ## Auth Flow
 
@@ -133,3 +148,6 @@ flowchart TD
 - Firestore security rules enforce ownership and role checks server-side.
 - Email is sent by Cloud Functions only — the client never holds Brevo credentials.
 - The SPA is deployed to Firebase Hosting as a static build; all routing is handled client-side via React Router with the `rewrites` rule in `firebase.json`.
+- Payment is handled out-of-band via GCash — the app records proof uploads and amount paid, but does not process card payments directly.
+- Transportation opt-in is modelled as an optional expense item (`Transportation Fee`) in the `feeBreakdown`. Admins read the transport headcount from the Manage Payments page to coordinate vehicles.
+- Denormalized fields (`climbTitle`, `climbDate`, `climbLocation`) are stored on registration documents so the admin registrations list does not require per-registration climb lookups.

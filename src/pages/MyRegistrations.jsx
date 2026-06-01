@@ -45,13 +45,19 @@ export default function MyRegistrations() {
       query(
         collection(db, "climbs"),
         where("officerIds", "array-contains", currentUser.uid),
-        orderBy("startDate"),
       ),
     )
       .then((snap) => {
-        setOfficerClimbs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const sorted = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => {
+            const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
+            const db2 = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
+            return da - db2;
+          });
+        setOfficerClimbs(sorted);
       })
-      .catch(() => {});
+      .catch((err) => console.error("Officer climbs query failed:", err));
   }, [currentUser.uid]);
 
   return (

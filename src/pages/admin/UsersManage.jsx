@@ -121,7 +121,7 @@ export default function AdminUsersManage() {
             <div className="admin-page-title">Users</div>
             <div className="admin-page-subtitle">{users.length} registered user{users.length !== 1 ? 's' : ''}</div>
           </div>
-          <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setCreateError(''); setCreateOk(''); }}>
+          <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setCreateError(''); setCreateOk(''); }} title="Create a new user account and send them a welcome email">
             + Add User
           </button>
         </div>
@@ -153,10 +153,10 @@ export default function AdminUsersManage() {
                   <div className="form-hint">The user will receive an email with a link to set their password.</div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                  <button className="btn btn-primary" type="submit" disabled={creating}>
+                  <button className="btn btn-primary" type="submit" disabled={creating} title="Create the account and send the user a password setup email">
                     {creating ? 'Sending…' : 'Create & Send Invite'}
                   </button>
-                  <button className="btn btn-outline" type="button" onClick={() => setShowAddModal(false)}>Cancel</button>
+                  <button className="btn btn-outline" type="button" title="Close this dialog without creating a user" onClick={() => setShowAddModal(false)}>Cancel</button>
                 </div>
               </form>
             </div>
@@ -197,6 +197,7 @@ export default function AdminUsersManage() {
                 </div>
                 <button
                   onClick={closeUserModal}
+                  title="Close this panel"
                   style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--ink-soft)', lineHeight: 1 }}
                 >✕</button>
               </div>
@@ -245,6 +246,7 @@ export default function AdminUsersManage() {
                     <button
                       className="btn btn-primary btn-sm"
                       disabled={editRole === selectedUser.role || roleChanging}
+                      title="Save the new role for this user"
                       onClick={saveRole}
                       style={{ marginLeft: 'auto' }}
                     >
@@ -277,9 +279,9 @@ export default function AdminUsersManage() {
               <thead>
                 <tr>
                   <th>User</th>
-                  <th>Role</th>
-                  <th>Added By</th>
-                  <th>Joined</th>
+                  <th style={{ width: "1%" }}>Role</th>
+                  <th style={{ width: "1%" }}>Added By</th>
+                  <th style={{ width: "1%" }}>Joined</th>
                 </tr>
               </thead>
               <tbody>

@@ -338,6 +338,7 @@ export default function ManagePayments() {
                           <button
                             className="btn btn-outline btn-sm"
                             disabled={qrUploading === climb.id}
+                            title="Upload a GCash QR code image for this climb"
                             onClick={() => fileRefs.current[climb.id]?.click()}
                           >
                             {qrUploading === climb.id ? "Uploading…" : "📷 Choose Image"}
@@ -350,7 +351,7 @@ export default function ManagePayments() {
                           )}
                         </div>
                         <div style={{ marginTop: 10 }}>
-                          <Link to={`/admin/climbs/${climb.id}/edit`} className="btn btn-outline btn-sm">
+                          <Link to={`/admin/climbs/${climb.id}/edit`} className="btn btn-outline btn-sm" title="Edit the GCash account name and number for this climb">
                             Edit GCash Name / Number
                           </Link>
                         </div>
@@ -370,13 +371,13 @@ export default function ManagePayments() {
                         <table className="admin-table">
                           <thead>
                             <tr>
-                              <th>#</th>
+                              <th style={{ width: "1%" }}>#</th>
                               <th>Participant</th>
-                              <th>Type</th>
-                              <th>Transport</th>
-                              <th>Declared Paid</th>
-                              <th>Proof</th>
-                              <th>Payment Status</th>
+                              <th style={{ width: "1%" }}>Type</th>
+                              <th style={{ width: "1%" }}>Transport</th>
+                              <th style={{ width: "1%" }}>Declared Paid</th>
+                              <th style={{ width: "1%" }}>Proof</th>
+                              <th style={{ width: "1%" }}>Payment Status</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -402,7 +403,7 @@ export default function ManagePayments() {
                                       <span style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>—</span>
                                     )}
                                   </td>
-                                  <td style={{ fontWeight: 700, fontSize: "0.9rem" }}>
+                                  <td style={{ fontWeight: 700, fontSize: "0.9rem", whiteSpace: "nowrap" }}>
                                     {reg.amountPaid ? fmt(reg.amountPaid) : <span style={{ color: "var(--ink-soft)" }}>—</span>}
                                   </td>
                                   <td>

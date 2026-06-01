@@ -6,10 +6,16 @@ Event management portal for MMS mountaineering club climbs. Members browse the c
 
 - Climb schedule with card grid — shows elevation, difficulty, and round-trip distance at a glance
 - Full mountain profile per climb: summit elevation, difficulty, jump-off point, elevation gain, distances, features, water source notes, and external links (AllTrails, Strava, Coros, Google Maps)
-- Member registration with digital waiver signature
-- Registration status tracking (pending / confirmed / waitlisted / cancelled)
-- Admin panel: climb management, registration review, user management
-- Cloud Function email notifications on registration create and status change
+- Member registration with digital waiver signature and optional fee selection (transport, meals, guest fee)
+- GCash payment: members scan the climb's QR code, pay, and upload a screenshot as proof
+- Registration status tracking (pending / confirmed / waitlisted / cancelled) with email notifications on every status change
+- Admin panel:
+  - Climb management — create, edit, open/close registration, set GCash details and QR code
+  - Climb detail — per-climb registration list with status and payment controls
+  - All registrations — cross-climb view with search, status, and payment filters; CSV export
+  - Payment management — verify or reject GCash proof per registration; transport headcount per climb
+  - User management — create accounts, assign roles
+- Cloud Function email notifications: registration received, confirmed, waitlisted, cancelled (with reason)
 - Google and email/password authentication
 
 ## System Overview
@@ -35,7 +41,7 @@ From member registration through payment, transportation, and admin approval wit
 
 ### Step-by-Step
 
-**Member — Registration**
+#### Member — Registration
 
 1. Member opens the schedule and browses available climbs on the card grid.
 2. Member clicks a climb card to open the event page — reviews the mountain profile (elevation, difficulty, distances, itinerary, map) and checks remaining slots.
@@ -45,53 +51,53 @@ From member registration through payment, transportation, and admin approval wit
 6. Member reviews the fee breakdown showing required fees plus any selected optional fees.
 7. Member reads and digitally signs the liability waiver by typing their full name.
 
-**Member — Payment via GCash**
+#### Member — Payment via GCash
 
-8. Member scans the climb's GCash QR code or sends to the GCash number shown on the form.
-9. Member enters the exact amount paid and uploads a screenshot or photo of the GCash receipt.
-10. Member submits the form — Firestore registration document is created with `status: pending` and `paymentStatus: submitted`.
-11. Member sees the registration under **My Registrations** with status `pending`.
+1. Member scans the climb's GCash QR code or sends to the GCash number shown on the form.
+2. Member enters the exact amount paid and uploads a screenshot or photo of the GCash receipt.
+3. Member submits the form — Firestore registration document is created with `status: pending` and `paymentStatus: submitted`.
+4. Member sees the registration under **My Registrations** with status `pending`.
 
-**Cloud Functions — Automatic (on submit)**
+#### Cloud Functions — Automatic (on submit)
 
-12. `onRegistrationCreated` trigger fires:
+1. `onRegistrationCreated` trigger fires:
     - Increments `registrationCount` on the climb document (seat counter updates in real time).
     - Sends a "Registration Received" email to the member via Brevo with climb details and a link to print their waiver.
 
-**Admin — Payment Verification**
+#### Admin — Payment Verification
 
-13. Admin navigates to **Admin > Payments** — sees all registrations grouped by climb with payment status badges (submitted / verified / rejected).
-14. Admin opens a registration row and views the uploaded GCash proof image.
-15. Admin checks the amount paid against the expected fee breakdown.
-16. Admin sets `paymentStatus` to:
+1. Admin navigates to **Admin > Payments** — sees all registrations grouped by climb with payment status badges (submitted / verified / rejected).
+2. Admin opens a registration row and views the uploaded GCash proof image.
+3. Admin checks the amount paid against the expected fee breakdown.
+4. Admin sets `paymentStatus` to:
     - **Verified** — payment confirmed, amount matches.
     - **Rejected** — screenshot unclear or amount incorrect; member must resubmit.
 
-**Admin — Transportation Tracking**
+#### Admin — Transportation Tracking
 
-17. On the Manage Payments page, admin sees the transportation breakdown per climb:
+1. On the Manage Payments page, admin sees the transportation breakdown per climb:
     - Count of members availing organized transport (selected Transportation Fee).
     - Count of members arranging their own transport.
     - Percentage availing organized transport — used for vehicle headcount and booking.
-18. Admin uses this data to coordinate vehicles, confirm pickup points, and communicate logistics to drivers.
+2. Admin uses this data to coordinate vehicles, confirm pickup points, and communicate logistics to drivers.
 
-**Admin — Registration Approval**
+#### Admin — Registration Approval
 
-19. Admin navigates to **Admin > Climbs > [Climb Name]** or **Admin > All Registrations**.
-20. Admin reviews each registration (personal details, experience level, medical notes, payment status, proof images).
-21. Admin updates the `status`:
+1. Admin navigates to **Admin > Climbs > [Climb Name]** or **Admin > All Registrations**.
+2. Admin reviews each registration (personal details, experience level, medical notes, payment status, proof images).
+3. Admin updates the `status`:
     - **Confirmed** — spot is secured.
     - **Waitlisted** — climb is full; member is on the waitlist.
     - **Cancelled** — registration rejected or withdrawn.
-22. Admin can add internal admin notes to any registration (not visible to the member).
+4. Admin can add internal admin notes to any registration (not visible to the member).
 
-**Cloud Functions — Notifications (on status change)**
+#### Cloud Functions — Notifications (on status change)
 
-23. `onRegistrationUpdated` trigger fires when `status` changes:
+1. `onRegistrationUpdated` trigger fires when `status` changes:
     - **confirmed** → Brevo sends "You're Confirmed!" email. Member's My Registrations updates to `confirmed`.
     - **waitlisted** → Brevo sends "Added to Waitlist" email. Member's My Registrations updates to `waitlisted`.
     - **cancelled** → Brevo sends "Registration Cancelled" email (includes cancellation reason if provided). `registrationCount` is decremented. Member's My Registrations updates to `cancelled`.
-24. Admin can later promote a `waitlisted` member to `confirmed` — a new confirmation email is sent automatically.
+2. Admin can later promote a `waitlisted` member to `confirmed` — a new confirmation email is sent automatically.
 
 ---
 
@@ -178,7 +184,7 @@ cd functions && npm install && cd ..
 
 Copy `.env.example` to `.env` and fill in your Firebase project values:
 
-```
+```env
 VITE_FIREBASE_API_KEY=...
 VITE_FIREBASE_AUTH_DOMAIN=...
 VITE_FIREBASE_PROJECT_ID=...
@@ -208,7 +214,7 @@ node scripts/set-admin.mjs your@email.com
 
 ## Repository Structure
 
-```
+```text
 src/
   components/     Shared UI components
   contexts/       React contexts (AuthContext)

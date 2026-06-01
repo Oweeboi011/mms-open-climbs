@@ -233,9 +233,9 @@ export default function AdminClimbDetail() {
             <div className="admin-page-subtitle">{climb?.dateLabel} &bull; {climb?.location}</div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link to={`/event/${id}`} className="btn btn-outline btn-sm" target="_blank">View Page</Link>
-            <button className="btn btn-outline btn-sm" onClick={exportCSV}>&#128229; Export CSV</button>
-            <Link to={`/admin/climbs/${id}/edit`} className="btn btn-accent btn-sm">Edit Climb</Link>
+            <Link to={`/event/${id}`} className="btn btn-outline btn-sm" target="_blank" title="Open the public event page in a new tab">View Page</Link>
+            <button className="btn btn-outline btn-sm" onClick={exportCSV} title="Download all registrations for this climb as a CSV file">&#128229; Export CSV</button>
+            <Link to={`/admin/climbs/${id}/edit`} className="btn btn-accent btn-sm" title="Edit climb details, officers, itinerary, and settings">Edit Climb</Link>
           </div>
         </div>
 
@@ -271,6 +271,69 @@ export default function AdminClimbDetail() {
                 <div className="admin-stat-card">
                   <div className="admin-stat-num">{climb.maxParticipants - stats.confirmed}</div>
                   <div className="admin-stat-label">Open Slots</div>
+                </div>
+              )}
+            </div>
+
+            {/* Officers */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                marginBottom: 10,
+              }}>
+                <div style={{
+                  fontSize: "0.72rem", fontWeight: 700, letterSpacing: 2,
+                  textTransform: "uppercase", color: "var(--ink-soft)",
+                }}>
+                  Climb Officers
+                </div>
+                {(!climb?.officers || climb.officers.length === 0) && (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "3px 10px", borderRadius: 20, fontSize: "0.72rem",
+                    fontWeight: 700, background: "#fce8e8", color: "#b91c1c",
+                    border: "1px solid #fca5a5",
+                  }}>
+                    &#9888; No officers assigned
+                  </span>
+                )}
+                <Link
+                  to={`/admin/climbs/${id}/edit`}
+                  title="Go to the edit page to add or update officers"
+                  style={{ marginLeft: "auto", fontSize: "0.78rem", color: "var(--ink-soft)", textDecoration: "none" }}
+                >
+                  + Manage Officers
+                </Link>
+              </div>
+
+              {climb?.officers?.length > 0 ? (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {climb.officers.map((o, i) => (
+                    <div key={i} style={{
+                      background: "var(--surface)", border: "1px solid var(--border)",
+                      borderRadius: 8, padding: "10px 16px", minWidth: 180,
+                    }}>
+                      <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{o.name || "—"}</div>
+                      {o.role && (
+                        <div style={{ fontSize: "0.75rem", color: "var(--ink-soft)", marginTop: 2 }}>{o.role}</div>
+                      )}
+                      {o.contact && (
+                        <div style={{ fontSize: "0.75rem", color: "var(--ink-soft)", marginTop: 2 }}>{o.contact}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  padding: "14px 18px", borderRadius: 8,
+                  background: "#fce8e8", border: "1px solid #fca5a5",
+                  fontSize: "0.85rem", color: "#b91c1c",
+                }}>
+                  This climb has no officers assigned yet. Please{" "}
+                  <Link to={`/admin/climbs/${id}/edit`} style={{ color: "#b91c1c", fontWeight: 700 }}>
+                    edit the climb
+                  </Link>{" "}
+                  to add officers.
                 </div>
               )}
             </div>
@@ -316,14 +379,14 @@ export default function AdminClimbDetail() {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>#</th>
+                    <th style={{ width: "1%" }}>#</th>
                     <th>Participant</th>
-                    <th>Mobile</th>
-                    <th>Waiver</th>
-                    <th>Payment</th>
-                    <th>Status</th>
-                    <th>Registered</th>
-                    <th>Actions</th>
+                    <th style={{ width: "1%" }}>Mobile</th>
+                    <th style={{ width: "1%" }}>Waiver</th>
+                    <th style={{ width: "1%" }}>Payment</th>
+                    <th style={{ width: "1%" }}>Status</th>
+                    <th style={{ width: "1%" }}>Registered</th>
+                    <th style={{ width: "1%" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,7 +451,7 @@ export default function AdminClimbDetail() {
                             {reg.createdAt?.toDate?.().toLocaleDateString("en-PH") || "—"}
                           </td>
                           <td onClick={(e) => e.stopPropagation()}>
-                            <Link to={`/waiver/${reg.id}`} className="btn btn-outline btn-sm" target="_blank">
+                            <Link to={`/waiver/${reg.id}`} className="btn btn-outline btn-sm" target="_blank" title="Open the printable waiver for this participant">
                               Waiver
                             </Link>
                           </td>
@@ -424,6 +487,7 @@ export default function AdminClimbDetail() {
                                     className="btn btn-sm"
                                     style={{ background: "#1a6b2c", color: "#fff", border: "none" }}
                                     disabled={reg.status === "confirmed"}
+                                    title="Confirm this registration — participant is officially accepted"
                                     onClick={(e) => { e.stopPropagation(); changeStatus(reg.id, "confirmed"); }}
                                   >
                                     &#10003; Confirm
@@ -431,6 +495,7 @@ export default function AdminClimbDetail() {
                                   <button
                                     className="btn btn-outline btn-sm"
                                     disabled={reg.status === "waitlisted"}
+                                    title="Move this participant to the waitlist"
                                     onClick={(e) => { e.stopPropagation(); changeStatus(reg.id, "waitlisted"); }}
                                   >
                                     Waitlist
@@ -438,6 +503,7 @@ export default function AdminClimbDetail() {
                                   <button
                                     className="btn btn-danger btn-sm"
                                     disabled={reg.status === "cancelled"}
+                                    title="Cancel this registration"
                                     onClick={(e) => { e.stopPropagation(); changeStatus(reg.id, "cancelled"); }}
                                   >
                                     &#10005; Cancel
@@ -572,6 +638,7 @@ export default function AdminClimbDetail() {
                                           className="btn btn-sm"
                                           style={{ background: "#1a6b2c", color: "#fff", border: "none" }}
                                           disabled={reg.paymentStatus === "verified"}
+                                          title="Mark payment as verified — confirmed received"
                                           onClick={(e) => { e.stopPropagation(); changePaymentStatus(reg.id, "verified"); }}
                                         >
                                           &#10003; Verify Payment
@@ -579,6 +646,7 @@ export default function AdminClimbDetail() {
                                         <button
                                           className="btn btn-danger btn-sm"
                                           disabled={reg.paymentStatus === "rejected"}
+                                          title="Reject this payment — participant will need to resubmit"
                                           onClick={(e) => { e.stopPropagation(); changePaymentStatus(reg.id, "rejected"); }}
                                         >
                                           &#10005; Reject Payment
@@ -586,6 +654,7 @@ export default function AdminClimbDetail() {
                                         <button
                                           className="btn btn-outline btn-sm"
                                           disabled={reg.paymentStatus === "submitted"}
+                                          title="Reset payment status back to Submitted for re-review"
                                           onClick={(e) => { e.stopPropagation(); changePaymentStatus(reg.id, "submitted"); }}
                                         >
                                           Reset to Submitted
@@ -620,12 +689,14 @@ export default function AdminClimbDetail() {
                                       <button
                                         className="btn btn-primary btn-sm"
                                         disabled={savingNote === reg.id}
+                                        title="Save the admin note for this participant"
                                         onClick={(e) => { e.stopPropagation(); saveNote(reg.id); }}
                                       >
                                         {savingNote === reg.id ? "Saving…" : "Save"}
                                       </button>
                                       <button
                                         className="btn btn-outline btn-sm"
+                                        title="Discard changes and close the note editor"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setEditNotes((prev) => { const n = { ...prev }; delete n[reg.id]; return n; });
@@ -645,6 +716,7 @@ export default function AdminClimbDetail() {
                                       </span>
                                       <button
                                         className="btn btn-outline btn-sm"
+                                        title={reg.adminNotes ? "Edit the existing admin note" : "Add an internal note for this participant"}
                                         onClick={(e) => { e.stopPropagation(); startNoteEdit(reg); }}
                                       >
                                         {reg.adminNotes ? "Edit Note" : "+ Add Note"}

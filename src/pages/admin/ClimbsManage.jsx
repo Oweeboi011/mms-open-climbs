@@ -85,21 +85,22 @@ export default function AdminClimbsManage() {
               <thead>
                 <tr>
                   <th>Climb</th>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th style={{ whiteSpace: "nowrap" }}>Elevation</th>
-                  <th>Difficulty</th>
-                  <th style={{ whiteSpace: "nowrap" }}>Distance (RT)</th>
-                  <th>Slots</th>
+                  <th style={{ width: "1%" }}>Date</th>
+                  <th style={{ width: "1%" }}>Type</th>
+                  <th style={{ width: "1%", whiteSpace: "nowrap" }}>Elevation</th>
+                  <th style={{ width: "1%" }}>Difficulty</th>
+                  <th style={{ width: "1%", whiteSpace: "nowrap" }}>Distance (RT)</th>
+                  <th style={{ width: "1%" }}>Slots</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th>Officers</th>
+                  <th style={{ width: "1%" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       style={{ textAlign: "center", color: "var(--ink-soft)" }}
                     >
                       No climbs found.
@@ -177,23 +178,46 @@ export default function AdminClimbsManage() {
                           </select>
                         </td>
                         <td>
+                          {climb.officers?.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                              {climb.officers.map((o, i) => (
+                                <div key={i} style={{ fontSize: "0.78rem" }}>
+                                  <span style={{ fontWeight: 700 }}>{o.name}</span>
+                                  {o.role && <span style={{ color: "var(--ink-soft)", marginLeft: 4 }}>({o.role})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{
+                              display: "inline-block", padding: "2px 8px", borderRadius: 20,
+                              fontSize: "0.68rem", fontWeight: 700,
+                              background: "#fce8e8", color: "#b91c1c", border: "1px solid #fca5a5",
+                            }}>
+                              None
+                            </span>
+                          )}
+                        </td>
+                        <td>
                           <div className="admin-table-actions">
                             <Link
                               to={`/event/${climb.id}`}
                               className="btn btn-outline btn-sm"
                               target="_blank"
+                              title="Open the public event page in a new tab"
                             >
                               View
                             </Link>
                             <Link
                               to={`/admin/climbs/${climb.id}`}
                               className="btn btn-outline btn-sm"
+                              title="View and manage all registrations for this climb"
                             >
                               Registrants
                             </Link>
                             <Link
                               to={`/admin/climbs/${climb.id}/edit`}
                               className="btn btn-accent btn-sm"
+                              title="Edit climb details, officers, and settings"
                             >
                               Edit
                             </Link>

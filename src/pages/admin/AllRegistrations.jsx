@@ -135,7 +135,7 @@ export default function AllRegistrations() {
             <div className="admin-page-title">All Registrations</div>
             <div className="admin-page-subtitle">Across all climbs</div>
           </div>
-          <button className="btn btn-outline btn-sm" onClick={exportCSV}>
+          <button className="btn btn-outline btn-sm" onClick={exportCSV} title="Download the current filtered list as a CSV file">
             &#128229; Export CSV
           </button>
         </div>
@@ -220,13 +220,13 @@ export default function AllRegistrations() {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>#</th>
+                    <th style={{ width: "1%" }}>#</th>
                     <th>Participant</th>
                     <th>Climb</th>
-                    <th>Payment</th>
-                    <th>Status</th>
-                    <th>Registered</th>
-                    <th>Actions</th>
+                    <th style={{ width: "1%" }}>Payment</th>
+                    <th style={{ width: "1%" }}>Status</th>
+                    <th style={{ width: "1%" }}>Registered</th>
+                    <th style={{ width: "1%" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,17 +291,19 @@ export default function AllRegistrations() {
                             {reg.createdAt?.toDate?.().toLocaleDateString("en-PH") || "—"}
                           </td>
                           <td onClick={(e) => e.stopPropagation()}>
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "nowrap" }}>
                               <Link
                                 to={`/waiver/${reg.id}`}
                                 className="btn btn-outline btn-sm"
                                 target="_blank"
+                                title="Open the printable waiver for this participant"
                               >
                                 Waiver
                               </Link>
                               <Link
                                 to={`/admin/climbs/${reg.climbId}`}
                                 className="btn btn-outline btn-sm"
+                                title="Go to the climb registrations page"
                               >
                                 Climb
                               </Link>

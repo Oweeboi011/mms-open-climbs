@@ -130,7 +130,7 @@ export default function AdminDashboard() {
             <div className="admin-page-subtitle">MMS Open Climbs 2026 — Admin Portal</div>
           </div>
           {!loading && stats.climbs === 0 && (
-            <button className="btn btn-gold btn-sm" onClick={handleSeed} disabled={seeding}>
+            <button className="btn btn-gold btn-sm" onClick={handleSeed} disabled={seeding} title="One-click import all climbs from the 2026 schedule into Firestore">
               {seeding ? "Importing…" : "⬇ Import 2026 Schedule"}
             </button>
           )}
@@ -198,20 +198,18 @@ export default function AdminDashboard() {
                 <thead>
                   <tr>
                     <th>Climb</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: "center" }}>Slots</th>
-                    <th style={{ textAlign: "center" }}>Confirmed</th>
-                    <th style={{ textAlign: "center" }}>Pending</th>
-                    <th style={{ textAlign: "center" }}>Waitlisted</th>
-                    <th style={{ textAlign: "center" }}>Cancelled</th>
-                    <th style={{ textAlign: "center" }}>Awaiting Payment</th>
-                    <th>Actions</th>
+                    <th style={{ width: "1%" }}>Date</th>
+                    <th style={{ width: "1%" }}>Status</th>
+                    <th style={{ textAlign: "center", width: "1%" }}>Slots</th>
+                    <th style={{ textAlign: "center", width: "1%" }}>Confirmed</th>
+                    <th style={{ textAlign: "center", width: "1%" }}>Pending</th>
+                    <th>Officers</th>
+                    <th style={{ width: "1%" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {climbs.length === 0 ? (
-                    <tr><td colSpan={10} className="admin-table-empty">No climbs yet.</td></tr>
+                    <tr><td colSpan={8} className="admin-table-empty">No climbs yet.</td></tr>
                   ) : climbs.map((climb) => {
                     const s = climbRegStats[climb.id] || {};
                     const total = s.total || 0;
@@ -247,28 +245,30 @@ export default function AdminDashboard() {
                         <td style={{ textAlign: "center" }}>
                           <span style={{ fontWeight: 700, color: "#e67e00" }}>{s.pending || 0}</span>
                         </td>
-                        <td style={{ textAlign: "center" }}>
-                          <span style={{ color: "var(--ink-soft)" }}>{s.waitlisted || 0}</span>
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <span style={{ color: "#c0392b" }}>{s.cancelled || 0}</span>
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          {s.paymentSubmitted > 0 ? (
-                            <Link
-                              to={`/admin/registrations?filter=payment&climb=${climb.id}`}
-                              style={{ fontWeight: 700, color: "#e67e00", textDecoration: "underline" }}
-                            >
-                              {s.paymentSubmitted}
-                            </Link>
+                        <td>
+                          {climb.officers?.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                              {climb.officers.map((o, i) => (
+                                <div key={i} style={{ fontSize: "0.78rem" }}>
+                                  <span style={{ fontWeight: 700 }}>{o.name}</span>
+                                  {o.role && <span style={{ color: "var(--ink-soft)", marginLeft: 4 }}>({o.role})</span>}
+                                </div>
+                              ))}
+                            </div>
                           ) : (
-                            <span style={{ color: "var(--ink-soft)" }}>0</span>
+                            <span style={{
+                              display: "inline-block", padding: "2px 8px", borderRadius: 20,
+                              fontSize: "0.68rem", fontWeight: 700,
+                              background: "#fce8e8", color: "#b91c1c", border: "1px solid #fca5a5",
+                            }}>
+                              None
+                            </span>
                           )}
                         </td>
                         <td>
                           <div className="admin-table-actions">
-                            <Link to={`/admin/climbs/${climb.id}`} className="btn btn-outline btn-sm">Registrants</Link>
-                            <Link to={`/admin/climbs/${climb.id}/edit`} className="btn btn-accent btn-sm">Edit</Link>
+                            <Link to={`/admin/climbs/${climb.id}`} className="btn btn-outline btn-sm" title="View and manage all registrations for this climb">Registrants</Link>
+                            <Link to={`/admin/climbs/${climb.id}/edit`} className="btn btn-accent btn-sm" title="Edit climb details, officers, and settings">Edit</Link>
                           </div>
                         </td>
                       </tr>
@@ -289,10 +289,10 @@ export default function AdminDashboard() {
                   <tr>
                     <th>Participant</th>
                     <th>Climb</th>
-                    <th>Payment</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Actions</th>
+                    <th style={{ width: "1%" }}>Payment</th>
+                    <th style={{ width: "1%" }}>Status</th>
+                    <th style={{ width: "1%" }}>Date</th>
+                    <th style={{ width: "1%" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -319,7 +319,7 @@ export default function AdminDashboard() {
                         {reg.createdAt?.toDate?.().toLocaleDateString("en-PH") || "—"}
                       </td>
                       <td>
-                        <Link to={`/admin/climbs/${reg.climbId}`} className="btn btn-outline btn-sm">View</Link>
+                        <Link to={`/admin/climbs/${reg.climbId}`} className="btn btn-outline btn-sm" title="View all registrations for this climb">View</Link>
                       </td>
                     </tr>
                   ))}
