@@ -676,15 +676,47 @@ export default function Event() {
           </div>
           <div className="section-body">
             {climb.expenses?.length > 0 ? (
-              climb.expenses.map((exp, i) => (
-                <div className="expense-row" key={i}>
-                  <div>
-                    <div className="expense-label">{exp.label}</div>
-                    {exp.note && <div className="expense-note">{exp.note}</div>}
+              <>
+                {climb.expenses.map((exp, i) => (
+                  <div className="expense-row" key={i}>
+                    <div>
+                      <div className="expense-label">{exp.label}</div>
+                      {exp.note && <div className="expense-note">{exp.note}</div>}
+                    </div>
+                    <div className="expense-amount">{exp.amount || "TBA"}</div>
                   </div>
-                  <div className="expense-amount">{exp.amount || "TBA"}</div>
-                </div>
-              ))
+                ))}
+                {(() => {
+                  // Exclude Guest Fee from member total — it only applies to non-members
+                  const memberExpenses = climb.expenses.filter(e => !/guest/i.test(e.label));
+                  const numericAmounts = memberExpenses
+                    .map(e => parseFloat(String(e.amount).replace(/,/g, "")))
+                    .filter(n => !isNaN(n));
+                  if (numericAmounts.length === 0) return null;
+                  const hasTBA = memberExpenses.some(
+                    e => isNaN(parseFloat(String(e.amount).replace(/,/g, "")))
+                  );
+                  const guestFee = climb.expenses.find(e => /guest/i.test(e.label));
+                  const total = numericAmounts.reduce((s, n) => s + n, 0);
+                  return (
+                    <>
+                      <div className="expense-total-row">
+                        <div className="expense-total-label">
+                          Member Total{hasTBA ? <span className="expense-total-note"> (excl. TBA items)</span> : ""}
+                        </div>
+                        <div className="expense-total-amount">
+                          &#8369;{total.toLocaleString()}
+                        </div>
+                      </div>
+                      {guestFee && (
+                        <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)", marginTop: 6, fontStyle: "italic" }}>
+                          + &#8369;{guestFee.amount} Guest Fee for non-members
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </>
             ) : (
               <>
                 <div className="expense-row">

@@ -28,7 +28,7 @@ const INITIAL_FORM = {
   ecRelationship: "",
   medicalConditions: "",
   experienceLevel: "beginner",
-  memberType: "member",
+  memberType: "joiner",
 };
 
 export default function Register() {
@@ -165,12 +165,13 @@ export default function Register() {
         paymentProofs,
         paymentStatus: "submitted",
         amountPaid: parseFloat(String(amountPaid).replace(/[^0-9.]/g, "")),
-        feeBreakdown: (climb.expenses || []).map((exp) => ({
-          label: exp.label,
-          amount: exp.amount,
-          optional: !!exp.optional,
-          selected: exp.optional ? !!optionalFeeSelections[exp.label] : true,
-        })),
+        feeBreakdown: (climb.expenses || []).map((exp) => {
+          const isGuestFee = /guest/i.test(exp.label);
+          if (!exp.optional) return { label: exp.label, amount: exp.amount, optional: false, selected: true };
+          // Guest fee is required for joiners, not applicable for members
+          if (isGuestFee) return { label: exp.label, amount: exp.amount, optional: true, selected: form.memberType === "joiner" };
+          return { label: exp.label, amount: exp.amount, optional: true, selected: !!optionalFeeSelections[exp.label] };
+        }),
         // Status
         status: "pending",
         createdAt: serverTimestamp(),
@@ -501,16 +502,15 @@ export default function Register() {
           {/* Fee Breakdown */}
           {climb.expenses?.length > 0 && (() => {
             const isJoiner = form.memberType === "joiner";
-            // Required: non-optional fees + guest fee when participant is a joiner
+            // Guest Fee is always treated by memberType, regardless of optional field in data
             const required = climb.expenses.filter((e) => {
-              if (!e.optional) return true;
-              return /guest/i.test(e.label) && isJoiner;
+              if (/guest/i.test(e.label)) return isJoiner;
+              return !e.optional;
             });
-            // Optional: optional fees excluding guest fee
+            // Optional: optional fees excluding guest fee (guest fee is never a checkbox)
             const optional = climb.expenses.filter((e) => {
-              if (!e.optional) return false;
-              if (/guest/i.test(e.label)) return false; // handled in required
-              return true;
+              if (/guest/i.test(e.label)) return false;
+              return !!e.optional;
             });
             let expectedTotal = 0;
             let hasTba = false;

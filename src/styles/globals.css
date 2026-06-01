@@ -899,6 +899,30 @@ textarea {
 .expense-row:last-child {
   border-bottom: none;
 }
+.expense-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 4px;
+  margin-top: 4px;
+  border-top: 2px solid rgba(0, 0, 0, 0.12);
+  font-size: 0.85rem;
+}
+.expense-total-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.expense-total-note {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.expense-total-amount {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent);
+}
 .expense-label {
   font-weight: 600;
 }
