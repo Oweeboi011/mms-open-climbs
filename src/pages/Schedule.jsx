@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection,
   query,
@@ -39,6 +39,7 @@ export default function Schedule() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [showTop, setShowTop] = useState(false);
+  const gridRef = useRef(null);
 
   useEffect(() => {
     const q = query(
@@ -58,6 +59,29 @@ export default function Schedule() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!gridRef.current) return;
+    const targets = gridRef.current.querySelectorAll(
+      ".card-link, .section-month",
+    );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.06 },
+    );
+    targets.forEach((el, i) => {
+      el.style.transitionDelay = `${Math.min(i * 40, 300)}ms`;
+      observer.observe(el);
+    });
+    return () => observer.disconnect();
+  });
 
   // Filter
   const filtered = climbs.filter((c) => {
@@ -128,6 +152,114 @@ export default function Schedule() {
               fill="var(--surface)"
             />
           </svg>
+          {/* Animated hikers walking along the ridge */}
+          <div className="hero-hikers">
+            {/* Hiker 1 — leading, gold pack */}
+            <svg
+              className="hiker hiker-1"
+              viewBox="0 0 20 34"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="9" cy="3.5" r="2.8" fill="rgba(255,255,255,0.88)" />
+              <path
+                d="M6.2,6.2 L6.8,16.5 L11.2,16.5 L11.8,6.2 Q9,5 6.2,6.2Z"
+                fill="rgba(255,255,255,0.88)"
+              />
+              <rect
+                x="11.2"
+                y="7.5"
+                width="4"
+                height="5.5"
+                rx="1"
+                fill="rgba(200,160,0,0.85)"
+              />
+              <path
+                d="M7.5,16.5 L4.2,28.5 L6.5,29 L9,17.5Z"
+                fill="rgba(255,255,255,0.88)"
+              />
+              <path
+                d="M10.5,16.5 L12.5,28.5 L14.8,28 L12.5,17.5Z"
+                fill="rgba(255,255,255,0.88)"
+              />
+              <path
+                d="M14,9 L17.5,29"
+                stroke="rgba(255,255,255,0.55)"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+            {/* Hiker 2 — mid-size, green pack */}
+            <svg
+              className="hiker hiker-2"
+              viewBox="0 0 20 34"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="9" cy="3.5" r="2.4" fill="rgba(255,255,255,0.72)" />
+              <path
+                d="M6.5,5.8 L7,16 L11,16 L11.5,5.8 Q9,4.8 6.5,5.8Z"
+                fill="rgba(255,255,255,0.72)"
+              />
+              <rect
+                x="10.8"
+                y="7"
+                width="3.5"
+                height="5"
+                rx="1"
+                fill="rgba(46,125,50,0.85)"
+              />
+              <path
+                d="M8,16 L5,27 L7.2,27.5 L9.5,17Z"
+                fill="rgba(255,255,255,0.72)"
+              />
+              <path
+                d="M10,16 L11.8,27 L14,26.5 L11.8,17Z"
+                fill="rgba(255,255,255,0.72)"
+              />
+              <path
+                d="M13.5,8.5 L16.5,27"
+                stroke="rgba(255,255,255,0.42)"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+            {/* Hiker 3 — smallest, trailing */}
+            <svg
+              className="hiker hiker-3"
+              viewBox="0 0 20 34"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="9" cy="3.5" r="2" fill="rgba(255,255,255,0.58)" />
+              <path
+                d="M7,5.5 L7.5,14.5 L10.5,14.5 L11,5.5 Q9,4.6 7,5.5Z"
+                fill="rgba(255,255,255,0.58)"
+              />
+              <rect
+                x="10.2"
+                y="6.5"
+                width="3"
+                height="4.5"
+                rx="1"
+                fill="rgba(200,160,0,0.62)"
+              />
+              <path
+                d="M8,14.5 L5.5,25 L7.5,25.5 L9.5,15.5Z"
+                fill="rgba(255,255,255,0.58)"
+              />
+              <path
+                d="M9.5,14.5 L11,25 L13,24.5 L11.2,15.5Z"
+                fill="rgba(255,255,255,0.58)"
+              />
+              <path
+                d="M12.5,7.5 L15.5,25"
+                stroke="rgba(255,255,255,0.35)"
+                strokeWidth="1.1"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+          </div>
         </div>
       </section>
 
@@ -220,7 +352,7 @@ export default function Schedule() {
           </button>
         </div>
       ) : (
-        <main className="grid">
+        <main className="grid" ref={gridRef}>
           {flatItems.map((item) =>
             item.type === "header" ? (
               <div key={item.id} className="section-month">

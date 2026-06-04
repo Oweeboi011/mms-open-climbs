@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   doc,
@@ -52,6 +52,7 @@ export default function Event() {
   const [alreadyReg, setAlreadyReg] = useState(false);
   const [regStatus, setRegStatus] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const contentRef = useRef(null);
 
   useEffect(() => {
     async function load() {
@@ -90,6 +91,24 @@ export default function Event() {
     }
     load();
   }, [climbId, currentUser, navigate]);
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+    const cards = contentRef.current.querySelectorAll(".section-card");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.08 },
+    );
+    cards.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  });
 
   if (loading) return <LoadingSpinner fullPage />;
   if (!climb) return null;
@@ -248,7 +267,7 @@ export default function Event() {
         </div>
       </section>
 
-      <main className="content">
+      <main className="content" ref={contentRef}>
         {/* Mountain Profile */}
         {(climb.elevation || climb.difficulty || climb.description) && (
           <div className="section-card">

@@ -849,6 +849,8 @@ textarea {
 }
 .section-body {
   padding: 22px 24px;
+  position: relative;
+  overflow: hidden;
 }
 .two-col {
   display: grid;
@@ -2205,7 +2207,7 @@ textarea {
     900px 165px rgba(255, 255, 255, 0.32),
     1060px 152px rgba(255, 255, 255, 0.52),
     1178px 142px rgba(255, 255, 255, 0.38);
-  animation: starTwinkleA 7s ease-in-out infinite alternate;
+  animation: starGlowA 7s ease-in-out infinite alternate;
 }
 .hero-stars::after {
   content: "";
@@ -2235,7 +2237,7 @@ textarea {
     930px 92px rgba(255, 255, 255, 0.42),
     1040px 70px rgba(255, 255, 255, 0.32),
     1130px 82px rgba(255, 255, 255, 0.42);
-  animation: starTwinkleA 11s ease-in-out infinite alternate-reverse;
+  animation: starGlowB 11s ease-in-out infinite alternate-reverse;
 }
 
 /* ── KEYFRAME ANIMATIONS ───────────────────────────────────────────────────── */
@@ -2249,15 +2251,42 @@ textarea {
     transform: scale(1.07);
   }
 }
-@keyframes starTwinkleA {
+@keyframes starGlowA {
   0% {
-    opacity: 0.22;
+    opacity: 0.25;
+    filter: blur(0px) drop-shadow(0 0 0px rgba(255, 255, 255, 0));
   }
-  50% {
-    opacity: 0.68;
+  40% {
+    opacity: 1;
+    filter: blur(0.4px) drop-shadow(0 0 4px rgba(255, 255, 255, 0.9))
+      drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+  }
+  70% {
+    opacity: 0.55;
+    filter: blur(0px) drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
   }
   100% {
-    opacity: 0.38;
+    opacity: 0.35;
+    filter: blur(0px) drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+  }
+}
+@keyframes starGlowB {
+  0% {
+    opacity: 0.3;
+    filter: blur(0px) drop-shadow(0 0 0px rgba(200, 160, 0, 0));
+  }
+  35% {
+    opacity: 0.9;
+    filter: blur(0.3px) drop-shadow(0 0 5px rgba(200, 160, 0, 0.95))
+      drop-shadow(0 0 12px rgba(200, 160, 0, 0.4));
+  }
+  65% {
+    opacity: 0.5;
+    filter: blur(0px) drop-shadow(0 0 2px rgba(200, 160, 0, 0.5));
+  }
+  100% {
+    opacity: 0.28;
+    filter: blur(0px) drop-shadow(0 0 0px rgba(200, 160, 0, 0));
   }
 }
 @keyframes cardEnter {
@@ -2718,6 +2747,731 @@ textarea {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ── SCHEDULE PAGE EFFECTS ─────────────────────────────────────────────────── */
+
+/* ── Animated hikers ── */
+.hero-hikers {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  height: 50px;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hiker {
+  position: absolute;
+  bottom: 0;
+  width: 22px;
+  height: 38px;
+}
+
+/* Each hiker walks from off-left to off-right at different speeds/delays */
+.hiker-1 {
+  animation:
+    hikerWalk 18s linear 0s infinite,
+    hikerBob 0.6s ease-in-out infinite,
+    hikerSway 0.6s ease-in-out infinite;
+  bottom: 8px;
+}
+.hiker-2 {
+  animation:
+    hikerWalk 22s linear 4s infinite,
+    hikerBob 0.65s ease-in-out 0.1s infinite,
+    hikerSway 0.65s ease-in-out 0.1s infinite;
+  bottom: 5px;
+  width: 18px;
+  height: 32px;
+}
+.hiker-3 {
+  animation:
+    hikerWalk 28s linear 9s infinite,
+    hikerBob 0.7s ease-in-out 0.3s infinite,
+    hikerSway 0.7s ease-in-out 0.3s infinite;
+  bottom: 2px;
+  width: 16px;
+  height: 28px;
+}
+
+@keyframes hikerWalk {
+  from {
+    transform: translateX(-60px);
+  }
+  to {
+    transform: translateX(calc(100vw + 60px));
+  }
+}
+@keyframes hikerBob {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 -2px;
+  }
+}
+@keyframes hikerSway {
+  0% {
+    rotate: -1.5deg;
+  }
+  50% {
+    rotate: 1.5deg;
+  }
+  100% {
+    rotate: -1.5deg;
+  }
+}
+
+/* Hero title entrance — letters slide up */
+.hero-title {
+  animation: heroTitleEnter 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hero-eyebrow {
+  animation: heroFadeUp 0.6s ease 0.1s both;
+}
+.hero-divider {
+  animation: heroDividerGrow 0.7s ease 0.35s both;
+  transform-origin: center;
+}
+.hero-tagline {
+  animation: heroFadeUp 0.6s ease 0.5s both;
+}
+.hero-subtitle {
+  animation: heroFadeUp 0.6s ease 0.65s both;
+}
+
+/* Hero divider pulse */
+.hero-divider {
+  animation:
+    heroDividerGrow 0.7s ease 0.35s both,
+    heroDividerPulse 3s ease-in-out 1.2s infinite;
+}
+
+/* Stat numbers shimmer on hover */
+.stat {
+  transition:
+    background 0.2s,
+    transform 0.2s;
+  cursor: default;
+}
+.stat:hover {
+  background: var(--green-pale);
+  transform: translateY(-2px);
+}
+.stat:hover .stat-num {
+  color: var(--green-dark);
+}
+
+/* Filter button ripple effect */
+.filter-btn {
+  position: relative;
+  overflow: hidden;
+}
+.filter-btn::after {
+  content: "";
+  position: absolute;
+  inset: 50% 50%;
+  background: rgba(46, 125, 50, 0.18);
+  border-radius: 50%;
+  opacity: 0;
+  transition:
+    inset 0.4s ease,
+    opacity 0.4s ease;
+}
+.filter-btn:active::after {
+  inset: -50%;
+  opacity: 1;
+  transition: none;
+}
+.filter-btn.active {
+  box-shadow: 0 2px 12px rgba(13, 43, 18, 0.35);
+}
+
+/* Month header slide in */
+.section-month {
+  opacity: 0;
+  transform: translateX(-16px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+.section-month.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Card reveal on scroll */
+.card-link {
+  opacity: 0;
+  transform: translateY(22px) scale(0.97);
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: none; /* override the old cardEnter */
+}
+.card-link.revealed {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Card shine sweep on hover */
+.card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.12),
+    transparent
+  );
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+.card-link:hover .card::after {
+  left: 150%;
+}
+
+/* Back-to-top button entrance */
+.back-top {
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+.back-top:hover {
+  transform: translateY(-4px) scale(1.08);
+}
+
+@keyframes heroTitleEnter {
+  from {
+    opacity: 0;
+    transform: translateY(32px) skewY(2deg);
+    letter-spacing: 8px;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) skewY(0);
+    letter-spacing: 2px;
+  }
+}
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes heroDividerGrow {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 0.8;
+  }
+}
+@keyframes heroDividerPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(200, 160, 0, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(200, 160, 0, 0.2);
+  }
+}
+
+/* ── EVENT PAGE EFFECTS ────────────────────────────────────────────────────── */
+
+/* ── Hero entrance animations ── */
+.event-hero h2 {
+  animation: eventTitleIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.event-hero h2 em {
+  animation: eventTitleIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+.event-badge {
+  animation: eventBadgeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.event-meta {
+  animation: eventFadeUp 0.6s ease 0.35s both;
+}
+.seats-bar {
+  animation: eventFadeUp 0.6s ease 0.5s both;
+}
+
+/* Hero shimmer overlay */
+.event-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: heroShimmer 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Floating orbs in hero */
+.event-hero-inner::before,
+.event-hero-inner::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.event-hero-inner::before {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(
+    circle,
+    rgba(200, 160, 0, 0.14) 0%,
+    transparent 65%
+  );
+  top: -100px;
+  right: -80px;
+  animation: orbFloat 7s ease-in-out infinite;
+}
+.event-hero-inner::after {
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.09) 0%,
+    transparent 70%
+  );
+  bottom: -50px;
+  left: 8%;
+  animation: orbFloat 9s ease-in-out infinite reverse;
+}
+
+/* ── Hero badge glassmorphism glow ── */
+.event-badge {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(6px);
+  box-shadow:
+    0 2px 14px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation:
+    eventBadgeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    badgePulse 3.5s ease-in-out 1s infinite;
+}
+
+/* ── Back nav slide-in ── */
+.back-nav {
+  animation: eventFadeUp 0.5s ease both;
+}
+.back-btn {
+  position: relative;
+}
+.back-btn::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  transition: width 0.25s ease;
+}
+.back-btn:hover::after {
+  width: 100%;
+}
+
+/* ── Scroll-reveal base ── */
+.section-card {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease;
+}
+.section-card.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.section-card:hover {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.13);
+  transform: translateY(-4px);
+}
+
+/* Left border accent line on reveal */
+.section-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(180deg, var(--gold-light), var(--accent));
+  border-radius: 16px 0 0 16px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+  pointer-events: none;
+}
+.section-card.revealed::before {
+  width: 3px;
+}
+
+/* Stagger siblings */
+.section-card:nth-child(1) {
+  transition-delay: 0ms;
+}
+.section-card:nth-child(2) {
+  transition-delay: 70ms;
+}
+.section-card:nth-child(3) {
+  transition-delay: 140ms;
+}
+.section-card:nth-child(4) {
+  transition-delay: 210ms;
+}
+.section-card:nth-child(5) {
+  transition-delay: 280ms;
+}
+.section-card:nth-child(6) {
+  transition-delay: 350ms;
+}
+.section-card:nth-child(7) {
+  transition-delay: 420ms;
+}
+.section-card:nth-child(8) {
+  transition-delay: 490ms;
+}
+
+/* ── Section header ── */
+.section-header {
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 75%, var(--accent-dark)) 100%
+  );
+}
+.section-header .icon {
+  display: inline-block;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.section-card.revealed .section-header .icon {
+  animation: iconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s both;
+}
+
+/* Section header accent underline grow */
+.section-header {
+  position: relative;
+  overflow: hidden;
+}
+.section-header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--gold-light);
+  transition: width 0.5s ease 0.4s;
+}
+.section-card.revealed .section-header::after {
+  width: 100%;
+}
+
+/* ── Hero badge pulse ── */
+@keyframes badgePulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(200, 160, 0, 0),
+      0 2px 14px rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 0 7px rgba(200, 160, 0, 0.18),
+      0 2px 14px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* ── Register button glow + shine ── */
+.btn-gold {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(200, 160, 0, 0.35);
+  transition:
+    box-shadow 0.25s,
+    transform 0.2s;
+}
+.btn-gold:hover {
+  box-shadow: 0 6px 28px rgba(200, 160, 0, 0.55);
+  transform: translateY(-2px) scale(1.02);
+}
+.btn-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  background-position: 200% 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.btn-gold:hover::after {
+  opacity: 1;
+  animation: btnShine 0.55s ease forwards;
+}
+
+/* ── Stat tile pop on hover ── */
+.stat-tile {
+  transition:
+    background 0.2s,
+    box-shadow 0.2s,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.stat-tile:hover {
+  transform: translateY(-5px) scale(1.05);
+  background: rgba(21, 101, 192, 0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.stat-tile-val {
+  transition: color 0.2s;
+}
+.stat-tile:hover .stat-tile-val {
+  color: var(--accent-dark);
+}
+
+/* Stat tiles entrance on card reveal */
+.section-card.revealed .stat-tile {
+  animation: statTileIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.section-card.revealed .stat-tile:nth-child(1) {
+  animation-delay: 0.3s;
+}
+.section-card.revealed .stat-tile:nth-child(2) {
+  animation-delay: 0.37s;
+}
+.section-card.revealed .stat-tile:nth-child(3) {
+  animation-delay: 0.44s;
+}
+.section-card.revealed .stat-tile:nth-child(4) {
+  animation-delay: 0.51s;
+}
+.section-card.revealed .stat-tile:nth-child(5) {
+  animation-delay: 0.58s;
+}
+.section-card.revealed .stat-tile:nth-child(6) {
+  animation-delay: 0.65s;
+}
+
+/* ── Seats bar animated fill ── */
+.seats-bar-fill {
+  animation: seatsFillIn 1s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
+  transform-origin: left;
+}
+@keyframes seatsFillIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ── Expense row hover ── */
+.expense-row {
+  transition:
+    background 0.18s,
+    padding-left 0.18s;
+  border-radius: 6px;
+  padding-left: 4px;
+}
+.expense-row:hover {
+  background: rgba(21, 101, 192, 0.04);
+  padding-left: 10px;
+}
+
+/* ── Officer row hover ── */
+.officer-row {
+  transition:
+    background 0.18s,
+    padding-left 0.18s;
+  border-radius: 8px;
+  padding-left: 4px;
+}
+.officer-row:hover {
+  background: rgba(13, 43, 18, 0.04);
+  padding-left: 10px;
+}
+
+/* ── Day block hover ── */
+.day-block {
+  transition: box-shadow 0.2s;
+  border-radius: 8px;
+}
+.day-block:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+}
+
+/* ── Time entry hover ── */
+.time-entry {
+  transition: background 0.15s;
+  border-radius: 5px;
+  padding: 2px 6px;
+  margin: 0 -6px;
+}
+.time-entry:hover {
+  background: rgba(200, 160, 0, 0.07);
+}
+
+/* ── Info list item hover ── */
+.info-list li {
+  transition:
+    color 0.15s,
+    padding-left 0.15s;
+  padding-left: 0;
+}
+.info-list li:hover {
+  color: var(--accent);
+  padding-left: 4px;
+}
+
+/* ── Card shine sweep ── */
+.section-card {
+  position: relative;
+  overflow: hidden;
+}
+.section-card .section-body::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    110deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
+  pointer-events: none;
+  transition: left 0.6s ease;
+}
+.section-card:hover .section-body::after {
+  left: 140%;
+}
+
+/* ── LNT badge glow ── */
+.lnt-badge {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s;
+}
+.lnt-header:hover .lnt-badge {
+  transform: scale(1.15) rotate(-4deg);
+  box-shadow: 0 4px 16px rgba(13, 43, 18, 0.25);
+}
+
+/* ─────────────────────────────────────────── KEYFRAMES ── */
+@keyframes eventTitleIn {
+  from {
+    opacity: 0;
+    transform: translateY(28px) skewY(1.5deg);
+    letter-spacing: 6px;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) skewY(0);
+    letter-spacing: inherit;
+  }
+}
+@keyframes eventBadgeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes eventFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes iconPop {
+  from {
+    transform: scale(0.5) rotate(-20deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+@keyframes statTileIn {
+  from {
+    opacity: 0;
+    transform: scale(0.75) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes heroShimmer {
+  0%,
+  100% {
+    background-position: 200% 0;
+  }
+  50% {
+    background-position: -200% 0;
+  }
+}
+@keyframes orbFloat {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(14px, -20px) scale(1.06);
+  }
+  66% {
+    transform: translate(-10px, 12px) scale(0.96);
+  }
+}
+@keyframes btnShine {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
   }
 }
 
