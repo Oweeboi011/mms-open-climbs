@@ -34,6 +34,14 @@ function parseGoogleMapsUrl(url) {
   return null;
 }
 
+function parseGoogleMapsPlace(url) {
+  if (!url) return null;
+  // URLs like: https://www.google.com/maps/place/Mt+Pulag+National+Park/@16.58...
+  const m = url.match(/\/maps\/place\/([^/@?]+)/);
+  if (m) return decodeURIComponent(m[1].replace(/\+/g, " "));
+  return null;
+}
+
 export default function Event() {
   const { climbId } = useParams();
   const navigate = useNavigate();
@@ -161,6 +169,13 @@ export default function Event() {
     (climb.mapLat
       ? { lat: climb.mapLat, lng: climb.mapLng, zoom: climb.mapZoom || "14" }
       : null);
+
+  const mapsPlaceName = parseGoogleMapsPlace(climb.googleMapsUrl);
+  const mapsEmbedSrc = mapsPlaceName
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(mapsPlaceName)}&output=embed`
+    : mapCoords
+      ? `https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=${mapCoords.zoom}&output=embed`
+      : null;
 
   return (
     <div>
@@ -340,11 +355,14 @@ export default function Event() {
           </div>
         )}
 
-        {/* AllTrails / Map */}
+        {/* Trail Map & Photos */}
         {(climb.allTrailsUrl ||
           mapCoords ||
+          mapsEmbedSrc ||
           climb.stravaUrl ||
-          climb.corosUrl) && (
+          climb.corosUrl ||
+          climb.garminUrl ||
+          climb.photosUrl) && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">&#128205;</span>
@@ -417,25 +435,20 @@ export default function Event() {
                     }}
                   >
                     <a
-                      href={`https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`}
+                      href={
+                        climb.googleMapsUrl ||
+                        `https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-outline btn-sm"
                     >
                       &#127758; View on Google Maps
                     </a>
-                    <a
-                      href={`https://www.google.com/maps/@${mapCoords.lat},${mapCoords.lng},3a,75y,0h,90t/data=!3m1!1e1`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-outline btn-sm"
-                    >
-                      &#128247; Street View &amp; Photos
-                    </a>
                   </div>
                 </>
               ) : null}
-              {(climb.stravaUrl || climb.corosUrl) && (
+              {(climb.stravaUrl || climb.corosUrl || climb.garminUrl) && (
                 <div
                   style={{
                     display: "flex",
@@ -465,8 +478,57 @@ export default function Event() {
                       &#8987; Coros Route
                     </a>
                   )}
+                  {climb.garminUrl && (
+                    <a
+                      href={climb.garminUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline btn-sm"
+                      style={{ color: "#007cc3", borderColor: "#007cc3" }}
+                    >
+                      &#128225; Garmin Course
+                    </a>
+                  )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Photos */}
+        {climb.photosUrl && (
+          <div className="section-card">
+            <div className="section-header">
+              <span className="icon">&#128247;</span>
+              <h3>Photos</h3>
+            </div>
+            <div className="section-body">
+              <iframe
+                src={climb.photosUrl}
+                title="Event photo album"
+                width="100%"
+                height="520"
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  display: "block",
+                }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <p style={{ fontSize: "0.7rem", color: "var(--ink-soft)", marginTop: 8 }}>
+                &#128247;{" "}
+                <a
+                  href={climb.photosUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent)" }}
+                >
+                  Open full photo album &#8599;
+                </a>
+                {" "}(opens Google Photos)
+              </p>
             </div>
           </div>
         )}
@@ -681,35 +743,56 @@ export default function Event() {
                   <div className="expense-row" key={i}>
                     <div>
                       <div className="expense-label">{exp.label}</div>
-                      {exp.note && <div className="expense-note">{exp.note}</div>}
+                      {exp.note && (
+                        <div className="expense-note">{exp.note}</div>
+                      )}
                     </div>
                     <div className="expense-amount">{exp.amount || "TBA"}</div>
                   </div>
                 ))}
                 {(() => {
                   // Exclude Guest Fee from member total — it only applies to non-members
-                  const memberExpenses = climb.expenses.filter(e => !/guest/i.test(e.label));
-                  const numericAmounts = memberExpenses
-                    .map(e => parseFloat(String(e.amount).replace(/,/g, "")))
-                    .filter(n => !isNaN(n));
-                  if (numericAmounts.length === 0) return null;
-                  const hasTBA = memberExpenses.some(
-                    e => isNaN(parseFloat(String(e.amount).replace(/,/g, "")))
+                  const memberExpenses = climb.expenses.filter(
+                    (e) => !/guest/i.test(e.label),
                   );
-                  const guestFee = climb.expenses.find(e => /guest/i.test(e.label));
+                  const numericAmounts = memberExpenses
+                    .map((e) => parseFloat(String(e.amount).replace(/,/g, "")))
+                    .filter((n) => !isNaN(n));
+                  if (numericAmounts.length === 0) return null;
+                  const hasTBA = memberExpenses.some((e) =>
+                    isNaN(parseFloat(String(e.amount).replace(/,/g, ""))),
+                  );
+                  const guestFee = climb.expenses.find((e) =>
+                    /guest/i.test(e.label),
+                  );
                   const total = numericAmounts.reduce((s, n) => s + n, 0);
                   return (
                     <>
                       <div className="expense-total-row">
                         <div className="expense-total-label">
-                          Member Total{hasTBA ? <span className="expense-total-note"> (excl. TBA items)</span> : ""}
+                          Member Total
+                          {hasTBA ? (
+                            <span className="expense-total-note">
+                              {" "}
+                              (excl. TBA items)
+                            </span>
+                          ) : (
+                            ""
+                          )}
                         </div>
                         <div className="expense-total-amount">
                           &#8369;{total.toLocaleString()}
                         </div>
                       </div>
                       {guestFee && (
-                        <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)", marginTop: 6, fontStyle: "italic" }}>
+                        <div
+                          style={{
+                            fontSize: "0.72rem",
+                            color: "var(--ink-soft)",
+                            marginTop: 6,
+                            fontStyle: "italic",
+                          }}
+                        >
                           + &#8369;{guestFee.amount} Guest Fee for non-members
                         </div>
                       )}

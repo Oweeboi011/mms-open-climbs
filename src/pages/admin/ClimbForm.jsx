@@ -92,6 +92,8 @@ const EMPTY_FORM = {
   allTrailsUrl: "",
   stravaUrl: "",
   corosUrl: "",
+  garminUrl: "",
+  photosUrl: "",
   waterSourceNote: "",
   weatherNote: "",
   thingsToBring: [...DEFAULT_THINGS_TO_BRING],
@@ -613,6 +615,32 @@ export default function AdminClimbForm() {
               />
               <div className="form-hint">
                 Coros route link — participants can sync directly to their Coros watch.
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Garmin Route URL</label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://connect.garmin.com/modern/course/..."
+                value={form.garminUrl}
+                onChange={(e) => set("garminUrl", e.target.value)}
+              />
+              <div className="form-hint">
+                Garmin Connect course link — participants can send it directly to their Garmin device.
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Photos Album URL</label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://photos.app.goo.gl/..."
+                value={form.photosUrl}
+                onChange={(e) => set("photosUrl", e.target.value)}
+              />
+              <div className="form-hint">
+                Paste a shared Google Photos album link (or any photo gallery URL). A "View Photos" button will appear on the event page.
               </div>
             </div>
             <div className="form-group">
