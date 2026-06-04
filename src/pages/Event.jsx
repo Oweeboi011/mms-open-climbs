@@ -517,7 +517,13 @@ export default function Event() {
                 allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
               />
-              <p style={{ fontSize: "0.7rem", color: "var(--ink-soft)", marginTop: 8 }}>
+              <p
+                style={{
+                  fontSize: "0.7rem",
+                  color: "var(--ink-soft)",
+                  marginTop: 8,
+                }}
+              >
                 &#128247;{" "}
                 <a
                   href={climb.photosUrl}
@@ -526,8 +532,8 @@ export default function Event() {
                   style={{ color: "var(--accent)" }}
                 >
                   Open full photo album &#8599;
-                </a>
-                {" "}(opens Google Photos)
+                </a>{" "}
+                (opens Google Photos)
               </p>
             </div>
           </div>
