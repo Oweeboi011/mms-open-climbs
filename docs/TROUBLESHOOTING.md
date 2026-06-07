@@ -96,3 +96,15 @@ node scripts/set-admin.mjs your@email.com
 ```
 
 This script requires Firebase Admin SDK credentials (ADC or service account key).
+
+---
+
+## GCash QR Code
+
+### QR modal does not open
+
+The QR image is always tappable. If no QR has been uploaded for the climb, the modal opens but shows an informational message rather than an image. Upload the QR via **Admin > Manage Payments** or the climb's edit form (**Admin > Climbs > Edit**).
+
+### QR image is blurry in the modal
+
+The modal renders the image at up to 280 px wide at full resolution. If it looks blurry, re-upload a higher-resolution QR image via **Admin > Manage Payments**.

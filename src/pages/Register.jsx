@@ -11,7 +11,11 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db, storage } from "@/firebase/config";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -49,6 +53,7 @@ export default function Register() {
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
+  const [qrModalOpen, setQrModalOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -167,10 +172,27 @@ export default function Register() {
         amountPaid: parseFloat(String(amountPaid).replace(/[^0-9.]/g, "")),
         feeBreakdown: (climb.expenses || []).map((exp) => {
           const isGuestFee = /guest/i.test(exp.label);
-          if (!exp.optional) return { label: exp.label, amount: exp.amount, optional: false, selected: true };
+          if (!exp.optional)
+            return {
+              label: exp.label,
+              amount: exp.amount,
+              optional: false,
+              selected: true,
+            };
           // Guest fee is required for joiners, not applicable for members
-          if (isGuestFee) return { label: exp.label, amount: exp.amount, optional: true, selected: form.memberType === "joiner" };
-          return { label: exp.label, amount: exp.amount, optional: true, selected: !!optionalFeeSelections[exp.label] };
+          if (isGuestFee)
+            return {
+              label: exp.label,
+              amount: exp.amount,
+              optional: true,
+              selected: form.memberType === "joiner",
+            };
+          return {
+            label: exp.label,
+            amount: exp.amount,
+            optional: true,
+            selected: !!optionalFeeSelections[exp.label],
+          };
         }),
         // Status
         status: "pending",
@@ -500,169 +522,447 @@ export default function Register() {
           </div>
 
           {/* Fee Breakdown */}
-          {climb.expenses?.length > 0 && (() => {
-            const isJoiner = form.memberType === "joiner";
-            // Guest Fee is always treated by memberType, regardless of optional field in data
-            const required = climb.expenses.filter((e) => {
-              if (/guest/i.test(e.label)) return isJoiner;
-              return !e.optional;
-            });
-            // Optional: optional fees excluding guest fee (guest fee is never a checkbox)
-            const optional = climb.expenses.filter((e) => {
-              if (/guest/i.test(e.label)) return false;
-              return !!e.optional;
-            });
-            let expectedTotal = 0;
-            let hasTba = false;
-            [...required, ...optional.filter((e) => optionalFeeSelections[e.label])].forEach((e) => {
-              const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
-              if (!isNaN(n)) expectedTotal += n;
-              else hasTba = true;
-            });
-            const totalDisplay = hasTba
-              ? `₱${expectedTotal.toLocaleString("en-PH")} + TBA`
-              : `₱${expectedTotal.toLocaleString("en-PH")}`;
-            return (
-              <div className="register-form-card">
-                <div className="form-section-title">Fee Breakdown</div>
-                <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: 14 }}>
-                  Review all fees below. Check any optional services you will be availing.
-                </p>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "2px solid var(--border)" }}>
-                      <th style={{ width: 28 }}></th>
-                      <th style={{ textAlign: "left", padding: "6px 0", fontWeight: 700, color: "var(--ink-soft)", fontSize: "0.68rem", letterSpacing: 2, textTransform: "uppercase" }}>Item</th>
-                      <th style={{ textAlign: "right", padding: "6px 0", fontWeight: 700, color: "var(--ink-soft)", fontSize: "0.68rem", letterSpacing: 2, textTransform: "uppercase" }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {required.map((exp, i) => (
-                      <tr key={`req-${i}`} style={{ borderBottom: "1px solid var(--border)" }}>
-                        <td style={{ padding: "10px 0", paddingRight: 8 }}>
-                          <span style={{ color: "var(--green-dark)", fontWeight: 800, fontSize: "1rem" }}>✓</span>
-                        </td>
-                        <td style={{ padding: "10px 0" }}>
-                          <div style={{ fontWeight: 600 }}>{exp.label}</div>
-                          {exp.note && <div style={{ fontSize: "0.74rem", color: "var(--ink-soft)", marginTop: 2 }}>{exp.note}</div>}
-                          <div style={{ fontSize: "0.68rem", color: "var(--ink-soft)", marginTop: 2, fontStyle: "italic" }}>Required</div>
-                        </td>
-                        <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 700, whiteSpace: "nowrap" }}>
-                          {exp.amount || "TBA"}
-                        </td>
+          {climb.expenses?.length > 0 &&
+            (() => {
+              const isJoiner = form.memberType === "joiner";
+              // Guest Fee is always treated by memberType, regardless of optional field in data
+              const required = climb.expenses.filter((e) => {
+                if (/guest/i.test(e.label)) return isJoiner;
+                return !e.optional;
+              });
+              // Optional: optional fees excluding guest fee (guest fee is never a checkbox)
+              const optional = climb.expenses.filter((e) => {
+                if (/guest/i.test(e.label)) return false;
+                return !!e.optional;
+              });
+              let expectedTotal = 0;
+              let hasTba = false;
+              [
+                ...required,
+                ...optional.filter((e) => optionalFeeSelections[e.label]),
+              ].forEach((e) => {
+                const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
+                if (!isNaN(n)) expectedTotal += n;
+                else hasTba = true;
+              });
+              const totalDisplay = hasTba
+                ? `₱${expectedTotal.toLocaleString("en-PH")} + TBA`
+                : `₱${expectedTotal.toLocaleString("en-PH")}`;
+              return (
+                <div className="register-form-card">
+                  <div className="form-section-title">Fee Breakdown</div>
+                  <p
+                    style={{
+                      fontSize: "0.82rem",
+                      color: "var(--ink-soft)",
+                      marginBottom: 14,
+                    }}
+                  >
+                    Review all fees below. Check any optional services you will
+                    be availing.
+                  </p>
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      fontSize: "0.88rem",
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                        <th style={{ width: 28 }}></th>
+                        <th
+                          style={{
+                            textAlign: "left",
+                            padding: "6px 0",
+                            fontWeight: 700,
+                            color: "var(--ink-soft)",
+                            fontSize: "0.68rem",
+                            letterSpacing: 2,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Item
+                        </th>
+                        <th
+                          style={{
+                            textAlign: "right",
+                            padding: "6px 0",
+                            fontWeight: 700,
+                            color: "var(--ink-soft)",
+                            fontSize: "0.68rem",
+                            letterSpacing: 2,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Amount
+                        </th>
                       </tr>
-                    ))}
-                    {optional.map((exp, i) => {
-                      const checked = !!optionalFeeSelections[exp.label];
-                      return (
+                    </thead>
+                    <tbody>
+                      {required.map((exp, i) => (
                         <tr
-                          key={`opt-${i}`}
-                          style={{ borderBottom: "1px solid var(--border)", background: checked ? "var(--surface-alt)" : "transparent", cursor: "pointer" }}
-                          onClick={() => setOptionalFeeSelections((p) => ({ ...p, [exp.label]: !p[exp.label] }))}
+                          key={`req-${i}`}
+                          style={{ borderBottom: "1px solid var(--border)" }}
                         >
                           <td style={{ padding: "10px 0", paddingRight: 8 }}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => setOptionalFeeSelections((p) => ({ ...p, [exp.label]: !p[exp.label] }))}
-                              onClick={(e) => e.stopPropagation()}
-                              style={{ width: 16, height: 16, cursor: "pointer" }}
-                            />
+                            <span
+                              style={{
+                                color: "var(--green-dark)",
+                                fontWeight: 800,
+                                fontSize: "1rem",
+                              }}
+                            >
+                              ✓
+                            </span>
                           </td>
                           <td style={{ padding: "10px 0" }}>
                             <div style={{ fontWeight: 600 }}>{exp.label}</div>
-                            {exp.note && <div style={{ fontSize: "0.74rem", color: "var(--ink-soft)", marginTop: 2 }}>{exp.note}</div>}
-                            <div style={{ fontSize: "0.68rem", color: "var(--ink-soft)", marginTop: 2, fontStyle: "italic" }}>Optional — check if availing</div>
+                            {exp.note && (
+                              <div
+                                style={{
+                                  fontSize: "0.74rem",
+                                  color: "var(--ink-soft)",
+                                  marginTop: 2,
+                                }}
+                              >
+                                {exp.note}
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                fontSize: "0.68rem",
+                                color: "var(--ink-soft)",
+                                marginTop: 2,
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Required
+                            </div>
                           </td>
-                          <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 700, whiteSpace: "nowrap", color: checked ? "var(--ink)" : "var(--ink-soft)" }}>
+                          <td
+                            style={{
+                              padding: "10px 0",
+                              textAlign: "right",
+                              fontWeight: 700,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {exp.amount || "TBA"}
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: "2px solid var(--border)" }}>
-                      <td></td>
-                      <td style={{ padding: "12px 0", fontWeight: 800, fontSize: "0.95rem" }}>
-                        Expected Total
-                        <div style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--ink-soft)" }}>Based on your selections above</div>
-                      </td>
-                      <td style={{ padding: "12px 0", textAlign: "right", fontWeight: 900, fontSize: "1.1rem", color: "var(--green-dark)" }}>
-                        {totalDisplay}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-                <p style={{ fontSize: "0.74rem", color: "var(--ink-soft)", marginTop: 10 }}>
-                  * Amounts are estimates. Final amounts will be confirmed by the climb officers.
-                </p>
-              </div>
-            );
-          })()}
+                      ))}
+                      {optional.map((exp, i) => {
+                        const checked = !!optionalFeeSelections[exp.label];
+                        return (
+                          <tr
+                            key={`opt-${i}`}
+                            style={{
+                              borderBottom: "1px solid var(--border)",
+                              background: checked
+                                ? "var(--surface-alt)"
+                                : "transparent",
+                              cursor: "pointer",
+                            }}
+                            onClick={() =>
+                              setOptionalFeeSelections((p) => ({
+                                ...p,
+                                [exp.label]: !p[exp.label],
+                              }))
+                            }
+                          >
+                            <td style={{ padding: "10px 0", paddingRight: 8 }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  setOptionalFeeSelections((p) => ({
+                                    ...p,
+                                    [exp.label]: !p[exp.label],
+                                  }))
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  cursor: "pointer",
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "10px 0" }}>
+                              <div style={{ fontWeight: 600 }}>{exp.label}</div>
+                              {exp.note && (
+                                <div
+                                  style={{
+                                    fontSize: "0.74rem",
+                                    color: "var(--ink-soft)",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {exp.note}
+                                </div>
+                              )}
+                              <div
+                                style={{
+                                  fontSize: "0.68rem",
+                                  color: "var(--ink-soft)",
+                                  marginTop: 2,
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                Optional — check if availing
+                              </div>
+                            </td>
+                            <td
+                              style={{
+                                padding: "10px 0",
+                                textAlign: "right",
+                                fontWeight: 700,
+                                whiteSpace: "nowrap",
+                                color: checked
+                                  ? "var(--ink)"
+                                  : "var(--ink-soft)",
+                              }}
+                            >
+                              {exp.amount || "TBA"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: "2px solid var(--border)" }}>
+                        <td></td>
+                        <td
+                          style={{
+                            padding: "12px 0",
+                            fontWeight: 800,
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Expected Total
+                          <div
+                            style={{
+                              fontSize: "0.72rem",
+                              fontWeight: 400,
+                              color: "var(--ink-soft)",
+                            }}
+                          >
+                            Based on your selections above
+                          </div>
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 0",
+                            textAlign: "right",
+                            fontWeight: 900,
+                            fontSize: "1.1rem",
+                            color: "var(--green-dark)",
+                          }}
+                        >
+                          {totalDisplay}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                  <p
+                    style={{
+                      fontSize: "0.74rem",
+                      color: "var(--ink-soft)",
+                      marginTop: 10,
+                    }}
+                  >
+                    * Amounts are estimates. Final amounts will be confirmed by
+                    the climb officers.
+                  </p>
+                </div>
+              );
+            })()}
 
           {/* GCash Payment */}
           <div className="register-form-card">
             <div className="form-section-title">Payment via GCash</div>
-            <p style={{ fontSize: "0.85rem", color: "var(--ink-soft)", marginBottom: 16 }}>
-              Send your registration fee via GCash, then upload your screenshot or photo of the receipt below.
+            <p
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
+              Send your registration fee via GCash, then upload your screenshot
+              or photo of the receipt below.
             </p>
 
-            {(climb.gcashQrUrl || climb.gcashNumber || climb.gcashName) ? (
-              <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20, alignItems: "flex-start" }}>
+            {climb.gcashQrUrl || climb.gcashNumber || climb.gcashName ? (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  flexWrap: "wrap",
+                  marginBottom: 20,
+                  alignItems: "flex-start",
+                }}
+              >
                 <div style={{ textAlign: "center" }}>
                   <img
                     src={climb.gcashQrUrl || "/gcash-qr-placeholder.svg"}
                     alt="GCash QR Code"
-                    style={{ width: 160, height: 160, objectFit: "contain", border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "block" }}
+                    style={{
+                      width: 160,
+                      height: 160,
+                      objectFit: "contain",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      background: "#fff",
+                      display: "block",
+                      cursor: "zoom-in",
+                    }}
+                    onClick={() => setQrModalOpen(true)}
                   />
-                  <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)", marginTop: 4 }}>
-                    {climb.gcashQrUrl ? "Scan to pay" : "QR code coming soon"}
+                  <div
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--ink-soft)",
+                      marginTop: 4,
+                    }}
+                  >
+                    {climb.gcashQrUrl
+                      ? "Tap to enlarge & scan"
+                      : "QR code coming soon"}
                   </div>
                 </div>
                 <div style={{ flex: 1, minWidth: 180 }}>
                   {climb.gcashName && (
                     <div style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 2 }}>Account Name</div>
-                      <div style={{ fontWeight: 700, fontSize: "1rem" }}>{climb.gcashName}</div>
+                      <div
+                        style={{
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          letterSpacing: 2,
+                          textTransform: "uppercase",
+                          color: "var(--ink-soft)",
+                          marginBottom: 2,
+                        }}
+                      >
+                        Account Name
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: "1rem" }}>
+                        {climb.gcashName}
+                      </div>
                     </div>
                   )}
                   {climb.gcashNumber && (
                     <div style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 2 }}>GCash Number</div>
-                      <div style={{ fontWeight: 700, fontSize: "1.1rem", letterSpacing: 1 }}>{climb.gcashNumber}</div>
+                      <div
+                        style={{
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          letterSpacing: 2,
+                          textTransform: "uppercase",
+                          color: "var(--ink-soft)",
+                          marginBottom: 2,
+                        }}
+                      >
+                        GCash Number
+                      </div>
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "1.1rem",
+                          letterSpacing: 1,
+                        }}
+                      >
+                        {climb.gcashNumber}
+                      </div>
                     </div>
                   )}
-                  <div style={{ fontSize: "0.8rem", color: "var(--ink-soft)", marginTop: 4 }}>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "var(--ink-soft)",
+                      marginTop: 4,
+                    }}
+                  >
                     Please use your full name as the payment reference/note.
                   </div>
                 </div>
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20, alignItems: "flex-start" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  flexWrap: "wrap",
+                  marginBottom: 20,
+                  alignItems: "flex-start",
+                }}
+              >
                 <div style={{ textAlign: "center" }}>
                   <img
                     src="/gcash-qr-placeholder.svg"
                     alt="GCash QR Code Placeholder"
-                    style={{ width: 160, height: 160, objectFit: "contain", border: "1px solid var(--border)", borderRadius: 8, background: "#fff", display: "block", opacity: 0.75 }}
+                    style={{
+                      width: 160,
+                      height: 160,
+                      objectFit: "contain",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      background: "#fff",
+                      display: "block",
+                      opacity: 0.75,
+                      cursor: "zoom-in",
+                    }}
+                    onClick={() => setQrModalOpen(true)}
                   />
-                  <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)", marginTop: 4 }}>QR code coming soon</div>
+                  <div
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--ink-soft)",
+                      marginTop: 4,
+                    }}
+                  >
+                    QR code coming soon
+                  </div>
                 </div>
                 <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
-                    GCash payment details are being set up by the organizer. Please contact the climb officers for the GCash number. You may still complete and submit this registration form — attach your proof of payment once available.
+                  <div
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "var(--ink-soft)",
+                      background: "var(--surface-alt)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      padding: "12px 14px",
+                    }}
+                  >
+                    GCash payment details are being set up by the organizer.
+                    Please contact the climb officers for the GCash number. You
+                    may still complete and submit this registration form —
+                    attach your proof of payment once available.
                   </div>
                 </div>
               </div>
             )}
 
             <div className="form-group">
-              <label className="form-label required">Amount Paid via GCash</label>
+              <label className="form-label required">
+                Amount Paid via GCash
+              </label>
               <div style={{ position: "relative", maxWidth: 220 }}>
-                <span style={{
-                  position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
-                  fontWeight: 700, fontSize: "1rem", color: "var(--ink-soft)", pointerEvents: "none",
-                }}>₱</span>
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontWeight: 700,
+                    fontSize: "1rem",
+                    color: "var(--ink-soft)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  ₱
+                </span>
                 <input
                   type="number"
                   min="1"
@@ -676,12 +976,15 @@ export default function Register() {
                 />
               </div>
               <div className="form-hint">
-                Enter the exact amount you sent via GCash. This must match your receipt.
+                Enter the exact amount you sent via GCash. This must match your
+                receipt.
               </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label required">Upload Proof of Payment</label>
+              <label className="form-label required">
+                Upload Proof of Payment
+              </label>
               <input
                 type="file"
                 accept="image/*,application/pdf"
@@ -697,10 +1000,19 @@ export default function Register() {
                         new Promise((resolve) => {
                           if (file.type.startsWith("image/")) {
                             const reader = new FileReader();
-                            reader.onload = (ev) => resolve({ name: file.name, preview: ev.target.result, isImage: true });
+                            reader.onload = (ev) =>
+                              resolve({
+                                name: file.name,
+                                preview: ev.target.result,
+                                isImage: true,
+                              });
                             reader.readAsDataURL(file);
                           } else {
-                            resolve({ name: file.name, preview: null, isImage: false });
+                            resolve({
+                              name: file.name,
+                              preview: null,
+                              isImage: false,
+                            });
                           }
                         }),
                     ),
@@ -708,25 +1020,77 @@ export default function Register() {
                 }}
               />
               <div className="form-hint">
-                You can select multiple files. Accepted formats: images (JPG, PNG) or PDF.
+                You can select multiple files. Accepted formats: images (JPG,
+                PNG) or PDF.
               </div>
               {paymentPreviews.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 10,
+                    marginTop: 10,
+                  }}
+                >
                   {paymentPreviews.map((item, i) => (
-                    <div key={i} style={{ position: "relative", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "var(--surface-alt)" }}>
+                    <div
+                      key={i}
+                      style={{
+                        position: "relative",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        background: "var(--surface-alt)",
+                      }}
+                    >
                       {item.isImage ? (
                         <img
                           src={item.preview}
                           alt={item.name}
-                          style={{ width: 110, height: 110, objectFit: "cover", display: "block" }}
+                          style={{
+                            width: 110,
+                            height: 110,
+                            objectFit: "cover",
+                            display: "block",
+                          }}
                         />
                       ) : (
-                        <div style={{ width: 110, height: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <div
+                          style={{
+                            width: 110,
+                            height: 110,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                          }}
+                        >
                           <span style={{ fontSize: "2rem" }}>&#128196;</span>
-                          <span style={{ fontSize: "0.65rem", color: "var(--ink-soft)", padding: "0 6px", textAlign: "center", wordBreak: "break-all" }}>PDF</span>
+                          <span
+                            style={{
+                              fontSize: "0.65rem",
+                              color: "var(--ink-soft)",
+                              padding: "0 6px",
+                              textAlign: "center",
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            PDF
+                          </span>
                         </div>
                       )}
-                      <div style={{ fontSize: "0.65rem", color: "var(--ink-soft)", padding: "4px 6px", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div
+                        style={{
+                          fontSize: "0.65rem",
+                          color: "var(--ink-soft)",
+                          padding: "4px 6px",
+                          maxWidth: 110,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {item.name}
                       </div>
                     </div>
@@ -734,8 +1098,15 @@ export default function Register() {
                 </div>
               )}
               {paymentFiles.length > 0 && (
-                <div style={{ fontSize: "0.78rem", color: "var(--green-dark)", marginTop: 6 }}>
-                  &#10003; {paymentFiles.length} file{paymentFiles.length > 1 ? "s" : ""} selected
+                <div
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "var(--green-dark)",
+                    marginTop: 6,
+                  }}
+                >
+                  &#10003; {paymentFiles.length} file
+                  {paymentFiles.length > 1 ? "s" : ""} selected
                 </div>
               )}
             </div>
@@ -744,7 +1115,12 @@ export default function Register() {
           <button
             className="btn btn-primary btn-block btn-lg"
             type="submit"
-            disabled={submitting || !waiverAgreed || paymentFiles.length === 0 || !amountPaid}
+            disabled={
+              submitting ||
+              !waiverAgreed ||
+              paymentFiles.length === 0 ||
+              !amountPaid
+            }
           >
             {submitting ? (
               <>
@@ -759,6 +1135,86 @@ export default function Register() {
       </div>
 
       <Footer />
+
+      {/* GCash QR Modal */}
+      {qrModalOpen && (
+        <div
+          onClick={() => setQrModalOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(0,0,0,0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 360,
+              width: "100%",
+              textAlign: "center",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: 4 }}>
+              GCash QR Code
+            </div>
+            {climb.gcashName && (
+              <div
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--ink-soft)",
+                  marginBottom: 12,
+                }}
+              >
+                {climb.gcashName}
+                {climb.gcashNumber ? ` · ${climb.gcashNumber}` : ""}
+              </div>
+            )}
+            {climb?.gcashQrUrl ? (
+              <img
+                src={climb.gcashQrUrl}
+                alt="GCash QR Code"
+                style={{
+                  width: "100%",
+                  maxWidth: 280,
+                  height: "auto",
+                  objectFit: "contain",
+                  borderRadius: 8,
+                  display: "block",
+                  margin: "0 auto 16px",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: "24px 0 20px",
+                  color: "var(--ink-soft)",
+                  fontSize: "0.85rem",
+                }}
+              >
+                QR code has not been uploaded yet.
+                <br />
+                Please contact the climb officers for the GCash number.
+              </div>
+            )}
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => setQrModalOpen(false)}
+              style={{ width: "100%" }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
