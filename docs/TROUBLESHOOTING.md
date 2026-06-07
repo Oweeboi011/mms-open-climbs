@@ -108,3 +108,21 @@ The QR image is always tappable. If no QR has been uploaded for the climb, the m
 ### QR image is blurry in the modal
 
 The modal renders the image at up to 280 px wide at full resolution. If it looks blurry, re-upload a higher-resolution QR image via **Admin > Manage Payments**.
+
+---
+
+## Trail Photos
+
+### Photos not appearing on the event or registration page
+
+1. Ensure at least one image URL has been added to the **Trail Photos** section in **Admin > Climbs > Edit**.
+2. If uploaded via Firebase Storage, confirm the upload completed (thumbnail should appear in the admin form). If it failed, check the browser console for Storage permission errors.
+3. If added via URL, confirm the URL is a direct image link (ending in `.jpg`, `.png`, etc.) and is publicly accessible. Google Photos share links are not direct image URLs and will not render.
+
+### Carousel arrows not appearing
+
+Arrows only show when there are multiple photos. With a single photo, no navigation controls are displayed.
+
+### Lightbox does not open
+
+Click directly on the main carousel image (cursor changes to a zoom icon). The thumbnail strip navigates the carousel but does not open the lightbox. Keyboard shortcuts (arrow keys to navigate, Escape to close) work once the lightbox is open.

@@ -52,6 +52,8 @@ export default function Event() {
   const [alreadyReg, setAlreadyReg] = useState(false);
   const [regStatus, setRegStatus] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -379,9 +381,7 @@ export default function Event() {
           mapCoords ||
           mapsEmbedSrc ||
           climb.stravaUrl ||
-          climb.corosUrl ||
-          climb.garminUrl ||
-          climb.photosUrl) && (
+          climb.komootUrl) && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">&#128205;</span>
@@ -467,7 +467,7 @@ export default function Event() {
                   </div>
                 </>
               ) : null}
-              {(climb.stravaUrl || climb.corosUrl || climb.garminUrl) && (
+              {(climb.stravaUrl || climb.komootUrl) && (
                 <div
                   style={{
                     display: "flex",
@@ -487,25 +487,15 @@ export default function Event() {
                       &#127939; View on Strava
                     </a>
                   )}
-                  {climb.corosUrl && (
+                  {climb.komootUrl && (
                     <a
-                      href={climb.corosUrl}
+                      href={climb.komootUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-outline btn-sm"
+                      style={{ color: "#6db33f", borderColor: "#6db33f" }}
                     >
-                      &#8987; Coros Route
-                    </a>
-                  )}
-                  {climb.garminUrl && (
-                    <a
-                      href={climb.garminUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-outline btn-sm"
-                      style={{ color: "#007cc3", borderColor: "#007cc3" }}
-                    >
-                      &#128225; Garmin Course
+                      &#127748; Komoot Route
                     </a>
                   )}
                 </div>
@@ -515,45 +505,275 @@ export default function Event() {
         )}
 
         {/* Photos */}
-        {climb.photosUrl && (
+        {climb.trailImages?.length > 0 && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">&#128247;</span>
               <h3>Photos</h3>
             </div>
             <div className="section-body">
-              <iframe
-                src={climb.photosUrl}
-                title="Event photo album"
-                width="100%"
-                height="520"
-                style={{
-                  border: "none",
-                  borderRadius: 10,
-                  display: "block",
+              {climb.trailImages?.length > 0 &&
+                (() => {
+                  const imgs = climb.trailImages;
+                  const ci = Math.min(carouselIndex, imgs.length - 1);
+                  return (
+                    <div style={{ marginBottom: 0 }}>
+                      {/* Main carousel image */}
+                      <div
+                        style={{
+                          position: "relative",
+                          borderRadius: 10,
+                          overflow: "hidden",
+                          background: "#000",
+                        }}
+                      >
+                        <img
+                          src={imgs[ci]}
+                          alt={`${climb.title} photo ${ci + 1}`}
+                          onClick={() => setLightboxIndex(ci)}
+                          style={{
+                            width: "100%",
+                            height: 340,
+                            objectFit: "cover",
+                            display: "block",
+                            cursor: "zoom-in",
+                          }}
+                        />
+                        {/* Prev arrow */}
+                        {ci > 0 && (
+                          <button
+                            onClick={() => setCarouselIndex(ci - 1)}
+                            style={{
+                              position: "absolute",
+                              left: 10,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "rgba(0,0,0,0.45)",
+                              border: "none",
+                              color: "#fff",
+                              fontSize: "1.6rem",
+                              borderRadius: 99,
+                              width: 40,
+                              height: 40,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            &#8249;
+                          </button>
+                        )}
+                        {/* Next arrow */}
+                        {ci < imgs.length - 1 && (
+                          <button
+                            onClick={() => setCarouselIndex(ci + 1)}
+                            style={{
+                              position: "absolute",
+                              right: 10,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "rgba(0,0,0,0.45)",
+                              border: "none",
+                              color: "#fff",
+                              fontSize: "1.6rem",
+                              borderRadius: 99,
+                              width: 40,
+                              height: 40,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            &#8250;
+                          </button>
+                        )}
+                        {/* Counter badge */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: 10,
+                            right: 12,
+                            background: "rgba(0,0,0,0.5)",
+                            color: "#fff",
+                            fontSize: "0.75rem",
+                            borderRadius: 99,
+                            padding: "2px 10px",
+                          }}
+                        >
+                          {ci + 1} / {imgs.length}
+                        </div>
+                      </div>
+                      {/* Thumbnail strip */}
+                      {imgs.length > 1 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            marginTop: 8,
+                            overflowX: "auto",
+                            paddingBottom: 4,
+                            scrollbarWidth: "thin",
+                          }}
+                        >
+                          {imgs.map((url, i) => (
+                            <img
+                              key={i}
+                              src={url}
+                              alt={`Thumbnail ${i + 1}`}
+                              onClick={() => setCarouselIndex(i)}
+                              style={{
+                                width: 72,
+                                height: 52,
+                                objectFit: "cover",
+                                borderRadius: 6,
+                                flexShrink: 0,
+                                cursor: "pointer",
+                                border:
+                                  i === ci
+                                    ? "2px solid var(--accent)"
+                                    : "2px solid transparent",
+                                opacity: i === ci ? 1 : 0.6,
+                                transition: "opacity 0.15s, border-color 0.15s",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              {/* photosUrl removed */}
+            </div>
+          </div>
+        )}
+
+        {/* Lightbox */}
+        {lightboxIndex !== null && (
+          <div
+            onClick={() => setLightboxIndex(null)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft" && lightboxIndex > 0)
+                setLightboxIndex(lightboxIndex - 1);
+              if (
+                e.key === "ArrowRight" &&
+                lightboxIndex < climb.trailImages.length - 1
+              )
+                setLightboxIndex(lightboxIndex + 1);
+              if (e.key === "Escape") setLightboxIndex(null);
+            }}
+            tabIndex={0}
+            ref={(el) => el && el.focus()}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.88)",
+              zIndex: 1200,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              outline: "none",
+            }}
+          >
+            {/* Prev */}
+            {lightboxIndex > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex(lightboxIndex - 1);
                 }}
-                loading="lazy"
-                allowFullScreen
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-              <p
                 style={{
-                  fontSize: "0.7rem",
-                  color: "var(--ink-soft)",
-                  marginTop: 8,
+                  position: "absolute",
+                  left: 16,
+                  background: "rgba(255,255,255,0.15)",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: "1.8rem",
+                  borderRadius: 99,
+                  width: 48,
+                  height: 48,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                &#128247;{" "}
-                <a
-                  href={climb.photosUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: "var(--accent)" }}
-                >
-                  Open full photo album &#8599;
-                </a>{" "}
-                (opens Google Photos)
-              </p>
+                &#8249;
+              </button>
+            )}
+            <img
+              src={climb.trailImages[lightboxIndex]}
+              alt={`${climb.title} photo ${lightboxIndex + 1}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: "90vw",
+                maxHeight: "88vh",
+                objectFit: "contain",
+                borderRadius: 10,
+                boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+              }}
+            />
+            {/* Next */}
+            {lightboxIndex < climb.trailImages.length - 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex(lightboxIndex + 1);
+                }}
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  background: "rgba(255,255,255,0.15)",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: "1.8rem",
+                  borderRadius: 99,
+                  width: 48,
+                  height: 48,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                &#8250;
+              </button>
+            )}
+            {/* Counter + close */}
+            <div
+              style={{
+                position: "absolute",
+                top: 16,
+                right: 16,
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}
+              >
+                {lightboxIndex + 1} / {climb.trailImages.length}
+              </span>
+              <button
+                onClick={() => setLightboxIndex(null)}
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: "1.2rem",
+                  borderRadius: 99,
+                  width: 36,
+                  height: 36,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                &#x2715;
+              </button>
             </div>
           </div>
         )}

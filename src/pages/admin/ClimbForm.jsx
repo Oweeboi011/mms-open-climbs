@@ -91,9 +91,8 @@ const EMPTY_FORM = {
   googleMapsUrl: "",
   allTrailsUrl: "",
   stravaUrl: "",
-  corosUrl: "",
-  garminUrl: "",
-  photosUrl: "",
+  komootUrl: "",
+  trailImages: [],
   waterSourceNote: "",
   weatherNote: "",
   thingsToBring: [...DEFAULT_THINGS_TO_BRING],
@@ -101,9 +100,24 @@ const EMPTY_FORM = {
     { label: "Registration Fee", amount: "TBA", note: "", optional: false },
     { label: "Guide Fee", amount: "TBA", note: "", optional: false },
     { label: "Environmental Fee", amount: "TBA", note: "", optional: false },
-    { label: "Guest Fee", amount: "450", note: "Required for non-members / guests. Not charged to MMS members.", optional: true },
-    { label: "Transportation Fee", amount: "TBA", note: "Only if availing organized transport", optional: true },
-    { label: "Food & Meals", amount: "TBA", note: "Only if availing organized meals", optional: true },
+    {
+      label: "Guest Fee",
+      amount: "450",
+      note: "Required for non-members / guests. Not charged to MMS members.",
+      optional: true,
+    },
+    {
+      label: "Transportation Fee",
+      amount: "TBA",
+      note: "Only if availing organized transport",
+      optional: true,
+    },
+    {
+      label: "Food & Meals",
+      amount: "TBA",
+      note: "Only if availing organized meals",
+      optional: true,
+    },
   ],
   officers: [],
   itinerary: [],
@@ -124,6 +138,8 @@ export default function AdminClimbForm() {
   const [error, setError] = useState("");
   const [users, setUsers] = useState([]);
   const [gcashUploading, setGcashUploading] = useState(false);
+  const [trailImgUploading, setTrailImgUploading] = useState(false);
+  const [trailUrlInput, setTrailUrlInput] = useState("");
 
   useEffect(() => {
     getDocs(query(collection(db, "users"), orderBy("displayName")))
@@ -165,12 +181,39 @@ export default function AdminClimbForm() {
     addListItem("itinerary", { day: "", entries: [] });
   }
 
+  async function handleTrailImageUpload(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setTrailImgUploading(true);
+    try {
+      const uploaded = [];
+      for (const file of files) {
+        const sRef = ref(
+          storage,
+          `trail-images/${id || "new"}/${Date.now()}_${file.name}`,
+        );
+        await uploadBytes(sRef, file);
+        const url = await getDownloadURL(sRef);
+        uploaded.push(url);
+      }
+      set("trailImages", [...(form.trailImages || []), ...uploaded]);
+    } catch (err) {
+      setError("Failed to upload trail image: " + err.message);
+    } finally {
+      setTrailImgUploading(false);
+      e.target.value = "";
+    }
+  }
+
   async function handleGcashQrUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     setGcashUploading(true);
     try {
-      const storageRef = ref(storage, `gcash-qr/${id || "new"}/${Date.now()}_${file.name}`);
+      const storageRef = ref(
+        storage,
+        `gcash-qr/${id || "new"}/${Date.now()}_${file.name}`,
+      );
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       set("gcashQrUrl", url);
@@ -574,7 +617,8 @@ export default function AdminClimbForm() {
                 onChange={(e) => set("googleMapsUrl", e.target.value)}
               />
               <div className="form-hint">
-                Open Google Maps, navigate to the location, then copy the URL from the browser address bar and paste it here.
+                Open Google Maps, navigate to the location, then copy the URL
+                from the browser address bar and paste it here.
               </div>
             </div>
             <div className="form-group">
@@ -601,46 +645,153 @@ export default function AdminClimbForm() {
                 onChange={(e) => set("stravaUrl", e.target.value)}
               />
               <div className="form-hint">
-                Strava route link — participants can follow or export to their GPS device.
+                Strava route link — participants can follow or export to their
+                GPS device.
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Coros Route URL</label>
+              <label className="form-label">Komoot Route URL</label>
               <input
                 type="url"
                 className="form-input"
-                placeholder="https://www.coros.com/route/..."
-                value={form.corosUrl}
-                onChange={(e) => set("corosUrl", e.target.value)}
+                placeholder="https://www.komoot.com/tour/..."
+                value={form.komootUrl}
+                onChange={(e) => set("komootUrl", e.target.value)}
               />
               <div className="form-hint">
-                Coros route link — participants can sync directly to their Coros watch.
+                Komoot tour link — participants can view the route, elevation
+                profile, and export to their device.
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Garmin Route URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://connect.garmin.com/modern/course/..."
-                value={form.garminUrl}
-                onChange={(e) => set("garminUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Garmin Connect course link — participants can send it directly to their Garmin device.
+              <label className="form-label">Trail Photos</label>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 8,
+                }}
+              >
+                {(form.trailImages || []).map((url, i) => (
+                  <div
+                    key={i}
+                    style={{ position: "relative", display: "inline-block" }}
+                  >
+                    <img
+                      src={url}
+                      alt={`Trail ${i + 1}`}
+                      style={{
+                        width: 100,
+                        height: 80,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        display: "block",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        set(
+                          "trailImages",
+                          form.trailImages.filter((_, idx) => idx !== i),
+                        )
+                      }
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        right: 2,
+                        background: "rgba(0,0,0,0.6)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 99,
+                        width: 20,
+                        height: 20,
+                        cursor: "pointer",
+                        fontSize: "0.7rem",
+                        lineHeight: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      title="Remove"
+                    >
+                      &#x2715;
+                    </button>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Photos Album URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://photos.app.goo.gl/..."
-                value={form.photosUrl}
-                onChange={(e) => set("photosUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Paste a shared Google Photos album link (or any photo gallery URL). A "View Photos" button will appear on the event page.
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <label
+                  className="btn btn-outline btn-sm"
+                  style={{
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {trailImgUploading ? "Uploading…" : "↑ Upload Photos"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={handleTrailImageUpload}
+                    disabled={trailImgUploading}
+                  />
+                </label>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  marginTop: 10,
+                  alignItems: "center",
+                }}
+              >
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://example.com/photo.jpg"
+                  value={trailUrlInput}
+                  onChange={(e) => setTrailUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const v = trailUrlInput.trim();
+                      if (v) {
+                        set("trailImages", [...(form.trailImages || []), v]);
+                        setTrailUrlInput("");
+                      }
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    const v = trailUrlInput.trim();
+                    if (v) {
+                      set("trailImages", [...(form.trailImages || []), v]);
+                      setTrailUrlInput("");
+                    }
+                  }}
+                >
+                  + Add URL
+                </button>
+              </div>
+              <div className="form-hint" style={{ marginTop: 6 }}>
+                Upload photos from your device or paste a direct image URL
+                (press Enter or click + Add URL).
               </div>
             </div>
             <div className="form-group">
@@ -901,14 +1052,24 @@ export default function AdminClimbForm() {
                   style={{ flex: "2 1 160px" }}
                 />
                 <label
-                  style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.8rem", whiteSpace: "nowrap", cursor: "pointer" }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: "0.8rem",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                  }}
                   title="Optional fees let participants choose whether to include them"
                 >
                   <input
                     type="checkbox"
                     checked={!!exp.optional}
                     onChange={(e) =>
-                      updateListItem("expenses", i, { ...exp, optional: e.target.checked })
+                      updateListItem("expenses", i, {
+                        ...exp,
+                        optional: e.target.checked,
+                      })
                     }
                   />
                   Optional
@@ -1032,8 +1193,15 @@ export default function AdminClimbForm() {
           {/* ── GCash Payment ── */}
           <div className="admin-card">
             <div className="admin-card-title">GCash Payment Details</div>
-            <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: 16 }}>
-              These details are shown to registrants on the registration form so they know where to send payment.
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
+              These details are shown to registrants on the registration form so
+              they know where to send payment.
             </p>
             <div className="form-row">
               <div className="form-group">
@@ -1064,7 +1232,14 @@ export default function AdminClimbForm() {
                   <img
                     src={form.gcashQrUrl}
                     alt="GCash QR"
-                    style={{ width: 160, height: 160, objectFit: "contain", border: "1px solid var(--border)", borderRadius: 8, background: "#fff" }}
+                    style={{
+                      width: 160,
+                      height: 160,
+                      objectFit: "contain",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      background: "#fff",
+                    }}
                   />
                 </div>
               )}
@@ -1075,9 +1250,16 @@ export default function AdminClimbForm() {
                 onChange={handleGcashQrUpload}
                 disabled={gcashUploading}
               />
-              {gcashUploading && <div className="form-hint">Uploading QR code…</div>}
+              {gcashUploading && (
+                <div className="form-hint">Uploading QR code…</div>
+              )}
               {form.gcashQrUrl && !gcashUploading && (
-                <div className="form-hint" style={{ color: "var(--green-dark)" }}>QR code uploaded.</div>
+                <div
+                  className="form-hint"
+                  style={{ color: "var(--green-dark)" }}
+                >
+                  QR code uploaded.
+                </div>
               )}
             </div>
           </div>

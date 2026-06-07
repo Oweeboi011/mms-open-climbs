@@ -25,44 +25,45 @@ Database name: `openclimbs`
 
 ### Collection: climbs
 
-| Field             | Type      | Notes                               |
-| ----------------- | --------- | ----------------------------------- |
-| title             | string    | Climb name                          |
-| dateLabel         | string    | Display date e.g. "July 19-20"      |
-| month             | string    | jan / feb / ... / dec               |
-| startDate         | timestamp | For ordering                        |
-| endDate           | timestamp |                                     |
-| location          | string    |                                     |
-| type              | string    | minor / major / special             |
-| status            | string    | draft / open / closed / completed   |
-| color             | string    | Card color token e.g. "c-slate"     |
-| maxParticipants   | number    |                                     |
-| registrationCount | number    | Maintained by Cloud Functions       |
-| isWide            | boolean   | Card spans 2 columns                |
-| itineraryReady    | boolean   |                                     |
-| description       | string    | Mountain description                |
-| elevation         | string    | Summit elevation in MASL            |
-| difficulty        | string    | Difficulty rating                   |
-| jumpOff           | string    | Jump-off point name                 |
-| jumpOffElevation  | string    | Jump-off elevation in meters        |
-| elevationGain     | string    | Total elevation gain                |
-| distanceToSummit  | string    | Jump-off to peak distance           |
-| roundTripDistance | string    | Total round trip distance           |
-| recommendedDays   | string    | Recommended number of days          |
-| features          | string    | Terrain features description        |
-| googleMapsUrl     | string    | Google Maps URL for embedded map    |
-| allTrailsUrl      | string    | AllTrails link                      |
-| stravaUrl         | string    | Strava link                         |
-| corosUrl          | string    | Coros link                          |
-| waterSourceNote   | string    | Water source information            |
-| weatherNote       | string    | Weather notes                       |
-| thingsToBring     | string[]  |                                     |
-| expenses          | object[]  | {label, amount, note, optional}     |
-| officers          | object[]  | {name, role, mobile}                |
-| itinerary         | object[]  | [{day, entries:[{time, activity}]}] |
-| gcashName         | string    | GCash account name for payment      |
-| gcashNumber       | string    | GCash number for payment            |
-| gcashQrUrl        | string    | Uploaded GCash QR code image URL    |
+| Field             | Type      | Notes                                                                               |
+| ----------------- | --------- | ----------------------------------------------------------------------------------- |
+| title             | string    | Climb name                                                                          |
+| dateLabel         | string    | Display date e.g. "July 19-20"                                                      |
+| month             | string    | jan / feb / ... / dec                                                               |
+| startDate         | timestamp | For ordering                                                                        |
+| endDate           | timestamp |                                                                                     |
+| location          | string    |                                                                                     |
+| type              | string    | minor / major / special                                                             |
+| status            | string    | draft / open / closed / completed                                                   |
+| color             | string    | Card color token e.g. "c-slate"                                                     |
+| maxParticipants   | number    |                                                                                     |
+| registrationCount | number    | Maintained by Cloud Functions                                                       |
+| isWide            | boolean   | Card spans 2 columns                                                                |
+| itineraryReady    | boolean   |                                                                                     |
+| description       | string    | Mountain description                                                                |
+| elevation         | string    | Summit elevation in MASL                                                            |
+| difficulty        | string    | Difficulty rating                                                                   |
+| jumpOff           | string    | Jump-off point name                                                                 |
+| jumpOffElevation  | string    | Jump-off elevation in meters                                                        |
+| elevationGain     | string    | Total elevation gain                                                                |
+| distanceToSummit  | string    | Jump-off to peak distance                                                           |
+| roundTripDistance | string    | Total round trip distance                                                           |
+| recommendedDays   | string    | Recommended number of days                                                          |
+| features          | string    | Terrain features description                                                        |
+| googleMapsUrl     | string    | Google Maps URL for embedded map                                                    |
+| allTrailsUrl      | string    | AllTrails link                                                                      |
+| stravaUrl         | string    | Strava link                                                                         |
+| komootUrl         | string    | Komoot tour link                                                                    |
+| trailImages       | string[]  | Firebase Storage or CDN image URLs; shown as carousel on event + registration pages |
+| waterSourceNote   | string    | Water source information                                                            |
+| weatherNote       | string    | Weather notes                                                                       |
+| thingsToBring     | string[]  |                                                                                     |
+| expenses          | object[]  | {label, amount, note, optional}                                                     |
+| officers          | object[]  | {name, role, mobile}                                                                |
+| itinerary         | object[]  | [{day, entries:[{time, activity}]}]                                                 |
+| gcashName         | string    | GCash account name for payment                                                      |
+| gcashNumber       | string    | GCash number for payment                                                            |
+| gcashQrUrl        | string    | Uploaded GCash QR code image URL                                                    |
 
 ### Collection: registrations
 
@@ -153,3 +154,4 @@ flowchart TD
 - Transportation opt-in is modelled as an optional expense item (`Transportation Fee`) in the `feeBreakdown`. Admins read the transport headcount from the Manage Payments page to coordinate vehicles.
 - Denormalized fields (`climbTitle`, `climbDate`, `climbLocation`) are stored on registration documents so the admin registrations list does not require per-registration climb lookups.
 - The admin Dashboard Climbs Overview table includes a Type column (minor / major / special) alongside date, status, slots, confirmed, and pending counts, giving a quick per-climb summary at a glance.
+- Trail photos are stored as a `trailImages` string array on the climb document. Admins can upload images directly to Firebase Storage via the Edit Climb form (path: `trail-images/{climbId}/`) or paste any direct image URL. Photos are displayed as a scrollable carousel with thumbnail strip on the public event page and registration form. Clicking the main image opens a full-screen lightbox with prev/next arrow navigation and keyboard support (arrow keys to navigate, Escape to close). Coros and Garmin route links have been replaced with Komoot (`komootUrl`).

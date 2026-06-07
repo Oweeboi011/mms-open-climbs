@@ -5,12 +5,13 @@ Event management portal for MMS mountaineering club climbs. Members browse the c
 ## Features
 
 - Climb schedule with card grid — shows elevation, difficulty, and round-trip distance at a glance
-- Full mountain profile per climb: summit elevation, difficulty, jump-off point, elevation gain, distances, features, water source notes, and external links (AllTrails, Strava, Coros, Google Maps)
+- Full mountain profile per climb: summit elevation, difficulty, jump-off point, elevation gain, distances, features, water source notes, and external links (AllTrails, Strava, Komoot, Google Maps)
+- Trail photos carousel on the event page and registration form — uploaded via Firebase Storage or direct URL; click any photo to open a full-screen lightbox with prev/next navigation and keyboard support
 - Member registration with digital waiver signature and optional fee selection (transport, meals, guest fee)
 - GCash payment: members tap the climb's QR code to open a full-screen modal for easy scanning, pay, and upload a screenshot as proof
 - Registration status tracking (pending / confirmed / waitlisted / cancelled) with email notifications on every status change
 - Admin panel:
-  - Climb management — create, edit, open/close registration, set GCash details and QR code
+  - Climb management — create, edit, open/close registration, set GCash details and QR code; upload or add URL-based trail photos
   - Dashboard — overview table with climb type, slots, confirmed/pending counts per climb
   - Climb detail — per-climb registration list with status and payment controls
   - All registrations — cross-climb view with search, status, and payment filters; CSV export
