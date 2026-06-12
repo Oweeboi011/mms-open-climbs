@@ -230,6 +230,13 @@ export default function AdminDashboard() {
               icon: "👥",
               color: "#7b2d8b",
             },
+            {
+              to: "/admin/analytics",
+              label: "Analytics",
+              desc: "Site visits & event views",
+              icon: "📊",
+              color: "#e74c3c",
+            },
           ].map(({ to, label, desc, icon, color }) => (
             <Link
               key={to}

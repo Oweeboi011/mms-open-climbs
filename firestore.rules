@@ -36,5 +36,10 @@ service cloud.firestore {
       allow update: if isAdmin() || isOwner(resource.data.userId);
       allow delete: if isAdmin();
     }
+
+    match /pageViews/{viewId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }

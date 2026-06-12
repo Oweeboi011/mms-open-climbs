@@ -1,30 +1,33 @@
-import { Routes, Route } from 'react-router-dom';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import AdminRoute from '@/components/AdminRoute';
+import { Routes, Route } from "react-router-dom";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
+import { usePageTracking } from "@/hooks/usePageTracking";
 
 // Public pages
-import Schedule from '@/pages/Schedule';
-import Event from '@/pages/Event';
-import Login from '@/pages/Login';
-import Signup from '@/pages/Signup';
-import ForgotPassword from '@/pages/ForgotPassword';
-import NotFound from '@/pages/NotFound';
+import Schedule from "@/pages/Schedule";
+import Event from "@/pages/Event";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import ForgotPassword from "@/pages/ForgotPassword";
+import NotFound from "@/pages/NotFound";
 
 // Authenticated pages
-import Register from '@/pages/Register';
-import MyRegistrations from '@/pages/MyRegistrations';
-import WaiverPrint from '@/pages/WaiverPrint';
+import Register from "@/pages/Register";
+import MyRegistrations from "@/pages/MyRegistrations";
+import WaiverPrint from "@/pages/WaiverPrint";
 
 // Admin pages
-import AdminDashboard from '@/pages/admin/Dashboard';
-import AdminClimbsManage from '@/pages/admin/ClimbsManage';
-import AdminClimbForm from '@/pages/admin/ClimbForm';
-import AdminClimbDetail from '@/pages/admin/ClimbDetail';
-import AdminUsersManage from '@/pages/admin/UsersManage';
-import AllRegistrations from '@/pages/admin/AllRegistrations';
-import ManagePayments from '@/pages/admin/ManagePayments';
+import AdminDashboard from "@/pages/admin/Dashboard";
+import AdminClimbsManage from "@/pages/admin/ClimbsManage";
+import AdminClimbForm from "@/pages/admin/ClimbForm";
+import AdminClimbDetail from "@/pages/admin/ClimbDetail";
+import AdminUsersManage from "@/pages/admin/UsersManage";
+import AllRegistrations from "@/pages/admin/AllRegistrations";
+import ManagePayments from "@/pages/admin/ManagePayments";
+import AdminAnalytics from "@/pages/admin/Analytics";
 
 export default function App() {
+  usePageTracking();
   return (
     <Routes>
       {/* Public */}
@@ -51,6 +54,7 @@ export default function App() {
         <Route path="/admin/users" element={<AdminUsersManage />} />
         <Route path="/admin/registrations" element={<AllRegistrations />} />
         <Route path="/admin/payments" element={<ManagePayments />} />
+        <Route path="/admin/analytics" element={<AdminAnalytics />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
