@@ -1,60 +1,105 @@
-[debug] [2026-06-14T18:04:21.448Z] ----------------------------------------------------------------------
-[debug] [2026-06-14T18:04:21.450Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\My PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
-[debug] [2026-06-14T18:04:21.450Z] CLI Version:   15.19.0
-[debug] [2026-06-14T18:04:21.450Z] Platform:      win32
-[debug] [2026-06-14T18:04:21.451Z] Node Version:  v22.14.0
-[debug] [2026-06-14T18:04:21.451Z] Time:          Mon Jun 15 2026 02:04:21 GMT+0800 (Singapore Standard Time)
-[debug] [2026-06-14T18:04:21.451Z] ----------------------------------------------------------------------
+[debug] [2026-06-14T18:47:18.078Z] ----------------------------------------------------------------------
+[debug] [2026-06-14T18:47:18.080Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\My PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions
+[debug] [2026-06-14T18:47:18.081Z] CLI Version:   15.19.0
+[debug] [2026-06-14T18:47:18.081Z] Platform:      win32
+[debug] [2026-06-14T18:47:18.081Z] Node Version:  v22.14.0
+[debug] [2026-06-14T18:47:18.081Z] Time:          Mon Jun 15 2026 02:47:18 GMT+0800 (Singapore Standard Time)
+[debug] [2026-06-14T18:47:18.082Z] ----------------------------------------------------------------------
 [debug] 
-[debug] [2026-06-14T18:04:22.604Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
-[debug] [2026-06-14T18:04:22.604Z] > authorizing via signed-in user (oweeboipenaranda@gmail.com)
-[debug] [2026-06-14T18:04:22.605Z] [iam] checking project mms-open-climbs for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]
-[debug] [2026-06-14T18:04:22.605Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:22.605Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:22.606Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions [none]
-[debug] [2026-06-14T18:04:22.606Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions  x-goog-user-project=mms-open-climbs
-[debug] [2026-06-14T18:04:22.606Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]}
-[debug] [2026-06-14T18:04:22.875Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions 200
-[debug] [2026-06-14T18:04:22.875Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update","firebaserules.releases.create","firebaserules.releases.update","firebaserules.rulesets.create"]}
-[debug] [2026-06-14T18:04:22.875Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:22.875Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:22.875Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions [none]
-[debug] [2026-06-14T18:04:22.875Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
-[debug] [2026-06-14T18:04:24.031Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions 200
-[debug] [2026-06-14T18:04:24.031Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
-[debug] [2026-06-14T18:04:24.032Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:24.032Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:24.032Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/mms-open-climbs [none]
-[debug] [2026-06-14T18:04:24.373Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/mms-open-climbs 200
-[debug] [2026-06-14T18:04:24.373Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/mms-open-climbs {"projectId":"mms-open-climbs","projectNumber":"819276060182","displayName":"mms-open-climbs","name":"projects/mms-open-climbs","resources":{"hostingSite":"mms-open-climbs"},"state":"ACTIVE","etag":"1_8956c583-1cac-4753-8df9-bf101eb242cf"}
+[debug] [2026-06-14T18:47:19.473Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-14T18:47:19.474Z] > authorizing via signed-in user (oweeboipenaranda@gmail.com)
+[debug] [2026-06-14T18:47:19.474Z] [iam] checking project mms-open-climbs for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-06-14T18:47:19.475Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:19.475Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:19.476Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions [none]
+[debug] [2026-06-14T18:47:19.476Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions  x-goog-user-project=mms-open-climbs
+[debug] [2026-06-14T18:47:19.476Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-06-14T18:47:19.773Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions 200
+[debug] [2026-06-14T18:47:19.774Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-06-14T18:47:19.774Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:19.774Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:19.774Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-06-14T18:47:19.774Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-06-14T18:47:20.947Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-06-14T18:47:20.947Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/mms-open-climbs/serviceAccounts/mms-open-climbs@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
 [info] 
 [info] === Deploying to 'mms-open-climbs'...
 [info] 
-[info] i  deploying storage, firestore, functions, hosting 
-[info] i  storage: ensuring required API firebasestorage.googleapis.com is enabled... 
-[debug] [2026-06-14T18:04:24.378Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:24.378Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:24.378Z] >>> [apiv2][query] GET https://firebasestorage.googleapis.com/v1alpha/projects/mms-open-climbs/defaultBucket [none]
-[debug] [2026-06-14T18:04:25.384Z] <<< [apiv2][status] GET https://firebasestorage.googleapis.com/v1alpha/projects/mms-open-climbs/defaultBucket 200
-[debug] [2026-06-14T18:04:25.384Z] <<< [apiv2][body] GET https://firebasestorage.googleapis.com/v1alpha/projects/mms-open-climbs/defaultBucket {"name":"projects/mms-open-climbs/defaultBucket","location":"US-EAST1","bucket":{"name":"projects/mms-open-climbs/buckets/mms-open-climbs.firebasestorage.app"},"storageClass":"REGIONAL"}
-[info] i  firebase.storage: checking storage.rules for compilation errors... 
-[debug] [2026-06-14T18:04:25.385Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:25.385Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:25.385Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/mms-open-climbs:test [none]
-[debug] [2026-06-14T18:04:25.385Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/mms-open-climbs:test [omitted]
-[debug] [2026-06-14T18:04:26.669Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/mms-open-climbs:test 200
-[debug] [2026-06-14T18:04:26.669Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/mms-open-climbs:test {}
-[info] +  firebase.storage: rules file storage.rules compiled successfully 
-[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
-[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
-[debug] [2026-06-14T18:04:26.670Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:26.670Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:26.670Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/mms-open-climbs/databases/openclimbs [none]
-[debug] [2026-06-14T18:04:26.997Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/mms-open-climbs/databases/openclimbs 200
-[debug] [2026-06-14T18:04:26.997Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/mms-open-climbs/databases/openclimbs {"name":"projects/mms-open-climbs/databases/openclimbs","uid":"7cc6f2f6-af9b-4bc3-a56d-92b1eb592afb","createTime":"2026-05-31T19:25:34.004544Z","updateTime":"2026-05-31T19:25:34.004544Z","locationId":"asia-southeast1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-06-14T17:04:30.441957Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IJHG59Soh5UDMM2B8sOs5JQD"}
-[info] i  firestore: reading indexes from firestore.indexes.json... 
-[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
-[debug] [2026-06-14T18:04:26.998Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:26.998Z] Checked if tokens are valid: true, expires at: 1781462392104
-[debug] [2026-06-14T18:04:26.998Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/mms-open-climbs:test [none]
-[debug] [2026-06-14T18:04:26.999Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/mms-open-climbs:test [omitted]
+[info] i  deploying functions 
+[debug] [2026-06-14T18:47:20.952Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:20.952Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:20.952Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs [none]
+[debug] [2026-06-14T18:47:21.172Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs 200
+[debug] [2026-06-14T18:47:21.172Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/mms-open-climbs {"projectNumber":"819276060182","projectId":"mms-open-climbs","lifecycleState":"ACTIVE","name":"mms-open-climbs","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-05-31T19:19:59.159Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2026-06-14T18:47:21.176Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:21.176Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:21.176Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/mms-open-climbs/adminSdkConfig [none]
+[debug] [2026-06-14T18:47:22.218Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/mms-open-climbs/adminSdkConfig 200
+[debug] [2026-06-14T18:47:22.219Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/mms-open-climbs/adminSdkConfig {"projectId":"mms-open-climbs","storageBucket":"mms-open-climbs.firebasestorage.app"}
+[debug] [2026-06-14T18:47:22.219Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:22.220Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:22.220Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/mms-open-climbs/configs [none]
+[debug] [2026-06-14T18:47:22.606Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/mms-open-climbs/configs 200
+[debug] [2026-06-14T18:47:22.606Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/mms-open-climbs/configs {}
+[debug] [2026-06-14T18:47:22.607Z] Validating nodejs source
+[warn] !  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] !  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-06-14T18:47:23.899Z] > [functions] package.json contents: {
+  "name": "mms-open-climbs-functions",
+  "description": "Firebase Cloud Functions for MMS Open Climbs — email notifications via Brevo",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "firebase-functions-test": "^3.1.0",
+    "jest": "^30.4.2"
+  },
+  "private": true
+}
+[debug] [2026-06-14T18:47:23.900Z] Building nodejs source
+[info] i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[debug] [2026-06-14T18:47:23.901Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-06-14T18:47:23.915Z] Found firebase-functions binary at 'C:\GitHub\MMS\OpenClimbs\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8897
+
+[debug] [2026-06-14T18:47:24.549Z] Got response from /__/functions.yaml {"endpoints":{"onRegistrationCreated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","eventFilters":{"database":"openclimbs","namespace":"(default)"},"eventFilterPathPatterns":{"document":"registrations/{regId}"},"retry":false},"entryPoint":"onRegistrationCreated"},"onRegistrationUpdated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.updated","eventFilters":{"database":"openclimbs","namespace":"(default)"},"eventFilterPathPatterns":{"document":"registrations/{regId}"},"retry":false},"entryPoint":"onRegistrationUpdated"},"createUser":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"callableTrigger":{},"entryPoint":"createUser"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[debug] [2026-06-14T18:47:28.597Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:28.597Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:28.597Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/projects/mms-open-climbs/locations/-/functions [none]
+[debug] [2026-06-14T18:47:29.486Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/projects/mms-open-climbs/locations/-/functions 200
+[debug] [2026-06-14T18:47:29.486Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/projects/mms-open-climbs/locations/-/functions {}
+[debug] [2026-06-14T18:47:29.487Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:29.487Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:29.488Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v2/projects/mms-open-climbs/locations/-/functions filter=environment%3D%22GEN_2%22
+[debug] [2026-06-14T18:47:30.933Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v2/projects/mms-open-climbs/locations/-/functions 200
+[debug] [2026-06-14T18:47:30.933Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v2/projects/mms-open-climbs/locations/-/functions {"functions":[{"name":"projects/mms-open-climbs/locations/asia-southeast1/functions/onRegistrationCreated","buildConfig":{"build":"projects/819276060182/locations/asia-southeast1/builds/0d10ae6e-3fb6-44c2-bcb1-06095d152295","runtime":"nodejs20","entryPoint":"onRegistrationCreated","source":{"storageSource":{"bucket":"gcf-v2-sources-819276060182-asia-southeast1","object":"onRegistrationCreated/function-source.zip","generation":"1781460763507987"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/mms-open-climbs/locations/asia-southeast1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-819276060182-asia-southeast1","object":"onRegistrationCreated/function-source.zip","generation":"1781460763507987"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/mms-open-climbs/serviceAccounts/819276060182-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/mms-open-climbs/locations/asia-southeast1/services/onregistrationcreated","timeoutSeconds":60,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"mms-open-climbs\",\"storageBucket\":\"mms-open-climbs.firebasestorage.app\"}","GCLOUD_PROJECT":"mms-open-climbs","EVENTARC_CLOUD_EVENT_SOURCE":"projects/mms-open-climbs/locations/asia-southeast1/services/onRegistrationCreated","FUNCTION_SIGNATURE_TYPE":"cloudevent","FUNCTION_TARGET":"onRegistrationCreated","LOG_EXECUTION_ID":"true"},"maxInstanceCount":20,"ingressSettings":"ALLOW_ALL","uri":"https://onregistrationcreated-mkbuniekmq-as.a.run.app","serviceAccountEmail":"819276060182-compute@developer.gserviceaccount.com","availableMemory":"256Mi","allTrafficOnLatestRevision":true,"revision":"onregistrationcreated-00004-haf","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"eventTrigger":{"trigger":"projects/mms-open-climbs/locations/asia-southeast1/triggers/onregistrationcreated-626380","triggerRegion":"asia-southeast1","eventType":"google.cloud.firestore.document.v1.created","eventFilters":[{"attribute":"database","value":"openclimbs"},{"attribute":"namespace","value":"(default)"},{"attribute":"document","value":"registrations/{regId}","operator":"match-path-pattern"}],"pubsubTopic":"projects/mms-open-climbs/topics/eventarc-asia-southeast1-onregistrationcreated-626380-586","serviceAccountEmail":"819276060182-compute@developer.gserviceaccount.com","retryPolicy":"RETRY_POLICY_DO_NOT_RETRY"},"state":"ACTIVE","updateTime":"2026-06-14T18:13:32.789549919Z","labels":{"firebase-functions-hash":"f9c9cce81de46c0211a18c97c4786401c5fa7e34","deployment-tool":"cli-firebase"},"environment":"GEN_2","url":"https://asia-southeast1-mms-open-climbs.cloudfunctions.net/onRegistrationCreated","satisfiesPzs":true,"createTime":"2026-05-31T22:40:38.520994881Z","satisfiesPzi":true},{"name":"projects/mms-open-climbs/locations/asia-southeast1/functions/onRegistrationUpdated","buildConfig":{"build":"projects/819276060182/locations/asia-southeast1/builds/0d10ae6e-3fb6-44c2-bcb1-06095d152295","runtime":"nodejs20","entryPoint":"onRegistrationUpdated","source":{"storageSource":{"bucket":"gcf-v2-sources-819276060182-asia-southeast1","object":"onRegistrationUpdated/function-source.zip","generation":"1781460813658322"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/mms-open-climbs/locations/asia-southeast1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-819276060182-asia-southeast1","object":"onRegistrationUpdated/function-source.zip","generation":"1781460813658322"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/mms-open-climbs/serviceAccounts/819276060182-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/mms-open-climbs/locations/asia-southeast1/services/onregistrationupdated","timeoutSeconds":60,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"mms-open-climbs\",\"storageBucket\":\"mms-open-climbs.firebasestorage.app\"}","GCLOUD_PROJECT":"mms-open-climbs","EVENTARC_CLOUD_EVENT_SOURCE":"projects/mms-open-climbs/locations/asia-southeast1/services/onRegistrationUpdated","FUNCTION_SIGNATURE_TYPE":"cloudevent","FUNCTION_TARGET":"onRegistrationUpdated","LOG_EXECUTION_ID":"true"},"maxInstanceCount":20,"ingressSettings":"ALLOW_ALL","uri":"https://onregistrationupdated-mkbuniekmq-as.a.run.app","serviceAccountEmail":"819276060182-compute@developer.gserviceaccount.com","availableMemory":"256Mi","allTrafficOnLatestRevision":true,"revision":"onregistrationupdated-00004-tad","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"eventTrigger":{"trigger":"projects/mms-open-climbs/locations/asia-southeast1/triggers/onregistrationupdated-461069","triggerRegion":"asia-southeast1","eventType":"google.cloud.firestore.document.v1.updated","eventFilters":[{"attribute":"namespace","value":"(default)"},{"attribute":"document","value":"registrations/{regId}","operator":"match-path-pattern"},{"attribute":"database","value":"openclimbs"}],"pubsubTopic":"projects/mms-open-climbs/topics/eventarc-asia-southeast1-onregistrationupdated-461069-972","serviceAccountEmail":"819276060182-compute@developer.gserviceaccount.com","retryPolicy":"RETRY_POLICY_DO_NOT_RETRY"},"state":"ACTIVE","updateTime":"2026-06-14T18:13:43.019446646Z","labels":{"deployment-tool":"cli-firebase","firebase-functions-hash":"f9c9cce81de46c0211a18c97c4786401c5fa7e34"},"environment":"GEN_2","url":"https://asia-southeast1-mms-open-climbs.cloudfunctions.net/onRegistrationUpdated","satisfiesPzs":true,"createTime":"2026-05-31T22:41:28.130725561Z","satisfiesPzi":true},{"name":"projects/mms-open-climbs/locations/us-central1/functions/createUser","buildConfig":{"build":"projects/819276060182/locations/us-central1/builds/2266ae3b-de60-42e1-8e48-d027e3d61e7b","runtime":"nodejs20","entryPoint":"createUser","source":{"storageSource":{"bucket":"gcf-v2-sources-819276060182-us-central1","object":"createUser/function-source.zip","generation":"1781460764798377"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/mms-open-climbs/locations/us-central1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-819276060182-us-central1","object":"createUser/function-source.zip","generation":"1781460764798377"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/mms-open-climbs/serviceAccounts/819276060182-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/mms-open-climbs/locations/us-central1/services/createuser","timeoutSeconds":60,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"mms-open-climbs\",\"storageBucket\":\"mms-open-climbs.firebasestorage.app\"}","GCLOUD_PROJECT":"mms-open-climbs","EVENTARC_CLOUD_EVENT_SOURCE":"projects/mms-open-climbs/locations/us-central1/services/createUser","FUNCTION_TARGET":"createUser","LOG_EXECUTION_ID":"true"},"maxInstanceCount":20,"ingressSettings":"ALLOW_ALL","uri":"https://createuser-mkbuniekmq-uc.a.run.app","serviceAccountEmail":"819276060182-compute@developer.gserviceaccount.com","availableMemory":"256Mi","allTrafficOnLatestRevision":true,"revision":"createuser-00004-faj","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-06-14T18:13:30.222822211Z","labels":{"deployment-callable":"true","firebase-functions-hash":"f9c9cce81de46c0211a18c97c4786401c5fa7e34","deployment-tool":"cli-firebase"},"environment":"GEN_2","url":"https://us-central1-mms-open-climbs.cloudfunctions.net/createUser","createTime":"2026-05-31T22:37:56.545510023Z","satisfiesPzi":true}]}
+[info] i  extensions: ensuring required API firebaseextensions.googleapis.com is enabled... 
+[debug] [2026-06-14T18:47:30.935Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:30.935Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:30.935Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com [none]
+[debug] [2026-06-14T18:47:30.935Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com  x-goog-user-project=mms-open-climbs
+[debug] [2026-06-14T18:47:32.239Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com 200
+[debug] [2026-06-14T18:47:32.239Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com [omitted]
+[warn] !  extensions: missing required API firebaseextensions.googleapis.com. Enabling now... 
+[debug] [2026-06-14T18:47:32.240Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:32.240Z] Checked if tokens are valid: true, expires at: 1781465148614
+[debug] [2026-06-14T18:47:32.240Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com:enable [none]
+[debug] [2026-06-14T18:47:32.240Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com:enable  x-goog-user-project=mms-open-climbs
+[debug] [2026-06-14T18:47:32.725Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com:enable 200
+[debug] [2026-06-14T18:47:32.725Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/mms-open-climbs/services/firebaseextensions.googleapis.com:enable [omitted]

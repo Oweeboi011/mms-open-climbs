@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import {
   collection,
   query,
@@ -7,6 +8,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ClimbCard from "@/components/ClimbCard";
@@ -35,11 +37,20 @@ const FILTERS = [
 ];
 
 export default function Schedule() {
+  const { currentUser } = useAuth();
   const [climbs, setClimbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [showTop, setShowTop] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(
+    () => sessionStorage.getItem("oc_visitor_banner") === "1",
+  );
   const gridRef = useRef(null);
+
+  function dismissBanner() {
+    sessionStorage.setItem("oc_visitor_banner", "1");
+    setBannerDismissed(true);
+  }
 
   useEffect(() => {
     const q = query(
@@ -262,6 +273,33 @@ export default function Schedule() {
           </div>
         </div>
       </section>
+
+      {!currentUser && !bannerDismissed && (
+        <div className="visitor-banner">
+          <div className="visitor-banner-inner">
+            <div className="visitor-banner-text">
+              <strong>Want to join a climb?</strong> Create a free account to
+              register for events, upload payment proof, and track your
+              registrations.
+            </div>
+            <div className="visitor-banner-actions">
+              <Link to="/signup" className="btn btn-gold">
+                Create Account
+              </Link>
+              <Link to="/login" className="btn btn-outline-white">
+                Sign In
+              </Link>
+            </div>
+            <button
+              className="visitor-banner-close"
+              onClick={dismissBanner}
+              aria-label="Dismiss"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="stats-bar">
         <div className="stat">

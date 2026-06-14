@@ -304,6 +304,31 @@ export default function Event() {
           )}
 
           <RegisterButton />
+
+          {!currentUser && (
+            <div className="visitor-event-prompt">
+              <div className="visitor-event-prompt-icon">&#128274;</div>
+              <div className="visitor-event-prompt-text">
+                <strong>Sign in to access full event details</strong> — trail
+                map, participant list, expenses, and documents are visible to
+                registered members.
+              </div>
+              <div className="visitor-event-prompt-actions">
+                <Link
+                  to={`/signup?redirect=/event/${climbId}`}
+                  className="btn btn-gold"
+                >
+                  Create Account
+                </Link>
+                <Link
+                  to={`/login?redirect=/event/${climbId}`}
+                  className="btn btn-outline"
+                >
+                  Sign In
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
