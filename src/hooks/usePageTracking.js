@@ -22,6 +22,9 @@ export function usePageTracking() {
   const lastTracked = useRef(null);
 
   useEffect(() => {
+    // Do not track admin pages
+    if (location.pathname.startsWith("/admin")) return;
+
     // Avoid double-counting same path within the same render cycle (React Strict Mode etc.)
     const key = location.pathname;
     if (lastTracked.current === key) return;
