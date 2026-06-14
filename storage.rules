@@ -1,0 +1,29 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Payment proof uploads: authenticated users can upload/read their own files.
+    // Admins (custom claim) can read any payment proof.
+    match /payment-proofs/{climbId}/{userId}/{fileName} {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024  // 10 MB limit
+                   && request.resource.contentType.matches('image/.*');
+
+      allow read: if request.auth != null
+                  && (request.auth.uid == userId
+                      || request.auth.token.admin == true);
+    }
+
+    // Climb cover images: only admins can write, anyone authenticated can read.
+    match /climbs/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Deny everything else by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

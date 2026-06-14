@@ -54,7 +54,14 @@ function LockedCard({ label, onUnlock }) {
       }}
     >
       <div style={{ fontSize: "2rem", marginBottom: 8 }}>&#128274;</div>
-      <p style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 6, color: "var(--ink)" }}>
+      <p
+        style={{
+          fontWeight: 700,
+          fontSize: "0.95rem",
+          marginBottom: 6,
+          color: "var(--ink)",
+        }}
+      >
         {label}
       </p>
       <p style={{ fontSize: "0.83rem", color: "var(--ink-soft)", margin: 0 }}>
@@ -150,43 +157,67 @@ export default function Event() {
   const isFull = seatsLeft <= 0;
   const isOpen = climb.status === "open";
   const fillPct = climb.maxParticipants
-    ? Math.min(100, ((climb.registrationCount ?? 0) / climb.maxParticipants) * 100)
+    ? Math.min(
+        100,
+        ((climb.registrationCount ?? 0) / climb.maxParticipants) * 100,
+      )
     : 0;
   const fillClass = fillPct >= 100 ? "full" : fillPct >= 80 ? "low" : "ok";
 
   function RegisterButton() {
     if (!isOpen)
       return (
-        <div className="alert alert-warning" style={{ marginTop: 20, display: "inline-flex" }}>
+        <div
+          className="alert alert-warning"
+          style={{ marginTop: 20, display: "inline-flex" }}
+        >
           Registration is currently closed for this climb.
         </div>
       );
     if (alreadyReg)
       return (
-        <div className="alert alert-success" style={{ marginTop: 20, display: "inline-flex" }}>
+        <div
+          className="alert alert-success"
+          style={{ marginTop: 20, display: "inline-flex" }}
+        >
           You are registered &mdash; Status:{" "}
           <strong style={{ marginLeft: 4 }}>{regStatus}</strong>
         </div>
       );
     if (isFull)
       return (
-        <div className="alert alert-warning" style={{ marginTop: 20, display: "inline-flex" }}>
+        <div
+          className="alert alert-warning"
+          style={{ marginTop: 20, display: "inline-flex" }}
+        >
           This climb is full. Waitlist registrations may be accepted.
         </div>
       );
     if (!currentUser)
       return (
-        <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link to={`/login?redirect=/register/${climbId}`} className="btn btn-gold btn-lg">
+        <div
+          style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}
+        >
+          <Link
+            to={`/login?redirect=/register/${climbId}`}
+            className="btn btn-gold btn-lg"
+          >
             Sign In to Register
           </Link>
-          <Link to={`/signup?redirect=/register/${climbId}`} className="btn btn-outline btn-lg">
+          <Link
+            to={`/signup?redirect=/register/${climbId}`}
+            className="btn btn-outline btn-lg"
+          >
             Create Account
           </Link>
         </div>
       );
     return (
-      <Link to={`/register/${climbId}`} className="btn btn-gold btn-lg" style={{ marginTop: 20, display: "inline-flex" }}>
+      <Link
+        to={`/register/${climbId}`}
+        className="btn btn-gold btn-lg"
+        style={{ marginTop: 20, display: "inline-flex" }}
+      >
         Register Now &#8594;
       </Link>
     );
@@ -194,7 +225,9 @@ export default function Event() {
 
   const mapCoords =
     parseGoogleMapsUrl(climb.googleMapsUrl) ||
-    (climb.mapLat ? { lat: climb.mapLat, lng: climb.mapLng, zoom: climb.mapZoom || "14" } : null);
+    (climb.mapLat
+      ? { lat: climb.mapLat, lng: climb.mapLng, zoom: climb.mapZoom || "14" }
+      : null);
 
   const mapsPlaceName = parseGoogleMapsPlace(climb.googleMapsUrl);
   const mapsEmbedSrc = mapsPlaceName
@@ -215,22 +248,31 @@ export default function Event() {
 
       <section className="event-hero">
         <div className="event-hero-inner">
-          <div className="event-badge">{TYPE_LABEL[climb.type] || climb.type}</div>
+          <div className="event-badge">
+            {TYPE_LABEL[climb.type] || climb.type}
+          </div>
           <h2>
             <em>{climb.dateLabel}</em>
             {climb.title}
           </h2>
           <div className="event-meta">
             <div className="event-meta-item">
-              &#128197; <span><strong>{climb.dateLabel}</strong></span>
+              &#128197;{" "}
+              <span>
+                <strong>{climb.dateLabel}</strong>
+              </span>
             </div>
-            <div className="event-meta-item">&#128205; <span>{climb.location}</span></div>
+            <div className="event-meta-item">
+              &#128205; <span>{climb.location}</span>
+            </div>
             {climb.elevation && (
               <div className="event-meta-item">
                 &#9968;{" "}
                 <span>
                   <strong>{climb.elevation} MASL</strong>
-                  {climb.difficulty ? ` \u2022 Difficulty ${climb.difficulty}` : ""}
+                  {climb.difficulty
+                    ? ` \u2022 Difficulty ${climb.difficulty}`
+                    : ""}
                 </span>
               </div>
             )}
@@ -238,7 +280,8 @@ export default function Event() {
               <div className="event-meta-item">
                 &#128101;{" "}
                 <span>
-                  <strong>{climb.registrationCount ?? 0}</strong> / {climb.maxParticipants} slots
+                  <strong>{climb.registrationCount ?? 0}</strong> /{" "}
+                  {climb.maxParticipants} slots
                 </span>
               </div>
             )}
@@ -247,10 +290,15 @@ export default function Event() {
           {climb.maxParticipants && (
             <div className="seats-bar" style={{ maxWidth: 280, marginTop: 16 }}>
               <div className="seats-bar-label">
-                {isFull ? "All slots filled" : `${seatsLeft} slot${seatsLeft !== 1 ? "s" : ""} remaining`}
+                {isFull
+                  ? "All slots filled"
+                  : `${seatsLeft} slot${seatsLeft !== 1 ? "s" : ""} remaining`}
               </div>
               <div className="seats-bar-track">
-                <div className={`seats-bar-fill ${fillClass}`} style={{ width: `${fillPct}%` }} />
+                <div
+                  className={`seats-bar-fill ${fillClass}`}
+                  style={{ width: `${fillPct}%` }}
+                />
               </div>
             </div>
           )}
@@ -268,7 +316,12 @@ export default function Event() {
               <h3>Mountain Profile</h3>
             </div>
             <div className="section-body">
-              {(climb.elevation || climb.difficulty || climb.distanceToSummit || climb.roundTripDistance || climb.recommendedDays || climb.jumpOff) && (
+              {(climb.elevation ||
+                climb.difficulty ||
+                climb.distanceToSummit ||
+                climb.roundTripDistance ||
+                climb.recommendedDays ||
+                climb.jumpOff) && (
                 <div className="stat-tiles">
                   {climb.elevation && (
                     <div className="stat-tile">
@@ -284,13 +337,17 @@ export default function Event() {
                   )}
                   {climb.distanceToSummit && (
                     <div className="stat-tile">
-                      <div className="stat-tile-val">{climb.distanceToSummit}</div>
+                      <div className="stat-tile-val">
+                        {climb.distanceToSummit}
+                      </div>
                       <div className="stat-tile-label">Jump-off to Peak</div>
                     </div>
                   )}
                   {climb.roundTripDistance && (
                     <div className="stat-tile">
-                      <div className="stat-tile-val">{climb.roundTripDistance}</div>
+                      <div className="stat-tile-val">
+                        {climb.roundTripDistance}
+                      </div>
                       <div className="stat-tile-label">Round Trip</div>
                     </div>
                   )}
@@ -302,18 +359,30 @@ export default function Event() {
                   )}
                   {climb.recommendedDays && (
                     <div className="stat-tile">
-                      <div className="stat-tile-val">{climb.recommendedDays}</div>
+                      <div className="stat-tile-val">
+                        {climb.recommendedDays}
+                      </div>
                       <div className="stat-tile-label">Recommended</div>
                     </div>
                   )}
                 </div>
               )}
               {(climb.jumpOff || climb.features) && (
-                <div style={{ fontSize: "0.86rem", lineHeight: 1.7, color: "var(--ink-soft)", marginBottom: climb.description ? 12 : 0 }}>
+                <div
+                  style={{
+                    fontSize: "0.86rem",
+                    lineHeight: 1.7,
+                    color: "var(--ink-soft)",
+                    marginBottom: climb.description ? 12 : 0,
+                  }}
+                >
                   {climb.jumpOff && (
                     <>
                       <strong style={{ color: "var(--ink)" }}>Jump-off:</strong>{" "}
-                      {climb.jumpOff}{climb.jumpOffElevation ? ` (${climb.jumpOffElevation}m)` : ""}
+                      {climb.jumpOff}
+                      {climb.jumpOffElevation
+                        ? ` (${climb.jumpOffElevation}m)`
+                        : ""}
                       <br />
                     </>
                   )}
@@ -331,7 +400,10 @@ export default function Event() {
                     fontSize: "0.86rem",
                     lineHeight: 1.7,
                     color: "var(--ink-soft)",
-                    borderTop: climb.jumpOff || climb.features ? "1px solid rgba(0,0,0,0.06)" : "none",
+                    borderTop:
+                      climb.jumpOff || climb.features
+                        ? "1px solid rgba(0,0,0,0.06)"
+                        : "none",
                     paddingTop: climb.jumpOff || climb.features ? 14 : 0,
                   }}
                 >
@@ -343,7 +415,11 @@ export default function Event() {
         )}
 
         {/* Trail Map */}
-        {(climb.allTrailsUrl || mapCoords || mapsEmbedSrc || climb.stravaUrl || climb.komootUrl) && (
+        {(climb.allTrailsUrl ||
+          mapCoords ||
+          mapsEmbedSrc ||
+          climb.stravaUrl ||
+          climb.komootUrl) && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">&#128205;</span>
@@ -351,27 +427,48 @@ export default function Event() {
             </div>
             <div className="section-body">
               {!currentUser ? (
-                <LockedCard label="Sign in to view the trail map" onUnlock={() => setShowSignInModal(true)} />
+                <LockedCard
+                  label="Sign in to view the trail map"
+                  onUnlock={() => setShowSignInModal(true)}
+                />
               ) : (
                 <>
                   {climb.allTrailsUrl ? (
                     <>
                       <iframe
                         src={
-                          climb.allTrailsUrl.replace("www.alltrails.com/trail/", "www.alltrails.com/widget/trail/") +
+                          climb.allTrailsUrl.replace(
+                            "www.alltrails.com/trail/",
+                            "www.alltrails.com/widget/trail/",
+                          ) +
                           (climb.allTrailsUrl.includes("?") ? "&" : "?") +
                           "u=m&width=100%25"
                         }
                         title="AllTrails trail map"
                         width="100%"
                         height="400"
-                        style={{ border: "none", borderRadius: 10, display: "block" }}
+                        style={{
+                          border: "none",
+                          borderRadius: 10,
+                          display: "block",
+                        }}
                         loading="lazy"
                         allowFullScreen
                       />
-                      <p style={{ fontSize: "0.7rem", color: "var(--ink-soft)", marginTop: 8 }}>
+                      <p
+                        style={{
+                          fontSize: "0.7rem",
+                          color: "var(--ink-soft)",
+                          marginTop: 8,
+                        }}
+                      >
                         Trail data &copy;{" "}
-                        <a href={climb.allTrailsUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>
+                        <a
+                          href={climb.allTrailsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "var(--accent)" }}
+                        >
                           AllTrails
                         </a>
                       </p>
@@ -383,14 +480,29 @@ export default function Event() {
                         title={`${climb.title} location map`}
                         width="100%"
                         height="400"
-                        style={{ border: "none", borderRadius: 10, display: "block" }}
+                        style={{
+                          border: "none",
+                          borderRadius: 10,
+                          display: "block",
+                        }}
                         loading="lazy"
                         allowFullScreen
                         referrerPolicy="no-referrer-when-downgrade"
                       />
-                      <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          marginTop: 10,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                        }}
+                      >
                         <a
-                          href={climb.googleMapsUrl || `https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`}
+                          href={
+                            climb.googleMapsUrl ||
+                            `https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn btn-outline btn-sm"
@@ -401,14 +513,33 @@ export default function Event() {
                     </>
                   ) : null}
                   {(climb.stravaUrl || climb.komootUrl) && (
-                    <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        marginTop: 14,
+                        flexWrap: "wrap",
+                      }}
+                    >
                       {climb.stravaUrl && (
-                        <a href={climb.stravaUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm" style={{ color: "#fc4c02", borderColor: "#fc4c02" }}>
+                        <a
+                          href={climb.stravaUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline btn-sm"
+                          style={{ color: "#fc4c02", borderColor: "#fc4c02" }}
+                        >
                           &#127939; View on Strava
                         </a>
                       )}
                       {climb.komootUrl && (
-                        <a href={climb.komootUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm" style={{ color: "#6db33f", borderColor: "#6db33f" }}>
+                        <a
+                          href={climb.komootUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline btn-sm"
+                          style={{ color: "#6db33f", borderColor: "#6db33f" }}
+                        >
                           &#127748; Komoot Route
                         </a>
                       )}
@@ -433,17 +564,46 @@ export default function Event() {
                 const ci = Math.min(carouselIndex, imgs.length - 1);
                 return (
                   <div style={{ marginBottom: 0 }}>
-                    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", background: "#000" }}>
+                    <div
+                      style={{
+                        position: "relative",
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        background: "#000",
+                      }}
+                    >
                       <img
                         src={imgs[ci]}
                         alt={`${climb.title} photo ${ci + 1}`}
                         onClick={() => setLightboxIndex(ci)}
-                        style={{ width: "100%", height: 340, objectFit: "cover", display: "block", cursor: "zoom-in" }}
+                        style={{
+                          width: "100%",
+                          height: 340,
+                          objectFit: "cover",
+                          display: "block",
+                          cursor: "zoom-in",
+                        }}
                       />
                       {ci > 0 && (
                         <button
                           onClick={() => setCarouselIndex(ci - 1)}
-                          style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: "1.6rem", borderRadius: 99, width: 40, height: 40, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          style={{
+                            position: "absolute",
+                            left: 10,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(0,0,0,0.45)",
+                            border: "none",
+                            color: "#fff",
+                            fontSize: "1.6rem",
+                            borderRadius: 99,
+                            width: 40,
+                            height: 40,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
                         >
                           &#8249;
                         </button>
@@ -451,24 +611,73 @@ export default function Event() {
                       {ci < imgs.length - 1 && (
                         <button
                           onClick={() => setCarouselIndex(ci + 1)}
-                          style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: "1.6rem", borderRadius: 99, width: 40, height: 40, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          style={{
+                            position: "absolute",
+                            right: 10,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(0,0,0,0.45)",
+                            border: "none",
+                            color: "#fff",
+                            fontSize: "1.6rem",
+                            borderRadius: 99,
+                            width: 40,
+                            height: 40,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
                         >
                           &#8250;
                         </button>
                       )}
-                      <div style={{ position: "absolute", bottom: 10, right: 12, background: "rgba(0,0,0,0.5)", color: "#fff", fontSize: "0.75rem", borderRadius: 99, padding: "2px 10px" }}>
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 10,
+                          right: 12,
+                          background: "rgba(0,0,0,0.5)",
+                          color: "#fff",
+                          fontSize: "0.75rem",
+                          borderRadius: 99,
+                          padding: "2px 10px",
+                        }}
+                      >
                         {ci + 1} / {imgs.length}
                       </div>
                     </div>
                     {imgs.length > 1 && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 8, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "thin" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 6,
+                          marginTop: 8,
+                          overflowX: "auto",
+                          paddingBottom: 4,
+                          scrollbarWidth: "thin",
+                        }}
+                      >
                         {imgs.map((url, i) => (
                           <img
                             key={i}
                             src={url}
                             alt={`Thumbnail ${i + 1}`}
                             onClick={() => setCarouselIndex(i)}
-                            style={{ width: 72, height: 52, objectFit: "cover", borderRadius: 6, flexShrink: 0, cursor: "pointer", border: i === ci ? "2px solid var(--accent)" : "2px solid transparent", opacity: i === ci ? 1 : 0.6, transition: "opacity 0.15s, border-color 0.15s" }}
+                            style={{
+                              width: 72,
+                              height: 52,
+                              objectFit: "cover",
+                              borderRadius: 6,
+                              flexShrink: 0,
+                              cursor: "pointer",
+                              border:
+                                i === ci
+                                  ? "2px solid var(--accent)"
+                                  : "2px solid transparent",
+                              opacity: i === ci ? 1 : 0.6,
+                              transition: "opacity 0.15s, border-color 0.15s",
+                            }}
                           />
                         ))}
                       </div>
@@ -485,18 +694,49 @@ export default function Event() {
           <div
             onClick={() => setLightboxIndex(null)}
             onKeyDown={(e) => {
-              if (e.key === "ArrowLeft" && lightboxIndex > 0) setLightboxIndex(lightboxIndex - 1);
-              if (e.key === "ArrowRight" && lightboxIndex < climb.trailImages.length - 1) setLightboxIndex(lightboxIndex + 1);
+              if (e.key === "ArrowLeft" && lightboxIndex > 0)
+                setLightboxIndex(lightboxIndex - 1);
+              if (
+                e.key === "ArrowRight" &&
+                lightboxIndex < climb.trailImages.length - 1
+              )
+                setLightboxIndex(lightboxIndex + 1);
               if (e.key === "Escape") setLightboxIndex(null);
             }}
             tabIndex={0}
             ref={(el) => el && el.focus()}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.88)",
+              zIndex: 1200,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              outline: "none",
+            }}
           >
             {lightboxIndex > 0 && (
               <button
-                onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
-                style={{ position: "absolute", left: 16, background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", fontSize: "1.8rem", borderRadius: 99, width: 48, height: 48, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex(lightboxIndex - 1);
+                }}
+                style={{
+                  position: "absolute",
+                  left: 16,
+                  background: "rgba(255,255,255,0.15)",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: "1.8rem",
+                  borderRadius: 99,
+                  width: 48,
+                  height: 48,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 &#8249;
               </button>
@@ -505,23 +745,69 @@ export default function Event() {
               src={climb.trailImages[lightboxIndex]}
               alt={`${climb.title} photo ${lightboxIndex + 1}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: "90vw", maxHeight: "88vh", objectFit: "contain", borderRadius: 10, boxShadow: "0 8px 40px rgba(0,0,0,0.6)" }}
+              style={{
+                maxWidth: "90vw",
+                maxHeight: "88vh",
+                objectFit: "contain",
+                borderRadius: 10,
+                boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+              }}
             />
             {lightboxIndex < climb.trailImages.length - 1 && (
               <button
-                onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
-                style={{ position: "absolute", right: 16, background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", fontSize: "1.8rem", borderRadius: 99, width: 48, height: 48, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex(lightboxIndex + 1);
+                }}
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  background: "rgba(255,255,255,0.15)",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: "1.8rem",
+                  borderRadius: 99,
+                  width: 48,
+                  height: 48,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 &#8250;
               </button>
             )}
-            <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 12, alignItems: "center" }}>
-              <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}>
+            <div
+              style={{
+                position: "absolute",
+                top: 16,
+                right: 16,
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}
+              >
                 {lightboxIndex + 1} / {climb.trailImages.length}
               </span>
               <button
                 onClick={() => setLightboxIndex(null)}
-                style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", fontSize: "1.2rem", borderRadius: 99, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: "1.2rem",
+                  borderRadius: 99,
+                  width: 36,
+                  height: 36,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 &#x2715;
               </button>
@@ -537,11 +823,34 @@ export default function Event() {
               <h3>Water Source Information</h3>
             </div>
             <div className="section-body">
-              <div style={{ background: "#fff8e1", borderLeft: "4px solid var(--gold)", borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontFamily: "var(--font-head)", fontSize: "0.7rem", fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: "#7a5800", marginBottom: 7 }}>
+              <div
+                style={{
+                  background: "#fff8e1",
+                  borderLeft: "4px solid var(--gold)",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-head)",
+                    fontSize: "0.7rem",
+                    fontWeight: 800,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "#7a5800",
+                    marginBottom: 7,
+                  }}
+                >
                   &#9888; Caution &mdash; Water Potability
                 </div>
-                <div style={{ fontSize: "0.83rem", color: "var(--ink)", lineHeight: 1.55 }}>
+                <div
+                  style={{
+                    fontSize: "0.83rem",
+                    color: "var(--ink)",
+                    lineHeight: 1.55,
+                  }}
+                >
                   {climb.waterSourceNote}
                 </div>
               </div>
@@ -558,22 +867,46 @@ export default function Event() {
             </div>
             <div className="section-body">
               {climb.weatherNote && (
-                <p style={{ fontSize: "0.84rem", color: "var(--ink-soft)", marginBottom: 14 }}>
+                <p
+                  style={{
+                    fontSize: "0.84rem",
+                    color: "var(--ink-soft)",
+                    marginBottom: 14,
+                  }}
+                >
                   {climb.weatherNote}
                 </p>
               )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                 {climb.mapLat && (
-                  <a className="btn btn-outline btn-sm" href={`https://www.windy.com/${climb.mapLat}/${climb.mapLng}?${climb.mapLat},${climb.mapLng},10`} target="_blank" rel="noopener noreferrer">
+                  <a
+                    className="btn btn-outline btn-sm"
+                    href={`https://www.windy.com/${climb.mapLat}/${climb.mapLng}?${climb.mapLat},${climb.mapLng},10`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     &#127788; Windy.com
                   </a>
                 )}
-                <a className="btn btn-outline btn-sm" href="https://www.pagasa.dost.gov.ph/weather" target="_blank" rel="noopener noreferrer">
+                <a
+                  className="btn btn-outline btn-sm"
+                  href="https://www.pagasa.dost.gov.ph/weather"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   &#127782; PAG-ASA Forecast
                 </a>
               </div>
-              <p style={{ fontSize: "0.77rem", color: "var(--ink-soft)", marginTop: 12, lineHeight: 1.5 }}>
-                &#9888; Monitor PAG-ASA Tropical Cyclone bulletins. The climb may be cancelled or rescheduled due to bad weather.
+              <p
+                style={{
+                  fontSize: "0.77rem",
+                  color: "var(--ink-soft)",
+                  marginTop: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                &#9888; Monitor PAG-ASA Tropical Cyclone bulletins. The climb
+                may be cancelled or rescheduled due to bad weather.
               </p>
             </div>
           </div>
@@ -587,7 +920,10 @@ export default function Event() {
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <LockedCard label="Sign in to view the itinerary" onUnlock={() => setShowSignInModal(true)} />
+              <LockedCard
+                label="Sign in to view the itinerary"
+                onUnlock={() => setShowSignInModal(true)}
+              />
             ) : climb.itinerary?.length > 0 ? (
               climb.itinerary.map((day, i) => (
                 <div className="day-block" key={i}>
@@ -601,7 +937,9 @@ export default function Event() {
                 </div>
               ))
             ) : (
-              <p className="tbd-note">&#128337; Detailed itinerary will be available soon.</p>
+              <p className="tbd-note">
+                &#128337; Detailed itinerary will be available soon.
+              </p>
             )}
           </div>
         </div>
@@ -651,8 +989,19 @@ export default function Event() {
               <div className="lnt-header">
                 <div className="lnt-badge">7</div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>Principles</div>
-                  <div style={{ fontSize: "0.7rem", color: "var(--ink-soft)", letterSpacing: 1, textTransform: "uppercase" }}>Leave No Trace</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>
+                    Principles
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "var(--ink-soft)",
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Leave No Trace
+                  </div>
                 </div>
               </div>
               <ul className="info-list">
@@ -681,29 +1030,55 @@ export default function Event() {
                   <div className="expense-row" key={i}>
                     <div>
                       <div className="expense-label">{exp.label}</div>
-                      {exp.note && <div className="expense-note">{exp.note}</div>}
+                      {exp.note && (
+                        <div className="expense-note">{exp.note}</div>
+                      )}
                     </div>
                     <div className="expense-amount">{exp.amount || "TBA"}</div>
                   </div>
                 ))}
                 {(() => {
-                  const memberExpenses = climb.expenses.filter((e) => !/guest/i.test(e.label));
-                  const numericAmounts = memberExpenses.map((e) => parseFloat(String(e.amount).replace(/,/g, ""))).filter((n) => !isNaN(n));
+                  const memberExpenses = climb.expenses.filter(
+                    (e) => !/guest/i.test(e.label),
+                  );
+                  const numericAmounts = memberExpenses
+                    .map((e) => parseFloat(String(e.amount).replace(/,/g, "")))
+                    .filter((n) => !isNaN(n));
                   if (numericAmounts.length === 0) return null;
-                  const hasTBA = memberExpenses.some((e) => isNaN(parseFloat(String(e.amount).replace(/,/g, ""))));
-                  const guestFee = climb.expenses.find((e) => /guest/i.test(e.label));
+                  const hasTBA = memberExpenses.some((e) =>
+                    isNaN(parseFloat(String(e.amount).replace(/,/g, ""))),
+                  );
+                  const guestFee = climb.expenses.find((e) =>
+                    /guest/i.test(e.label),
+                  );
                   const total = numericAmounts.reduce((s, n) => s + n, 0);
                   return (
                     <>
                       <div className="expense-total-row">
                         <div className="expense-total-label">
                           Member Total
-                          {hasTBA ? <span className="expense-total-note"> (excl. TBA items)</span> : ""}
+                          {hasTBA ? (
+                            <span className="expense-total-note">
+                              {" "}
+                              (excl. TBA items)
+                            </span>
+                          ) : (
+                            ""
+                          )}
                         </div>
-                        <div className="expense-total-amount">&#8369;{total.toLocaleString()}</div>
+                        <div className="expense-total-amount">
+                          &#8369;{total.toLocaleString()}
+                        </div>
                       </div>
                       {guestFee && (
-                        <div style={{ fontSize: "0.72rem", color: "var(--ink-soft)", marginTop: 6, fontStyle: "italic" }}>
+                        <div
+                          style={{
+                            fontSize: "0.72rem",
+                            color: "var(--ink-soft)",
+                            marginTop: 6,
+                            fontStyle: "italic",
+                          }}
+                        >
                           + &#8369;{guestFee.amount} Guest Fee for non-members
                         </div>
                       )}
@@ -713,10 +1088,22 @@ export default function Event() {
               </>
             ) : (
               <>
-                <div className="expense-row"><div className="expense-label">Transportation</div><div className="expense-amount">TBA</div></div>
-                <div className="expense-row"><div className="expense-label">Registration / Guide Fee</div><div className="expense-amount">TBA</div></div>
-                <div className="expense-row"><div className="expense-label">Accommodation</div><div className="expense-amount">TBA</div></div>
-                <div className="expense-row"><div className="expense-label">Food &amp; Meals</div><div className="expense-amount">TBA</div></div>
+                <div className="expense-row">
+                  <div className="expense-label">Transportation</div>
+                  <div className="expense-amount">TBA</div>
+                </div>
+                <div className="expense-row">
+                  <div className="expense-label">Registration / Guide Fee</div>
+                  <div className="expense-amount">TBA</div>
+                </div>
+                <div className="expense-row">
+                  <div className="expense-label">Accommodation</div>
+                  <div className="expense-amount">TBA</div>
+                </div>
+                <div className="expense-row">
+                  <div className="expense-label">Food &amp; Meals</div>
+                  <div className="expense-amount">TBA</div>
+                </div>
               </>
             )}
           </div>
@@ -730,7 +1117,10 @@ export default function Event() {
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <LockedCard label="Sign in to view the climb officers" onUnlock={() => setShowSignInModal(true)} />
+              <LockedCard
+                label="Sign in to view the climb officers"
+                onUnlock={() => setShowSignInModal(true)}
+              />
             ) : climb.officers?.length > 0 ? (
               climb.officers.map((o, i) => (
                 <div className="officer-row" key={i}>
@@ -742,7 +1132,9 @@ export default function Event() {
                 </div>
               ))
             ) : (
-              <p className="tbd-note">Climb officers will be announced closer to the event date.</p>
+              <p className="tbd-note">
+                Climb officers will be announced closer to the event date.
+              </p>
             )}
           </div>
         </div>
@@ -755,18 +1147,29 @@ export default function Event() {
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <LockedCard label="Sign in to view the participant list" onUnlock={() => setShowSignInModal(true)} />
+              <LockedCard
+                label="Sign in to view the participant list"
+                onUnlock={() => setShowSignInModal(true)}
+              />
             ) : (
               (() => {
-                const members = participants.filter((p) => p.memberType === "member");
-                const joiners = participants.filter((p) => p.memberType === "joiner");
+                const members = participants.filter(
+                  (p) => p.memberType === "member",
+                );
+                const joiners = participants.filter(
+                  (p) => p.memberType === "joiner",
+                );
                 const renderList = (list) =>
                   list.length === 0 ? (
-                    <p className="tbd-note" style={{ marginBottom: 0 }}>None yet.</p>
+                    <p className="tbd-note" style={{ marginBottom: 0 }}>
+                      None yet.
+                    </p>
                   ) : (
                     <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.9 }}>
                       {list.map((p, i) => (
-                        <li key={i} style={{ fontSize: "0.9rem" }}>{p.name}</li>
+                        <li key={i} style={{ fontSize: "0.9rem" }}>
+                          {p.name}
+                        </li>
                       ))}
                     </ol>
                   );
@@ -774,28 +1177,74 @@ export default function Event() {
                   <>
                     {climb.officers?.length > 0 && (
                       <div style={{ marginBottom: 20 }}>
-                        <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 8 }}>
+                        <div
+                          style={{
+                            fontSize: "0.68rem",
+                            fontWeight: 700,
+                            letterSpacing: 2,
+                            textTransform: "uppercase",
+                            color: "var(--ink-soft)",
+                            marginBottom: 8,
+                          }}
+                        >
                           Climbing Officers
                         </div>
-                        <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.9 }}>
+                        <ol
+                          style={{
+                            margin: 0,
+                            paddingLeft: 20,
+                            lineHeight: 1.9,
+                          }}
+                        >
                           {climb.officers.map((o, i) => (
                             <li key={i} style={{ fontSize: "0.9rem" }}>
                               {o.name}{" "}
-                              <span style={{ fontSize: "0.75rem", color: "var(--ink-soft)" }}>({o.role})</span>
+                              <span
+                                style={{
+                                  fontSize: "0.75rem",
+                                  color: "var(--ink-soft)",
+                                }}
+                              >
+                                ({o.role})
+                              </span>
                             </li>
                           ))}
                         </ol>
                       </div>
                     )}
                     <div style={{ marginBottom: 20 }}>
-                      <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 8 }}>
-                        MMS Members <span style={{ fontWeight: 400 }}>({members.length})</span>
+                      <div
+                        style={{
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          letterSpacing: 2,
+                          textTransform: "uppercase",
+                          color: "var(--ink-soft)",
+                          marginBottom: 8,
+                        }}
+                      >
+                        MMS Members{" "}
+                        <span style={{ fontWeight: 400 }}>
+                          ({members.length})
+                        </span>
                       </div>
                       {renderList(members)}
                     </div>
                     <div>
-                      <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 8 }}>
-                        Joiners <span style={{ fontWeight: 400 }}>({joiners.length})</span>
+                      <div
+                        style={{
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          letterSpacing: 2,
+                          textTransform: "uppercase",
+                          color: "var(--ink-soft)",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Joiners{" "}
+                        <span style={{ fontWeight: 400 }}>
+                          ({joiners.length})
+                        </span>
                       </div>
                       {renderList(joiners)}
                     </div>
@@ -816,35 +1265,96 @@ export default function Event() {
           aria-modal="true"
           aria-labelledby="signin-modal-title"
           onClick={() => setShowSignInModal(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1300, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 1300,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "#fff", borderRadius: 16, padding: "36px 32px 28px", maxWidth: 420, width: "100%", boxShadow: "0 12px 48px rgba(0,0,0,0.22)", textAlign: "center", position: "relative" }}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: "36px 32px 28px",
+              maxWidth: 420,
+              width: "100%",
+              boxShadow: "0 12px 48px rgba(0,0,0,0.22)",
+              textAlign: "center",
+              position: "relative",
+            }}
           >
             <button
               onClick={() => setShowSignInModal(false)}
               aria-label="Close"
-              style={{ position: "absolute", top: 14, right: 16, background: "none", border: "none", fontSize: "1.3rem", cursor: "pointer", color: "var(--ink-soft)", lineHeight: 1 }}
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 16,
+                background: "none",
+                border: "none",
+                fontSize: "1.3rem",
+                cursor: "pointer",
+                color: "var(--ink-soft)",
+                lineHeight: 1,
+              }}
             >
               &#x2715;
             </button>
-            <div style={{ fontSize: "2.4rem", marginBottom: 12 }}>&#127939;</div>
+            <div style={{ fontSize: "2.4rem", marginBottom: 12 }}>
+              &#127939;
+            </div>
             <h2
               id="signin-modal-title"
-              style={{ fontFamily: "var(--font-head)", fontSize: "1.3rem", marginBottom: 8, color: "var(--ink)" }}
+              style={{
+                fontFamily: "var(--font-head)",
+                fontSize: "1.3rem",
+                marginBottom: 8,
+                color: "var(--ink)",
+              }}
             >
               Members Only
             </h2>
-            <p style={{ fontSize: "0.88rem", color: "var(--ink-soft)", lineHeight: 1.6, marginBottom: 24 }}>
-              This section is only visible to registered members. Sign in or create a free account to view full event details and register your spot.
+            <p
+              style={{
+                fontSize: "0.88rem",
+                color: "var(--ink-soft)",
+                lineHeight: 1.6,
+                marginBottom: 24,
+              }}
+            >
+              This section is only visible to registered members. Sign in or
+              create a free account to view full event details and register your
+              spot.
             </p>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              <Link to={`/login?redirect=/event/${climbId}`} className="btn btn-gold" onClick={() => setShowSignInModal(false)}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <Link
+                to={`/login?redirect=/event/${climbId}`}
+                className="btn btn-gold"
+                onClick={() => setShowSignInModal(false)}
+              >
                 Sign In
               </Link>
-              <Link to={`/signup?redirect=/event/${climbId}`} className="btn btn-outline" onClick={() => setShowSignInModal(false)}>
-                Create Account
+              <Link
+                to={`/signup?redirect=/event/${climbId}`}
+                className="btn btn-outline"
+                onClick={() => setShowSignInModal(false)}
+              >
+                $env:GOOGLE_APPLICATION_CREDENTIALS =
+                "C:\path\to\serviceAccountKey.json" node
+                scripts/set-storage-cors.mjs Create Account
               </Link>
             </div>
           </div>

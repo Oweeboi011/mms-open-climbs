@@ -936,7 +936,7 @@ export default function Analytics() {
               marginBottom: 12,
             }}
           >
-            Recent Activity — Last 50 Views
+            Recent Activity — Last 200 Views
           </div>
           <div
             style={{
@@ -1029,7 +1029,7 @@ export default function Analytics() {
                 </tr>
               </thead>
               <tbody>
-                {views.slice(0, 50).map((v, i) => {
+                {views.slice(0, 200).map((v, i) => {
                   const t = ts(v);
                   const timeStr =
                     t.getFullYear() > 1970
