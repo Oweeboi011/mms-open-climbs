@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import WelcomeModal from "@/components/WelcomeModal";
+import { GuideProvider } from "@/contexts/GuideContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
 
 // Public pages
@@ -30,7 +31,7 @@ import AdminAnalytics from "@/pages/admin/Analytics";
 export default function App() {
   usePageTracking();
   return (
-    <>
+    <GuideProvider>
       <WelcomeModal />
       <Routes>
         {/* Public */}
@@ -62,6 +63,6 @@ export default function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+    </GuideProvider>
   );
 }

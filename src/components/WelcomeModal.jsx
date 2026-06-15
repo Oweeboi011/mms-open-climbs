@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGuide } from "@/contexts/GuideContext";
 
 const STORAGE_KEY = (uid) => `oc_welcomed_${uid}`;
 
@@ -34,15 +35,25 @@ const STEPS = [
 
 export default function WelcomeModal() {
   const { currentUser, userProfile } = useAuth();
+  const { guideOpen, setGuideOpen } = useGuide();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
 
+  // Auto-show once per user per browser on first login
   useEffect(() => {
     if (!currentUser) return;
-    // Only show once per user, per browser
     const seen = localStorage.getItem(STORAGE_KEY(currentUser.uid));
     if (!seen) setOpen(true);
   }, [currentUser]);
+
+  // Externally triggered (from header icon)
+  useEffect(() => {
+    if (guideOpen) {
+      setStep(0);
+      setOpen(true);
+      setGuideOpen(false);
+    }
+  }, [guideOpen, setGuideOpen]);
 
   function dismiss() {
     if (currentUser) {

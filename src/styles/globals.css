@@ -1152,6 +1152,10 @@ textarea {
   background: var(--surface);
   color: var(--ink-soft);
 }
+.form-input.input-error {
+  border-color: var(--danger, #c62828);
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.1);
+}
 .form-textarea {
   resize: vertical;
   min-height: 80px;
@@ -1976,6 +1980,30 @@ textarea {
   .card-name {
     font-size: 0.95rem;
   }
+}
+
+/* ── SITE GUIDE BUTTON ─────────────────────────────────────────────────────── */
+.header-guide-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-family: var(--font-head);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s, border-color 0.18s;
+  letter-spacing: 0;
+}
+.header-guide-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.8);
 }
 
 /* ── HAMBURGER BUTTON ──────────────────────────────────────────────────────── */

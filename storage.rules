@@ -3,22 +3,34 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     // Payment proof uploads: authenticated users can upload/read their own files.
-    // Admins (custom claim) can read any payment proof.
+    // Any authenticated user can read (admin access is enforced in the UI/Firestore).
     match /payment-proofs/{climbId}/{userId}/{fileName} {
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 10 * 1024 * 1024  // 10 MB limit
                    && request.resource.contentType.matches('image/.*');
 
-      allow read: if request.auth != null
-                  && (request.auth.uid == userId
-                      || request.auth.token.admin == true);
+      allow read: if request.auth != null;
     }
 
-    // Climb cover images: only admins can write, anyone authenticated can read.
+    // Climb cover/trail images: only authenticated users can write (admin check in UI),
+    // anyone can read (used in public event pages).
     match /climbs/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // GCash QR codes: authenticated users write (admin check in UI), public read
+    // (shown on the registration page before login).
+    match /gcash-qr/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Trail images: same as climbs.
+    match /trail-images/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
     // Deny everything else by default.

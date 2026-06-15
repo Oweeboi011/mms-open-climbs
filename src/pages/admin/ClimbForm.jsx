@@ -120,6 +120,7 @@ const EMPTY_FORM = {
     },
   ],
   officers: [],
+  officerEmails: [],
   itinerary: [],
   gcashName: "",
   gcashNumber: "",
@@ -265,6 +266,17 @@ export default function AdminClimbForm() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    // Validate officer emails
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const badOfficer = (form.officers || []).find(
+      (o) => o.email && !emailRe.test(o.email),
+    );
+    if (badOfficer) {
+      setError(`Invalid email address for officer "${badOfficer.name || "unnamed"}": ${badOfficer.email}`);
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -1102,7 +1114,7 @@ export default function AdminClimbForm() {
                 type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() =>
-                  addListItem("officers", { name: "", role: "", contact: "" })
+                  addListItem("officers", { name: "", role: "", contact: "", email: "" })
                 }
               >
                 + Add Officer
@@ -1122,6 +1134,35 @@ export default function AdminClimbForm() {
                   alignItems: "flex-start",
                 }}
               >
+                <select
+                  className="form-select"
+                  value={o.userId || ""}
+                  onChange={(e) => {
+                    const uid = e.target.value;
+                    if (!uid) {
+                      updateListItem("officers", i, { ...o, userId: "" });
+                      return;
+                    }
+                    const user = users.find((u) => u.uid === uid);
+                    if (user) {
+                      updateListItem("officers", i, {
+                        ...o,
+                        userId: uid,
+                        name: user.displayName || o.name,
+                        email: user.email || o.email,
+                        contact: user.phone || user.contact || o.contact,
+                      });
+                    }
+                  }}
+                  style={{ flex: "2 1 180px" }}
+                >
+                  <option value="">— Link account (optional) —</option>
+                  {users.map((u) => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.displayName || u.email}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="text"
                   className="form-input"
@@ -1151,7 +1192,7 @@ export default function AdminClimbForm() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Contact"
+                  placeholder="Contact (phone/social)"
                   value={o.contact}
                   onChange={(e) =>
                     updateListItem("officers", i, {
@@ -1161,24 +1202,19 @@ export default function AdminClimbForm() {
                   }
                   style={{ flex: "2 1 140px" }}
                 />
-                <select
-                  className="form-select"
-                  value={o.userId || ""}
+                <input
+                  type="email"
+                  className={`form-input${o.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email) ? " input-error" : ""}`}
+                  placeholder="Email address"
+                  value={o.email || ""}
                   onChange={(e) =>
                     updateListItem("officers", i, {
                       ...o,
-                      userId: e.target.value,
+                      email: e.target.value.trim(),
                     })
                   }
-                  style={{ flex: "2 1 180px" }}
-                >
-                  <option value="">— Link account (optional) —</option>
-                  {users.map((u) => (
-                    <option key={u.uid} value={u.uid}>
-                      {u.displayName || u.email}
-                    </option>
-                  ))}
-                </select>
+                  style={{ flex: "2 1 160px" }}
+                />
                 <button
                   type="button"
                   className="btn btn-danger btn-sm"

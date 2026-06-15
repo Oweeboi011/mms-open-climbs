@@ -1,39 +1,47 @@
 /* eslint-disable max-len */
-'use strict';
+"use strict";
 
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
-const { onCall, HttpsError }                   = require('firebase-functions/v2/https');
-const { initializeApp }                        = require('firebase-admin/app');
-const { getAuth }                              = require('firebase-admin/auth');
-const { getFirestore, FieldValue }             = require('firebase-admin/firestore');
+const {
+  onDocumentCreated,
+  onDocumentUpdated,
+} = require("firebase-functions/v2/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
 initializeApp();
 
 const adminAuth = getAuth();
-const db        = getFirestore('openclimbs');
+const db = getFirestore("openclimbs");
 
 // ── Email sender (Brevo REST API v3) ─────────────────────────────────────────
-async function sendEmail({ to, toName, subject, html }) {
-  const apiKey  = process.env.BREVO_API_KEY;
+async function sendEmail({ to, toName, subject, html, cc = [] }) {
+  const apiKey = process.env.BREVO_API_KEY;
   const fromEmail = process.env.BREVO_FROM_EMAIL;
 
   if (!apiKey || !fromEmail) {
-    console.error('Brevo credentials not configured (BREVO_API_KEY / BREVO_FROM_EMAIL)');
+    console.error(
+      "Brevo credentials not configured (BREVO_API_KEY / BREVO_FROM_EMAIL)",
+    );
     return;
   }
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
+  const body = {
+    sender: { name: "MMS Open Climbs", email: fromEmail },
+    to: [{ email: to, name: toName }],
+    subject,
+    htmlContent: html,
+  };
+  if (cc.length > 0) body.cc = cc;
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
     headers: {
-      'api-key':      apiKey,
-      'Content-Type': 'application/json',
+      "api-key": apiKey,
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      sender:      { name: 'MMS Open Climbs', email: fromEmail },
-      to:          [{ email: to, name: toName }],
-      subject,
-      htmlContent: html,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -58,7 +66,13 @@ function tplBase(content) {
     </div>`;
 }
 
-function tplRegistrationConfirmation({ name, climbTitle, climbDate, climbLocation, waiverUrl }) {
+function tplRegistrationConfirmation({
+  name,
+  climbTitle,
+  climbDate,
+  climbLocation,
+  waiverUrl,
+}) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Registration Received!</h2>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Hi <strong>${name}</strong>,</p>
@@ -76,11 +90,29 @@ function tplRegistrationConfirmation({ name, climbTitle, climbDate, climbLocatio
 
 function tplStatusUpdate({ name, climbTitle, newStatus, reason }) {
   const msgs = {
-    confirmed:  { title: "You're Confirmed!", body: "Great news — your registration has been confirmed. Get ready for an amazing climb!", color: '#2e7d32' },
-    cancelled:  { title: 'Registration Cancelled', body: reason || 'Your registration has been cancelled. Please contact your MMS coordinator.', color: '#c62828' },
-    waitlisted: { title: 'Added to Waitlist', body: 'You have been added to the waitlist. We will notify you if a spot becomes available.', color: '#e65100' },
+    confirmed: {
+      title: "You're Confirmed!",
+      body: "Great news — your registration has been confirmed. Get ready for an amazing climb!",
+      color: "#2e7d32",
+    },
+    cancelled: {
+      title: "Registration Cancelled",
+      body:
+        reason ||
+        "Your registration has been cancelled. Please contact your MMS coordinator.",
+      color: "#c62828",
+    },
+    waitlisted: {
+      title: "Added to Waitlist",
+      body: "You have been added to the waitlist. We will notify you if a spot becomes available.",
+      color: "#e65100",
+    },
   };
-  const msg = msgs[newStatus] || { title: 'Registration Update', body: `Your status has been updated to: ${newStatus}`, color: '#1565c0' };
+  const msg = msgs[newStatus] || {
+    title: "Registration Update",
+    body: `Your status has been updated to: ${newStatus}`,
+    color: "#1565c0",
+  };
   return tplBase(`
     <h2 style="color:${msg.color};font-size:20px;margin:0 0 16px;">${msg.title}</h2>
     <p style="color:#4a4a4a;font-size:15px;">Hi <strong>${name}</strong>,</p>
@@ -102,122 +134,299 @@ function tplWelcome({ displayName, setupLink }) {
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">This link expires in 24 hours. If you did not expect this email, please disregard it.</p>`);
 }
 
+function tplOfficerNewRegistration({ registrantName, registrantEmail, climbTitle, climbDate, climbLocation, regId, appUrl }) {
+  const adminUrl = `${appUrl}/admin/climbs/${regId}`;
+  return tplBase(`
+    <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">New Registration Received</h2>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">A new participant has registered for your climb:</p>
+    <div style="background:#e8f5e9;border-left:4px solid #2e7d32;padding:16px 20px;border-radius:0 8px 8px 0;margin:20px 0;">
+      <p style="margin:0;font-size:18px;font-weight:700;color:#0d2b12;text-transform:uppercase;letter-spacing:1px;">${climbTitle}</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#4a4a4a;">&#128197; ${climbDate} &nbsp;&bull;&nbsp; &#128205; ${climbLocation}</p>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+      <tr><td style="padding:8px 12px;background:#f7f9f5;color:#666;width:120px;">Name</td><td style="padding:8px 12px;color:#1a1a1a;font-weight:600;">${registrantName}</td></tr>
+      <tr><td style="padding:8px 12px;background:#f7f9f5;color:#666;">Email</td><td style="padding:8px 12px;color:#1a1a1a;">${registrantEmail}</td></tr>
+      <tr><td style="padding:8px 12px;background:#f7f9f5;color:#666;">Status</td><td style="padding:8px 12px;color:#e65100;font-weight:600;">Pending</td></tr>
+    </table>
+    <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">Please review and confirm or update the registration status in the admin panel.</p>
+    <p style="margin:24px 0;">
+      <a href="${appUrl}/admin" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">Open Admin Panel</a>
+    </p>`);
+}
+
+function tplOfficerStatusUpdate({ registrantName, registrantEmail, climbTitle, newStatus, reason, appUrl }) {
+  const statusColors = { confirmed: '#2e7d32', cancelled: '#c62828', waitlisted: '#e65100' };
+  const color = statusColors[newStatus] || '#1565c0';
+  return tplBase(`
+    <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Registration Status Updated</h2>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">A registration status has changed for <strong>${climbTitle}</strong>:</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:20px 0;">
+      <tr><td style="padding:8px 12px;background:#f7f9f5;color:#666;width:120px;">Participant</td><td style="padding:8px 12px;color:#1a1a1a;font-weight:600;">${registrantName}</td></tr>
+      <tr><td style="padding:8px 12px;background:#f7f9f5;color:#666;">Email</td><td style="padding:8px 12px;color:#1a1a1a;">${registrantEmail}</td></tr>
+      <tr><td style="padding:8px 12px;background:#f7f9f5;color:#666;">New Status</td><td style="padding:8px 12px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:1px;">${newStatus}</td></tr>
+      ${reason ? `<tr><td style="padding:8px 12px;background:#f7f9f5;color:#666;">Reason</td><td style="padding:8px 12px;color:#1a1a1a;">${reason}</td></tr>` : ""}
+    </table>
+    <p style="margin:24px 0;">
+      <a href="${appUrl}/admin" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">Open Admin Panel</a>
+    </p>`);
+}
+
+// ── Helper: get officer emails and admin CC list for a climb ─────────────────
+async function getNotifyLists(climb) {
+  // Officer emails stored directly on climb.officers[].email
+  const officerEmails = (climb.officers || [])
+    .filter((o) => o.email && o.email.includes("@"))
+    .map((o) => ({ email: o.email, name: o.name || "" }));
+
+  // All site admins
+  const adminSnap = await db.collection("users").where("role", "==", "admin").get();
+  const adminEmails = adminSnap.docs
+    .map((d) => ({ email: d.data().email, name: d.data().displayName || "" }))
+    .filter((a) => a.email);
+
+  return { officerEmails, adminEmails };
+}
+
 // ── Trigger: new registration → send confirmation email ───────────────────────
-exports.onRegistrationCreated = onDocumentCreated({ document: 'registrations/{regId}', database: 'openclimbs' }, async (event) => {
-  const reg = event.data.data();
-  const { name, email, climbId } = reg;
+exports.onRegistrationCreated = onDocumentCreated(
+  {
+    document: "registrations/{regId}",
+    database: "openclimbs",
+    secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"],
+  },
+  async (event) => {
+    const reg = event.data.data();
+    const { name, email, climbId } = reg;
 
-  try {
-    const climbSnap = await db.doc(`climbs/${climbId}`).get();
-    if (!climbSnap.exists) { console.warn(`Climb ${climbId} not found`); return; }
-    const climb = climbSnap.data();
+    try {
+      const climbSnap = await db.doc(`climbs/${climbId}`).get();
+      if (!climbSnap.exists) {
+        console.warn(`Climb ${climbId} not found`);
+        return;
+      }
+      const climb = climbSnap.data();
 
-    // Increment registration count on the climb document
-    await db.doc(`climbs/${climbId}`).update({ registrationCount: FieldValue.increment(1) });
+      // Increment registration count on the climb document
+      await db
+        .doc(`climbs/${climbId}`)
+        .update({ registrationCount: FieldValue.increment(1) });
 
-    const appUrl   = process.env.APP_URL || 'https://mms-open-climbs.web.app';
-    const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
+      const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+      const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
+      const { officerEmails, adminEmails } = await getNotifyLists(climb);
 
-    await sendEmail({
-      to:      email,
-      toName:  name,
-      subject: `Registration Received — ${climb.title} | MMS Open Climbs 2026`,
-      html:    tplRegistrationConfirmation({
-        name, climbTitle: climb.title,
-        climbDate:     climb.dateLabel || '',
-        climbLocation: climb.location  || '',
-        waiverUrl,
-      }),
-    });
+      // 1. Confirmation to registrant
+      await sendEmail({
+        to: email,
+        toName: name,
+        subject: `Registration Received — ${climb.title} | MMS Open Climbs 2026`,
+        html: tplRegistrationConfirmation({
+          name,
+          climbTitle: climb.title,
+          climbDate: climb.dateLabel || "",
+          climbLocation: climb.location || "",
+          waiverUrl,
+        }),
+      });
 
-    console.log(`[onRegistrationCreated] Confirmation sent to ${email} for "${climb.title}"`);
-  } catch (err) {
-    console.error('[onRegistrationCreated]', err);
-  }
-});
+      // 2. Notify each officer, CC all admins
+      for (const officer of officerEmails) {
+        await sendEmail({
+          to: officer.email,
+          toName: officer.name,
+          subject: `[New Registration] ${name} — ${climb.title} | MMS Open Climbs 2026`,
+          html: tplOfficerNewRegistration({
+            registrantName: name,
+            registrantEmail: email,
+            climbTitle: climb.title,
+            climbDate: climb.dateLabel || "",
+            climbLocation: climb.location || "",
+            regId: event.params.regId,
+            appUrl,
+          }),
+          cc: adminEmails,
+        });
+      }
+
+      // 3. If no officers, notify admins directly
+      if (officerEmails.length === 0 && adminEmails.length > 0) {
+        const [first, ...rest] = adminEmails;
+        await sendEmail({
+          to: first.email,
+          toName: first.name,
+          subject: `[New Registration] ${name} — ${climb.title} | MMS Open Climbs 2026`,
+          html: tplOfficerNewRegistration({
+            registrantName: name,
+            registrantEmail: email,
+            climbTitle: climb.title,
+            climbDate: climb.dateLabel || "",
+            climbLocation: climb.location || "",
+            regId: event.params.regId,
+            appUrl,
+          }),
+          cc: rest,
+        });
+      }
+
+      console.log(
+        `[onRegistrationCreated] Confirmation sent to ${email}; notified ${officerEmails.length} officer(s), ${adminEmails.length} admin(s) for "${climb.title}"`,
+      );
+    } catch (err) {
+      console.error("[onRegistrationCreated]", err);
+    }
+  },
+);
 
 // ── Trigger: registration status changed → send status email ─────────────────
-exports.onRegistrationUpdated = onDocumentUpdated({ document: 'registrations/{regId}', database: 'openclimbs' }, async (event) => {
-  const before = event.data.before.data();
-  const after  = event.data.after.data();
+exports.onRegistrationUpdated = onDocumentUpdated(
+  {
+    document: "registrations/{regId}",
+    database: "openclimbs",
+    secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"],
+  },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
 
-  if (before.status === after.status) return; // not a status change
+    if (before.status === after.status) return; // not a status change
 
-  const notifyOn = ['confirmed', 'cancelled', 'waitlisted'];
-  if (!notifyOn.includes(after.status)) return;
+    const notifyOn = ["confirmed", "cancelled", "waitlisted"];
+    if (!notifyOn.includes(after.status)) return;
 
-  // If cancellation, decrement registration count
-  if (after.status === 'cancelled' && before.status !== 'cancelled') {
-    await db.doc(`climbs/${after.climbId}`).update({ registrationCount: FieldValue.increment(-1) });
-  }
+    // If cancellation, decrement registration count
+    if (after.status === "cancelled" && before.status !== "cancelled") {
+      await db
+        .doc(`climbs/${after.climbId}`)
+        .update({ registrationCount: FieldValue.increment(-1) });
+    }
 
-  try {
-    const climbSnap = await db.doc(`climbs/${after.climbId}`).get();
-    const climb = climbSnap.exists ? climbSnap.data() : { title: after.climbTitle };
+    try {
+      const climbSnap = await db.doc(`climbs/${after.climbId}`).get();
+      const climb = climbSnap.exists
+        ? climbSnap.data()
+        : { title: after.climbTitle || after.climbId, officers: [] };
+      const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+      const { officerEmails, adminEmails } = await getNotifyLists(climb);
 
-    await sendEmail({
-      to:      after.email,
-      toName:  after.name,
-      subject: `Registration Update — ${climb.title} | MMS Open Climbs 2026`,
-      html:    tplStatusUpdate({
-        name:       after.name,
-        climbTitle: climb.title,
-        newStatus:  after.status,
-        reason:     after.cancellationReason || null,
-      }),
-    });
+      // 1. Status update to registrant
+      await sendEmail({
+        to: after.email,
+        toName: after.name,
+        subject: `Registration Update — ${climb.title} | MMS Open Climbs 2026`,
+        html: tplStatusUpdate({
+          name: after.name,
+          climbTitle: climb.title,
+          newStatus: after.status,
+          reason: after.cancellationReason || null,
+        }),
+      });
 
-    console.log(`[onRegistrationUpdated] Status "${after.status}" email sent to ${after.email}`);
-  } catch (err) {
-    console.error('[onRegistrationUpdated]', err);
-  }
-});
+      // 2. Notify each officer, CC all admins
+      for (const officer of officerEmails) {
+        await sendEmail({
+          to: officer.email,
+          toName: officer.name,
+          subject: `[Status Update] ${after.name} → ${after.status.toUpperCase()} — ${climb.title}`,
+          html: tplOfficerStatusUpdate({
+            registrantName: after.name,
+            registrantEmail: after.email,
+            climbTitle: climb.title,
+            newStatus: after.status,
+            reason: after.cancellationReason || null,
+            appUrl,
+          }),
+          cc: adminEmails,
+        });
+      }
+
+      // 3. If no officers, notify admins directly
+      if (officerEmails.length === 0 && adminEmails.length > 0) {
+        const [first, ...rest] = adminEmails;
+        await sendEmail({
+          to: first.email,
+          toName: first.name,
+          subject: `[Status Update] ${after.name} → ${after.status.toUpperCase()} — ${climb.title}`,
+          html: tplOfficerStatusUpdate({
+            registrantName: after.name,
+            registrantEmail: after.email,
+            climbTitle: climb.title,
+            newStatus: after.status,
+            reason: after.cancellationReason || null,
+            appUrl,
+          }),
+          cc: rest,
+        });
+      }
+
+      console.log(
+        `[onRegistrationUpdated] Status "${after.status}" email sent to ${after.email}; notified ${officerEmails.length} officer(s), ${adminEmails.length} admin(s)`,
+      );
+    } catch (err) {
+      console.error("[onRegistrationUpdated]", err);
+    }
+  },
+);
 
 // ── Callable: admin creates a user account and sends welcome email ─────────────
-exports.createUser = onCall(async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) throw new HttpsError('unauthenticated', 'You must be signed in.');
+exports.createUser = onCall(
+  { secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"] },
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid)
+      throw new HttpsError("unauthenticated", "You must be signed in.");
 
-  const callerSnap = await db.doc(`users/${callerUid}`).get();
-  if (!callerSnap.exists || callerSnap.data().role !== 'admin') {
-    throw new HttpsError('permission-denied', 'Only admins can create users.');
-  }
-
-  const { email, displayName, role = 'member' } = request.data;
-  if (!email || !displayName) {
-    throw new HttpsError('invalid-argument', 'email and displayName are required.');
-  }
-
-  let userRecord;
-  try {
-    userRecord = await adminAuth.createUser({ email, displayName });
-  } catch (err) {
-    if (err.code === 'auth/email-already-exists') {
-      throw new HttpsError('already-exists', 'An account with this email already exists.');
+    const callerSnap = await db.doc(`users/${callerUid}`).get();
+    if (!callerSnap.exists || callerSnap.data().role !== "admin") {
+      throw new HttpsError(
+        "permission-denied",
+        "Only admins can create users.",
+      );
     }
-    throw new HttpsError('internal', err.message);
-  }
 
-  // Create Firestore user profile
-  await db.doc(`users/${userRecord.uid}`).set({
-    displayName,
-    email,
-    role,
-    createdAt: FieldValue.serverTimestamp(),
-    addedBy:   callerUid,
-  });
+    const { email, displayName, role = "member" } = request.data;
+    if (!email || !displayName) {
+      throw new HttpsError(
+        "invalid-argument",
+        "email and displayName are required.",
+      );
+    }
 
-  // Generate password setup link (user sets their own password)
-  const appUrl    = process.env.APP_URL || 'https://mms-open-climbs.web.app';
-  const setupLink = await adminAuth.generatePasswordResetLink(email, { url: `${appUrl}/login` });
+    let userRecord;
+    try {
+      userRecord = await adminAuth.createUser({ email, displayName });
+    } catch (err) {
+      if (err.code === "auth/email-already-exists") {
+        throw new HttpsError(
+          "already-exists",
+          "An account with this email already exists.",
+        );
+      }
+      throw new HttpsError("internal", err.message);
+    }
 
-  await sendEmail({
-    to:      email,
-    toName:  displayName,
-    subject: 'Welcome to MMS Open Climbs 2026 — Set Up Your Account',
-    html:    tplWelcome({ displayName, setupLink }),
-  });
+    // Create Firestore user profile
+    await db.doc(`users/${userRecord.uid}`).set({
+      displayName,
+      email,
+      role,
+      createdAt: FieldValue.serverTimestamp(),
+      addedBy: callerUid,
+    });
 
-  console.log(`[createUser] Created user ${email} (role: ${role})`);
-  return { uid: userRecord.uid };
-});
+    // Generate password setup link (user sets their own password)
+    const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+    const setupLink = await adminAuth.generatePasswordResetLink(email, {
+      url: `${appUrl}/login`,
+    });
+
+    await sendEmail({
+      to: email,
+      toName: displayName,
+      subject: "Welcome to MMS Open Climbs 2026 — Set Up Your Account",
+      html: tplWelcome({ displayName, setupLink }),
+    });
+
+    console.log(`[createUser] Created user ${email} (role: ${role})`);
+    return { uid: userRecord.uid };
+  },
+);
