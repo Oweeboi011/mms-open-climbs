@@ -464,11 +464,24 @@ export default function Event() {
   const mapCoords = getClimbCoords(climb);
 
   const mapsPlaceName = parseGoogleMapsPlace(climb.googleMapsUrl);
-  const mapsEmbedSrc = mapsPlaceName
-    ? `https://maps.google.com/maps?q=${encodeURIComponent(mapsPlaceName)}&output=embed`
-    : mapCoords
-      ? `https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=${mapCoords.zoom}&output=embed`
-      : null;
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const mapsEmbedSrc = (() => {
+    if (googleMapsApiKey) {
+      if (mapCoords) {
+        return `https://www.google.com/maps/embed/v1/view?key=${googleMapsApiKey}&center=${mapCoords.lat},${mapCoords.lng}&zoom=${mapCoords.zoom}`;
+      }
+      if (mapsPlaceName) {
+        return `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${encodeURIComponent(mapsPlaceName)}`;
+      }
+    }
+    if (mapsPlaceName) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(mapsPlaceName)}&output=embed`;
+    }
+    if (mapCoords) {
+      return `https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=${mapCoords.zoom}&output=embed`;
+    }
+    return null;
+  })();
 
   return (
     <div>
@@ -743,10 +756,10 @@ export default function Event() {
                         </a>
                       </p>
                     </>
-                  ) : mapCoords ? (
+                  ) : mapsEmbedSrc ? (
                     <>
                       <iframe
-                        src={`https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=${mapCoords.zoom}&output=embed`}
+                        src={mapsEmbedSrc}
                         title={`${climb.title} location map`}
                         width="100%"
                         height="400"
@@ -1129,7 +1142,10 @@ export default function Event() {
         )}
 
         {/* Weather */}
-        {(climb.weatherNote || climb.location || mapCoords || climb.startDate) && (
+        {(climb.weatherNote ||
+          climb.location ||
+          mapCoords ||
+          climb.startDate) && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">&#127780;</span>
@@ -1148,114 +1164,151 @@ export default function Event() {
                 </p>
               )}
               {/* Status notice — shown when no forecast cards are available */}
-              {weather.status !== "loading" && weather.status !== "idle" && weather.daily.length === 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    alignItems: "flex-start",
-                    background: weather.status === "error"
-                      ? "var(--surface-warning, #fff8e1)"
-                      : "var(--surface-alt, #f8f5ee)",
-                    border: `1px solid ${
-                      weather.status === "error"
-                        ? "var(--warning-border, #ffe082)"
-                        : "var(--border, #e0dbd0)"
-                    }`,
-                    borderRadius: 10,
-                    padding: "14px 16px",
-                    marginBottom: 14,
-                  }}
-                >
-                  <span style={{ fontSize: "1.3rem", lineHeight: 1, flexShrink: 0 }}>
-                    {weather.status === "error" ? "\u26A0\uFE0F" :
-                     weather.status === "past" || weather.status === "unavailable" ? "\uD83D\uDCC5" :
-                     "\uD83D\uDD52"}
-                  </span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--ink)", marginBottom: 3 }}>
-                      {weather.status === "scheduled" && "Forecast not yet available"}
-                      {weather.status === "unavailable" && "Forecast unavailable"}
-                      {weather.status === "error" && "Could not load forecast"}
-                    </div>
-                    <div style={{ fontSize: "0.83rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>
-                      {weather.locationLabel ? `${weather.locationLabel} — ` : ""}
-                      {weather.message}
+              {weather.status !== "loading" &&
+                weather.status !== "idle" &&
+                weather.daily.length === 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
+                      background:
+                        weather.status === "error"
+                          ? "var(--surface-warning, #fff8e1)"
+                          : "var(--surface-alt, #f8f5ee)",
+                      border: `1px solid ${
+                        weather.status === "error"
+                          ? "var(--warning-border, #ffe082)"
+                          : "var(--border, #e0dbd0)"
+                      }`,
+                      borderRadius: 10,
+                      padding: "14px 16px",
+                      marginBottom: 14,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "1.3rem",
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {weather.status === "error"
+                        ? "\u26A0\uFE0F"
+                        : weather.status === "past" ||
+                            weather.status === "unavailable"
+                          ? "\uD83D\uDCC5"
+                          : "\uD83D\uDD52"}
+                    </span>
+                    <div>
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "0.88rem",
+                          color: "var(--ink)",
+                          marginBottom: 3,
+                        }}
+                      >
+                        {weather.status === "scheduled" &&
+                          "Forecast not yet available"}
+                        {weather.status === "unavailable" &&
+                          "Forecast unavailable"}
+                        {weather.status === "error" &&
+                          "Could not load forecast"}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.83rem",
+                          color: "var(--ink-soft)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {weather.locationLabel
+                          ? `${weather.locationLabel} — `
+                          : ""}
+                        {weather.message}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
               {weather.status === "loading" ? (
                 <LoadingSpinner />
               ) : weather.daily.length > 0 ? (
                 <>
-                {weather.locationLabel && (
-                  <p style={{ fontSize: "0.8rem", color: "var(--ink-soft)", marginBottom: 10 }}>
-                    Forecast area: {weather.locationLabel}
-                  </p>
-                )}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                    gap: 12,
-                    marginBottom: 14,
-                  }}
-                >
-                  {weather.daily.map((day) => (
-                    <div
-                      key={day.date}
+                  {weather.locationLabel && (
+                    <p
                       style={{
-                        border: "1px solid var(--border)",
-                        borderRadius: 12,
-                        padding: "14px 14px 12px",
-                        background: "var(--surface-alt)",
+                        fontSize: "0.8rem",
+                        color: "var(--ink-soft)",
+                        marginBottom: 10,
                       }}
                     >
+                      Forecast area: {weather.locationLabel}
+                    </p>
+                  )}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(160px, 1fr))",
+                      gap: 12,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {weather.daily.map((day) => (
                       <div
+                        key={day.date}
                         style={{
-                          fontSize: "0.74rem",
-                          fontWeight: 800,
-                          letterSpacing: 1,
-                          textTransform: "uppercase",
-                          color: "var(--ink-soft)",
-                          marginBottom: 6,
+                          border: "1px solid var(--border)",
+                          borderRadius: 12,
+                          padding: "14px 14px 12px",
+                          background: "var(--surface-alt)",
                         }}
                       >
-                        {day.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "1rem",
-                          fontWeight: 700,
-                          color: "var(--ink)",
-                          marginBottom: 8,
-                        }}
-                      >
-                        {day.weatherLabel}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.82rem",
-                          color: "var(--ink-soft)",
-                          lineHeight: 1.55,
-                        }}
-                      >
-                        <div>
-                          Temp: {Math.round(day.minTemp)}&deg;C to{" "}
-                          {Math.round(day.maxTemp)}&deg;C
+                        <div
+                          style={{
+                            fontSize: "0.74rem",
+                            fontWeight: 800,
+                            letterSpacing: 1,
+                            textTransform: "uppercase",
+                            color: "var(--ink-soft)",
+                            marginBottom: 6,
+                          }}
+                        >
+                          {day.label}
                         </div>
-                        <div>
-                          Rain chance: {day.precipitationProbability ?? 0}%
+                        <div
+                          style={{
+                            fontSize: "1rem",
+                            fontWeight: 700,
+                            color: "var(--ink)",
+                            marginBottom: 8,
+                          }}
+                        >
+                          {day.weatherLabel}
                         </div>
-                        <div>Rainfall: {day.precipitationTotal ?? 0} mm</div>
-                        <div>
-                          Wind: {Math.round(day.maxWindSpeed ?? 0)} km/h max
+                        <div
+                          style={{
+                            fontSize: "0.82rem",
+                            color: "var(--ink-soft)",
+                            lineHeight: 1.55,
+                          }}
+                        >
+                          <div>
+                            Temp: {Math.round(day.minTemp)}&deg;C to{" "}
+                            {Math.round(day.maxTemp)}&deg;C
+                          </div>
+                          <div>
+                            Rain chance: {day.precipitationProbability ?? 0}%
+                          </div>
+                          <div>Rainfall: {day.precipitationTotal ?? 0} mm</div>
+                          <div>
+                            Wind: {Math.round(day.maxWindSpeed ?? 0)} km/h max
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
                 </>
               ) : null}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>

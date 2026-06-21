@@ -1,142 +1,322 @@
-# Cloud Functions API Reference
+# API Reference
 
-All functions are deployed to Firebase Cloud Functions v2 in the `asia-east1` region (or the default region configured in `firebase.json`).
+## Table of Contents
 
-## Function Overview
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Firestore Document Triggers](#firestore-document-triggers)
+  - [onRegistrationCreated](#onregistrationcreated)
+  - [onRegistrationUpdated](#onregistrationupdated)
+- [HTTPS Callable Functions](#https-callable-functions)
+  - [createUser](#createuser)
+- [Environment Variables and Secrets](#environment-variables-and-secrets)
+- [Error Codes Reference](#error-codes-reference)
+- [Email Templates](#email-templates)
+
+---
+
+## Overview
+
+MMS Open Climbs exposes all backend logic through Firebase Cloud Functions v2. There are no REST endpoints — the frontend communicates with Firebase services directly via the Firebase SDK. The Cloud Functions layer handles:
+
+1. **Firestore document triggers** — automated reactions to database changes (seat counting, email dispatch)
+2. **HTTPS callable functions** — admin-initiated operations (user creation)
+
+All functions are deployed to the `asia-east1` region.
+
+---
+
+## Architecture
 
 ```mermaid
 graph TD
-    FS["Cloud Firestore"]
-    subgraph Triggers
-        T1["onRegistrationCreated\nregistrations/{regId} onCreate"]
-        T2["onRegistrationUpdated\nregistrations/{regId} onUpdate"]
+    subgraph Client["Client (React SPA)"]
+        UI["Admin UI\nor Member Action"]
     end
-    subgraph Callables
-        C1["createUser\nAdmin only"]
+
+    subgraph Firestore["Cloud Firestore (openclimbs)"]
+        FS_R["registrations collection"]
+        FS_C["climbs collection"]
+        FS_U["users collection"]
     end
-    Brevo["Brevo SMTP API"]
-    Admin["Admin UI"]
 
-    FS -->|new doc| T1
-    T1 -->|increment count| FS
-    T1 -->|confirmation email| Brevo
+    subgraph Functions["Cloud Functions v2 (asia-east1)"]
+        T1["onRegistrationCreated\nFirestore trigger"]
+        T2["onRegistrationUpdated\nFirestore trigger"]
+        C1["createUser\nHTTPS Callable"]
+    end
 
-    FS -->|status change| T2
-    T2 -->|decrement count if cancelled| FS
-    T2 -->|status update email| Brevo
+    subgraph External["External Services"]
+        FA["Firebase Auth"]
+        EM["Brevo SMTP API"]
+    end
 
-    Admin -->|httpsCallable| C1
-    C1 -->|create account| FS
-    C1 -->|welcome email + setup link| Brevo
+    UI -->|write doc| FS_R
+    UI -->|httpsCallable| C1
+
+    FS_R -->|onCreate| T1
+    FS_R -->|onUpdate| T2
+
+    T1 -->|increment count| FS_C
+    T1 -->|send email| EM
+
+    T2 -->|decrement count| FS_C
+    T2 -->|send email| EM
+
+    C1 -->|verify caller role| FS_U
+    C1 -->|create account| FA
+    C1 -->|write profile| FS_U
+    C1 -->|send welcome email| EM
 ```
 
 ---
 
-## Triggers
+## Firestore Document Triggers
 
 ### onRegistrationCreated
 
-**Type:** Firestore document trigger  
-**Path:** `registrations/{regId}` on create
+**Type:** Firestore document trigger
+**Collection path:** `registrations/{regId}`
+**Event:** `onDocumentCreated`
+**Database:** `openclimbs`
+**Secrets required:** `BREVO_API_KEY`, `BREVO_FROM_EMAIL`
 
-**What it does:**
-1. Increments `registrationCount` on the corresponding `climbs/{climbId}` document.
-2. Sends a registration confirmation email to the participant via Brevo.
+#### What it does
 
-**Email includes:**
+```mermaid
+flowchart TD
+    A["registrations/{regId} document created"]
+    B["Read climb from climbs/{climbId}"]
+    C["Increment climb.registrationCount by 1"]
+    D["Send confirmation email to registrant"]
+    E{"Climb has officers?"}
+    F["Send new-registration notification to each officer\nCC all admin accounts"]
+    G["Send notification to admin accounts directly\n(no officers configured)"]
+
+    A --> B --> C --> D --> E
+    E -- "Yes" --> F
+    E -- "No" --> G
+```
+
+#### Side effects
+
+| Effect | Target | Details |
+| --- | --- | --- |
+| Increment `registrationCount` | `climbs/{climbId}` | Uses `FieldValue.increment(1)` — atomic, race-condition-safe |
+| Send confirmation email | Registrant | Includes climb title, date, location, and waiver print link |
+| Send new-registration notification | Climb officers | CC all admin account email addresses |
+
+#### Confirmation email content
+
 - Climb title, date, location
-- Link to the printable waiver at `{APP_URL}/waiver/{regId}`
+- Link to printable waiver: `{APP_URL}/waiver/{regId}`
 
 ---
 
 ### onRegistrationUpdated
 
-**Type:** Firestore document trigger  
-**Path:** `registrations/{regId}` on update
+**Type:** Firestore document trigger
+**Collection path:** `registrations/{regId}`
+**Event:** `onDocumentUpdated`
+**Database:** `openclimbs`
+**Secrets required:** `BREVO_API_KEY`, `BREVO_FROM_EMAIL`
 
-**What it does:**
-1. Watches for changes to the `status` field only — `paymentStatus` changes do not trigger this function.
-2. If `status` changed to `cancelled`, decrements `registrationCount` on the climb.
-3. If `status` changed to `confirmed`, `cancelled`, or `waitlisted`, sends a status update email to the participant. The email includes a cancellation reason when `cancellationReason` is set.
+#### What it does
+
+```mermaid
+flowchart TD
+    A["registrations/{regId} document updated"]
+    B{"Did status field change?"}
+    C["No-op — return early"]
+    D{"New status is confirmed,\ncancelled, or waitlisted?"}
+    E["No-op — return early"]
+    F{"New status is cancelled?"}
+    G["Decrement climb.registrationCount by 1"]
+    H["Send status update email to registrant"]
+    I{"Climb has officers?"}
+    J["Send status notification to each officer\nCC all admin accounts"]
+    K["Send status notification to admin accounts directly"]
+
+    A --> B
+    B -- "No" --> C
+    B -- "Yes" --> D
+    D -- "No" --> E
+    D -- "Yes" --> F
+    F -- "Yes" --> G --> H
+    F -- "No" --> H
+    H --> I
+    I -- "Yes" --> J
+    I -- "No" --> K
+```
+
+#### Side effects
+
+| Effect | Condition | Details |
+| --- | --- | --- |
+| Decrement `registrationCount` | `status` changed to `cancelled` | Uses `FieldValue.increment(-1)` — atomic |
+| Send status update email | `status` changed to `confirmed`, `cancelled`, or `waitlisted` | Email includes cancellation reason when `cancellationReason` is set |
+| Send officer notification | Same status conditions | CC all admin accounts |
+
+#### Watched status transitions
+
+| New status | Email sent | Count decremented |
+| --- | --- | --- |
+| `confirmed` | Yes | No |
+| `cancelled` | Yes | Yes |
+| `waitlisted` | Yes | No |
+| `pending` | No | No |
 
 ---
 
-## Callable Functions
+## HTTPS Callable Functions
 
 ### createUser
 
-**Caller:** Admin users only  
-**SDK call:** `httpsCallable(functions, 'createUser')`
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'createUser')`
+**Access:** Admin users only
+**Secrets required:** None (uses Firebase Admin SDK with service account)
+
+#### Full flow
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant AD as Admin UI
     participant CF as createUser Function
-    participant FS as Firestore
+    participant FS as Firestore (users collection)
     participant FA as Firebase Auth
     participant EM as Brevo Email
-    participant U as New User
+    participant U as New User (email inbox)
 
-    AD->>CF: call createUser({email, displayName, role})
-    CF->>FS: Verify caller is admin via users/{uid}.role
-    CF->>FA: createUser(email)
+    AD->>CF: call createUser({ email, displayName, role? })
+    CF->>FS: Read users/{callerUid} to verify role = admin
+    alt Caller is not admin
+        CF-->>AD: HttpsError(permission-denied)
+    end
+    CF->>FA: adminAuth.createUser({ email })
     FA-->>CF: uid
-    CF->>FS: Create users/{uid} document
+    CF->>FS: setDoc users/{uid} with displayName, email, role
     CF->>FA: generatePasswordResetLink(email)
     FA-->>CF: setupLink
     CF->>EM: Send welcome email with setupLink
-    EM-->>U: Welcome email
+    EM-->>U: Welcome email with account setup link
     CF-->>AD: { uid }
 ```
 
-**Request payload:**
+#### Request payload
 
-| Field       | Type   | Required | Notes                  |
-|------------|--------|----------|------------------------|
-| email      | string | Yes      | New user's email       |
-| displayName| string | Yes      | New user's display name|
-| role       | string | No       | Defaults to "member"   |
+| Field | Type | Required | Validation | Notes |
+| --- | --- | --- | --- | --- |
+| `email` | string | Yes | Must be present | New user's email address |
+| `displayName` | string | Yes | Must be present | Full name for display |
+| `role` | string | No | Defaults to `member` | Set to `admin` to create an admin account |
 
-**What it does:**
-1. Verifies the caller is an admin via Firestore role check.
-2. Creates a Firebase Auth account for the new user.
-3. Creates a Firestore `users/{uid}` document.
-4. Generates a password setup link (Firebase `generatePasswordResetLink`).
-5. Sends a welcome email with the setup link via Brevo.
-
-**Response:**
+#### Response
 
 ```json
-{ "uid": "firebase-auth-uid" }
+{ "uid": "firebase-auth-uid-string" }
 ```
 
-**Error codes:**
+#### Error codes
 
-| Code             | Meaning                              |
-|-----------------|--------------------------------------|
-| unauthenticated  | Caller is not signed in              |
-| permission-denied| Caller is not an admin               |
-| invalid-argument | email or displayName missing         |
-| already-exists   | Email already has a Firebase account |
-| internal         | Unexpected Firebase error            |
+| Code | HTTP equivalent | Trigger |
+| --- | --- | --- |
+| `unauthenticated` | 401 | Caller is not signed in |
+| `permission-denied` | 403 | Caller is not an admin (role check fails) |
+| `invalid-argument` | 400 | `email` or `displayName` missing or empty |
+| `already-exists` | 409 | Email already has a Firebase Auth account |
+| `internal` | 500 | Unexpected Firebase or Brevo error |
 
 ---
 
-## Environment Variables
+## Environment Variables and Secrets
 
-Set these in `functions/.env` for local emulator, or via Firebase secrets for production.
+### Cloud Functions (`functions/.env` for emulator, Firebase secrets for production)
 
-| Variable        | Description                                |
-|----------------|--------------------------------------------|
-| BREVO_API_KEY  | Brevo API key for sending emails           |
-| BREVO_FROM_EMAIL | Sender email address verified in Brevo   |
-| APP_URL        | Base URL for generating email links        |
+| Variable | Type | Required | Description |
+| --- | --- | --- | --- |
+| `BREVO_API_KEY` | Secret | Yes | Brevo REST API key for sending emails |
+| `BREVO_FROM_EMAIL` | Secret | Yes | Verified sender email address in Brevo |
+| `APP_URL` | Secret | Yes | Base URL for generating waiver links in emails |
 
-**Production secrets (recommended):**
+### Frontend (`VITE_*` in `.env`)
 
-```
+These values are baked into the frontend bundle at build time by Vite. Firebase API keys are intentionally public — they are protected by Firestore security rules and Auth domain restrictions.
+
+| Variable | Description |
+| --- | --- |
+| `VITE_FIREBASE_API_KEY` | Firebase project API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Cloud Messaging sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase app ID |
+
+### Setting production secrets
+
+```bash
 firebase functions:secrets:set BREVO_API_KEY
 firebase functions:secrets:set BREVO_FROM_EMAIL
 firebase functions:secrets:set APP_URL
 ```
+
+---
+
+## Error Codes Reference
+
+All callable function errors follow the Firebase `HttpsError` convention and are surfaced to the client via the Firebase SDK.
+
+```mermaid
+flowchart LR
+    CF["Cloud Function\nHttpsError thrown"]
+    SDK["Firebase SDK\ncatch block"]
+    UI["Admin UI\nerror message shown"]
+
+    CF --> SDK --> UI
+```
+
+| Error Code | Client receives | Typical cause |
+| --- | --- | --- |
+| `unauthenticated` | `functions/unauthenticated` | Calling a protected function without being signed in |
+| `permission-denied` | `functions/permission-denied` | Signed in but not an admin |
+| `invalid-argument` | `functions/invalid-argument` | Missing required payload fields |
+| `already-exists` | `functions/already-exists` | Attempting to create a user whose email already exists |
+| `internal` | `functions/internal` | Unhandled exception in the function |
+
+---
+
+## Email Templates
+
+All email templates are rendered server-side inside Cloud Functions and sent via Brevo. Templates are defined in `functions/index.js`.
+
+```mermaid
+graph TD
+    subgraph Templates["Email Templates"]
+        T1["tplRegistrationConfirmation\nSent to registrant on new registration"]
+        T2["tplStatusUpdate\nSent to registrant on status change"]
+        T3["tplOfficerNewRegistration\nSent to climb officers on new registration"]
+        T4["tplOfficerStatusUpdate\nSent to climb officers on status change"]
+        T5["tplWelcome\nSent to new user created by admin"]
+    end
+
+    subgraph Trigger["Triggered by"]
+        TR1["onRegistrationCreated"]
+        TR2["onRegistrationUpdated"]
+        TR3["createUser callable"]
+    end
+
+    TR1 --> T1
+    TR1 --> T3
+    TR2 --> T2
+    TR2 --> T4
+    TR3 --> T5
+```
+
+| Template | Recipient | Trigger | Key content |
+| --- | --- | --- | --- |
+| `tplRegistrationConfirmation` | Registrant | `onRegistrationCreated` | Climb title, date, location, waiver link |
+| `tplStatusUpdate` | Registrant | `onRegistrationUpdated` | New status, cancellation reason (if applicable) |
+| `tplOfficerNewRegistration` | Climb officers | `onRegistrationCreated` | Registrant name, email, climb details, link to admin |
+| `tplOfficerStatusUpdate` | Climb officers | `onRegistrationUpdated` | Registrant name, new status, reason, link to admin |
+| `tplWelcome` | New user | `createUser` | Welcome message, account setup link (password reset URL) |
