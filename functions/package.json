@@ -5,7 +5,8 @@
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs --coverage"
   },
   "engines": {
     "node": "22"

@@ -20,6 +20,37 @@ const TYPE_LABEL = {
   special: "Special Climb",
 };
 
+const WEATHER_CODE_LABELS = {
+  0: "Clear skies",
+  1: "Mostly clear",
+  2: "Partly cloudy",
+  3: "Overcast",
+  45: "Fog",
+  48: "Rime fog",
+  51: "Light drizzle",
+  53: "Drizzle",
+  55: "Dense drizzle",
+  56: "Freezing drizzle",
+  57: "Heavy freezing drizzle",
+  61: "Light rain",
+  63: "Rain",
+  65: "Heavy rain",
+  66: "Freezing rain",
+  67: "Heavy freezing rain",
+  71: "Light snow",
+  73: "Snow",
+  75: "Heavy snow",
+  77: "Snow grains",
+  80: "Rain showers",
+  81: "Heavy rain showers",
+  82: "Violent rain showers",
+  85: "Snow showers",
+  86: "Heavy snow showers",
+  95: "Thunderstorms",
+  96: "Thunderstorms with hail",
+  99: "Severe thunderstorms",
+};
+
 function parseGoogleMapsUrl(url) {
   if (!url) return null;
   let m = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*),(\d+)z/);
@@ -37,6 +68,51 @@ function parseGoogleMapsPlace(url) {
   const m = url.match(/\/maps\/place\/([^/@?]+)/);
   if (m) return decodeURIComponent(m[1].replace(/\+/g, " "));
   return null;
+}
+
+function getClimbDate(value) {
+  if (!value) return null;
+  if (typeof value?.toDate === "function") return value.toDate();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function startOfDay(date) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+function toIsoDate(date) {
+  return startOfDay(date).toISOString().slice(0, 10);
+}
+
+function formatForecastDate(dateString) {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString("en-PH", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getWeatherLabel(code) {
+  return WEATHER_CODE_LABELS[code] || "Weather update";
+}
+
+function getClimbCoords(climb) {
+  if (climb?.mapLat && climb?.mapLng) {
+    return {
+      lat: Number(climb.mapLat),
+      lng: Number(climb.mapLng),
+      zoom: climb.mapZoom || "14",
+    };
+  }
+
+  const parsed = parseGoogleMapsUrl(climb?.googleMapsUrl);
+  return parsed
+    ? { lat: Number(parsed.lat), lng: Number(parsed.lng), zoom: parsed.zoom }
+    : null;
 }
 
 function LockedCard({ label, onUnlock }) {
@@ -84,6 +160,13 @@ export default function Event() {
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [weather, setWeather] = useState({
+    status: "idle",
+    daily: [],
+    message: "",
+    coords: null,
+    locationLabel: "",
+  });
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -149,6 +232,161 @@ export default function Event() {
     cards.forEach((card) => observer.observe(card));
     return () => observer.disconnect();
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWeather() {
+      if (!climb) return;
+
+      const startDate = getClimbDate(climb.startDate);
+      const endDate = getClimbDate(climb.endDate) || startDate;
+      const climbCoords = getClimbCoords(climb);
+      const locationQuery =
+        parseGoogleMapsPlace(climb.googleMapsUrl) || climb.location;
+
+      if (!startDate || !endDate) {
+        setWeather({
+          status: "unavailable",
+          daily: [],
+          message: "Weather forecast will appear once the event dates are set.",
+          coords: climbCoords,
+          locationLabel: climb.location || "",
+        });
+        return;
+      }
+
+      const today = startOfDay(new Date());
+      const eventStart = startOfDay(startDate);
+      const eventEnd = startOfDay(endDate);
+      const forecastCutoff = new Date(today);
+      forecastCutoff.setDate(forecastCutoff.getDate() + 15);
+      const daysUntilStart = Math.round(
+        (eventStart.getTime() - today.getTime()) / 86400000,
+      );
+
+      if (eventEnd.getTime() < today.getTime()) {
+        setWeather({
+          status: "unavailable",
+          daily: [],
+          message: "Live forecast is no longer shown for past event dates.",
+          coords: climbCoords,
+          locationLabel: climb.location || "",
+        });
+        return;
+      }
+
+      if (daysUntilStart > 15) {
+        setWeather({
+          status: "scheduled",
+          daily: [],
+          message:
+            "Detailed forecast becomes available automatically within 16 days of the event start date.",
+          coords: climbCoords,
+          locationLabel: climb.location || "",
+        });
+        return;
+      }
+
+      setWeather({
+        status: "loading",
+        daily: [],
+        message: "Loading latest forecast…",
+        coords: climbCoords,
+        locationLabel: climb.location || "",
+      });
+
+      try {
+        let resolvedCoords = climbCoords;
+        let resolvedLocationLabel = climb.location || "";
+
+        if (!resolvedCoords) {
+          if (!locationQuery) {
+            throw new Error("Add a location or map link to load weather.");
+          }
+          const geocodeResponse = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locationQuery)}&count=1&language=en&format=json`,
+          );
+          if (!geocodeResponse.ok)
+            throw new Error("Weather location lookup failed.");
+          const geocodeData = await geocodeResponse.json();
+          const firstResult = geocodeData.results?.[0];
+          if (!firstResult)
+            throw new Error("Weather location could not be resolved.");
+          resolvedCoords = {
+            lat: Number(firstResult.latitude),
+            lng: Number(firstResult.longitude),
+            zoom: "10",
+          };
+          resolvedLocationLabel = [
+            firstResult.name,
+            firstResult.admin1,
+            firstResult.country,
+          ]
+            .filter(Boolean)
+            .join(", ");
+        }
+
+        const requestEndDate =
+          eventEnd.getTime() > forecastCutoff.getTime()
+            ? forecastCutoff
+            : eventEnd;
+        const forecastResponse = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${resolvedCoords.lat}&longitude=${resolvedCoords.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max&timezone=auto&start_date=${toIsoDate(eventStart)}&end_date=${toIsoDate(requestEndDate)}`,
+        );
+        if (!forecastResponse.ok)
+          throw new Error("Weather forecast request failed.");
+
+        const forecastData = await forecastResponse.json();
+        const dailyTime = forecastData.daily?.time || [];
+        const dailyForecast = dailyTime.map((date, index) => ({
+          date,
+          label: formatForecastDate(date),
+          weatherCode: forecastData.daily.weather_code?.[index],
+          weatherLabel: getWeatherLabel(
+            forecastData.daily.weather_code?.[index],
+          ),
+          maxTemp: forecastData.daily.temperature_2m_max?.[index],
+          minTemp: forecastData.daily.temperature_2m_min?.[index],
+          precipitationProbability:
+            forecastData.daily.precipitation_probability_max?.[index],
+          precipitationTotal: forecastData.daily.precipitation_sum?.[index],
+          maxWindSpeed: forecastData.daily.wind_speed_10m_max?.[index],
+        }));
+
+        if (!cancelled) {
+          setWeather({
+            status: dailyForecast.length ? "ready" : "unavailable",
+            daily: dailyForecast,
+            message: dailyForecast.length
+              ? requestEndDate.getTime() < eventEnd.getTime()
+                ? "Showing the currently available forecast window. Remaining event days will appear automatically closer to the climb."
+                : "Forecast refreshes automatically based on the saved event dates."
+              : "Forecast data is not available for this event yet.",
+            coords: resolvedCoords,
+            locationLabel: resolvedLocationLabel,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setWeather({
+            status: "error",
+            daily: [],
+            message:
+              error.message || "Unable to load the weather forecast right now.",
+            coords: climbCoords,
+            locationLabel: climb.location || "",
+          });
+        }
+      }
+    }
+
+    loadWeather();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [climb]);
 
   if (loading) return <LoadingSpinner fullPage />;
   if (!climb) return null;
@@ -223,11 +461,7 @@ export default function Event() {
     );
   }
 
-  const mapCoords =
-    parseGoogleMapsUrl(climb.googleMapsUrl) ||
-    (climb.mapLat
-      ? { lat: climb.mapLat, lng: climb.mapLng, zoom: climb.mapZoom || "14" }
-      : null);
+  const mapCoords = getClimbCoords(climb);
 
   const mapsPlaceName = parseGoogleMapsPlace(climb.googleMapsUrl);
   const mapsEmbedSrc = mapsPlaceName
@@ -334,7 +568,10 @@ export default function Event() {
 
       <main className="content" ref={contentRef}>
         {/* Mountain Profile */}
-        {(climb.elevation || climb.difficulty || climb.description) && (
+        {(climb.elevation ||
+          climb.difficulty ||
+          climb.trailClass ||
+          climb.description) && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">&#9968;</span>
@@ -358,6 +595,14 @@ export default function Event() {
                     <div className="stat-tile">
                       <div className="stat-tile-val">{climb.difficulty}</div>
                       <div className="stat-tile-label">Difficulty</div>
+                    </div>
+                  )}
+                  {climb.trailClass && (
+                    <div className="stat-tile">
+                      <div className="stat-tile-val">
+                        Class {climb.trailClass}
+                      </div>
+                      <div className="stat-tile-label">Trail Class</div>
                     </div>
                   )}
                   {climb.distanceToSummit && (
@@ -884,7 +1129,7 @@ export default function Event() {
         )}
 
         {/* Weather */}
-        {(climb.weatherNote || climb.mapLat) && (
+        {(climb.weatherNote || climb.location || mapCoords || climb.startDate) && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">&#127780;</span>
@@ -902,11 +1147,122 @@ export default function Event() {
                   {climb.weatherNote}
                 </p>
               )}
+              {/* Status notice — shown when no forecast cards are available */}
+              {weather.status !== "loading" && weather.status !== "idle" && weather.daily.length === 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
+                    background: weather.status === "error"
+                      ? "var(--surface-warning, #fff8e1)"
+                      : "var(--surface-alt, #f8f5ee)",
+                    border: `1px solid ${
+                      weather.status === "error"
+                        ? "var(--warning-border, #ffe082)"
+                        : "var(--border, #e0dbd0)"
+                    }`,
+                    borderRadius: 10,
+                    padding: "14px 16px",
+                    marginBottom: 14,
+                  }}
+                >
+                  <span style={{ fontSize: "1.3rem", lineHeight: 1, flexShrink: 0 }}>
+                    {weather.status === "error" ? "\u26A0\uFE0F" :
+                     weather.status === "past" || weather.status === "unavailable" ? "\uD83D\uDCC5" :
+                     "\uD83D\uDD52"}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--ink)", marginBottom: 3 }}>
+                      {weather.status === "scheduled" && "Forecast not yet available"}
+                      {weather.status === "unavailable" && "Forecast unavailable"}
+                      {weather.status === "error" && "Could not load forecast"}
+                    </div>
+                    <div style={{ fontSize: "0.83rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>
+                      {weather.locationLabel ? `${weather.locationLabel} — ` : ""}
+                      {weather.message}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {weather.status === "loading" ? (
+                <LoadingSpinner />
+              ) : weather.daily.length > 0 ? (
+                <>
+                {weather.locationLabel && (
+                  <p style={{ fontSize: "0.8rem", color: "var(--ink-soft)", marginBottom: 10 }}>
+                    Forecast area: {weather.locationLabel}
+                  </p>
+                )}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: 12,
+                    marginBottom: 14,
+                  }}
+                >
+                  {weather.daily.map((day) => (
+                    <div
+                      key={day.date}
+                      style={{
+                        border: "1px solid var(--border)",
+                        borderRadius: 12,
+                        padding: "14px 14px 12px",
+                        background: "var(--surface-alt)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "0.74rem",
+                          fontWeight: 800,
+                          letterSpacing: 1,
+                          textTransform: "uppercase",
+                          color: "var(--ink-soft)",
+                          marginBottom: 6,
+                        }}
+                      >
+                        {day.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "1rem",
+                          fontWeight: 700,
+                          color: "var(--ink)",
+                          marginBottom: 8,
+                        }}
+                      >
+                        {day.weatherLabel}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.82rem",
+                          color: "var(--ink-soft)",
+                          lineHeight: 1.55,
+                        }}
+                      >
+                        <div>
+                          Temp: {Math.round(day.minTemp)}&deg;C to{" "}
+                          {Math.round(day.maxTemp)}&deg;C
+                        </div>
+                        <div>
+                          Rain chance: {day.precipitationProbability ?? 0}%
+                        </div>
+                        <div>Rainfall: {day.precipitationTotal ?? 0} mm</div>
+                        <div>
+                          Wind: {Math.round(day.maxWindSpeed ?? 0)} km/h max
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </>
+              ) : null}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {climb.mapLat && (
+                {weather.coords && (
                   <a
                     className="btn btn-outline btn-sm"
-                    href={`https://www.windy.com/${climb.mapLat}/${climb.mapLng}?${climb.mapLat},${climb.mapLng},10`}
+                    href={`https://www.windy.com/${weather.coords.lat}/${weather.coords.lng}?${weather.coords.lat},${weather.coords.lng},10`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

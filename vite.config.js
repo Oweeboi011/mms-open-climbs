@@ -20,6 +20,12 @@ export default defineConfig({
       reporter: ["text", "lcov", "html"],
       include: ["src/**/*.{js,jsx}"],
       exclude: ["src/test/**", "src/main.jsx"],
+      thresholds: {
+        lines: 45,
+        functions: 35,
+        statements: 45,
+        branches: 34,
+      },
     },
   },
   // Serve the images/ folder as static assets at /images/

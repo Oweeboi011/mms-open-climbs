@@ -81,6 +81,7 @@ const EMPTY_FORM = {
   // Mountain profile
   elevation: "",
   difficulty: "",
+  trailClass: "",
   jumpOff: "",
   jumpOffElevation: "",
   elevationGain: "",
@@ -273,7 +274,9 @@ export default function AdminClimbForm() {
       (o) => o.email && !emailRe.test(o.email),
     );
     if (badOfficer) {
-      setError(`Invalid email address for officer "${badOfficer.name || "unnamed"}": ${badOfficer.email}`);
+      setError(
+        `Invalid email address for officer "${badOfficer.name || "unnamed"}": ${badOfficer.email}`,
+      );
       return;
     }
 
@@ -320,6 +323,9 @@ export default function AdminClimbForm() {
           <div className="admin-page-title">
             {isEdit ? "Edit Climb" : "New Climb"}
           </div>
+          <Link to="/admin" className="btn btn-outline btn-sm">
+            &larr; Back to Admin
+          </Link>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -524,6 +530,25 @@ export default function AdminClimbForm() {
                   value={form.difficulty}
                   onChange={(e) => set("difficulty", e.target.value)}
                 />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Trail Class</label>
+                <select
+                  className="form-select"
+                  value={form.trailClass}
+                  onChange={(e) => set("trailClass", e.target.value)}
+                >
+                  <option value="">— Not specified —</option>
+                  <option value="1">Class 1 — Easy day hike</option>
+                  <option value="2">Class 2 — Moderate day hike</option>
+                  <option value="3">Class 3 — Strenuous day hike</option>
+                  <option value="4">Class 4 — Minor climb</option>
+                  <option value="5">Class 5 — Major climb</option>
+                  <option value="6">Class 6 — Technical climb</option>
+                  <option value="7">Class 7 — Very technical</option>
+                  <option value="8">Class 8 — Extreme</option>
+                  <option value="9">Class 9 — Super extreme</option>
+                </select>
               </div>
             </div>
             <div className="form-row">
@@ -1114,7 +1139,12 @@ export default function AdminClimbForm() {
                 type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() =>
-                  addListItem("officers", { name: "", role: "", contact: "", email: "" })
+                  addListItem("officers", {
+                    name: "",
+                    role: "",
+                    contact: "",
+                    email: "",
+                  })
                 }
               >
                 + Add Officer

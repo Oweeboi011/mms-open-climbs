@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   collection,
   query,
@@ -262,6 +263,11 @@ export default function Analytics() {
     <div className="admin-layout">
       <Header />
       <main className="admin-main">
+        <div className="admin-breadcrumb">
+          <Link to="/admin">Dashboard</Link>
+          <span className="admin-breadcrumb-sep">/</span>
+          <span>Analytics</span>
+        </div>
         <div className="admin-page-header">
           <div>
             <div className="admin-page-title">Site Analytics</div>
@@ -270,6 +276,9 @@ export default function Analytics() {
               {MAX_VIEWS.toLocaleString()} records
             </div>
           </div>
+          <Link to="/admin" className="btn btn-outline btn-sm">
+            &larr; Back to Admin
+          </Link>
         </div>
 
         {/* Volume Stats */}

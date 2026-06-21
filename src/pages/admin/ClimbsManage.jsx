@@ -61,9 +61,14 @@ export default function AdminClimbsManage() {
               {climbs.length} climb{climbs.length !== 1 ? "s" : ""} total
             </div>
           </div>
-          <Link to="/admin/climbs/new" className="btn btn-primary">
-            + New Climb
-          </Link>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link to="/admin" className="btn btn-outline btn-sm">
+              &larr; Back to Admin
+            </Link>
+            <Link to="/admin/climbs/new" className="btn btn-primary">
+              + New Climb
+            </Link>
+          </div>
         </div>
 
         <div className="admin-search">
@@ -87,9 +92,13 @@ export default function AdminClimbsManage() {
                   <th>Climb</th>
                   <th style={{ width: "1%" }}>Date</th>
                   <th style={{ width: "1%" }}>Type</th>
-                  <th style={{ width: "1%", whiteSpace: "nowrap" }}>Elevation</th>
+                  <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                    Elevation
+                  </th>
                   <th style={{ width: "1%" }}>Difficulty</th>
-                  <th style={{ width: "1%", whiteSpace: "nowrap" }}>Distance (RT)</th>
+                  <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                    Distance (RT)
+                  </th>
                   <th style={{ width: "1%" }}>Slots</th>
                   <th>Status</th>
                   <th>Officers</th>
@@ -131,14 +140,28 @@ export default function AdminClimbsManage() {
                         <td style={{ textTransform: "capitalize" }}>
                           {climb.type}
                         </td>
-                        <td style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }}>
-                          {climb.elevation ? <span style={{ fontWeight: 600 }}>{climb.elevation}m</span> : <span style={{ color: "var(--ink-soft)" }}>—</span>}
+                        <td
+                          style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }}
+                        >
+                          {climb.elevation ? (
+                            <span style={{ fontWeight: 600 }}>
+                              {climb.elevation}m
+                            </span>
+                          ) : (
+                            <span style={{ color: "var(--ink-soft)" }}>—</span>
+                          )}
                         </td>
                         <td style={{ fontSize: "0.82rem" }}>
-                          {climb.difficulty || <span style={{ color: "var(--ink-soft)" }}>—</span>}
+                          {climb.difficulty || (
+                            <span style={{ color: "var(--ink-soft)" }}>—</span>
+                          )}
                         </td>
-                        <td style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }}>
-                          {climb.roundTripDistance || <span style={{ color: "var(--ink-soft)" }}>—</span>}
+                        <td
+                          style={{ fontSize: "0.82rem", whiteSpace: "nowrap" }}
+                        >
+                          {climb.roundTripDistance || (
+                            <span style={{ color: "var(--ink-soft)" }}>—</span>
+                          )}
                         </td>
                         <td>
                           <span style={{ fontWeight: 600 }}>
@@ -179,20 +202,44 @@ export default function AdminClimbsManage() {
                         </td>
                         <td>
                           {climb.officers?.length > 0 ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 3,
+                              }}
+                            >
                               {climb.officers.map((o, i) => (
                                 <div key={i} style={{ fontSize: "0.78rem" }}>
-                                  <span style={{ fontWeight: 700 }}>{o.name}</span>
-                                  {o.role && <span style={{ color: "var(--ink-soft)", marginLeft: 4 }}>({o.role})</span>}
+                                  <span style={{ fontWeight: 700 }}>
+                                    {o.name}
+                                  </span>
+                                  {o.role && (
+                                    <span
+                                      style={{
+                                        color: "var(--ink-soft)",
+                                        marginLeft: 4,
+                                      }}
+                                    >
+                                      ({o.role})
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <span style={{
-                              display: "inline-block", padding: "2px 8px", borderRadius: 20,
-                              fontSize: "0.68rem", fontWeight: 700,
-                              background: "#fce8e8", color: "#b91c1c", border: "1px solid #fca5a5",
-                            }}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "2px 8px",
+                                borderRadius: 20,
+                                fontSize: "0.68rem",
+                                fontWeight: 700,
+                                background: "#fce8e8",
+                                color: "#b91c1c",
+                                border: "1px solid #fca5a5",
+                              }}
+                            >
                               None
                             </span>
                           )}
