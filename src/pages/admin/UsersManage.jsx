@@ -127,9 +127,12 @@ export default function AdminUsersManage() {
     setCreateOk("");
     setCreating(true);
     try {
-      await createUserFn(newUser);
+      const result = await createUserFn(newUser);
+      const emailSent = result.data?.emailSent !== false;
       setCreateOk(
-        `Account created for ${newUser.email}. A welcome email with setup link has been sent.`,
+        emailSent
+          ? `Account created for ${newUser.email}. A welcome email with setup link has been sent.`
+          : `Account created for ${newUser.email}, but the welcome email could not be sent. Ask the user to use "Forgot Password" to set their password.`,
       );
       setNewUser({ email: "", displayName: "", role: "member" });
     } catch (err) {

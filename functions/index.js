@@ -419,14 +419,20 @@ exports.createUser = onCall(
       url: `${appUrl}/login`,
     });
 
-    await sendEmail({
-      to: email,
-      toName: displayName,
-      subject: "Welcome to MMS Open Climbs 2026 — Set Up Your Account",
-      html: tplWelcome({ displayName, setupLink }),
-    });
+    let emailSent = true;
+    try {
+      await sendEmail({
+        to: email,
+        toName: displayName,
+        subject: "Welcome to MMS Open Climbs 2026 — Set Up Your Account",
+        html: tplWelcome({ displayName, setupLink }),
+      });
+    } catch (emailErr) {
+      emailSent = false;
+      console.error(`[createUser] Welcome email failed for ${email}:`, emailErr);
+    }
 
-    console.log(`[createUser] Created user ${email} (role: ${role})`);
-    return { uid: userRecord.uid };
+    console.log(`[createUser] Created user ${email} (role: ${role}), emailSent=${emailSent}`);
+    return { uid: userRecord.uid, emailSent };
   },
 );
