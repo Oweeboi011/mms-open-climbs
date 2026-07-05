@@ -37,10 +37,12 @@ npm --prefix functions run serve      # Functions emulator
 firebase emulators:start --only auth,firestore,functions
 # Emulator UI: http://localhost:4000
 
-# Terminal 2
+# Terminal 2 — set VITE_USE_FIREBASE_EMULATOR=true in .env first
 npm run dev
 # App: http://localhost:5173
 ```
+
+`src/firebase/config.js` only connects to local emulators when `VITE_USE_FIREBASE_EMULATOR=true` is set in `.env` (in addition to running in dev mode) — without it, `npm run dev` talks to the real Firebase project.
 
 ### Run a single test file
 

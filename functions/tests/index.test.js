@@ -294,7 +294,7 @@ describe("createUser callable — auth guard", () => {
       auth: { uid: "admin-1" },
       data: { email: "new@new.com", displayName: "New User", role: "member" },
     });
-    expect(result).toEqual({ uid: "new-u" });
+    expect(result).toEqual({ uid: "new-u", emailSent: true });
     expect(mockAdminAuth.createUser).toHaveBeenCalledWith({
       email: "new@new.com",
       displayName: "New User",

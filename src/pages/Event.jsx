@@ -466,19 +466,15 @@ export default function Event() {
   const mapsPlaceName = parseGoogleMapsPlace(climb.googleMapsUrl);
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const mapsEmbedSrc = (() => {
-    if (googleMapsApiKey) {
-      if (mapCoords) {
-        return `https://www.google.com/maps/embed/v1/view?key=${googleMapsApiKey}&center=${mapCoords.lat},${mapCoords.lng}&zoom=${mapCoords.zoom}`;
-      }
-      if (mapsPlaceName) {
-        return `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${encodeURIComponent(mapsPlaceName)}`;
-      }
-    }
     if (mapsPlaceName) {
-      return `https://maps.google.com/maps?q=${encodeURIComponent(mapsPlaceName)}&output=embed`;
+      return googleMapsApiKey
+        ? `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${encodeURIComponent(mapsPlaceName)}`
+        : `https://maps.google.com/maps?q=${encodeURIComponent(mapsPlaceName)}&output=embed`;
     }
     if (mapCoords) {
-      return `https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=${mapCoords.zoom}&output=embed`;
+      return googleMapsApiKey
+        ? `https://www.google.com/maps/embed/v1/view?key=${googleMapsApiKey}&center=${mapCoords.lat},${mapCoords.lng}&zoom=${mapCoords.zoom}`
+        : `https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=${mapCoords.zoom}&output=embed`;
     }
     return null;
   })();

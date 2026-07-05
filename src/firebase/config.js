@@ -22,7 +22,7 @@ export const functions = getFunctions(app);
 export const storage   = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, 'localhost', 8080);
   connectFunctionsEmulator(functions, 'localhost', 5001);
