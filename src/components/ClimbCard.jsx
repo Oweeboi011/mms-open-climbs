@@ -7,10 +7,40 @@ const BADGE_CLASS = {
 };
 const TYPE_LABEL = { minor: "Minor", major: "Major", special: "Special" };
 
+const STATUS_LABEL = {
+  open: "Open",
+  closed: "Closed",
+  completed: "Completed",
+  draft: "Draft",
+};
+const STATUS_CLASS = {
+  open: "card-status-open",
+  closed: "card-status-closed",
+  completed: "card-status-completed",
+  draft: "card-status-closed",
+};
+
+function toDate(value) {
+  if (!value) return null;
+  return value.toDate ? value.toDate() : new Date(value);
+}
+
+function isClimbOngoing(climb) {
+  const start = toDate(climb.startDate);
+  if (!start) return false;
+  const end = toDate(climb.endDate) || start;
+  const today = new Date();
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return todayDay >= startDay && todayDay <= endDay;
+}
+
 export default function ClimbCard({ climb }) {
   const seatsLeft = climb.maxParticipants - (climb.registrationCount ?? 0);
   const isFull = seatsLeft <= 0;
   const isLow = seatsLeft > 0 && seatsLeft <= 5;
+  const isOngoing = climb.status !== "completed" && isClimbOngoing(climb);
 
   return (
     <Link
@@ -58,14 +88,29 @@ export default function ClimbCard({ climb }) {
               &#9888; {seatsLeft} seat{seatsLeft !== 1 ? "s" : ""} left
             </span>
           )}
+          {isOngoing && (
+            <span
+              className="card-status-tag card-status-ongoing"
+              style={{ marginLeft: 4 }}
+            >
+              &#128992; Happening Now
+            </span>
+          )}
         </div>
 
         <div className="card-footer">
-          <span
-            className={`card-badge ${BADGE_CLASS[climb.type] || "badge-minor"}`}
-          >
-            {TYPE_LABEL[climb.type] || climb.type}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span
+              className={`card-badge ${BADGE_CLASS[climb.type] || "badge-minor"}`}
+            >
+              {TYPE_LABEL[climb.type] || climb.type}
+            </span>
+            <span
+              className={`card-status-tag ${STATUS_CLASS[climb.status] || "card-status-open"}`}
+            >
+              {STATUS_LABEL[climb.status] || climb.status}
+            </span>
+          </div>
           <span className="card-arrow">&#8594;</span>
         </div>
       </div>
