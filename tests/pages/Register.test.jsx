@@ -3,10 +3,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { renderAtRoute, makeMemberAuth, climbFixture } from "@/test/helpers";
+import { renderAtRoute, makeMemberAuth, climbFixture } from "@tests/helpers";
 import Register from "@/pages/Register";
 import { getDoc, getDocs } from "firebase/firestore";
-import { makeSnapshot, makeQuerySnapshot } from "@/test/setup";
+import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 
 function render(authOverrides = {}) {
   return renderAtRoute(

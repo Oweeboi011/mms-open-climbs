@@ -8,10 +8,10 @@ import {
   makeMemberAuth,
   makeAdminAuth,
   registrationFixture,
-} from "@/test/helpers";
+} from "@tests/helpers";
 import WaiverPrint from "@/pages/WaiverPrint";
 import { getDoc } from "firebase/firestore";
-import { makeSnapshot } from "@/test/setup";
+import { makeSnapshot } from "@tests/setup";
 
 const regData = {
   ...registrationFixture,

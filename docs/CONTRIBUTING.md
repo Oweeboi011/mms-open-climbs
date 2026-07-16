@@ -271,9 +271,9 @@ ADRs follow the template in `docs/adr/`. Do not edit the template itself.
 
 See [TESTING.md](TESTING.md) for the full guide. Key requirements for contributors:
 
-- New components must have corresponding tests in `src/tests/`.
+- New components must have corresponding tests in `tests/`.
 - New Cloud Function logic must have corresponding tests in `functions/tests/`.
-- Use the shared render helper `src/test/helpers.jsx` to wrap components with required providers.
+- Use the shared render helper `tests/helpers.jsx` to wrap components with required providers.
 - Do not reduce coverage for lines you change. The `npm run test:strict` gate will fail if coverage drops.
 
 ---

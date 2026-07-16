@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { screen } from "@testing-library/react";
 import NotFound from "@/pages/NotFound";
-import { renderWithProviders, makeGuestAuth } from "@/test/helpers";
+import { renderWithProviders, makeGuestAuth } from "@tests/helpers";
 
 describe("NotFound page", () => {
   it("renders a 404 heading", () => {

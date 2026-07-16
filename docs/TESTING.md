@@ -18,7 +18,7 @@
 
 MMS Open Climbs uses two test frameworks in parallel:
 
-- **Vitest** with **Testing Library** for the React frontend (`src/tests/`)
+- **Vitest** with **Testing Library** for the React frontend (`tests/`)
 - **Jest** for the Cloud Functions backend (`functions/tests/`)
 
 All tests can be run locally and are designed to run without a live Firebase project by using mocks for Firebase SDK calls.
@@ -30,9 +30,9 @@ All tests can be run locally and are designed to run without a live Firebase pro
 ```mermaid
 graph TD
     subgraph Frontend["Frontend Tests (Vitest + Testing Library)"]
-        FT["src/tests/\nComponent, page, context tests"]
-        FH["src/test/helpers.jsx\nShared render utilities and mock providers"]
-        FS["src/test/setup.js\nGlobal jest-dom matchers"]
+        FT["tests/\nComponent, page, context tests"]
+        FH["tests/helpers.jsx\nShared render utilities and mock providers"]
+        FS["tests/setup.js\nGlobal jest-dom matchers"]
     end
 
     subgraph Functions["Cloud Function Tests (Jest)"]
@@ -177,7 +177,7 @@ Raw LCOV data is at `coverage/lcov.info` and `functions/coverage/lcov.info` for 
 
 ### Render helper
 
-All component and page tests use the shared render helper in `src/test/helpers.jsx`. This wraps components with the required React providers (AuthContext, GuideContext, BrowserRouter) and accepts optional mock overrides.
+All component and page tests use the shared render helper in `tests/helpers.jsx`. This wraps components with the required React providers (AuthContext, GuideContext, BrowserRouter) and accepts optional mock overrides.
 
 ```jsx
 import { renderWithProviders } from "../helpers";
@@ -233,7 +233,7 @@ test("renders admin dashboard for admin user", () => {
 
 - Use `getByRole`, `getByLabelText`, and `getByText` over `getByTestId` where possible (accessibility-first queries).
 - Test behavior from a user's perspective, not implementation details.
-- Mock Firebase SDK calls in `src/test/setup.js` — do not make real Firestore or Auth calls in tests.
+- Mock Firebase SDK calls in `tests/setup.js` — do not make real Firestore or Auth calls in tests.
 - Each test file corresponds to one source file. Name tests descriptively.
 
 ---
@@ -245,7 +245,7 @@ Function tests live in `functions/tests/index.test.js`. They use Jest and mock t
 ### Trigger test pattern
 
 ```js
-const { onRegistrationCreated } = require("../index");
+const { onRegistrationCreated } = require("../src/index");
 
 describe("onRegistrationCreated", () => {
   it("increments registrationCount on the climb", async () => {
@@ -297,7 +297,7 @@ describe("createUser callable", () => {
 
 ```mermaid
 graph TD
-    subgraph Frontend["Frontend Mocks (src/test/setup.js)"]
+    subgraph Frontend["Frontend Mocks (tests/setup.js)"]
         M1["firebase/app\nviMock — returns mock app"]
         M2["firebase/auth\nviMock — returns mock auth, signIn, signOut"]
         M3["firebase/firestore\nviMock — returns mock db, getDoc, setDoc, onSnapshot"]

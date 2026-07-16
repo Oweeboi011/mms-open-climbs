@@ -4,9 +4,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { addDoc, getDocs } from "firebase/firestore";
-import { renderAtRoute, makeAdminAuth } from "@/test/helpers";
+import { renderAtRoute, makeAdminAuth } from "@tests/helpers";
 import AdminClimbForm from "@/pages/admin/ClimbForm";
-import { makeQuerySnapshot } from "@/test/setup";
+import { makeQuerySnapshot } from "@tests/setup";
 
 describe("Admin ClimbForm", () => {
   beforeEach(() => {

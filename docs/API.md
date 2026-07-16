@@ -288,7 +288,7 @@ flowchart LR
 
 ## Email Templates
 
-All email templates are rendered server-side inside Cloud Functions and sent via Brevo. Templates are defined in `functions/index.js`.
+All email templates are rendered server-side inside Cloud Functions and sent via Brevo. Templates are defined in `functions/src/index.js`.
 
 ```mermaid
 graph TD

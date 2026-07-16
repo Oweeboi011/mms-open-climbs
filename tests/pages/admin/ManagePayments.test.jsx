@@ -7,10 +7,10 @@ import {
   renderWithProviders,
   makeAdminAuth,
   registrationFixture,
-} from "@/test/helpers";
+} from "@tests/helpers";
 import ManagePayments from "@/pages/admin/ManagePayments";
 import { onSnapshot, getDocs } from "firebase/firestore";
-import { makeQuerySnapshot } from "@/test/setup";
+import { makeQuerySnapshot } from "@tests/setup";
 
 const paymentReg = {
   id: "pay-1",
