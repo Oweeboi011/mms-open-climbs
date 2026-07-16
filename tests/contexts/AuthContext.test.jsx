@@ -24,7 +24,7 @@ import {
 } from "firebase/auth";
 import { getDoc, setDoc } from "firebase/firestore";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { makeSnapshot } from "@/test/setup";
+import { makeSnapshot } from "@tests/setup";
 
 // A minimal consumer component that exposes context values via data-testid
 function Consumer() {

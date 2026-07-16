@@ -8,10 +8,10 @@ import {
   makeAdminAuth,
   registrationFixture,
   climbFixture,
-} from "@/test/helpers";
+} from "@tests/helpers";
 import AllRegistrations from "@/pages/admin/AllRegistrations";
 import { onSnapshot, getDocs } from "firebase/firestore";
-import { makeQuerySnapshot } from "@/test/setup";
+import { makeQuerySnapshot } from "@tests/setup";
 
 const regDoc = { id: registrationFixture.id, data: { ...registrationFixture } };
 const regDoc2 = {

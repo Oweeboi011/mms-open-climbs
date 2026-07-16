@@ -47,7 +47,7 @@ npm run dev
 ### Run a single test file
 
 ```bash
-npx vitest run src/tests/SomeComponent.test.jsx
+npx vitest run tests/SomeComponent.test.jsx
 ```
 
 ### Admin setup
@@ -68,7 +68,7 @@ node scripts/purge-admin-pageviews.mjs     # Maintenance: clean admin page views
 - `src/firebase/config.js` — Firebase SDK init; exports `db`, `auth`, `storage`. Note: connects to the named database `"openclimbs"`, not the default.
 - `src/contexts/AuthContext.jsx` — manages Firebase Auth lifecycle, creates `users/` Firestore doc on signup, handles Google OAuth redirect fallback
 - `src/contexts/GuideContext.jsx` — guide/officer state
-- `functions/index.js` — all Cloud Functions: document triggers send transactional email via Brevo on registration create/update; callable functions for admin ops
+- `functions/src/index.js` — all Cloud Functions: document triggers send transactional email via Brevo on registration create/update; callable functions for admin ops
 
 ### Routes
 
@@ -92,9 +92,9 @@ Cloud Functions use Brevo API v3. Brevo credentials are Firebase secrets (not `.
 
 ## Testing
 
-Frontend tests use **Vitest + Testing Library** with a jsdom environment. All Firebase SDK modules are globally mocked in `src/test/setup.js` — tests never make real Firestore calls.
+Frontend tests use **Vitest + Testing Library** with a jsdom environment. All Firebase SDK modules are globally mocked in `tests/setup.js` — tests never make real Firestore calls.
 
-- Wrap components with `renderWithProviders()` from `src/test/helpers.jsx` to get `AuthContext` + `GuideContext`.
+- Wrap components with `renderWithProviders()` from `tests/helpers.jsx` to get `AuthContext` + `GuideContext`.
 - Use `climbFixture` and other fixtures from helpers for test data.
 - Coverage thresholds are enforced in `vite.config.js`: ~45% lines/statements, ~35% functions, ~34% branches.
 

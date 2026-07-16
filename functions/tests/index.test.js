@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Tests for Firebase Cloud Functions (functions/index.js).
+ * Tests for Firebase Cloud Functions (functions/src/index.js).
  *
  * Strategy: We test the business-logic helpers in isolation by extracting them
  * from the module via rewired mocks.  The actual Firebase trigger wrappers
@@ -35,6 +35,8 @@ mockDb.doc.mockReturnValue(mockDb);
 const mockAdminAuth = {
   createUser: jest.fn(),
   generatePasswordResetLink: jest.fn().mockResolvedValue("https://reset.link"),
+  getUserByEmail: jest.fn(),
+  deleteUser: jest.fn().mockResolvedValue(),
 };
 
 jest.mock("firebase-admin/app", () => ({ initializeApp: jest.fn() }));
@@ -243,10 +245,11 @@ describe("createUser callable — auth guard", () => {
     mockAdminAuth.generatePasswordResetLink.mockResolvedValue(
       "https://reset.link",
     );
+    mockAdminAuth.deleteUser.mockResolvedValue();
   });
 
   it("throws unauthenticated when request has no auth", async () => {
-    const handler = require("../index").createUser;
+    const handler = require("../src/index").createUser;
     await expect(handler({ auth: null, data: {} })).rejects.toMatchObject({
       code: "unauthenticated",
     });
@@ -257,7 +260,7 @@ describe("createUser callable — auth guard", () => {
       exists: true,
       data: () => ({ role: "member" }),
     });
-    const handler = require("../index").createUser;
+    const handler = require("../src/index").createUser;
     await expect(
       handler({
         auth: { uid: "u1" },
@@ -271,7 +274,7 @@ describe("createUser callable — auth guard", () => {
       exists: true,
       data: () => ({ role: "admin" }),
     });
-    const handler = require("../index").createUser;
+    const handler = require("../src/index").createUser;
     await expect(
       handler({ auth: { uid: "admin-1" }, data: { displayName: "No Email" } }),
     ).rejects.toMatchObject({ code: "invalid-argument" });
@@ -289,7 +292,7 @@ describe("createUser callable — auth guard", () => {
       .fn()
       .mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
 
-    const handler = require("../index").createUser;
+    const handler = require("../src/index").createUser;
     const result = await handler({
       auth: { uid: "admin-1" },
       data: { email: "new@new.com", displayName: "New User", role: "member" },
@@ -300,5 +303,90 @@ describe("createUser callable — auth guard", () => {
       displayName: "New User",
     });
     expect(mockDb.set).toHaveBeenCalled();
+  });
+
+  it("self-heals an orphaned Auth account with no Firestore profile", async () => {
+    mockDb.get
+      .mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) })
+      .mockResolvedValueOnce({ exists: false });
+    mockAdminAuth.createUser.mockRejectedValueOnce({
+      code: "auth/email-already-exists",
+    });
+    mockAdminAuth.getUserByEmail.mockResolvedValueOnce({ uid: "orphan-uid" });
+    process.env.BREVO_API_KEY = "k";
+    process.env.BREVO_FROM_EMAIL = "noreply@mms.ph";
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+
+    const handler = require("../src/index").createUser;
+    const result = await handler({
+      auth: { uid: "admin-1" },
+      data: { email: "orphan@old.com", displayName: "Orphan", role: "member" },
+    });
+
+    expect(result).toEqual({ uid: "orphan-uid", emailSent: true });
+    expect(mockDb.doc).toHaveBeenCalledWith("users/orphan-uid");
+    expect(mockDb.set).toHaveBeenCalled();
+    expect(mockAdminAuth.generatePasswordResetLink).toHaveBeenCalled();
+    expect(mockAdminAuth.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("throws already-exists when the Auth account has a real Firestore profile", async () => {
+    mockDb.get
+      .mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ role: "member" }),
+      });
+    mockAdminAuth.createUser.mockRejectedValueOnce({
+      code: "auth/email-already-exists",
+    });
+    mockAdminAuth.getUserByEmail.mockResolvedValueOnce({
+      uid: "existing-uid",
+    });
+
+    const handler = require("../src/index").createUser;
+    await expect(
+      handler({
+        auth: { uid: "admin-1" },
+        data: { email: "real@existing.com", displayName: "Real" },
+      }),
+    ).rejects.toMatchObject({ code: "already-exists" });
+    expect(mockDb.set).not.toHaveBeenCalled();
+    expect(mockAdminAuth.generatePasswordResetLink).not.toHaveBeenCalled();
+  });
+
+  it("rolls back the Auth user when the Firestore write fails right after creation", async () => {
+    mockDb.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ role: "admin" }),
+    });
+    mockAdminAuth.createUser.mockResolvedValueOnce({ uid: "fresh-uid" });
+    mockDb.set.mockRejectedValueOnce(new Error("firestore down"));
+
+    const handler = require("../src/index").createUser;
+    await expect(
+      handler({
+        auth: { uid: "admin-1" },
+        data: { email: "fresh@new.com", displayName: "Fresh" },
+      }),
+    ).rejects.toMatchObject({ code: "internal" });
+    expect(mockAdminAuth.deleteUser).toHaveBeenCalledWith("fresh-uid");
+  });
+
+  it("surfaces a real message when the admin-role check throws a plain error", async () => {
+    mockDb.get.mockRejectedValueOnce(new Error("firestore unavailable"));
+
+    const handler = require("../src/index").createUser;
+    await expect(
+      handler({
+        auth: { uid: "admin-1" },
+        data: { email: "x@x.com", displayName: "X" },
+      }),
+    ).rejects.toMatchObject({
+      code: "internal",
+      message: expect.stringContaining("firestore unavailable"),
+    });
   });
 });

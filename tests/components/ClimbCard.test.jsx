@@ -14,7 +14,7 @@
 import { describe, it, expect } from "vitest";
 import { screen } from "@testing-library/react";
 import ClimbCard from "@/components/ClimbCard";
-import { renderWithProviders, climbFixture } from "@/test/helpers";
+import { renderWithProviders, climbFixture } from "@tests/helpers";
 
 function render(props = {}) {
   return renderWithProviders(

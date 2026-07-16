@@ -6,7 +6,7 @@ module.exports = {
   testMatch: ["**/tests/**/*.test.js"],
   clearMocks: true,
   resetMocks: true,
-  collectCoverageFrom: ["index.js"],
+  collectCoverageFrom: ["src/index.js"],
   coverageReporters: ["text", "lcov", "html"],
   coverageThreshold: {
     global: {

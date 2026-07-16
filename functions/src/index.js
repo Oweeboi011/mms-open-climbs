@@ -6,6 +6,7 @@ const {
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -21,7 +22,7 @@ async function sendEmail({ to, toName, subject, html, cc = [] }) {
   const fromEmail = process.env.BREVO_FROM_EMAIL;
 
   if (!apiKey || !fromEmail) {
-    console.error(
+    logger.error(
       "Brevo credentials not configured (BREVO_API_KEY / BREVO_FROM_EMAIL)",
     );
     return;
@@ -201,7 +202,7 @@ exports.onRegistrationCreated = onDocumentCreated(
     try {
       const climbSnap = await db.doc(`climbs/${climbId}`).get();
       if (!climbSnap.exists) {
-        console.warn(`Climb ${climbId} not found`);
+        logger.warn("Climb not found", { climbId });
         return;
       }
       const climb = climbSnap.data();
@@ -268,11 +269,14 @@ exports.onRegistrationCreated = onDocumentCreated(
         });
       }
 
-      console.log(
-        `[onRegistrationCreated] Confirmation sent to ${email}; notified ${officerEmails.length} officer(s), ${adminEmails.length} admin(s) for "${climb.title}"`,
-      );
+      logger.info("[onRegistrationCreated] Confirmation sent", {
+        email,
+        officerCount: officerEmails.length,
+        adminCount: adminEmails.length,
+        climbTitle: climb.title,
+      });
     } catch (err) {
-      console.error("[onRegistrationCreated]", err);
+      logger.error("[onRegistrationCreated] Failed", { err: err.message });
     }
   },
 );
@@ -358,11 +362,14 @@ exports.onRegistrationUpdated = onDocumentUpdated(
         });
       }
 
-      console.log(
-        `[onRegistrationUpdated] Status "${after.status}" email sent to ${after.email}; notified ${officerEmails.length} officer(s), ${adminEmails.length} admin(s)`,
-      );
+      logger.info("[onRegistrationUpdated] Status email sent", {
+        status: after.status,
+        email: after.email,
+        officerCount: officerEmails.length,
+        adminCount: adminEmails.length,
+      });
     } catch (err) {
-      console.error("[onRegistrationUpdated]", err);
+      logger.error("[onRegistrationUpdated] Failed", { err: err.message });
     }
   },
 );
@@ -375,64 +382,118 @@ exports.createUser = onCall(
     if (!callerUid)
       throw new HttpsError("unauthenticated", "You must be signed in.");
 
-    const callerSnap = await db.doc(`users/${callerUid}`).get();
-    if (!callerSnap.exists || callerSnap.data().role !== "admin") {
-      throw new HttpsError(
-        "permission-denied",
-        "Only admins can create users.",
-      );
-    }
-
-    const { email, displayName, role = "member" } = request.data;
-    if (!email || !displayName) {
-      throw new HttpsError(
-        "invalid-argument",
-        "email and displayName are required.",
-      );
-    }
-
-    let userRecord;
+    // Everything below can throw a plain (non-HttpsError) exception — e.g. a
+    // transient Firestore/Auth error. onCall silently discards the message of
+    // any non-HttpsError it catches, so without this net the client would
+    // just see a bare, undiagnosable "internal" error.
     try {
-      userRecord = await adminAuth.createUser({ email, displayName });
-    } catch (err) {
-      if (err.code === "auth/email-already-exists") {
+      const callerSnap = await db.doc(`users/${callerUid}`).get();
+      if (!callerSnap.exists || callerSnap.data().role !== "admin") {
         throw new HttpsError(
-          "already-exists",
-          "An account with this email already exists.",
+          "permission-denied",
+          "Only admins can create users.",
         );
       }
-      throw new HttpsError("internal", err.message);
+
+      const { email, displayName, role = "member" } = request.data;
+      if (!email || !displayName) {
+        throw new HttpsError(
+          "invalid-argument",
+          "email and displayName are required.",
+        );
+      }
+
+      let userRecord;
+      let isFreshAccount = false;
+      try {
+        userRecord = await adminAuth.createUser({ email, displayName });
+        isFreshAccount = true;
+      } catch (err) {
+        if (err.code === "auth/email-already-exists") {
+          // The Auth account may be a real existing user, or it may be an
+          // orphan left behind by a previous invite that failed after the
+          // Auth user was created but before the Firestore profile was
+          // written. Self-heal the latter case instead of dead-ending.
+          let existingUser;
+          try {
+            existingUser = await adminAuth.getUserByEmail(email);
+          } catch (lookupErr) {
+            throw new HttpsError("internal", lookupErr.message);
+          }
+          const existingProfileSnap = await db
+            .doc(`users/${existingUser.uid}`)
+            .get();
+          if (existingProfileSnap.exists) {
+            throw new HttpsError(
+              "already-exists",
+              "An account with this email already exists.",
+            );
+          }
+          userRecord = existingUser;
+        } else {
+          throw new HttpsError("internal", err.message);
+        }
+      }
+
+      let setupLink;
+      try {
+        // Create Firestore user profile
+        await db.doc(`users/${userRecord.uid}`).set({
+          displayName,
+          email,
+          role,
+          createdAt: FieldValue.serverTimestamp(),
+          addedBy: callerUid,
+        });
+
+        // Generate password setup link (user sets their own password)
+        const appUrl =
+          process.env.APP_URL || "https://mms-open-climbs.web.app";
+        setupLink = await adminAuth.generatePasswordResetLink(email, {
+          url: `${appUrl}/login`,
+        });
+      } catch (err) {
+        if (isFreshAccount) {
+          try {
+            await adminAuth.deleteUser(userRecord.uid);
+          } catch (deleteErr) {
+            logger.error("[createUser] Failed to roll back orphaned Auth user", {
+              uid: userRecord.uid,
+              err: deleteErr.message,
+            });
+          }
+        }
+        if (err instanceof HttpsError) throw err;
+        throw new HttpsError("internal", err.message);
+      }
+
+      let emailSent = true;
+      try {
+        await sendEmail({
+          to: email,
+          toName: displayName,
+          subject: "Welcome to MMS Open Climbs 2026 — Set Up Your Account",
+          html: tplWelcome({ displayName, setupLink }),
+        });
+      } catch (emailErr) {
+        emailSent = false;
+        logger.error("[createUser] Welcome email failed", {
+          email,
+          err: emailErr.message,
+        });
+      }
+
+      logger.info("[createUser] Created user", { email, role, emailSent });
+      return { uid: userRecord.uid, emailSent };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      const refId =
+        Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      logger.error("[createUser] Unexpected error", { refId, err: err.message });
+      throw new HttpsError(
+        "internal",
+        `Unexpected error (ref ${refId}): ${err.message || String(err)}`,
+      );
     }
-
-    // Create Firestore user profile
-    await db.doc(`users/${userRecord.uid}`).set({
-      displayName,
-      email,
-      role,
-      createdAt: FieldValue.serverTimestamp(),
-      addedBy: callerUid,
-    });
-
-    // Generate password setup link (user sets their own password)
-    const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
-    const setupLink = await adminAuth.generatePasswordResetLink(email, {
-      url: `${appUrl}/login`,
-    });
-
-    let emailSent = true;
-    try {
-      await sendEmail({
-        to: email,
-        toName: displayName,
-        subject: "Welcome to MMS Open Climbs 2026 — Set Up Your Account",
-        html: tplWelcome({ displayName, setupLink }),
-      });
-    } catch (emailErr) {
-      emailSent = false;
-      console.error(`[createUser] Welcome email failed for ${email}:`, emailErr);
-    }
-
-    console.log(`[createUser] Created user ${email} (role: ${role}), emailSent=${emailSent}`);
-    return { uid: userRecord.uid, emailSent };
   },
 );

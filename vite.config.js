@@ -11,7 +11,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: ["./src/test/setup.js"],
+    setupFiles: ["./tests/setup.js"],
     css: false,
     // Exclude CommonJS Jest tests in functions/ — run those with `npm test` inside functions/
     exclude: ["**/node_modules/**", "**/functions/**"],
@@ -19,7 +19,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov", "html"],
       include: ["src/**/*.{js,jsx}"],
-      exclude: ["src/test/**", "src/main.jsx"],
+      exclude: ["src/main.jsx"],
       thresholds: {
         lines: 45,
         functions: 35,
@@ -33,6 +33,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+      "@tests": resolve(__dirname, "./tests"),
     },
   },
   build: {

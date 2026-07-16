@@ -4,7 +4,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import Signup from "@/pages/Signup";
-import { renderWithProviders, makeGuestAuth } from "@/test/helpers";
+import { renderWithProviders, makeGuestAuth } from "@tests/helpers";
 
 describe("Signup page", () => {
   function setup(authOverrides = {}) {

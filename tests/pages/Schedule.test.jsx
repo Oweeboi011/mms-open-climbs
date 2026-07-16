@@ -16,8 +16,8 @@ import {
   renderWithProviders,
   makeGuestAuth,
   climbFixture,
-} from "@/test/helpers";
-import { makeQuerySnapshot } from "@/test/setup";
+} from "@tests/helpers";
+import { makeQuerySnapshot } from "@tests/setup";
 
 const MAJOR_CLIMB = {
   ...climbFixture,

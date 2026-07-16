@@ -7,10 +7,10 @@ import {
   renderWithProviders,
   makeAdminAuth,
   climbFixture,
-} from "@/test/helpers";
+} from "@tests/helpers";
 import Dashboard from "@/pages/admin/Dashboard";
 import { onSnapshot, getDocs, getCountFromServer } from "firebase/firestore";
-import { makeQuerySnapshot } from "@/test/setup";
+import { makeQuerySnapshot } from "@tests/setup";
 
 const climbDoc = { id: climbFixture.id, data: { ...climbFixture } };
 const regDoc = {

@@ -8,10 +8,10 @@ import {
   makeAdminAuth,
   climbFixture,
   registrationFixture,
-} from "@/test/helpers";
+} from "@tests/helpers";
 import ClimbDetail from "@/pages/admin/ClimbDetail";
 import { getDoc, onSnapshot } from "firebase/firestore";
-import { makeSnapshot, makeQuerySnapshot } from "@/test/setup";
+import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 
 describe("Admin ClimbDetail", () => {
   beforeEach(() => {

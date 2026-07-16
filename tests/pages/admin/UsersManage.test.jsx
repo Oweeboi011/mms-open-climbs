@@ -3,10 +3,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { renderWithProviders, makeAdminAuth } from "@/test/helpers";
+import { renderWithProviders, makeAdminAuth } from "@tests/helpers";
 import AdminUsersManage from "@/pages/admin/UsersManage";
 import { onSnapshot } from "firebase/firestore";
-import { makeQuerySnapshot } from "@/test/setup";
+import { makeQuerySnapshot } from "@tests/setup";
 
 const userDoc = {
   id: "user-1",

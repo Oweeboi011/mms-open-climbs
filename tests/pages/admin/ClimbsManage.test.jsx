@@ -7,10 +7,10 @@ import {
   renderWithProviders,
   makeAdminAuth,
   climbFixture,
-} from "@/test/helpers";
+} from "@tests/helpers";
 import AdminClimbsManage from "@/pages/admin/ClimbsManage";
 import { onSnapshot, updateDoc } from "firebase/firestore";
-import { makeQuerySnapshot } from "@/test/setup";
+import { makeQuerySnapshot } from "@tests/setup";
 
 const climbDoc = {
   id: climbFixture.id,

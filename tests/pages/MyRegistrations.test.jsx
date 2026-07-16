@@ -16,8 +16,8 @@ import {
   renderWithProviders,
   makeMemberAuth,
   registrationFixture,
-} from "@/test/helpers";
-import { makeQuerySnapshot } from "@/test/setup";
+} from "@tests/helpers";
+import { makeQuerySnapshot } from "@tests/setup";
 
 describe("MyRegistrations page", () => {
   beforeEach(() => {

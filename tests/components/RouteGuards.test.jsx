@@ -13,7 +13,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AuthContext } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
-import { makeGuestAuth, makeMemberAuth, makeAdminAuth } from "@/test/helpers";
+import { makeGuestAuth, makeMemberAuth, makeAdminAuth } from "@tests/helpers";
 
 function renderRoutes(authValue, Component) {
   return render(

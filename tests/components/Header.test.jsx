@@ -16,7 +16,7 @@ import {
   makeGuestAuth,
   makeMemberAuth,
   makeAdminAuth,
-} from "@/test/helpers";
+} from "@tests/helpers";
 
 describe("Header — guest", () => {
   it("shows Sign In and Join links", () => {

@@ -17,6 +17,60 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 
 const createUserFn = httpsCallable(functions, "createUser");
 
+const CREATE_USER_ERROR_INFO = {
+  "already-exists": {
+    title: "Account Already Exists",
+    message: "An account with this email address already exists in the system.",
+    nextStep:
+      "Check the Users list to see if this person is already registered. If they can't log in, ask them to use \"Forgot Password\" on the login page instead of creating a new account.",
+  },
+  "permission-denied": {
+    title: "Not Authorized",
+    message: "Only admin accounts are allowed to create new users.",
+    nextStep:
+      "Confirm your account has the admin role. If you believe this is a mistake, ask another admin to check your role under Users management.",
+  },
+  "invalid-argument": {
+    title: "Missing Information",
+    message: "Email address and full name are both required to create an account.",
+    nextStep: "Fill in both fields and try submitting again.",
+  },
+  unauthenticated: {
+    title: "Session Expired",
+    message: "You are no longer signed in.",
+    nextStep: "Log out and log back in, then try creating the account again.",
+  },
+  unavailable: {
+    title: "Connection Problem",
+    message: "Couldn't reach the server to create this account.",
+    nextStep: "Check your internet connection and try again in a moment.",
+  },
+  "deadline-exceeded": {
+    title: "Request Timed Out",
+    message: "The server took too long to respond.",
+    nextStep: "Try again. If it keeps timing out, contact tech support.",
+  },
+  internal: {
+    title: "Server Error",
+    message: "Something went wrong on the server while creating this account.",
+    nextStep:
+      "Wait a moment and try again. If the problem continues, contact tech support and mention the email address you were trying to add.",
+  },
+};
+
+function describeCreateUserError(err) {
+  const code = (err?.code || "").replace(/^functions\//, "");
+  const known = CREATE_USER_ERROR_INFO[code];
+  if (known) return { ...known, raw: err?.message };
+  return {
+    title: "Something Went Wrong",
+    message: err?.message || "An unexpected error occurred.",
+    nextStep:
+      "Try again. If this keeps happening, contact tech support with a description of what you were doing.",
+    raw: err?.message,
+  };
+}
+
 const ROLE_STYLE = {
   admin: {
     background: "#fef3c7",
@@ -65,7 +119,7 @@ export default function AdminUsersManage() {
     role: "member",
   });
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState("");
+  const [createError, setCreateError] = useState(null);
   const [createOk, setCreateOk] = useState("");
 
   useEffect(() => {
@@ -123,7 +177,7 @@ export default function AdminUsersManage() {
 
   async function handleCreateUser(e) {
     e.preventDefault();
-    setCreateError("");
+    setCreateError(null);
     setCreateOk("");
     setCreating(true);
     try {
@@ -136,7 +190,7 @@ export default function AdminUsersManage() {
       );
       setNewUser({ email: "", displayName: "", role: "member" });
     } catch (err) {
-      setCreateError(err.message || "Failed to create user.");
+      setCreateError(describeCreateUserError(err));
     } finally {
       setCreating(false);
     }
@@ -173,7 +227,7 @@ export default function AdminUsersManage() {
               className="btn btn-primary"
               onClick={() => {
                 setShowAddModal(true);
-                setCreateError("");
+                setCreateError(null);
                 setCreateOk("");
               }}
               title="Create a new user account and send them a welcome email"
@@ -220,9 +274,6 @@ export default function AdminUsersManage() {
               >
                 Add New User
               </h2>
-              {createError && (
-                <div className="alert alert-error">{createError}</div>
-              )}
               {createOk && (
                 <div className="alert alert-success">{createOk}</div>
               )}
@@ -288,6 +339,96 @@ export default function AdminUsersManage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ── Create User Error Modal ── */}
+        {createError && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              zIndex: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 20,
+            }}
+            onClick={() => setCreateError(null)}
+          >
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "var(--radius-lg)",
+                padding: 32,
+                width: "100%",
+                maxWidth: 420,
+                boxShadow: "var(--shadow-lg)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2
+                style={{
+                  fontFamily: "var(--font-head)",
+                  fontSize: "1.15rem",
+                  fontWeight: 900,
+                  letterSpacing: 1,
+                  marginBottom: 14,
+                  color: "#b91c1c",
+                }}
+              >
+                {createError.title}
+              </h2>
+              <p style={{ fontSize: "0.9rem", marginBottom: 14 }}>
+                {createError.message}
+              </p>
+              <div
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: "12px 14px",
+                  marginBottom: 20,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "var(--ink-soft)",
+                    marginBottom: 4,
+                  }}
+                >
+                  Next Step
+                </div>
+                <div style={{ fontSize: "0.85rem" }}>
+                  {createError.nextStep}
+                </div>
+              </div>
+              {createError.raw && (
+                <div
+                  style={{
+                    fontSize: "0.72rem",
+                    color: "var(--ink-soft)",
+                    marginBottom: 20,
+                    fontFamily: "monospace",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {createError.raw}
+                </div>
+              )}
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => setCreateError(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         )}

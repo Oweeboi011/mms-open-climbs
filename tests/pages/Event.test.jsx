@@ -18,8 +18,8 @@ import {
   makeGuestAuth,
   makeMemberAuth,
   climbFixture,
-} from "@/test/helpers";
-import { makeSnapshot, makeQuerySnapshot } from "@/test/setup";
+} from "@tests/helpers";
+import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 
 const OPEN_CLIMB = { ...climbFixture, status: "open", googleMapsUrl: null };
 

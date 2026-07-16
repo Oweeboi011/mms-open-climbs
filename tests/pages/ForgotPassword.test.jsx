@@ -10,7 +10,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import ForgotPassword from "@/pages/ForgotPassword";
-import { renderWithProviders, makeGuestAuth } from "@/test/helpers";
+import { renderWithProviders, makeGuestAuth } from "@tests/helpers";
 
 describe("ForgotPassword page", () => {
   it("renders the email input and submit button", () => {
