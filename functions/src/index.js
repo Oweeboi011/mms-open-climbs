@@ -653,3 +653,95 @@ exports.createUser = onCall(
     }
   },
 );
+
+// ── Helper: verify the caller is a signed-in admin, or throw ──────────────────
+async function requireAdmin(callerUid) {
+  if (!callerUid)
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  const callerSnap = await db.doc(`users/${callerUid}`).get();
+  if (!callerSnap.exists || callerSnap.data().role !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can do this.");
+  }
+}
+
+// ── Callable: admin corrects a user's name and/or email ───────────────────────
+exports.updateUserProfile = onCall(async (request) => {
+  try {
+    await requireAdmin(request.auth?.uid);
+
+    const { uid, email, displayName } = request.data;
+    if (!uid) throw new HttpsError("invalid-argument", "uid is required.");
+    if (!email && !displayName) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Provide an email and/or displayName to update.",
+      );
+    }
+
+    const authUpdate = {};
+    if (email) authUpdate.email = email;
+    if (displayName) authUpdate.displayName = displayName;
+    try {
+      await adminAuth.updateUser(uid, authUpdate);
+    } catch (err) {
+      if (err.code === "auth/email-already-exists") {
+        throw new HttpsError(
+          "already-exists",
+          "Another account already uses this email address.",
+        );
+      }
+      if (err.code === "auth/user-not-found") {
+        throw new HttpsError(
+          "not-found",
+          "This user's login account no longer exists.",
+        );
+      }
+      throw new HttpsError("internal", err.message);
+    }
+
+    const firestoreUpdate = { updatedAt: FieldValue.serverTimestamp() };
+    if (email) firestoreUpdate.email = email;
+    if (displayName) firestoreUpdate.displayName = displayName;
+    await db.doc(`users/${uid}`).update(firestoreUpdate);
+
+    logger.info("[updateUserProfile] Updated", { uid, email: !!email, displayName: !!displayName });
+    return { success: true };
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", err.message);
+  }
+});
+
+// ── Callable: admin deletes a user's login account and profile ────────────────
+exports.deleteUserAccount = onCall(async (request) => {
+  try {
+    const callerUid = request.auth?.uid;
+    await requireAdmin(callerUid);
+
+    const { uid } = request.data;
+    if (!uid) throw new HttpsError("invalid-argument", "uid is required.");
+    if (uid === callerUid) {
+      throw new HttpsError(
+        "failed-precondition",
+        "You cannot delete your own account.",
+      );
+    }
+
+    try {
+      await adminAuth.deleteUser(uid);
+    } catch (err) {
+      // If the Auth record is already gone, still clean up the Firestore
+      // profile below instead of dead-ending on a stale account.
+      if (err.code !== "auth/user-not-found") {
+        throw new HttpsError("internal", err.message);
+      }
+    }
+    await db.doc(`users/${uid}`).delete();
+
+    logger.info("[deleteUserAccount] Deleted", { uid });
+    return { success: true };
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", err.message);
+  }
+});
