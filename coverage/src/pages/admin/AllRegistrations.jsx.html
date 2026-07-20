@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">52.5% </span>
+                <span class="strong">53.48% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>42/80</span>
+                <span class='fraction'>46/86</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">27.77% </span>
+                <span class="strong">28.26% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>25/90</span>
+                <span class='fraction'>26/92</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">42.5% </span>
+                <span class="strong">43.9% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>17/40</span>
+                <span class='fraction'>18/41</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">55.4% </span>
+                <span class="strong">57.69% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>41/74</span>
+                <span class='fraction'>45/78</span>
             </div>
         
             
@@ -774,7 +774,13 @@
 <a name='L709'></a><a href='#L709'>709</a>
 <a name='L710'></a><a href='#L710'>710</a>
 <a name='L711'></a><a href='#L711'>711</a>
-<a name='L712'></a><a href='#L712'>712</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L712'></a><a href='#L712'>712</a>
+<a name='L713'></a><a href='#L713'>713</a>
+<a name='L714'></a><a href='#L714'>714</a>
+<a name='L715'></a><a href='#L715'>715</a>
+<a name='L716'></a><a href='#L716'>716</a>
+<a name='L717'></a><a href='#L717'>717</a>
+<a name='L718'></a><a href='#L718'>718</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -806,6 +812,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">13x</span>
 <span class="cline-any cline-yes">13x</span>
 <span class="cline-any cline-yes">13x</span>
@@ -816,7 +823,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">13x</span>
 <span class="cline-any cline-yes">13x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">13x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1093,6 +1103,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">17x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1162,6 +1173,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1511,6 +1523,7 @@ const STATUS_CLASS = {
   waitlisted: "status-waitlisted",
 };
 const PAYMENT_CLASS = {
+  unpaid: "status-cancelled",
   submitted: "status-pending",
   verified: "status-confirmed",
   rejected: "status-cancelled",
@@ -1526,9 +1539,12 @@ export default function AllRegistrations() {
     searchParams.get("climb") || "all",
   );
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterPayment, setFilterPayment] = useState(
-    searchParams.get("filter") === "payment" ? <span class="branch-0 cbranch-no" title="branch not covered" >"submitted" : "</span>all",
-  );
+  const [filterPayment, setFilterPayment] = useState(() =&gt; {
+    const f = searchParams.get("filter");
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (f === "payment") <span class="cstat-no" title="statement not covered" >return "submitted";</span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (f === "unpaid") <span class="cstat-no" title="statement not covered" >return "unpaid";</span>
+    return "all";
+  });
   const [expandedId, setExpandedId] = useState(null);
 &nbsp;
   useEffect(() =&gt; {
@@ -1758,6 +1774,7 @@ export default function AllRegistrations() {
                 style={{ width: "auto" }}
               &gt;
                 &lt;option value="all"&gt;All Payments&lt;/option&gt;
+                &lt;option value="unpaid"&gt;Unpaid&lt;/option&gt;
                 &lt;option value="submitted"&gt;Payment Submitted&lt;/option&gt;
                 &lt;option value="verified"&gt;Payment Verified&lt;/option&gt;
                 &lt;option value="rejected"&gt;Payment Rejected&lt;/option&gt;
@@ -1875,6 +1892,7 @@ export default function AllRegistrations() {
 <span class="cstat-no" title="statement not covered" >                                  changePaymentStatus(reg.id, e.target.value)</span>
                                 }
                               &gt;
+                                &lt;option value="unpaid"&gt;Unpaid&lt;/option&gt;
                                 &lt;option value="submitted"&gt;Submitted&lt;/option&gt;
                                 &lt;option value="verified"&gt;Verified&lt;/option&gt;
                                 &lt;option value="rejected"&gt;Rejected&lt;/option&gt;
@@ -2203,7 +2221,7 @@ function <span class="fstat-no" title="function not covered" >InfoCell({</span> 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-21T07:12:29.812Z
+                at 2026-07-20T06:52:18.261Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
