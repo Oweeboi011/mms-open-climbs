@@ -7,8 +7,15 @@ import {
   orderBy,
   onSnapshot,
   getDocs,
+  doc,
+  updateDoc,
 } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
+import { db, storage } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -21,11 +28,160 @@ const STATUS_LABEL = {
   waitlisted: "Waitlisted",
 };
 
+const PAYMENT_LABEL = {
+  unpaid: "Unpaid",
+  submitted: "Payment Submitted",
+  verified: "Payment Verified",
+  rejected: "Payment Rejected",
+};
+
+function PayPrompt({ reg, onClose, onSaved }) {
+  const [files, setFiles] = useState([]);
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    if (files.length === 0) {
+      setError("Please select a screenshot or photo of your GCash receipt.");
+      return;
+    }
+    const parsedAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError("Please enter the exact amount you paid via GCash.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const timestamp = Date.now();
+      const paymentProofs = await Promise.all(
+        files.map(async (file) => {
+          const fileRef = storageRef(
+            storage,
+            `payment-proofs/${reg.climbId}/${reg.userId}/${timestamp}_${file.name}`,
+          );
+          await uploadBytes(fileRef, file);
+          const url = await getDownloadURL(fileRef);
+          return { url, fileName: file.name };
+        }),
+      );
+      await updateDoc(doc(db, "registrations", reg.id), {
+        paymentProofs,
+        paymentStatus: "submitted",
+        amountPaid: parsedAmount,
+      });
+      onSaved();
+    } catch (err) {
+      setError("Failed to submit payment proof. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(0,0,0,0.6)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--surface)",
+          borderRadius: 12,
+          padding: 24,
+          maxWidth: 420,
+          width: "100%",
+        }}
+      >
+        <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+          Submit Payment
+        </h3>
+        <p
+          style={{
+            fontSize: "0.82rem",
+            color: "var(--ink-soft)",
+            marginBottom: 16,
+          }}
+        >
+          For <strong>{reg.climbTitle}</strong>
+        </p>
+        {error && <div className="alert alert-error">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label required">Amount Paid via GCash</label>
+            <input
+              type="number"
+              min="1"
+              step="any"
+              className="form-input"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label required">Proof of Payment</label>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              className="form-input"
+              multiple
+              onChange={(e) => setFiles(Array.from(e.target.files))}
+            />
+            {files.length > 0 && (
+              <div
+                style={{
+                  fontSize: "0.78rem",
+                  color: "var(--green-dark)",
+                  marginTop: 6,
+                }}
+              >
+                &#10003; {files.length} file{files.length > 1 ? "s" : ""} selected
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={onClose}
+              disabled={saving}
+              style={{ flex: 1 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              disabled={saving}
+              style={{ flex: 1 }}
+            >
+              {saving ? "Submitting…" : "Submit"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function MyRegistrations() {
   const { currentUser } = useAuth();
   const [regs, setRegs] = useState([]);
   const [officerClimbs, setOfficerClimbs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [payPromptReg, setPayPromptReg] = useState(null);
 
   useEffect(() => {
     const q = query(
@@ -148,9 +304,26 @@ export default function MyRegistrations() {
                         {reg.climbLocation}
                       </div>
                     </div>
-                    <span className={`status-badge status-${reg.status}`}>
-                      {STATUS_LABEL[reg.status] || reg.status}
-                    </span>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <span className={`status-badge status-${reg.status}`}>
+                        {STATUS_LABEL[reg.status] || reg.status}
+                      </span>
+                      {reg.status !== "cancelled" &&
+                        PAYMENT_LABEL[reg.paymentStatus] && (
+                        <span
+                          className={`status-badge status-payment-${reg.paymentStatus}`}
+                        >
+                          {PAYMENT_LABEL[reg.paymentStatus]}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="reg-card-body">
@@ -202,6 +375,16 @@ export default function MyRegistrations() {
                         Print Waiver
                       </Link>
                     )}
+                    {reg.status !== "cancelled" &&
+                      (reg.paymentStatus === "unpaid" ||
+                        reg.paymentStatus === "rejected") && (
+                        <button
+                          className="btn btn-accent btn-sm"
+                          onClick={() => setPayPromptReg(reg)}
+                        >
+                          Submit Payment
+                        </button>
+                      )}
                   </div>
                 </div>
               ))
@@ -209,6 +392,14 @@ export default function MyRegistrations() {
           </>
         )}
       </main>
+
+      {payPromptReg && (
+        <PayPrompt
+          reg={payPromptReg}
+          onClose={() => setPayPromptReg(null)}
+          onSaved={() => setPayPromptReg(null)}
+        />
+      )}
 
       <Footer />
     </div>

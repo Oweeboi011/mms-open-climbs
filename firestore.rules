@@ -30,9 +30,10 @@ service cloud.firestore {
 
     match /registrations/{regId} {
       allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
-      allow create: if isSignedIn() &&
-        isOwner(request.resource.data.userId) &&
-        climbIsOpen(request.resource.data.climbId);
+      allow create: if isAdmin() ||
+        (isSignedIn() &&
+          isOwner(request.resource.data.userId) &&
+          climbIsOpen(request.resource.data.climbId));
       allow update: if isAdmin() || isOwner(resource.data.userId);
       allow delete: if isAdmin();
     }
@@ -40,6 +41,15 @@ service cloud.firestore {
     match /pageViews/{viewId} {
       allow create: if true;
       allow read, update, delete: if isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+      // Only the read flag may be toggled by the owner; everything else is
+      // written server-side (Admin SDK bypasses rules entirely).
+      allow update: if isSignedIn() && isOwner(resource.data.userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow create, delete: if false;
     }
   }
 }

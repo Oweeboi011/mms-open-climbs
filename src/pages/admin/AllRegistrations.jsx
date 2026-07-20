@@ -24,6 +24,7 @@ const STATUS_CLASS = {
   waitlisted: "status-waitlisted",
 };
 const PAYMENT_CLASS = {
+  unpaid: "status-cancelled",
   submitted: "status-pending",
   verified: "status-confirmed",
   rejected: "status-cancelled",
@@ -39,9 +40,12 @@ export default function AllRegistrations() {
     searchParams.get("climb") || "all",
   );
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterPayment, setFilterPayment] = useState(
-    searchParams.get("filter") === "payment" ? "submitted" : "all",
-  );
+  const [filterPayment, setFilterPayment] = useState(() => {
+    const f = searchParams.get("filter");
+    if (f === "payment") return "submitted";
+    if (f === "unpaid") return "unpaid";
+    return "all";
+  });
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
@@ -271,6 +275,7 @@ export default function AllRegistrations() {
                 style={{ width: "auto" }}
               >
                 <option value="all">All Payments</option>
+                <option value="unpaid">Unpaid</option>
                 <option value="submitted">Payment Submitted</option>
                 <option value="verified">Payment Verified</option>
                 <option value="rejected">Payment Rejected</option>
@@ -388,6 +393,7 @@ export default function AllRegistrations() {
                                   changePaymentStatus(reg.id, e.target.value)
                                 }
                               >
+                                <option value="unpaid">Unpaid</option>
                                 <option value="submitted">Submitted</option>
                                 <option value="verified">Verified</option>
                                 <option value="rejected">Rejected</option>

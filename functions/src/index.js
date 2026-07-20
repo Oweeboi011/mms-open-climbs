@@ -5,6 +5,7 @@ const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
@@ -188,6 +189,26 @@ async function getNotifyLists(climb) {
   return { officerEmails, adminEmails };
 }
 
+// ── Helper: upsert an in-app notification for the bell dropdown ──────────────
+// `id` makes the write idempotent (dedupe key) — pass one when a reminder
+// should re-surface as unread instead of piling up duplicate rows.
+async function createNotification({ userId, type, title, message, link, id }) {
+  const payload = {
+    userId,
+    type,
+    title,
+    message: message || "",
+    link: link || "",
+    read: false,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+  if (id) {
+    await db.collection("notifications").doc(id).set(payload, { merge: true });
+  } else {
+    await db.collection("notifications").add(payload);
+  }
+}
+
 // ── Trigger: new registration → send confirmation email ───────────────────────
 exports.onRegistrationCreated = onDocumentCreated(
   {
@@ -197,7 +218,7 @@ exports.onRegistrationCreated = onDocumentCreated(
   },
   async (event) => {
     const reg = event.data.data();
-    const { name, email, climbId } = reg;
+    const { name, email, climbId, userId, paymentStatus } = reg;
 
     try {
       const climbSnap = await db.doc(`climbs/${climbId}`).get();
@@ -212,23 +233,36 @@ exports.onRegistrationCreated = onDocumentCreated(
         .doc(`climbs/${climbId}`)
         .update({ registrationCount: FieldValue.increment(1) });
 
+      if (paymentStatus === "unpaid" && userId) {
+        await createNotification({
+          userId,
+          type: "payment_reminder",
+          title: "Payment pending",
+          message: `You registered for ${climb.title} without submitting payment yet. Add your GCash proof from My Climbs whenever you're ready.`,
+          link: "/my-registrations",
+          id: `payment_${event.params.regId}`,
+        });
+      }
+
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
       const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
       const { officerEmails, adminEmails } = await getNotifyLists(climb);
 
-      // 1. Confirmation to registrant
-      await sendEmail({
-        to: email,
-        toName: name,
-        subject: `Registration Received — ${climb.title} | MMS Open Climbs 2026`,
-        html: tplRegistrationConfirmation({
-          name,
-          climbTitle: climb.title,
-          climbDate: climb.dateLabel || "",
-          climbLocation: climb.location || "",
-          waiverUrl,
-        }),
-      });
+      // 1. Confirmation to registrant (skip for admin-added walk-ins with no email on file)
+      if (email) {
+        await sendEmail({
+          to: email,
+          toName: name,
+          subject: `Registration Received — ${climb.title} | MMS Open Climbs 2026`,
+          html: tplRegistrationConfirmation({
+            name,
+            climbTitle: climb.title,
+            climbDate: climb.dateLabel || "",
+            climbLocation: climb.location || "",
+            waiverUrl,
+          }),
+        });
+      }
 
       // 2. Notify each officer, CC all admins
       for (const officer of officerEmails) {
@@ -291,6 +325,41 @@ exports.onRegistrationUpdated = onDocumentUpdated(
   async (event) => {
     const before = event.data.before.data();
     const after = event.data.after.data();
+    const regId = event.params.regId;
+
+    // Payment status changed → surface an in-app notification for the member.
+    if (before.paymentStatus !== after.paymentStatus && after.userId) {
+      const reminderId = `payment_${regId}`;
+      if (after.paymentStatus === "verified") {
+        await db
+          .collection("notifications")
+          .doc(reminderId)
+          .set({ read: true }, { merge: true })
+          .catch(() => {});
+        await createNotification({
+          userId: after.userId,
+          type: "payment_verified",
+          title: "Payment verified",
+          message: `Your payment for ${after.climbTitle || "your climb"} has been verified. You're all set!`,
+          link: "/my-registrations",
+        });
+      } else if (after.paymentStatus === "rejected") {
+        await createNotification({
+          userId: after.userId,
+          type: "payment_reminder",
+          title: "Payment rejected",
+          message: `Your payment proof for ${after.climbTitle || "your climb"} was rejected${after.adminNotes ? `: ${after.adminNotes}` : ""}. Please resubmit from My Climbs.`,
+          link: "/my-registrations",
+          id: reminderId,
+        });
+      } else if (after.paymentStatus === "submitted") {
+        await db
+          .collection("notifications")
+          .doc(reminderId)
+          .set({ read: true }, { merge: true })
+          .catch(() => {});
+      }
+    }
 
     if (before.status === after.status) return; // not a status change
 
@@ -312,18 +381,35 @@ exports.onRegistrationUpdated = onDocumentUpdated(
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
       const { officerEmails, adminEmails } = await getNotifyLists(climb);
 
-      // 1. Status update to registrant
-      await sendEmail({
-        to: after.email,
-        toName: after.name,
-        subject: `Registration Update — ${climb.title} | MMS Open Climbs 2026`,
-        html: tplStatusUpdate({
-          name: after.name,
-          climbTitle: climb.title,
-          newStatus: after.status,
-          reason: after.cancellationReason || null,
-        }),
-      });
+      // 1. Status update to registrant (skip for walk-ins with no email on file)
+      if (after.email) {
+        await sendEmail({
+          to: after.email,
+          toName: after.name,
+          subject: `Registration Update — ${climb.title} | MMS Open Climbs 2026`,
+          html: tplStatusUpdate({
+            name: after.name,
+            climbTitle: climb.title,
+            newStatus: after.status,
+            reason: after.cancellationReason || null,
+          }),
+        });
+      }
+
+      if (after.userId) {
+        const statusTitles = {
+          confirmed: "You're confirmed!",
+          cancelled: "Registration cancelled",
+          waitlisted: "Added to waitlist",
+        };
+        await createNotification({
+          userId: after.userId,
+          type: "status_update",
+          title: statusTitles[after.status] || "Registration updated",
+          message: `${climb.title} — your registration is now ${after.status}.`,
+          link: "/my-registrations",
+        });
+      }
 
       // 2. Notify each officer, CC all admins
       for (const officer of officerEmails) {
@@ -371,6 +457,76 @@ exports.onRegistrationUpdated = onDocumentUpdated(
     } catch (err) {
       logger.error("[onRegistrationUpdated] Failed", { err: err.message });
     }
+  },
+);
+
+// ── Scheduled: daily reminders for unpaid registrations & upcoming climbs ─────
+exports.sendReminderNotifications = onSchedule(
+  { schedule: "every day 09:00", timeZone: "Asia/Manila" },
+  async () => {
+    const regsSnap = await db
+      .collection("registrations")
+      .where("status", "in", ["pending", "confirmed"])
+      .get();
+    const regs = regsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    const climbIds = [...new Set(regs.map((r) => r.climbId).filter(Boolean))];
+    const climbs = {};
+    await Promise.all(
+      climbIds.map(async (climbId) => {
+        const snap = await db.doc(`climbs/${climbId}`).get();
+        if (snap.exists) climbs[climbId] = snap.data();
+      }),
+    );
+
+    const now = Date.now();
+    let paymentReminders = 0;
+    let upcomingReminders = 0;
+
+    for (const reg of regs) {
+      if (!reg.userId) continue;
+      const climb = climbs[reg.climbId];
+
+      // Unpaid / rejected payment nag — re-surfaces as unread each run.
+      if (reg.paymentStatus === "unpaid" || reg.paymentStatus === "rejected") {
+        await createNotification({
+          userId: reg.userId,
+          type: "payment_reminder",
+          title: "Payment still pending",
+          message: `Don't forget to submit your GCash payment proof for ${reg.climbTitle || "your climb"}.`,
+          link: "/my-registrations",
+          id: `payment_${reg.id}`,
+        });
+        paymentReminders++;
+      }
+
+      // Upcoming-climb reminders for confirmed participants only.
+      if (reg.status === "confirmed" && climb?.startDate?.toDate) {
+        const daysUntil = Math.ceil(
+          (climb.startDate.toDate().getTime() - now) / 86400000,
+        );
+        if (daysUntil === 3 || daysUntil === 1) {
+          await createNotification({
+            userId: reg.userId,
+            type: "upcoming_climb",
+            title:
+              daysUntil === 1
+                ? "Your climb is tomorrow!"
+                : "Your climb is in 3 days",
+            message: `${reg.climbTitle || climb.title} — ${reg.climbDate || climb.dateLabel || ""}`,
+            link: "/my-registrations",
+            id: `upcoming${daysUntil}_${reg.id}`,
+          });
+          upcomingReminders++;
+        }
+      }
+    }
+
+    logger.info("[sendReminderNotifications] Done", {
+      totalRegs: regs.length,
+      paymentReminders,
+      upcomingReminders,
+    });
   },
 );
 

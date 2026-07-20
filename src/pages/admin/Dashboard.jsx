@@ -37,6 +37,7 @@ export default function AdminDashboard() {
     pending: 0,
     users: 0,
     awaitingPayment: 0,
+    unpaid: 0,
   });
   const [recentRegs, setRecentRegs] = useState([]);
   const [climbs, setClimbs] = useState([]);
@@ -105,6 +106,7 @@ export default function AdminDashboard() {
             waitlisted: 0,
             cancelled: 0,
             paymentSubmitted: 0,
+            paymentUnpaid: 0,
           };
         }
         breakdown[reg.climbId].total++;
@@ -113,11 +115,13 @@ export default function AdminDashboard() {
             (breakdown[reg.climbId][reg.status] || 0) + 1;
         if (reg.paymentStatus === "submitted")
           breakdown[reg.climbId].paymentSubmitted++;
+        if (reg.paymentStatus === "unpaid" && reg.status !== "cancelled")
+          breakdown[reg.climbId].paymentUnpaid++;
       }
       setClimbRegStats(breakdown);
 
       // Global stats
-      const [totalRegsSnap, pendingSnap, usersSnap, awaitingSnap] =
+      const [totalRegsSnap, pendingSnap, usersSnap, awaitingSnap, unpaidSnap] =
         await Promise.all([
           getCountFromServer(collection(db, "registrations")),
           getCountFromServer(
@@ -133,6 +137,12 @@ export default function AdminDashboard() {
               where("paymentStatus", "==", "submitted"),
             ),
           ),
+          getCountFromServer(
+            query(
+              collection(db, "registrations"),
+              where("paymentStatus", "==", "unpaid"),
+            ),
+          ),
         ]);
       setStats({
         climbs: climbList.length,
@@ -140,6 +150,7 @@ export default function AdminDashboard() {
         pending: pendingSnap.data().count,
         users: usersSnap.data().count,
         awaitingPayment: awaitingSnap.data().count,
+        unpaid: unpaidSnap.data().count,
       });
     }
 
@@ -313,6 +324,14 @@ export default function AdminDashboard() {
                 <div className="admin-stat-num">{stats.awaitingPayment}</div>
                 <div className="admin-stat-label">Awaiting Payment Review</div>
               </Link>
+              <Link
+                to="/admin/registrations?filter=unpaid"
+                className="admin-stat-card danger"
+                style={{ textDecoration: "none" }}
+              >
+                <div className="admin-stat-num">{stats.unpaid}</div>
+                <div className="admin-stat-label">Unpaid Registrations</div>
+              </Link>
               <div className="admin-stat-card">
                 <div className="admin-stat-num">{stats.pending}</div>
                 <div className="admin-stat-label">Pending Confirmation</div>
@@ -341,6 +360,9 @@ export default function AdminDashboard() {
                     <th style={{ textAlign: "center", width: "1%" }}>
                       Pending
                     </th>
+                    <th style={{ textAlign: "center", width: "1%" }}>
+                      Unpaid
+                    </th>
                     <th>Officers</th>
                     <th style={{ width: "1%" }}>Actions</th>
                   </tr>
@@ -348,7 +370,7 @@ export default function AdminDashboard() {
                 <tbody>
                   {climbs.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="admin-table-empty">
+                      <td colSpan={10} className="admin-table-empty">
                         No climbs yet.
                       </td>
                     </tr>
@@ -447,6 +469,11 @@ export default function AdminDashboard() {
                           <td style={{ textAlign: "center" }}>
                             <span style={{ fontWeight: 700, color: "#e67e00" }}>
                               {s.pending || 0}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <span style={{ fontWeight: 700, color: "#b91c1c" }}>
+                              {s.paymentUnpaid || 0}
                             </span>
                           </td>
                           <td>
@@ -559,7 +586,7 @@ export default function AdminDashboard() {
                         <td>
                           {reg.paymentStatus ? (
                             <span
-                              className={`status-badge ${reg.paymentStatus === "verified" ? "status-confirmed" : reg.paymentStatus === "rejected" ? "status-cancelled" : "status-pending"}`}
+                              className={`status-badge status-payment-${reg.paymentStatus}`}
                             >
                               {reg.paymentStatus}
                             </span>

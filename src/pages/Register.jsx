@@ -48,6 +48,7 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successRegId, setSuccessRegId] = useState(null);
+  const [successUnpaid, setSuccessUnpaid] = useState(false);
   const [paymentFiles, setPaymentFiles] = useState([]);
   const [paymentPreviews, setPaymentPreviews] = useState([]);
   const [paymentUploading, setPaymentUploading] = useState(false);
@@ -105,33 +106,37 @@ export default function Register() {
       setError("Please enter your complete name as your signature.");
       return;
     }
-    if (paymentFiles.length === 0) {
-      setError("Please upload your proof of payment before submitting.");
+    // Payment is optional at registration time — members can pay later.
+    // If they did start filling in payment info, require both parts together.
+    const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
+    if (paymentFiles.length > 0 && (!amountPaid || isNaN(parsedAmount) || parsedAmount <= 0)) {
+      setError("Please enter the exact amount you paid via GCash.");
       return;
     }
-    const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
-    if (!amountPaid || isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError("Please enter the exact amount you paid via GCash.");
+    if (amountPaid && !isNaN(parsedAmount) && parsedAmount > 0 && paymentFiles.length === 0) {
+      setError("Please upload your proof of payment, or clear the amount to pay later.");
       return;
     }
 
     setSubmitting(true);
     let paymentProofs = [];
     try {
-      setPaymentUploading(true);
-      const timestamp = Date.now();
-      paymentProofs = await Promise.all(
-        paymentFiles.map(async (file) => {
-          const fileRef = storageRef(
-            storage,
-            `payment-proofs/${climbId}/${currentUser.uid}/${timestamp}_${file.name}`,
-          );
-          await uploadBytes(fileRef, file);
-          const url = await getDownloadURL(fileRef);
-          return { url, fileName: file.name };
-        }),
-      );
-      setPaymentUploading(false);
+      if (paymentFiles.length > 0) {
+        setPaymentUploading(true);
+        const timestamp = Date.now();
+        paymentProofs = await Promise.all(
+          paymentFiles.map(async (file) => {
+            const fileRef = storageRef(
+              storage,
+              `payment-proofs/${climbId}/${currentUser.uid}/${timestamp}_${file.name}`,
+            );
+            await uploadBytes(fileRef, file);
+            const url = await getDownloadURL(fileRef);
+            return { url, fileName: file.name };
+          }),
+        );
+        setPaymentUploading(false);
+      }
     } catch (uploadErr) {
       setPaymentUploading(false);
       setSubmitting(false);
@@ -168,8 +173,8 @@ export default function Register() {
         waiverSignedName: sigName.trim(),
         // Payment
         paymentProofs,
-        paymentStatus: "submitted",
-        amountPaid: parseFloat(String(amountPaid).replace(/[^0-9.]/g, "")),
+        paymentStatus: paymentProofs.length > 0 ? "submitted" : "unpaid",
+        amountPaid: paymentProofs.length > 0 ? parsedAmount : null,
         feeBreakdown: (climb.expenses || []).map((exp) => {
           const isGuestFee = /guest/i.test(exp.label);
           if (!exp.optional)
@@ -200,6 +205,7 @@ export default function Register() {
       };
 
       const docRef = await addDoc(collection(db, "registrations"), regData);
+      setSuccessUnpaid(paymentProofs.length === 0);
       setSuccessRegId(docRef.id);
     } catch (err) {
       console.error(err);
@@ -257,6 +263,25 @@ export default function Register() {
             <strong>{currentUser.email}</strong>. A climb officer will confirm
             your spot soon.
           </p>
+          {successUnpaid && (
+            <p
+              style={{
+                color: "#92400e",
+                background: "#fef9e7",
+                border: "1px solid #fcd34d",
+                borderRadius: 8,
+                padding: "10px 16px",
+                marginBottom: 28,
+                fontSize: "0.85rem",
+                maxWidth: 460,
+              }}
+            >
+              Your registration is marked <strong>unpaid</strong>. You can
+              submit your GCash payment proof anytime from{" "}
+              <strong>My Climbs</strong> — we'll remind you via the
+              notification bell until it's settled.
+            </p>
+          )}
           <div
             style={{
               display: "flex",
@@ -813,7 +838,7 @@ export default function Register() {
 
           {/* GCash Payment */}
           <div className="register-form-card">
-            <div className="form-section-title">Payment via GCash</div>
+            <div className="form-section-title">Payment via GCash (Optional)</div>
             <p
               style={{
                 fontSize: "0.85rem",
@@ -821,8 +846,10 @@ export default function Register() {
                 marginBottom: 16,
               }}
             >
-              Send your registration fee via GCash, then upload your screenshot
-              or photo of the receipt below.
+              You can register now and pay later — send your registration fee
+              via GCash whenever you're ready, then upload your screenshot or
+              photo of the receipt below. Unpaid registrations will be flagged
+              until payment is submitted.
             </p>
 
             {climb.gcashQrUrl || climb.gcashNumber || climb.gcashName ? (
@@ -977,7 +1004,7 @@ export default function Register() {
             )}
 
             <div className="form-group">
-              <label className="form-label required">
+              <label className="form-label">
                 Amount Paid via GCash
               </label>
               <div style={{ position: "relative", maxWidth: 220 }}>
@@ -1001,7 +1028,6 @@ export default function Register() {
                   step="any"
                   className="form-input"
                   placeholder="0.00"
-                  required
                   style={{ paddingLeft: 28, fontWeight: 700, fontSize: "1rem" }}
                   value={amountPaid}
                   onChange={(e) => setAmountPaid(e.target.value)}
@@ -1014,7 +1040,7 @@ export default function Register() {
             </div>
 
             <div className="form-group">
-              <label className="form-label required">
+              <label className="form-label">
                 Upload Proof of Payment
               </label>
               <input
@@ -1147,12 +1173,7 @@ export default function Register() {
           <button
             className="btn btn-primary btn-block btn-lg"
             type="submit"
-            disabled={
-              submitting ||
-              !waiverAgreed ||
-              paymentFiles.length === 0 ||
-              !amountPaid
-            }
+            disabled={submitting || !waiverAgreed}
           >
             {submitting ? (
               <>
