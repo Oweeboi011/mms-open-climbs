@@ -2,7 +2,7 @@ name: Firebase CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main]
 
@@ -36,16 +36,67 @@ jobs:
       - name: Build + test (frontend & functions, coverage-enforced)
         run: npm run qa
 
-  deploy:
-    name: Deploy to Firebase
+  # develop passed quality → open (or reuse) a PR into main and merge it
+  # immediately. We merge directly here (rather than GitHub's "auto-merge"
+  # UI feature, which requires a paid plan on private repos) so the deploy
+  # job below can run in this same workflow run — a merge performed with the
+  # default GITHUB_TOKEN would not trigger a fresh push-triggered run on main.
+  promote:
+    name: Merge develop → main
     runs-on: ubuntu-latest
     needs: quality
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
+    outputs:
+      merged: ${{ steps.merge.outputs.merged }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Open or reuse PR, then merge
+        id: merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$(git log origin/main..origin/develop --oneline)" ]; then
+            echo "No new commits ahead of main — nothing to promote."
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_NUMBER=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head develop --state open --json number -q '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head develop \
+              --title "Promote develop to main" \
+              --body "Automated promotion — quality checks passed on develop (run ${{ github.run_id }})."
+            PR_NUMBER=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head develop --state open --json number -q '.[0].number')
+          fi
+
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --merge
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+    needs: [quality, promote]
+    if: |
+      always() &&
+      needs.quality.result == 'success' &&
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (needs.promote.result == 'success' && needs.promote.outputs.merged == 'true')
+      )
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Node
         uses: actions/setup-node@v4
