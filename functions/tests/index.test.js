@@ -29,11 +29,13 @@ const mockDb = {
   get: jest.fn(),
   set: jest.fn().mockResolvedValue(),
   update: jest.fn().mockResolvedValue(),
+  delete: jest.fn().mockResolvedValue(),
 };
 mockDb.doc.mockReturnValue(mockDb);
 
 const mockAdminAuth = {
   createUser: jest.fn(),
+  updateUser: jest.fn().mockResolvedValue(),
   generatePasswordResetLink: jest.fn().mockResolvedValue("https://reset.link"),
   getUserByEmail: jest.fn(),
   deleteUser: jest.fn().mockResolvedValue(),
@@ -388,5 +390,128 @@ describe("createUser callable — auth guard", () => {
       code: "internal",
       message: expect.stringContaining("firestore unavailable"),
     });
+  });
+});
+
+describe("updateUserProfile callable", () => {
+  beforeEach(() => {
+    mockDb.doc.mockReturnValue(mockDb);
+    mockDb.update.mockResolvedValue();
+    mockAdminAuth.updateUser.mockResolvedValue();
+  });
+
+  it("throws unauthenticated when request has no auth", async () => {
+    const handler = require("../src/index").updateUserProfile;
+    await expect(handler({ auth: null, data: {} })).rejects.toMatchObject({
+      code: "unauthenticated",
+    });
+  });
+
+  it("throws permission-denied for non-admin caller", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "member" }) });
+    const handler = require("../src/index").updateUserProfile;
+    await expect(
+      handler({ auth: { uid: "u1" }, data: { uid: "target", displayName: "New Name" } }),
+    ).rejects.toMatchObject({ code: "permission-denied" });
+  });
+
+  it("throws invalid-argument when uid is missing", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    const handler = require("../src/index").updateUserProfile;
+    await expect(
+      handler({ auth: { uid: "admin-1" }, data: { displayName: "New Name" } }),
+    ).rejects.toMatchObject({ code: "invalid-argument" });
+  });
+
+  it("throws invalid-argument when neither email nor displayName is provided", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    const handler = require("../src/index").updateUserProfile;
+    await expect(
+      handler({ auth: { uid: "admin-1" }, data: { uid: "target" } }),
+    ).rejects.toMatchObject({ code: "invalid-argument" });
+  });
+
+  it("updates Auth and the Firestore profile together", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    const handler = require("../src/index").updateUserProfile;
+    const result = await handler({
+      auth: { uid: "admin-1" },
+      data: { uid: "target", email: "new@new.com", displayName: "New Name" },
+    });
+    expect(result).toEqual({ success: true });
+    expect(mockAdminAuth.updateUser).toHaveBeenCalledWith("target", {
+      email: "new@new.com",
+      displayName: "New Name",
+    });
+    expect(mockDb.update).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "new@new.com", displayName: "New Name" }),
+    );
+  });
+
+  it("maps auth/email-already-exists to already-exists", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    mockAdminAuth.updateUser.mockRejectedValueOnce({ code: "auth/email-already-exists" });
+    const handler = require("../src/index").updateUserProfile;
+    await expect(
+      handler({ auth: { uid: "admin-1" }, data: { uid: "target", email: "dupe@x.com" } }),
+    ).rejects.toMatchObject({ code: "already-exists" });
+  });
+
+  it("maps auth/user-not-found to not-found", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    mockAdminAuth.updateUser.mockRejectedValueOnce({ code: "auth/user-not-found" });
+    const handler = require("../src/index").updateUserProfile;
+    await expect(
+      handler({ auth: { uid: "admin-1" }, data: { uid: "gone", displayName: "X" } }),
+    ).rejects.toMatchObject({ code: "not-found" });
+  });
+});
+
+describe("deleteUserAccount callable", () => {
+  beforeEach(() => {
+    mockDb.doc.mockReturnValue(mockDb);
+    mockDb.delete.mockResolvedValue();
+    mockAdminAuth.deleteUser.mockResolvedValue();
+  });
+
+  it("throws unauthenticated when request has no auth", async () => {
+    const handler = require("../src/index").deleteUserAccount;
+    await expect(handler({ auth: null, data: {} })).rejects.toMatchObject({
+      code: "unauthenticated",
+    });
+  });
+
+  it("throws permission-denied for non-admin caller", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "member" }) });
+    const handler = require("../src/index").deleteUserAccount;
+    await expect(
+      handler({ auth: { uid: "u1" }, data: { uid: "target" } }),
+    ).rejects.toMatchObject({ code: "permission-denied" });
+  });
+
+  it("throws failed-precondition when deleting your own account", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    const handler = require("../src/index").deleteUserAccount;
+    await expect(
+      handler({ auth: { uid: "admin-1" }, data: { uid: "admin-1" } }),
+    ).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+
+  it("deletes the Auth account and the Firestore profile", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    const handler = require("../src/index").deleteUserAccount;
+    const result = await handler({ auth: { uid: "admin-1" }, data: { uid: "target" } });
+    expect(result).toEqual({ success: true });
+    expect(mockAdminAuth.deleteUser).toHaveBeenCalledWith("target");
+    expect(mockDb.delete).toHaveBeenCalled();
+  });
+
+  it("still deletes the Firestore profile when the Auth account is already gone", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    mockAdminAuth.deleteUser.mockRejectedValueOnce({ code: "auth/user-not-found" });
+    const handler = require("../src/index").deleteUserAccount;
+    const result = await handler({ auth: { uid: "admin-1" }, data: { uid: "ghost" } });
+    expect(result).toEqual({ success: true });
+    expect(mockDb.delete).toHaveBeenCalled();
   });
 });

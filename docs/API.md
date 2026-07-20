@@ -7,8 +7,12 @@
 - [Firestore Document Triggers](#firestore-document-triggers)
   - [onRegistrationCreated](#onregistrationcreated)
   - [onRegistrationUpdated](#onregistrationupdated)
+- [Scheduled Functions](#scheduled-functions)
+  - [sendReminderNotifications](#sendremindernotifications)
 - [HTTPS Callable Functions](#https-callable-functions)
   - [createUser](#createuser)
+  - [updateUserProfile](#updateuserprofile)
+  - [deleteUserAccount](#deleteuseraccount)
 - [Environment Variables and Secrets](#environment-variables-and-secrets)
 - [Error Codes Reference](#error-codes-reference)
 - [Email Templates](#email-templates)
@@ -166,6 +170,28 @@ flowchart TD
 | `waitlisted` | Yes | No |
 | `pending` | No | No |
 
+Both triggers also write to the `notifications` collection for the in-app bell (see `docs/DATA.md`): a payment reminder is created/re-opened whenever `paymentStatus` becomes `unpaid` or `rejected`, cleared when it becomes `verified`/`submitted`, and a `status_update` notification is written whenever `status` changes.
+
+---
+
+## Scheduled Functions
+
+### sendReminderNotifications
+
+**Type:** Scheduled (Firebase Functions v2 `onSchedule`)
+**Schedule:** Daily at 09:00, `Asia/Manila`
+**Access:** N/A (runs on Cloud Scheduler, not user-invoked)
+
+Re-surfaces reminders in the notification bell for active (`pending`/`confirmed`) registrations:
+
+| Condition | Action |
+| --- | --- |
+| `paymentStatus` is `unpaid` or `rejected` | Upserts `payment_{regId}` notification as unread (re-nags on every run while still unpaid) |
+| `status = confirmed` and climb starts in exactly 3 days | Creates `upcoming3_{regId}` notification (once) |
+| `status = confirmed` and climb starts in exactly 1 day | Creates `upcoming1_{regId}` notification (once) |
+
+Registrations with no `userId` (e.g. walk-in participants added manually by an admin — see `AddJoinerModal` in `ClimbDetail.jsx`) are skipped, since there's no account to notify.
+
 ---
 
 ## HTTPS Callable Functions
@@ -227,6 +253,73 @@ sequenceDiagram
 | `invalid-argument` | 400 | `email` or `displayName` missing or empty |
 | `already-exists` | 409 | Email already has a Firebase Auth account |
 | `internal` | 500 | Unexpected Firebase or Brevo error |
+
+---
+
+### updateUserProfile
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'updateUserProfile')`
+**Access:** Admin users only
+
+Corrects a user's name and/or email. Updates the Firebase Auth account (the actual login credential) and the Firestore `users/{uid}` profile document together, so they can't drift out of sync.
+
+#### Request payload
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `uid` | string | Yes | Target user's Firebase Auth UID |
+| `displayName` | string | No | New full name — at least one of `displayName`/`email` required |
+| `email` | string | No | New login email — at least one of `displayName`/`email` required |
+
+#### Response
+
+```json
+{ "success": true }
+```
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+| `invalid-argument` | `uid` missing, or neither `email` nor `displayName` provided |
+| `already-exists` | Another Auth account already uses the requested email |
+| `not-found` | The target user's Auth account no longer exists |
+| `internal` | Unexpected Firebase error |
+
+---
+
+### deleteUserAccount
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'deleteUserAccount')`
+**Access:** Admin users only
+
+Permanently deletes a user's Firebase Auth login and their Firestore `users/{uid}` profile. Does not touch their past `registrations` — those keep their denormalized name/email so historical records stay intact. If the Auth account is already gone (e.g. previously deleted out-of-band), the Firestore profile is still cleaned up rather than erroring out.
+
+#### Request payload
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `uid` | string | Yes | Target user's Firebase Auth UID |
+
+#### Response
+
+```json
+{ "success": true }
+```
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+| `invalid-argument` | `uid` missing |
+| `failed-precondition` | Caller tried to delete their own account |
+| `internal` | Unexpected Firebase error |
 
 ---
 
