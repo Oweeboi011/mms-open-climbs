@@ -16,6 +16,8 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const createUserFn = httpsCallable(functions, "createUser");
+const updateUserProfileFn = httpsCallable(functions, "updateUserProfile");
+const deleteUserAccountFn = httpsCallable(functions, "deleteUserAccount");
 
 const CREATE_USER_ERROR_INFO = {
   "already-exists": {
@@ -113,6 +115,13 @@ export default function AdminUsersManage() {
   const [editRole, setEditRole] = useState("");
   const [roleChanging, setRoleChanging] = useState(false);
   const [roleError, setRoleError] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [profileOk, setProfileOk] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [newUser, setNewUser] = useState({
     email: "",
     displayName: "",
@@ -162,17 +171,74 @@ export default function AdminUsersManage() {
     setSelectedUser(user);
     setEditRole(user.role);
     setRoleError("");
+    setEditName(user.displayName || "");
+    setEditEmail(user.email || "");
+    setProfileError("");
+    setProfileOk("");
+    setDeleteError("");
   }
 
   function closeUserModal() {
     setSelectedUser(null);
     setEditRole("");
     setRoleError("");
+    setEditName("");
+    setEditEmail("");
+    setProfileError("");
+    setProfileOk("");
+    setDeleteError("");
   }
 
   async function saveRole() {
     if (!selectedUser) return;
     await changeRole(selectedUser.id, editRole, selectedUser);
+  }
+
+  async function saveProfile() {
+    if (!selectedUser) return;
+    const nameChanged = editName.trim() && editName.trim() !== selectedUser.displayName;
+    const emailChanged = editEmail.trim() && editEmail.trim() !== selectedUser.email;
+    if (!nameChanged && !emailChanged) return;
+
+    setProfileSaving(true);
+    setProfileError("");
+    setProfileOk("");
+    try {
+      await updateUserProfileFn({
+        uid: selectedUser.id,
+        ...(nameChanged ? { displayName: editName.trim() } : {}),
+        ...(emailChanged ? { email: editEmail.trim() } : {}),
+      });
+      setSelectedUser((p) => ({
+        ...p,
+        ...(nameChanged ? { displayName: editName.trim() } : {}),
+        ...(emailChanged ? { email: editEmail.trim() } : {}),
+      }));
+      setProfileOk("Profile updated.");
+    } catch (err) {
+      setProfileError(err?.message || "Failed to update profile.");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  async function deleteUser() {
+    if (!selectedUser) return;
+    if (
+      !window.confirm(
+        `Delete the account for "${selectedUser.displayName || selectedUser.email}"? This permanently removes their login and profile. This cannot be undone.`,
+      )
+    )
+      return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteUserAccountFn({ uid: selectedUser.id });
+      closeUserModal();
+    } catch (err) {
+      setDeleteError(err?.message || "Failed to delete user.");
+      setDeleting(false);
+    }
   }
 
   async function handleCreateUser(e) {
@@ -592,6 +658,65 @@ export default function AdminUsersManage() {
                 </div>
               </div>
 
+              {/* Edit Profile */}
+              <div style={{ marginBottom: 22 }}>
+                <div
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "var(--ink-soft)",
+                    marginBottom: 8,
+                  }}
+                >
+                  Edit Profile
+                </div>
+                {profileError && (
+                  <div className="alert alert-error" style={{ marginBottom: 10 }}>
+                    {profileError}
+                  </div>
+                )}
+                {profileOk && (
+                  <div className="alert alert-success" style={{ marginBottom: 10 }}>
+                    {profileOk}
+                  </div>
+                )}
+                <div className="form-group">
+                  <label className="form-label">Full Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Email Address</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                  />
+                  <div className="form-hint">
+                    Updates the login email and Firestore profile together.
+                  </div>
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={
+                    profileSaving ||
+                    (editName.trim() === (selectedUser.displayName || "") &&
+                      editEmail.trim() === (selectedUser.email || ""))
+                  }
+                  title="Save the corrected name and/or email"
+                  onClick={saveProfile}
+                >
+                  {profileSaving ? "Saving…" : "Save Profile"}
+                </button>
+              </div>
+
               {/* Role Change */}
               {selectedUser.id === currentUser?.uid ? (
                 <div
@@ -689,6 +814,52 @@ export default function AdminUsersManage() {
                   )}
                 </div>
               )}
+
+              {/* Delete Account */}
+              <div
+                style={{
+                  marginTop: 22,
+                  paddingTop: 16,
+                  borderTop: "1px solid var(--border)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "var(--ink-soft)",
+                    marginBottom: 8,
+                  }}
+                >
+                  Danger Zone
+                </div>
+                {deleteError && (
+                  <div className="alert alert-error" style={{ marginBottom: 10 }}>
+                    {deleteError}
+                  </div>
+                )}
+                {selectedUser.id === currentUser?.uid ? (
+                  <div
+                    style={{
+                      fontSize: "0.82rem",
+                      color: "var(--ink-soft)",
+                    }}
+                  >
+                    You cannot delete your own account.
+                  </div>
+                ) : (
+                  <button
+                    className="btn btn-danger btn-sm"
+                    disabled={deleting}
+                    title="Permanently delete this user's login and profile"
+                    onClick={deleteUser}
+                  >
+                    {deleting ? "Deleting…" : "🗑 Delete Account"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
