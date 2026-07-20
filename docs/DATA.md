@@ -133,7 +133,7 @@ Each document represents a single member's registration for a single climb.
 | `waiverSigned` | boolean | Yes | `true` when member typed their signature |
 | `waiverSignedAt` | timestamp | No | Timestamp of digital signature |
 | `waiverSignedName` | string | No | Typed full name as digital signature |
-| `paymentStatus` | string | No | `submitted` / `verified` / `rejected` |
+| `paymentStatus` | string | No | `unpaid` / `submitted` / `verified` / `rejected` — members can register without paying; the registration is created as `unpaid` until a GCash proof is submitted |
 | `amountPaid` | number | No | Exact amount sent via GCash |
 | `paymentProofs` | object[] | No | `[{ url, fileName }]` — uploaded receipt images |
 | `feeBreakdown` | object[] | No | `[{ label, amount, optional, selected }]` |
@@ -161,7 +161,9 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> submitted : Member uploads GCash proof
+    [*] --> unpaid : Member registers without payment
+    [*] --> submitted : Member uploads GCash proof at registration
+    unpaid --> submitted : Member submits payment later (My Climbs)
     submitted --> verified : Admin confirms payment
     submitted --> rejected : Admin rejects (wrong amount or unclear image)
     rejected --> submitted : Member re-uploads proof
@@ -211,6 +213,24 @@ Each document records one page view event. Used by the Admin Analytics page.
 | `createdAt` | timestamp | Yes | Firestore server timestamp of the page view |
 
 Write access is public (any visitor can write). Read, update, and delete are restricted to admins only.
+
+---
+
+### notifications
+
+Each document is one in-app reminder shown in the notification bell. Written only by Cloud Functions (Admin SDK bypasses security rules) — clients cannot create or delete them, only toggle `read`.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `userId` | string | Yes | Firebase Auth UID of the recipient |
+| `type` | string | Yes | `payment_reminder` / `payment_verified` / `status_update` / `upcoming_climb` |
+| `title` | string | Yes | Short headline shown in the bell dropdown |
+| `message` | string | No | Supporting detail text |
+| `link` | string | No | In-app path to navigate to on click (e.g. `/my-registrations`) |
+| `read` | boolean | Yes | Toggled by the owning member when they open/dismiss it |
+| `createdAt` | timestamp | Yes | Firestore server timestamp — reminders may bump this to resurface as unread |
+
+Some notification IDs are deterministic (e.g. `payment_{regId}`, `upcoming3_{regId}`, `upcoming1_{regId}`) so recurring reminders upsert the same document instead of piling up duplicates. A daily scheduled function (`sendReminderNotifications`) re-flags unpaid/rejected registrations as unread and notifies confirmed registrants 3 days and 1 day before their climb's `startDate`.
 
 ---
 
@@ -285,6 +305,7 @@ erDiagram
 
 | Value | Meaning |
 | --- | --- |
+| `unpaid` | Member registered without submitting a GCash proof yet |
 | `submitted` | Member uploaded a GCash proof — awaiting admin review |
 | `verified` | Admin confirmed payment matches the expected amount |
 | `rejected` | Admin rejected the proof — member must resubmit |

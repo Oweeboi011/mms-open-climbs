@@ -20,6 +20,12 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const PAYMENT_STYLE = {
+  unpaid: {
+    bg: "#fce8e8",
+    color: "#b91c1c",
+    border: "#fca5a5",
+    label: "Unpaid",
+  },
   submitted: {
     bg: "#fef9e7",
     color: "#92400e",
@@ -362,6 +368,9 @@ export default function ManagePayments() {
             const rejectedCount = cs.regs.filter(
               (r) => r.paymentStatus === "rejected",
             ).length;
+            const unpaidCount = cs.regs.filter(
+              (r) => r.paymentStatus === "unpaid",
+            ).length;
 
             return (
               <div
@@ -522,6 +531,12 @@ export default function ManagePayments() {
                             label="Rejected"
                             value={rejectedCount}
                             sub="payments rejected"
+                            color="#b91c1c"
+                          />
+                          <StatBox
+                            label="Unpaid"
+                            value={unpaidCount}
+                            sub="not yet submitted"
                             color="#b91c1c"
                           />
                         </div>
@@ -963,7 +978,7 @@ export default function ManagePayments() {
                                           fontSize: "0.75rem",
                                           width: "auto",
                                         }}
-                                        value={reg.paymentStatus || "submitted"}
+                                        value={reg.paymentStatus || "unpaid"}
                                         onChange={(e) =>
                                           changePaymentStatus(
                                             reg.id,
@@ -971,6 +986,7 @@ export default function ManagePayments() {
                                           )
                                         }
                                       >
+                                        <option value="unpaid">Unpaid</option>
                                         <option value="submitted">
                                           Submitted
                                         </option>

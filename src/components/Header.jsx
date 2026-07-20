@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuide } from "@/contexts/GuideContext";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function Header() {
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
@@ -68,6 +69,7 @@ export default function Header() {
           )}
           {currentUser ? (
             <>
+              <NotificationBell />
               <span className="header-user-name">
                 {userProfile?.displayName || currentUser.email}
               </span>
@@ -163,6 +165,7 @@ export default function Header() {
                 <span className="mobile-nav-username">
                   {userProfile?.displayName || currentUser.email}
                 </span>
+                <NotificationBell />
               </div>
               <button className="mobile-nav-signout" onClick={handleLogout}>
                 Sign Out
