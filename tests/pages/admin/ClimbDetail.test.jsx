@@ -2,7 +2,7 @@
  * Tests for the Admin Climb Detail page.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderAtRoute,
   makeAdminAuth,
@@ -10,14 +10,20 @@ import {
   registrationFixture,
 } from "@tests/helpers";
 import ClimbDetail from "@/pages/admin/ClimbDetail";
-import { getDoc, onSnapshot } from "firebase/firestore";
+import { getDoc, getDocs, addDoc, onSnapshot } from "firebase/firestore";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
+
+const memberDoc = {
+  id: "user-2",
+  data: { displayName: "Maria Santos", email: "maria@example.com" },
+};
 
 describe("Admin ClimbDetail", () => {
   beforeEach(() => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, { ...climbFixture }),
     );
+    getDocs.mockResolvedValue(makeQuerySnapshot([memberDoc]));
     onSnapshot.mockImplementation((_q, cb) => {
       cb(
         makeQuerySnapshot([
@@ -65,5 +71,35 @@ describe("Admin ClimbDetail", () => {
     await waitFor(() =>
       expect(screen.getByRole("link", { name: /^Climbs$/i })).toBeInTheDocument(),
     );
+  });
+
+  it("lets an admin pick an existing member when adding a joiner", async () => {
+    render();
+    await waitFor(() =>
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Add Joiner/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("option", { name: /Maria Santos/i }),
+      ).toBeInTheDocument(),
+    );
+
+    const memberSelect = screen.getByText("Existing Member", {
+      selector: "label",
+    }).closest(".form-group").querySelector("select");
+    fireEvent.change(memberSelect, { target: { value: "user-2" } });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Add Participant/i }),
+    );
+
+    await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    const payload = addDoc.mock.calls[0][1];
+    expect(payload.userId).toBe("user-2");
+    expect(payload.name).toBe("Maria Santos");
+    expect(payload.email).toBe("maria@example.com");
   });
 });
