@@ -9,6 +9,8 @@
   - [registrations](#registrations)
   - [users](#users)
   - [pageViews](#pageviews)
+  - [notifications](#notifications)
+  - [releaseNotes](#releasenotes)
 - [Data Relationships](#data-relationships)
 - [Status Enumerations](#status-enumerations)
 - [Denormalization Strategy](#denormalization-strategy)
@@ -184,6 +186,7 @@ Each document represents one user account. The document ID equals the Firebase A
 | `photoURL` | string | No | Google profile photo URL (Google sign-in accounts only) |
 | `createdAt` | timestamp | Yes | Firestore server timestamp on creation |
 | `addedBy` | string | Yes | Firebase Auth UID of the creating admin, or `"self"` for self-registration |
+| `lastSeenReleaseNoteId` | string | No | ID of the most recent `releaseNotes` document the user has dismissed in the "what's new" popup |
 
 #### User role model
 
@@ -231,6 +234,26 @@ Each document is one in-app reminder shown in the notification bell. Written onl
 | `createdAt` | timestamp | Yes | Firestore server timestamp — reminders may bump this to resurface as unread |
 
 Some notification IDs are deterministic (e.g. `payment_{regId}`, `upcoming3_{regId}`, `upcoming1_{regId}`) so recurring reminders upsert the same document instead of piling up duplicates. A daily scheduled function (`sendReminderNotifications`) re-flags unpaid/rejected registrations as unread and notifies confirmed registrants 3 days and 1 day before their climb's `startDate`.
+
+---
+
+### releaseNotes
+
+Each document is one "what's new" announcement, authored by an admin. Members see the newest published note as a one-time popup after login (dismissal is tracked via `users.lastSeenReleaseNoteId`) and can browse the full published history at `/release-notes`.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `title` | string | Yes | Headline shown in the popup, history page, and email subject |
+| `body` | string | Yes | Free-text content; blank lines separate paragraphs |
+| `status` | string | Yes | `draft` or `published` — only `published` notes are visible to members or emailable |
+| `createdAt` | timestamp | Yes | Firestore server timestamp on creation |
+| `updatedAt` | timestamp | No | Firestore server timestamp on last edit |
+| `publishedAt` | timestamp | No | Set the first time `status` transitions to `published`; drives the "newest note" ordering |
+| `createdBy` | string | Yes | Firebase Auth UID of the authoring admin |
+| `emailSentAt` | timestamp | No | Set by the `sendReleaseNoteEmail` callable after a successful email blast |
+| `emailSentCount` | number | No | Count of members successfully emailed on the last send |
+
+Reads are restricted to signed-in users, and only admins may see `draft` notes. All writes are admin-only. The `sendReleaseNoteEmail` callable (admin-only) emails every document in `users` with an `email` field via the existing Brevo pipeline.
 
 ---
 
