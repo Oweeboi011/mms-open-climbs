@@ -57,6 +57,11 @@ export default function Header() {
               My Climbs
             </NavLink>
           )}
+          {currentUser && (
+            <NavLink to="/release-notes" className={navClass}>
+              What&rsquo;s New
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink
               to="/admin"
@@ -136,6 +141,14 @@ export default function Header() {
                 &#9679;
               </span>{" "}
               My Climbs
+            </NavLink>
+          )}
+          {currentUser && (
+            <NavLink to="/release-notes" className={mnavClass}>
+              <span className="mobile-nav-icon" aria-hidden="true">
+                &#9993;
+              </span>{" "}
+              What&rsquo;s New
             </NavLink>
           )}
           {isAdmin && (
