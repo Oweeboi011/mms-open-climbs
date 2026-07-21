@@ -248,6 +248,13 @@ export default function AdminDashboard() {
               icon: "📊",
               color: "#e74c3c",
             },
+            {
+              to: "/admin/release-notes",
+              label: "Release Notes",
+              desc: "Publish updates & email members",
+              icon: "📰",
+              color: "#0d2b12",
+            },
           ].map(({ to, label, desc, icon, color }) => (
             <Link
               key={to}

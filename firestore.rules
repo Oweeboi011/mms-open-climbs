@@ -43,6 +43,11 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    match /releaseNotes/{noteId} {
+      allow read: if isSignedIn() && (resource.data.status == 'published' || isAdmin());
+      allow write: if isAdmin();
+    }
+
     match /notifications/{notifId} {
       allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
       // Only the read flag may be toggled by the owner; everything else is
