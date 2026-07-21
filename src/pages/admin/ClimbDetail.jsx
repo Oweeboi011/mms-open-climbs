@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import {
   doc,
   getDoc,
+  getDocs,
   addDoc,
   collection,
   query,
@@ -97,9 +98,29 @@ function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+
+  useEffect(() => {
+    getDocs(query(collection(db, "users"), orderBy("displayName"))).then(
+      (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+  }, []);
 
   function setField(field, value) {
     setForm((p) => ({ ...p, [field]: value }));
+  }
+
+  function selectExistingUser(userId) {
+    setSelectedUserId(userId);
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      setForm((p) => ({
+        ...p,
+        name: user.displayName || "",
+        email: user.email || "",
+      }));
+    }
   }
 
   async function handleSubmit(e) {
@@ -119,7 +140,7 @@ function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
         climbTitle: climb?.title || "",
         climbDate: climb?.dateLabel || "",
         climbLocation: climb?.location || "",
-        userId: null,
+        userId: selectedUserId || null,
         name: form.name.trim(),
         email: form.email.trim(),
         mobile: form.mobile.trim(),
@@ -192,6 +213,25 @@ function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
         </p>
         {error && <div className="alert alert-error">{error}</div>}
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Existing Member</label>
+            <select
+              className="form-select"
+              value={selectedUserId}
+              onChange={(e) => selectExistingUser(e.target.value)}
+            >
+              <option value="">— Manual entry —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.displayName || u.email} ({u.email})
+                </option>
+              ))}
+            </select>
+            <div className="form-hint">
+              Pick a registered member to link this registration to their
+              account, or leave as manual entry for a non-member joiner.
+            </div>
+          </div>
           <div className="form-group">
             <label className="form-label required">Full Name</label>
             <input
