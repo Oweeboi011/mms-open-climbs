@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import WelcomeModal from "@/components/WelcomeModal";
+import ReleaseNotesNotice from "@/components/ReleaseNotesNotice";
 import { GuideProvider } from "@/contexts/GuideContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
 
@@ -17,6 +18,7 @@ import NotFound from "@/pages/NotFound";
 import Register from "@/pages/Register";
 import MyRegistrations from "@/pages/MyRegistrations";
 import WaiverPrint from "@/pages/WaiverPrint";
+import ReleaseNotes from "@/pages/ReleaseNotes";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/Dashboard";
@@ -27,12 +29,15 @@ import AdminUsersManage from "@/pages/admin/UsersManage";
 import AllRegistrations from "@/pages/admin/AllRegistrations";
 import ManagePayments from "@/pages/admin/ManagePayments";
 import AdminAnalytics from "@/pages/admin/Analytics";
+import AdminReleaseNotesManage from "@/pages/admin/ReleaseNotesManage";
+import AdminReleaseNoteForm from "@/pages/admin/ReleaseNoteForm";
 
 export default function App() {
   usePageTracking();
   return (
     <GuideProvider>
       <WelcomeModal />
+      <ReleaseNotesNotice />
       <Routes>
         {/* Public */}
         <Route path="/" element={<Schedule />} />
@@ -46,6 +51,7 @@ export default function App() {
           <Route path="/register/:climbId" element={<Register />} />
           <Route path="/my-registrations" element={<MyRegistrations />} />
           <Route path="/waiver/:registrationId" element={<WaiverPrint />} />
+          <Route path="/release-notes" element={<ReleaseNotes />} />
         </Route>
 
         {/* Admin only */}
@@ -59,6 +65,18 @@ export default function App() {
           <Route path="/admin/registrations" element={<AllRegistrations />} />
           <Route path="/admin/payments" element={<ManagePayments />} />
           <Route path="/admin/analytics" element={<AdminAnalytics />} />
+          <Route
+            path="/admin/release-notes"
+            element={<AdminReleaseNotesManage />}
+          />
+          <Route
+            path="/admin/release-notes/new"
+            element={<AdminReleaseNoteForm />}
+          />
+          <Route
+            path="/admin/release-notes/:id/edit"
+            element={<AdminReleaseNoteForm />}
+          />
         </Route>
 
         <Route path="*" element={<NotFound />} />

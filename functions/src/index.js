@@ -173,6 +173,19 @@ function tplOfficerStatusUpdate({ registrantName, registrantEmail, climbTitle, n
     </p>`);
 }
 
+function tplReleaseNote({ title, body, appUrl }) {
+  const paragraphs = (body || "")
+    .split(/\n\s*\n/)
+    .map((p) => `<p style="color:#4a4a4a;font-size:15px;line-height:1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+  return tplBase(`
+    <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">${title}</h2>
+    ${paragraphs}
+    <p style="margin:24px 0;">
+      <a href="${appUrl}/release-notes" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">View All Updates</a>
+    </p>`);
+}
+
 // ── Helper: get officer emails and admin CC list for a climb ─────────────────
 async function getNotifyLists(climb) {
   // Officer emails stored directly on climb.officers[].email
@@ -745,3 +758,76 @@ exports.deleteUserAccount = onCall(async (request) => {
     throw new HttpsError("internal", err.message);
   }
 });
+
+// ── Callable: admin emails all members about a published release note ────────
+exports.sendReleaseNoteEmail = onCall(
+  { secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"] },
+  async (request) => {
+    try {
+      await requireAdmin(request.auth?.uid);
+
+      const { releaseNoteId } = request.data;
+      if (!releaseNoteId) {
+        throw new HttpsError("invalid-argument", "releaseNoteId is required.");
+      }
+
+      const noteRef = db.doc(`releaseNotes/${releaseNoteId}`);
+      const noteSnap = await noteRef.get();
+      if (!noteSnap.exists) {
+        throw new HttpsError("not-found", "Release note not found.");
+      }
+      const note = noteSnap.data();
+      if (note.status !== "published") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Only published release notes can be emailed.",
+        );
+      }
+
+      const usersSnap = await db.collection("users").get();
+      const recipients = usersSnap.docs
+        .map((d) => d.data())
+        .filter((u) => u.email);
+
+      const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+      const html = tplReleaseNote({
+        title: note.title,
+        body: note.body,
+        appUrl,
+      });
+
+      let sent = 0;
+      for (const u of recipients) {
+        try {
+          await sendEmail({
+            to: u.email,
+            toName: u.displayName || u.email,
+            subject: `MMS Open Climbs Update: ${note.title}`,
+            html,
+          });
+          sent++;
+        } catch (emailErr) {
+          logger.error("[sendReleaseNoteEmail] Failed for recipient", {
+            email: u.email,
+            err: emailErr.message,
+          });
+        }
+      }
+
+      await noteRef.update({
+        emailSentAt: FieldValue.serverTimestamp(),
+        emailSentCount: sent,
+      });
+
+      logger.info("[sendReleaseNoteEmail] Sent", {
+        releaseNoteId,
+        sent,
+        recipients: recipients.length,
+      });
+      return { sent, total: recipients.length };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      throw new HttpsError("internal", err.message);
+    }
+  },
+);
