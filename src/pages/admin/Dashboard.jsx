@@ -16,6 +16,7 @@ import { SCHEDULE_2026 } from "@/data/schedule2026";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { logFailedRequest } from "@/utils/logFailedRequest";
 
 const STATUS_LABEL = {
   draft: "Draft",
@@ -65,8 +66,15 @@ export default function AdminDashboard() {
           createdAt: serverTimestamp(),
         });
         ok++;
-      } catch {
+      } catch (err) {
         fail++;
+        logFailedRequest({
+          type: "firestore",
+          source: "Dashboard.jsx:seedSchedule",
+          message: err?.message,
+          path: window.location.pathname,
+          userRole: "admin",
+        });
       }
     }
     setSeeding(false);

@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { logFailedRequest } from "@/utils/logFailedRequest";
 
 const COLOR_OPTIONS = [
   { value: "c-slate", label: "Slate (grey-blue)" },
@@ -201,6 +202,15 @@ export default function AdminClimbForm() {
       set("trailImages", [...(form.trailImages || []), ...uploaded]);
     } catch (err) {
       setError("Failed to upload trail image: " + err.message);
+      logFailedRequest({
+        type: "upload",
+        source: "ClimbForm.jsx:trailImageUpload",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        userRole: "admin",
+        climbId: id,
+      });
     } finally {
       setTrailImgUploading(false);
       e.target.value = "";
@@ -221,6 +231,15 @@ export default function AdminClimbForm() {
       set("gcashQrUrl", url);
     } catch (err) {
       setError("Failed to upload GCash QR image: " + err.message);
+      logFailedRequest({
+        type: "upload",
+        source: "ClimbForm.jsx:gcashQrUpload",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        userRole: "admin",
+        climbId: id,
+      });
     } finally {
       setGcashUploading(false);
     }
@@ -301,6 +320,15 @@ export default function AdminClimbForm() {
       navigate("/admin/climbs");
     } catch (err) {
       setError("Save failed: " + err.message);
+      logFailedRequest({
+        type: "firestore",
+        source: "ClimbForm.jsx:save",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        userRole: "admin",
+        climbId: id,
+      });
     } finally {
       setSaving(false);
     }

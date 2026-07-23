@@ -9,6 +9,7 @@
   - [registrations](#registrations)
   - [users](#users)
   - [pageViews](#pageviews)
+  - [failedRequests](#failedrequests)
   - [notifications](#notifications)
   - [releaseNotes](#releasenotes)
 - [Data Relationships](#data-relationships)
@@ -23,7 +24,7 @@
 
 ## Overview
 
-MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under four top-level collections: `climbs`, `registrations`, `users`, and `pageViews`.
+MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under top-level collections including `climbs`, `registrations`, `users`, `pageViews`, and `failedRequests`.
 
 There is no SQL schema. Documents in the same collection can have varying fields, though the application follows a consistent structure as documented here.
 
@@ -40,12 +41,14 @@ graph TD
         C2["registrations\nOne document per member registration"]
         C3["users\nOne document per user account"]
         C4["pageViews\nOne document per page visit"]
+        C5["failedRequests\nOne document per logged failure"]
     end
 
     DB --> C1
     DB --> C2
     DB --> C3
     DB --> C4
+    DB --> C5
 ```
 
 ---
@@ -216,6 +219,26 @@ Each document records one page view event. Used by the Admin Analytics page.
 | `createdAt` | timestamp | Yes | Firestore server timestamp of the page view |
 
 Write access is public (any visitor can write). Read, update, and delete are restricted to admins only.
+
+---
+
+### failedRequests
+
+Each document records one failure the admin "Failed Requests" analytics section surfaces — a failed Brevo email send, a failed Storage upload, a failed Firestore write/read, or an uncaught client-side error. Written both by clients (fire-and-forget, mirroring `pageViews`) and by Cloud Functions (via the Admin SDK).
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `type` | string | Yes | `email` / `upload` / `firestore` / `client` |
+| `source` | string | Yes | Origin of the failure, e.g. `onRegistrationCreated`, `Register.jsx:paymentUpload`, `window.onerror` |
+| `message` | string | Yes | Error message, truncated to 500 characters |
+| `path` | string | No | Route path, client-side failures only; `null` for Cloud Functions |
+| `userId` | string | No | Firebase Auth UID if known, otherwise `null` |
+| `userRole` | string | No | `guest` / `member` / `admin` if known, otherwise `null` |
+| `climbId` | string | No | Related climb document ID, if applicable |
+| `registrationId` | string | No | Related registration document ID, if applicable |
+| `createdAt` | timestamp | Yes | Firestore server timestamp of the failure |
+
+Write access is public (any visitor's browser can log a client-side failure, same as `pageViews`). Read, update, and delete are restricted to admins only.
 
 ---
 

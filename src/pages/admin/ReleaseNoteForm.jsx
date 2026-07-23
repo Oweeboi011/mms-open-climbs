@@ -14,8 +14,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { logFailedRequest } from "@/utils/logFailedRequest";
 
 const sendReleaseNoteEmailFn = httpsCallable(functions, "sendReleaseNoteEmail");
+const getReleaseNoteCommitOptionsFn = httpsCallable(
+  functions,
+  "getReleaseNoteCommitOptions",
+);
+const generateReleaseNoteDraftFn = httpsCallable(
+  functions,
+  "generateReleaseNoteDraft",
+);
 
 const EMPTY_FORM = {
   title: "",
@@ -38,6 +47,15 @@ export default function AdminReleaseNoteForm() {
   const [sendError, setSendError] = useState("");
   const [sendOk, setSendOk] = useState("");
 
+  const [sourceCommit, setSourceCommit] = useState(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [commitOptions, setCommitOptions] = useState(null);
+  const [selectedSha, setSelectedSha] = useState("");
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerError, setPickerError] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+
   useEffect(() => {
     if (!isEdit) return;
     getDoc(doc(db, "releaseNotes", id)).then((snap) => {
@@ -52,6 +70,45 @@ export default function AdminReleaseNoteForm() {
 
   function set(field, value) {
     setForm((p) => ({ ...p, [field]: value }));
+  }
+
+  async function openPicker() {
+    setShowPicker(true);
+    setPickerError("");
+    setGenerateError("");
+    if (commitOptions) return;
+    setPickerLoading(true);
+    try {
+      const result = await getReleaseNoteCommitOptionsFn();
+      const commits = result.data?.commits || [];
+      setCommitOptions({ since: result.data?.since || null, commits });
+      if (commits.length > 0) setSelectedSha(commits[0].sha);
+    } catch (err) {
+      setPickerError(err?.message || "Failed to load commits.");
+    } finally {
+      setPickerLoading(false);
+    }
+  }
+
+  async function handleGenerate() {
+    if (!selectedSha) return;
+    setGenerating(true);
+    setGenerateError("");
+    try {
+      const result = await generateReleaseNoteDraftFn({ until: selectedSha });
+      const { title, body, sourceCommit: sc, commitCount } = result.data || {};
+      if (!commitCount) {
+        setGenerateError("No user-facing commits found in that range.");
+        return;
+      }
+      setForm((p) => ({ ...p, title: title || p.title, body: body || p.body }));
+      setSourceCommit(sc || null);
+      setShowPicker(false);
+    } catch (err) {
+      setGenerateError(err?.message || "Failed to generate draft.");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -69,6 +126,9 @@ export default function AdminReleaseNoteForm() {
       if (form.status === "published" && !wasPublished) {
         payload.publishedAt = serverTimestamp();
       }
+      if (!isEdit && sourceCommit) {
+        payload.sourceCommit = sourceCommit;
+      }
       if (isEdit) {
         await updateDoc(doc(db, "releaseNotes", id), payload);
       } else {
@@ -79,6 +139,14 @@ export default function AdminReleaseNoteForm() {
       navigate("/admin/release-notes");
     } catch (err) {
       setError("Save failed: " + err.message);
+      logFailedRequest({
+        type: "firestore",
+        source: "ReleaseNoteForm.jsx:save",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        userRole: "admin",
+      });
     } finally {
       setSaving(false);
     }
@@ -129,6 +197,112 @@ export default function AdminReleaseNoteForm() {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
+
+        {!isEdit && (
+          <div className="admin-card">
+            <div className="admin-card-title">Generate from Git History</div>
+            {!showPicker ? (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={openPicker}
+              >
+                Generate from Git History
+              </button>
+            ) : (
+              <>
+                {pickerLoading ? (
+                  <LoadingSpinner />
+                ) : pickerError ? (
+                  <div className="alert alert-error">{pickerError}</div>
+                ) : (
+                  <>
+                    <p className="form-hint" style={{ marginTop: 0 }}>
+                      {commitOptions?.since
+                        ? `Showing commits after the last release note's checkpoint (${commitOptions.since.slice(0, 7)}). Pick how far up to include:`
+                        : "No prior release note checkpoint found — showing recent commits. Pick how far up to include:"}
+                    </p>
+                    <div
+                      style={{
+                        maxHeight: 260,
+                        overflowY: "auto",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        marginBottom: 12,
+                      }}
+                    >
+                      {(commitOptions?.commits || []).map((c) => (
+                        <label
+                          key={c.sha}
+                          style={{
+                            display: "flex",
+                            gap: 10,
+                            alignItems: "center",
+                            padding: "8px 12px",
+                            borderBottom: "1px solid var(--border)",
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="commitUntil"
+                            value={c.sha}
+                            checked={selectedSha === c.sha}
+                            onChange={() => setSelectedSha(c.sha)}
+                          />
+                          <span
+                            style={{
+                              fontFamily: "monospace",
+                              color: "var(--ink-soft)",
+                            }}
+                          >
+                            {c.shortSha}
+                          </span>
+                          <span style={{ flex: 1 }}>{c.subject}</span>
+                        </label>
+                      ))}
+                      {(commitOptions?.commits || []).length === 0 && (
+                        <div style={{ padding: 12, color: "var(--ink-soft)" }}>
+                          No commits found.
+                        </div>
+                      )}
+                    </div>
+                    {generateError && (
+                      <div className="alert alert-error">{generateError}</div>
+                    )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-accent btn-sm"
+                        disabled={!selectedSha || generating}
+                        onClick={handleGenerate}
+                      >
+                        {generating ? "Generating…" : "Generate Draft"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => setShowPicker(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+            {sourceCommit && !showPicker && (
+              <p className="form-hint">
+                Draft generated up to commit{" "}
+                <span style={{ fontFamily: "monospace" }}>
+                  {sourceCommit.slice(0, 7)}
+                </span>
+                . Review the title/body below before saving.
+              </p>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="admin-card">
