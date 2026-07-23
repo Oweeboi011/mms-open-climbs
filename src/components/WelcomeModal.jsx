@@ -5,7 +5,7 @@ import { useGuide } from "@/contexts/GuideContext";
 
 const STORAGE_KEY = (uid) => `oc_welcomed_${uid}`;
 
-const MEMBER_STEPS = [
+2const MEMBER_STEPS = [
   {
     icon: "🏔",
     title: "Browse Climbs",

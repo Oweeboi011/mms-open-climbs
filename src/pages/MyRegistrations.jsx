@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { logFailedRequest } from "@/utils/logFailedRequest";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -75,6 +76,15 @@ function PayPrompt({ reg, onClose, onSaved }) {
       onSaved();
     } catch (err) {
       setError("Failed to submit payment proof. Please try again.");
+      logFailedRequest({
+        type: "upload",
+        source: "MyRegistrations.jsx:PayPrompt",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: reg.userId,
+        climbId: reg.climbId,
+        registrationId: reg.id,
+      });
     } finally {
       setSaving(false);
     }
@@ -213,7 +223,16 @@ export default function MyRegistrations() {
           });
         setOfficerClimbs(sorted);
       })
-      .catch((err) => console.error("Officer climbs query failed:", err));
+      .catch((err) => {
+        console.error("Officer climbs query failed:", err);
+        logFailedRequest({
+          type: "firestore",
+          source: "MyRegistrations.jsx:officerClimbsQuery",
+          message: err?.message,
+          path: window.location.pathname,
+          userId: currentUser.uid,
+        });
+      });
   }, [currentUser.uid]);
 
   return (

@@ -16,6 +16,20 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 
 const DAYS_WINDOW = 30;
 const MAX_VIEWS = 5000;
+const MAX_FAILURES = 1000;
+
+const FAILURE_TYPE_LABEL = {
+  email: "Email",
+  upload: "Upload",
+  firestore: "Firestore",
+  client: "Client",
+};
+const FAILURE_TYPE_COLOR = {
+  email: "#7b2d8b",
+  upload: "#0070E0",
+  firestore: "#c0392b",
+  client: "#888",
+};
 
 function daysAgoTimestamp(days) {
   const d = new Date();
@@ -91,6 +105,7 @@ function StatCard({ label, value, sub, color }) {
 
 export default function Analytics() {
   const [views, setViews] = useState([]);
+  const [failures, setFailures] = useState([]);
   const [climbTitles, setClimbTitles] = useState({});
   const [userNames, setUserNames] = useState({});
   const [loading, setLoading] = useState(true);
@@ -108,9 +123,21 @@ export default function Analytics() {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setViews(data);
 
+        // Fetch recent failed requests (last MAX_FAILURES, ordered by time desc)
+        const failQ = query(
+          collection(db, "failedRequests"),
+          orderBy("createdAt", "desc"),
+          limit(MAX_FAILURES),
+        );
+        const failSnap = await getDocs(failQ);
+        const failData = failSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setFailures(failData);
+
         // Resolve climb titles for any climbId found
         const climbIds = [
-          ...new Set(data.map((v) => v.climbId).filter(Boolean)),
+          ...new Set(
+            [...data, ...failData].map((v) => v.climbId).filter(Boolean),
+          ),
         ];
         if (climbIds.length > 0) {
           const climbSnaps = await getDocs(collection(db, "climbs"));
@@ -122,7 +149,11 @@ export default function Analytics() {
         }
 
         // Resolve display names for all logged-in visitors
-        const userIds = [...new Set(data.map((v) => v.userId).filter(Boolean))];
+        const userIds = [
+          ...new Set(
+            [...data, ...failData].map((v) => v.userId).filter(Boolean),
+          ),
+        ];
         if (userIds.length > 0) {
           const userSnaps = await getDocs(collection(db, "users"));
           const names = {};
@@ -250,6 +281,17 @@ export default function Analytics() {
     if (!(key in dailyGuestMap)) return;
     if (v.userRole === "guest") dailyGuestMap[key]++;
     else dailyMemberMap[key]++;
+  });
+
+  // --- Failed Requests Aggregations ---
+  const failTs = (f) => f.createdAt?.toDate?.() ?? new Date(0);
+  const totalFailures = failures.length;
+  const todayFailures = failures.filter((f) => failTs(f) >= todayStart).length;
+  const weekFailures = failures.filter((f) => failTs(f) >= weekStart).length;
+
+  const failureTypeCounts = { email: 0, upload: 0, firestore: 0, client: 0 };
+  failures.forEach((f) => {
+    if (f.type in failureTypeCounts) failureTypeCounts[f.type]++;
   });
 
   // Traffic source split %
@@ -1137,6 +1179,277 @@ export default function Analytics() {
               >
                 No views recorded yet. Analytics will appear here once visitors
                 start browsing.
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Failed Requests */}
+        <section style={{ marginBottom: 28 }}>
+          <div
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              letterSpacing: 2,
+              textTransform: "uppercase",
+              color: "var(--ink-soft)",
+              marginBottom: 12,
+            }}
+          >
+            Failed Requests
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <StatCard
+              label="Total Failures"
+              value={totalFailures}
+              color="#c0392b"
+            />
+            <StatCard label="Today" value={todayFailures} />
+            <StatCard label="Last 7 Days" value={weekFailures} />
+            <StatCard
+              label="Email"
+              value={failureTypeCounts.email}
+              color={FAILURE_TYPE_COLOR.email}
+            />
+            <StatCard
+              label="Upload"
+              value={failureTypeCounts.upload}
+              color={FAILURE_TYPE_COLOR.upload}
+            />
+            <StatCard
+              label="Firestore"
+              value={failureTypeCounts.firestore}
+              color={FAILURE_TYPE_COLOR.firestore}
+            />
+            <StatCard
+              label="Client"
+              value={failureTypeCounts.client}
+              color={FAILURE_TYPE_COLOR.client}
+            />
+          </div>
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              overflow: "hidden",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+            }}
+          >
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "0.8rem",
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    borderBottom: "1px solid var(--border)",
+                    background: "var(--surface-alt, #f8f5ee)",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      color: "var(--ink-soft)",
+                      fontSize: "0.68rem",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Time
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      color: "var(--ink-soft)",
+                      fontSize: "0.68rem",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Type
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      color: "var(--ink-soft)",
+                      fontSize: "0.68rem",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Source
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      color: "var(--ink-soft)",
+                      fontSize: "0.68rem",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Message
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      color: "var(--ink-soft)",
+                      fontSize: "0.68rem",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    User
+                  </th>
+                  <th
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontWeight: 700,
+                      color: "var(--ink-soft)",
+                      fontSize: "0.68rem",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Path
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {failures.slice(0, 200).map((f, i) => {
+                  const t = failTs(f);
+                  const timeStr =
+                    t.getFullYear() > 1970
+                      ? t.toLocaleString("en-PH", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—";
+                  const typeColor = FAILURE_TYPE_COLOR[f.type] || "#888";
+                  return (
+                    <tr
+                      key={f.id}
+                      style={{
+                        borderBottom:
+                          i < failures.length - 1
+                            ? "1px solid var(--border)"
+                            : "none",
+                        background:
+                          i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.015)",
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: "8px 16px",
+                          color: "var(--ink-soft)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {timeStr}
+                      </td>
+                      <td style={{ padding: "8px 16px" }}>
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: 99,
+                            background: `${typeColor}18`,
+                            color: typeColor,
+                          }}
+                        >
+                          {FAILURE_TYPE_LABEL[f.type] || f.type}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 16px",
+                          fontFamily: "monospace",
+                          fontSize: "0.75rem",
+                          color: "var(--ink)",
+                          maxWidth: 200,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {f.source || "—"}
+                      </td>
+                      <td
+                        title={f.message}
+                        style={{
+                          padding: "8px 16px",
+                          color: "var(--ink-soft)",
+                          maxWidth: 260,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {f.message || "—"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 16px",
+                          fontSize: "0.8rem",
+                          color: f.userId ? "var(--ink)" : "var(--ink-soft)",
+                          fontWeight: f.userId ? 500 : 400,
+                        }}
+                      >
+                        {f.userId ? userNames[f.userId] || f.userId : "—"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 16px",
+                          fontFamily: "monospace",
+                          color: "var(--ink)",
+                          maxWidth: 180,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {f.path || "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {failures.length === 0 && (
+              <div
+                style={{
+                  padding: "28px 16px",
+                  textAlign: "center",
+                  color: "var(--ink-soft)",
+                  fontSize: "0.85rem",
+                }}
+              >
+                No failures recorded — nice.
               </div>
             )}
           </div>
