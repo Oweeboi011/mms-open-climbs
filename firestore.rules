@@ -43,6 +43,11 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    match /failedRequests/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
     match /releaseNotes/{noteId} {
       allow read: if isSignedIn() && (resource.data.status == 'published' || isAdmin());
       allow write: if isAdmin();
