@@ -265,6 +265,8 @@ flowchart LR
 
 ADRs follow the template in `docs/adr/`. Do not edit the template itself.
 
+The `docs/adr/` directory does not yet exist in this repository — it is referenced here and in `README.md` but has never been created. The first architectural decision worth capturing this way is the release notes email-dispatch design; see [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture) for the decision that should become `ADR-0001`.
+
 ---
 
 ## Testing Requirements

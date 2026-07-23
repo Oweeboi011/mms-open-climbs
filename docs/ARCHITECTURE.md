@@ -136,16 +136,22 @@ graph TD
         AR2["AllRegistrations (/admin/registrations)"]
         MP["ManagePayments (/admin/payments)"]
         AN["Analytics (/admin/analytics)"]
+        RNM["ReleaseNotesManage (/admin/release-notes)"]
+        RNF["ReleaseNoteForm (new / edit)"]
     end
 
     App --> AC
     App --> GC
     App --> PR
     App --> AR
+    App --> RNN["ReleaseNotesNotice\nglobal popup, mounted like WelcomeModal"]
     PR --> Member
+    PR --> RNP["ReleaseNotes (/release-notes)"]
     AR --> Admin
     App --> Public
 ```
+
+`ReleaseNotesNotice` is mounted globally in `App.jsx` alongside `WelcomeModal`, so it can surface a "what's new" popup on any authenticated page. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md) for the full feature design, roadmap, and governance proposal.
 
 ### Page Tracking
 
@@ -157,7 +163,7 @@ The `usePageTracking` hook (`src/hooks/usePageTracking.js`) writes a `pageViews`
 
 ### Cloud Functions Overview
 
-All backend logic runs in Cloud Functions v2 deployed to the `asia-east1` region. There are two Firestore document-level event triggers and one HTTPS callable function.
+All backend logic runs in Cloud Functions v2 deployed to the `asia-east1` region. There are two Firestore document-level event triggers, one scheduled function, and four HTTPS callable functions.
 
 ```mermaid
 graph LR
@@ -166,24 +172,40 @@ graph LR
         T2["onRegistrationUpdated\nregistrations/{regId}\nonDocumentUpdated"]
     end
 
+    subgraph Scheduled["Scheduled"]
+        S1["sendReminderNotifications\nDaily 09:00 Asia/Manila"]
+    end
+
     subgraph Callables["HTTPS Callable Functions"]
-        C1["createUser\nhttpsCallable — Admin only"]
+        C1["createUser\nAdmin only"]
+        C2["updateUserProfile\nAdmin only"]
+        C3["deleteUserAccount\nAdmin only"]
+        C4["sendReleaseNoteEmail\nAdmin only"]
     end
 
     subgraph Outputs["Side Effects"]
-        FS["Firestore\nregistrationCount update"]
-        EM["Brevo Email\nto registrant, officers, admins"]
-        AU["Firebase Auth\nuser account creation"]
+        FS["Firestore\nregistrationCount, notifications,\nreleaseNotes.emailSentAt/Count updates"]
+        EM["Brevo Email\nto registrant, officers, admins, or all members"]
+        AU["Firebase Auth\nuser account create/update/delete"]
     end
 
     T1 --> FS
     T1 --> EM
     T2 --> FS
     T2 --> EM
+    S1 --> FS
     C1 --> FS
     C1 --> EM
     C1 --> AU
+    C2 --> FS
+    C2 --> AU
+    C3 --> FS
+    C3 --> AU
+    C4 --> FS
+    C4 --> EM
 ```
+
+`sendReleaseNoteEmail` follows the same `requireAdmin()` authorization helper as `updateUserProfile` and `deleteUserAccount`, and reuses the `sendEmail()`/`tplBase()` template infrastructure rather than introducing a new email path. Full reference: [API.md — sendReleaseNoteEmail](API.md#sendreleasenoteemail); feature design and roadmap: [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
 
 ### Registration Created Flow
 
@@ -287,6 +309,7 @@ erDiagram
         string photoURL
         timestamp createdAt
         string addedBy
+        string lastSeenReleaseNoteId
     }
 
     pageViews {
@@ -296,9 +319,24 @@ erDiagram
         timestamp createdAt
     }
 
+    releaseNotes {
+        string id PK
+        string title
+        string body
+        string status
+        timestamp createdAt
+        timestamp publishedAt
+        string createdBy
+        timestamp emailSentAt
+        number emailSentCount
+    }
+
     climbs ||--o{ registrations : "climbId"
     users ||--o{ registrations : "userId"
+    users ||--o{ releaseNotes : "createdBy"
 ```
+
+`releaseNotes` has no direct foreign key from `users` beyond authorship (`createdBy`) — visibility and email targeting are computed at read/send time (`status == "published"`, "every document in `users`"), not stored as relationships. See [DATA.md — releaseNotes](DATA.md#releasenotes) and [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
 
 ### Registration Status State Machine
 
@@ -384,12 +422,14 @@ flowchart TD
         E1["New registration submitted"]
         E2["Registration status changed"]
         E3["Admin creates new user account"]
+        E4["Admin sends a published release note"]
     end
 
     subgraph Functions["Cloud Functions"]
         F1["onRegistrationCreated"]
         F2["onRegistrationUpdated"]
         F3["createUser callable"]
+        F4["sendReleaseNoteEmail callable"]
     end
 
     subgraph Recipients["Email Recipients"]
@@ -397,11 +437,13 @@ flowchart TD
         R2["Climb Officers — new registration or status change notification"]
         R3["Admin Accounts — CC on all officer emails"]
         R4["New User — welcome email with password setup link"]
+        R5["Every user in the users collection — release note announcement"]
     end
 
     E1 --> F1
     E2 --> F2
     E3 --> F3
+    E4 --> F4
 
     F1 --> R1
     F1 --> R2
@@ -412,7 +454,10 @@ flowchart TD
     F2 --> R3
 
     F3 --> R4
+    F4 --> R5
 ```
+
+`sendReleaseNoteEmail` is the only email path that targets the entire membership rather than a bounded set of officers/admins/one recipient — see the scaling risk and proposed async redesign in [RELEASE_NOTES_FEATURE.md — Risks and Challenges](RELEASE_NOTES_FEATURE.md#risks-and-challenges).
 
 ---
 
@@ -430,6 +475,7 @@ The application uses React Router v6 with nested routes and layout-based route g
 | `/register/:climbId`      | Authenticated | Register         | Climb registration form with waiver         |
 | `/my-registrations`       | Authenticated | MyRegistrations  | Member's personal registration history      |
 | `/waiver/:registrationId` | Auth (owner)  | WaiverPrint      | Printable liability waiver                  |
+| `/release-notes`          | Authenticated | ReleaseNotes     | History of published release notes          |
 | `/admin`                  | Admin         | Dashboard        | Overview table of all climbs                |
 | `/admin/climbs`           | Admin         | ClimbsManage     | Climb list with create and manage actions   |
 | `/admin/climbs/new`       | Admin         | ClimbForm        | Create new climb                            |
@@ -439,6 +485,9 @@ The application uses React Router v6 with nested routes and layout-based route g
 | `/admin/registrations`    | Admin         | AllRegistrations | Cross-climb registration table with export  |
 | `/admin/payments`         | Admin         | ManagePayments   | GCash verification and transport headcount  |
 | `/admin/analytics`        | Admin         | Analytics        | Page view analytics dashboard               |
+| `/admin/release-notes`    | Admin         | ReleaseNotesManage | List and manage release notes             |
+| `/admin/release-notes/new` | Admin       | ReleaseNoteForm  | Create a release note                       |
+| `/admin/release-notes/:id/edit` | Admin  | ReleaseNoteForm  | Edit a release note, trigger email blast    |
 
 ---
 
@@ -483,3 +532,5 @@ graph TD
 | Vite with `@` path alias | Keeps import paths clean and refactor-friendly across a growing component tree. |
 | No TypeScript | Intentional for this project phase. The team agreed to defer a TypeScript migration to avoid premature complexity on a small-team project. |
 | React Context over Redux/Zustand | The application's shared state surface is small (auth + climbs list). A full state management library would add unnecessary complexity. |
+| `users.lastSeenReleaseNoteId` over `localStorage` for "seen" tracking | Unlike `WelcomeModal`'s device-local dismissal, the release notes popup needed to stay dismissed across devices for the same member — storing the flag on the Firestore user document the client already owns achieved that without a new subcollection. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md). |
+| Synchronous callable for the release notes email blast (for now) | Simplest implementation that reuses the existing `sendEmail()`/`requireAdmin()` helpers with no new infrastructure. Flagged for an async, batched redesign once membership size makes a single-request loop risky — see [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture). |
