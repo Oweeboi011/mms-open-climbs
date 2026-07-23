@@ -21,6 +21,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import WaiverText from "@/components/WaiverText";
+import { logFailedRequest } from "@/utils/logFailedRequest";
 
 const INITIAL_FORM = {
   fullName: "",
@@ -141,6 +142,15 @@ export default function Register() {
       setPaymentUploading(false);
       setSubmitting(false);
       setError("Failed to upload proof of payment. Please try again.");
+      logFailedRequest({
+        type: "upload",
+        source: "Register.jsx:paymentUpload",
+        message: uploadErr?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        userRole: userProfile?.role === "admin" ? "admin" : "member",
+        climbId,
+      });
       return;
     }
 
@@ -210,6 +220,15 @@ export default function Register() {
     } catch (err) {
       console.error(err);
       setError("Registration failed. Please try again.");
+      logFailedRequest({
+        type: "firestore",
+        source: "Register.jsx:createRegistration",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        userRole: userProfile?.role === "admin" ? "admin" : "member",
+        climbId,
+      });
     } finally {
       setSubmitting(false);
     }

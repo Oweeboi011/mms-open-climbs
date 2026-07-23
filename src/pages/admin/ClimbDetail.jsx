@@ -18,6 +18,7 @@ import { db } from "@/firebase/config";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { logFailedRequest } from "@/utils/logFailedRequest";
 
 const EXPERIENCE_LABELS = {
   beginner: "Beginner",
@@ -166,6 +167,14 @@ function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
       onAdded();
     } catch (err) {
       setError("Failed to add participant. Please try again.");
+      logFailedRequest({
+        type: "firestore",
+        source: "ClimbDetail.jsx:addParticipant",
+        message: err?.message,
+        path: window.location.pathname,
+        userRole: "admin",
+        climbId,
+      });
     } finally {
       setSaving(false);
     }
