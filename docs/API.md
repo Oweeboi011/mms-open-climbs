@@ -13,6 +13,7 @@
   - [createUser](#createuser)
   - [updateUserProfile](#updateuserprofile)
   - [deleteUserAccount](#deleteuseraccount)
+  - [sendReleaseNoteEmail](#sendreleasenoteemail)
 - [Environment Variables and Secrets](#environment-variables-and-secrets)
 - [Error Codes Reference](#error-codes-reference)
 - [Email Templates](#email-templates)
@@ -42,12 +43,14 @@ graph TD
         FS_R["registrations collection"]
         FS_C["climbs collection"]
         FS_U["users collection"]
+        FS_RN["releaseNotes collection"]
     end
 
     subgraph Functions["Cloud Functions v2 (asia-east1)"]
         T1["onRegistrationCreated\nFirestore trigger"]
         T2["onRegistrationUpdated\nFirestore trigger"]
         C1["createUser\nHTTPS Callable"]
+        C2["sendReleaseNoteEmail\nHTTPS Callable"]
     end
 
     subgraph External["External Services"]
@@ -57,6 +60,7 @@ graph TD
 
     UI -->|write doc| FS_R
     UI -->|httpsCallable| C1
+    UI -->|httpsCallable| C2
 
     FS_R -->|onCreate| T1
     FS_R -->|onUpdate| T2
@@ -71,6 +75,12 @@ graph TD
     C1 -->|create account| FA
     C1 -->|write profile| FS_U
     C1 -->|send welcome email| EM
+
+    C2 -->|verify caller role| FS_U
+    C2 -->|read note| FS_RN
+    C2 -->|read all recipient emails| FS_U
+    C2 -->|send email per recipient| EM
+    C2 -->|write emailSentAt/Count| FS_RN
 ```
 
 ---
@@ -323,6 +333,80 @@ Permanently deletes a user's Firebase Auth login and their Firestore `users/{uid
 
 ---
 
+### sendReleaseNoteEmail
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'sendReleaseNoteEmail')`
+**Access:** Admin users only
+**Secrets required:** `BREVO_API_KEY`, `BREVO_FROM_EMAIL`
+
+Emails every document in the `users` collection about a published release note. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md) for the full feature design, and [DATA.md — releaseNotes](DATA.md#releasenotes) for the source document schema.
+
+#### Full flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant AD as Admin UI (ReleaseNoteForm)
+    participant CF as sendReleaseNoteEmail Function
+    participant FS as Firestore (releaseNotes, users)
+    participant EM as Brevo Email
+    participant M as Members (email inbox)
+
+    AD->>CF: call sendReleaseNoteEmail({ releaseNoteId })
+    CF->>FS: requireAdmin(callerUid) — read users/{callerUid}.role
+    alt Caller is not admin
+        CF-->>AD: HttpsError(permission-denied)
+    end
+    CF->>FS: Read releaseNotes/{releaseNoteId}
+    alt Note missing
+        CF-->>AD: HttpsError(not-found)
+    end
+    alt status is not "published"
+        CF-->>AD: HttpsError(failed-precondition)
+    end
+    CF->>FS: Read all users with an email field
+    loop for each recipient
+        CF->>EM: Send tplReleaseNote email
+        EM-->>M: Release note announcement
+    end
+    CF->>FS: Update releaseNotes/{id}.emailSentAt, emailSentCount
+    CF-->>AD: { sent, total }
+```
+
+#### Request payload
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `releaseNoteId` | string | Yes | Document ID of the `releaseNotes` doc to announce |
+
+#### Response
+
+```json
+{ "sent": 42, "total": 45 }
+```
+
+`sent` counts recipients whose Brevo send succeeded; `total` is the number of `users` documents with an `email` field. A gap between the two means individual sends failed (logged server-side) without aborting the rest of the batch.
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+| `invalid-argument` | `releaseNoteId` missing |
+| `not-found` | No `releaseNotes` document exists with that ID |
+| `failed-precondition` | The note's `status` is not `published` |
+| `internal` | Unexpected Firebase or Brevo error |
+
+#### Known limitations
+
+- Recipients are emailed sequentially in a single function invocation — no batching, concurrency limiting, or retry/backoff on individual failures. See [RELEASE_NOTES_FEATURE.md — Risks and Challenges](RELEASE_NOTES_FEATURE.md#risks-and-challenges) for the scaling concern and the proposed asynchronous redesign.
+- Targets every document in `users` — there is no audience segmentation (e.g. climb officers only, or a specific climb's registrants).
+- Not yet covered by a Cloud Function test (see [RELEASE_NOTES_FEATURE.md — Dead Code and Gap Audit](RELEASE_NOTES_FEATURE.md#dead-code-and-gap-audit)).
+
+---
+
 ## Environment Variables and Secrets
 
 ### Cloud Functions (`functions/.env` for emulator, Firebase secrets for production)
@@ -391,12 +475,14 @@ graph TD
         T3["tplOfficerNewRegistration\nSent to climb officers on new registration"]
         T4["tplOfficerStatusUpdate\nSent to climb officers on status change"]
         T5["tplWelcome\nSent to new user created by admin"]
+        T6["tplReleaseNote\nSent to all members on admin-triggered blast"]
     end
 
     subgraph Trigger["Triggered by"]
         TR1["onRegistrationCreated"]
         TR2["onRegistrationUpdated"]
         TR3["createUser callable"]
+        TR4["sendReleaseNoteEmail callable"]
     end
 
     TR1 --> T1
@@ -404,6 +490,7 @@ graph TD
     TR2 --> T2
     TR2 --> T4
     TR3 --> T5
+    TR4 --> T6
 ```
 
 | Template | Recipient | Trigger | Key content |
@@ -413,3 +500,4 @@ graph TD
 | `tplOfficerNewRegistration` | Climb officers | `onRegistrationCreated` | Registrant name, email, climb details, link to admin |
 | `tplOfficerStatusUpdate` | Climb officers | `onRegistrationUpdated` | Registrant name, new status, reason, link to admin |
 | `tplWelcome` | New user | `createUser` | Welcome message, account setup link (password reset URL) |
+| `tplReleaseNote` | Every user in `users` | `sendReleaseNoteEmail` | Release note title and body, link to `/release-notes` |

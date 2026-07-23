@@ -27,7 +27,7 @@ flowchart TD
     FE["Frontend\nBlank page, module errors\nbuild failures"]
     AU["Authentication\nSign-in fails, popup blocked\nGoogle OAuth redirect"]
     CF["Cloud Functions\nDeploy fails, emails not sent\npermission errors"]
-    FS["Firestore\nPermission denied, count mismatch\nrules not applied"]
+    FS["Firestore\nPermission denied, count mismatch\nrules not applied, missing index"]
     EM["Email\nNot received, Brevo errors\nsender not verified"]
     AD["Admin Access\nCannot reach /admin\nrole not applied"]
     GC["GCash Payments\nQR not showing, image issues\nmodal problems"]
@@ -244,6 +244,14 @@ firebase deploy --only firestore:indexes
 ```
 
 Or click the link in the browser console error — Firebase provides a direct link to create the missing index.
+
+---
+
+### "What's New" popup or Release Notes page shows nothing / console shows `failed-precondition`
+
+**Cause:** Both `ReleaseNotesNotice` and the `/release-notes` page filter by `status == "published"` and order by `publishedAt`, which requires the composite index defined in `firestore.indexes.json`. If that index was never deployed, both listeners fail silently in the popup and throw a visible Firestore error in the console.
+
+**Fix:** Deploy indexes (`firebase deploy --only firestore:indexes`) and confirm at least one release note has `status: published`. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md) for the full feature reference.
 
 ---
 

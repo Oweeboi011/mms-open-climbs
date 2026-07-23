@@ -68,6 +68,8 @@ src/
       RouteGuards.test.jsx
     contexts/
       AuthContext.test.jsx
+    components/
+      ReleaseNotesNotice.test.jsx
     pages/
       Event.test.jsx
       ForgotPassword.test.jsx
@@ -75,6 +77,7 @@ src/
       MyRegistrations.test.jsx
       NotFound.test.jsx
       Register.test.jsx
+      ReleaseNotes.test.jsx
       Schedule.test.jsx
       Signup.test.jsx
       WaiverPrint.test.jsx
@@ -85,12 +88,16 @@ src/
         ClimbsManage.test.jsx
         Dashboard.test.jsx
         ManagePayments.test.jsx
+        ReleaseNoteForm.test.jsx
+        ReleaseNotesManage.test.jsx
         UsersManage.test.jsx
 
 functions/
   tests/
     index.test.js         -- Cloud Function trigger and callable logic tests
 ```
+
+**Known gap:** `functions/tests/index.test.js` only mocks `mockDb.doc()`, not `mockDb.collection()`. Every callable/trigger that reads or writes via `db.collection(...)` — `getNotifyLists`, `onRegistrationCreated`, `onRegistrationUpdated`, `sendReminderNotifications`, and `sendReleaseNoteEmail` — is therefore untested at the function level today, even though the frontend components that call `sendReleaseNoteEmail` are covered. Extending `mockDb` with a `.collection()` mock would close this for all five functions in one pass. See [RELEASE_NOTES_FEATURE.md — Dead Code and Gap Audit](RELEASE_NOTES_FEATURE.md#dead-code-and-gap-audit).
 
 ---
 

@@ -60,6 +60,7 @@ graph TB
 - Pay via GCash — tap the QR code for a full-screen modal, scan, pay, and upload your receipt screenshot
 - Track all your registrations with status (pending / confirmed / waitlisted / cancelled)
 - Print your waiver for any confirmed registration
+- See a one-time "what's new" popup after login for the latest release note, and browse the full history at any time on the Release Notes page
 
 ### Admin features
 
@@ -70,6 +71,7 @@ graph TB
 - Payment management — verify or reject GCash proof per registration; transport headcount per climb
 - User management — create accounts, assign admin roles
 - Analytics — page view traffic dashboard
+- Release notes — publish "what's new" updates and optionally email every member about a published note
 
 ---
 
@@ -115,42 +117,52 @@ sequenceDiagram
 
 ## Repository Structure
 
-```
-src/
-  App.jsx                   Main application router
-  main.jsx                  React entry point
-  components/               Shared UI components (Header, Footer, ClimbCard, etc.)
-  contexts/                 React contexts (AuthContext, GuideContext)
-  data/                     Static schedule data
-  firebase/                 Firebase SDK initialization and config
-  hooks/                    Custom React hooks (usePageTracking)
-  pages/                    Route-level page components
-  pages/admin/              Admin-only page components
-  styles/                   Global CSS and design tokens
-  tests/                    Frontend test suites (Vitest + Testing Library)
-  test/                     Shared test helpers and setup
+```mermaid
+graph LR
+    subgraph src["src/"]
+        S1["App.jsx — main application router"]
+        S2["main.jsx — React entry point"]
+        S3["components/ — shared UI (Header, Footer, ClimbCard, ...)"]
+        S4["contexts/ — AuthContext, GuideContext"]
+        S5["data/ — static schedule data"]
+        S6["firebase/ — Firebase SDK init and config"]
+        S7["hooks/ — usePageTracking"]
+        S8["pages/ — route-level page components"]
+        S9["pages/admin/ — admin-only page components"]
+        S10["styles/ — global CSS and design tokens"]
+    end
 
-functions/
-  index.js                  Cloud Functions (triggers + createUser callable)
-  tests/                    Cloud Function test suite (Jest)
+    subgraph tests["tests/ and test/"]
+        T1["tests/ — Vitest + Testing Library suites"]
+        T2["test/ — shared render helpers and setup"]
+    end
 
-scripts/
-  set-admin.mjs             Promote a user account to admin role
-  seed-climbs.mjs           Seed local emulator with sample climb data
-  purge-admin-pageviews.mjs Remove admin-generated pageView documents
+    subgraph functions["functions/"]
+        F1["src/index.js — triggers, scheduled function, callables"]
+        F2["tests/ — Jest suite for Cloud Functions"]
+    end
 
-docs/
-  ARCHITECTURE.md           System design, patterns, and component diagrams
-  API.md                    Cloud Functions API reference
-  DEPLOYMENT.md             Production setup and deploy guide
-  SECURITY.md               Security model and OWASP considerations
-  CONTRIBUTING.md           Contribution workflow and coding standards
-  TESTING.md                Test setup, patterns, and coverage guide
-  DATA.md                   Firestore schema and data model reference
-  TROUBLESHOOTING.md        Common issues and fixes
-  adr/                      Architecture Decision Records
+    subgraph scripts["scripts/"]
+        SC1["set-admin.mjs — promote a user to admin role"]
+        SC2["seed-climbs.mjs — seed local emulator with sample climbs"]
+        SC3["purge-admin-pageviews.mjs — remove admin-generated pageView docs"]
+    end
 
-infra/                      Reserved for future infrastructure as code
+    subgraph docs["docs/"]
+        D1["ARCHITECTURE.md — system design and diagrams"]
+        D2["API.md — Cloud Functions API reference"]
+        D3["DEPLOYMENT.md — production setup and deploy guide"]
+        D4["SECURITY.md — security model and OWASP assessment"]
+        D5["CONTRIBUTING.md — workflow and coding standards"]
+        D6["TESTING.md — test setup and coverage guide"]
+        D7["DATA.md — Firestore schema reference"]
+        D8["TROUBLESHOOTING.md — common issues and fixes"]
+        D9["USER_MANUAL.md — end-user and admin guide"]
+        D10["RELEASE_NOTES_FEATURE.md — release notes audit, roadmap, governance"]
+        D11["adr/ — architecture decision records (proposed, not yet created)"]
+    end
+
+    infra["infra/ — reserved for future infrastructure as code"]
 ```
 
 ---
@@ -221,3 +233,5 @@ node scripts/set-admin.mjs your@email.com
 | [TESTING.md](docs/TESTING.md) | Test setup, patterns, and coverage guide |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Contribution workflow and coding standards |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+| [USER_MANUAL.md](docs/USER_MANUAL.md) | End-user and administrator usage guide |
+| [RELEASE_NOTES_FEATURE.md](docs/RELEASE_NOTES_FEATURE.md) | Release notes feature audit, roadmap, and governance plan |
