@@ -337,9 +337,109 @@ describe("sendReminderNotifications", () => {
     expect(notifStore["upcoming3_reg-3d"]).toMatchObject({
       userId: "user-2",
       type: "upcoming_climb",
+      link: "/event/climb-1",
     });
     expect(Object.keys(notifStore)).not.toContain("upcoming3_reg-far");
     expect(Object.keys(notifStore)).not.toContain("upcoming1_reg-far");
+  });
+
+  it("reminds confirmed climbers 7 days out, flagging unpaid registrants but not paid ones", async () => {
+    regStore["reg-7d-unpaid"] = {
+      status: "confirmed",
+      paymentStatus: "unpaid",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+    };
+    regStore["reg-7d-paid"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-2",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      startDate: { toDate: () => new Date(Date.now() + 7 * 86400000 - 60000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["upcoming7_reg-7d-unpaid"]).toMatchObject({
+      userId: "user-1",
+      type: "upcoming_climb",
+      title: "Your climb is in 7 days",
+      link: "/event/climb-1",
+    });
+    expect(notifStore["upcoming7_reg-7d-unpaid"].message).toMatch(/haven't submitted payment/);
+    expect(notifStore["upcoming7_reg-7d-paid"].message).not.toMatch(/haven't submitted payment/);
+  });
+
+  it("emails confirmed participants a thank-you once a climb has ended, and only once", async () => {
+    regStore["reg-done"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+    };
+    regStore["reg-cancelled"] = {
+      status: "cancelled",
+      paymentStatus: "verified",
+      userId: "user-2",
+      climbId: "climb-1",
+      email: "cancelled@x.com",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      endDate: { toDate: () => new Date(Date.now() - 86400000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [, opts] = global.fetch.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.to).toEqual([{ email: "juan@x.com", name: "Juan Cruz" }]);
+    expect(body.htmlContent).toMatch(/Thank You, Juan Cruz/);
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { thankYouSentAt: "SERVER_TS" },
+    });
+  });
+
+  it("skips the thank-you email for climbs that already have thankYouSentAt or haven't ended", async () => {
+    regStore["reg-already"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      endDate: { toDate: () => new Date(Date.now() - 86400000) },
+      thankYouSentAt: "SERVER_TS",
+    };
+    regStore["reg-future"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-2",
+      climbId: "climb-2",
+      name: "Ana",
+      email: "ana@x.com",
+    };
+    climbStore["climb-2"] = {
+      title: "Mt. Apo",
+      endDate: { toDate: () => new Date(Date.now() + 86400000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("skips registrations with no linked user account", async () => {
