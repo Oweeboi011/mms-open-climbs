@@ -139,7 +139,7 @@ Deploy security rules and composite indexes:
 firebase deploy --only firestore
 ```
 
-This deploys both `firestore.rules` and `firestore.indexes.json`.
+This deploys both `firestore.rules` and `firestore.indexes.json`. The `releaseNotes` collection queries (`status == "published"` combined with `orderBy(publishedAt)`) require the composite index already defined in `firestore.indexes.json` — skipping this step leaves the member-facing popup and `/release-notes` history page throwing `failed-precondition` errors in production even though the rules deploy succeeds.
 
 ### Firestore rules summary
 
@@ -150,6 +150,7 @@ flowchart LR
         R2["registrations\nowner read + create\nadmin read + write all\ncreation gated on climb.status = open"]
         R3["users\nany signed-in read\nowner or admin update\nadmin delete"]
         R4["pageViews\npublic create\nadmin read/update/delete"]
+        R5["releaseNotes\nsigned-in read (published only)\nadmin read (draft) + write"]
     end
 ```
 

@@ -50,20 +50,25 @@ flowchart TB
         RR["registrations\nowner read + create\nadmin read + write all"]
         UR["users\nany signed-in read\nowner or admin update\nadmin delete"]
         PV["pageViews\npublic create\nadmin read/update/delete"]
+        RN["releaseNotes\nsigned-in read (published only)\nadmin read (draft) + write"]
     end
 
     subgraph FunctionLayer["Cloud Function Security"]
         CF1["onRegistrationCreated\nNo auth check — triggered server-side only"]
         CF2["onRegistrationUpdated\nNo auth check — triggered server-side only"]
         CF3["createUser\nVerifies caller role via Firestore\nbefore executing"]
+        CF4["sendReleaseNoteEmail\nVerifies caller role via requireAdmin()\nbefore emailing every user"]
     end
 
     PU -->|blocked by| PR
     MU --> PR --> RR
+    MU --> PR --> RN
     AU --> AR --> CR
     AU --> AR --> UR
     AU --> AR --> RR
+    AU --> AR --> RN
     AU --> CF3
+    AU --> CF4
 ```
 
 ---
@@ -121,6 +126,9 @@ flowchart LR
         P8["Write/delete any registration"]
         P9["Write/delete users"]
         P10["Create pageViews"]
+        P11["Read published release notes"]
+        P12["Write release notes (any status)"]
+        P13["Trigger release note email to all members"]
     end
 
     PUB --> P1
@@ -131,6 +139,7 @@ flowchart LR
     MEM --> P4
     MEM --> P5
     MEM --> P10
+    MEM --> P11
     ADM --> P1
     ADM --> P2
     ADM --> P3
@@ -141,7 +150,12 @@ flowchart LR
     ADM --> P8
     ADM --> P9
     ADM --> P10
+    ADM --> P11
+    ADM --> P12
+    ADM --> P13
 ```
+
+Note that P13 (mass-emailing every member) is currently gated only by the same `admin` role used for every other admin capability — there is no narrower "release manager" grant. See [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture) for a proposed finer-grained role.
 
 ---
 
@@ -163,8 +177,20 @@ flowchart TD
         C2["climbs/{climbId}\nread: public\nwrite: isAdmin"]
         C3["registrations/{regId}\nread: isOwner OR isAdmin\ncreate: isOwner AND climbIsOpen\nupdate: isAdmin OR isOwner\ndelete: isAdmin"]
         C4["pageViews/{viewId}\ncreate: public\nread/update/delete: isAdmin"]
+        C5["releaseNotes/{noteId}\nread: isSignedIn AND (published OR isAdmin)\nwrite: isAdmin"]
     end
 ```
+
+**`releaseNotes` collection — draft visibility**
+
+Draft notes are only readable by admins; members can only read documents where `status == 'published'`:
+
+```js
+allow read: if isSignedIn() && (resource.data.status == 'published' || isAdmin());
+allow write: if isAdmin();
+```
+
+Full feature reference: [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
 
 ### Critical rule details
 
@@ -289,7 +315,7 @@ flowchart TD
 | A01 Broken Access Control | Firestore rules enforce ownership and role-based access server-side. React route guards provide UX-level protection. |
 | A02 Cryptographic Failures | HTTPS enforced by Firebase Hosting. Passwords managed by Firebase Auth (bcrypt). No sensitive data stored in plaintext. |
 | A03 Injection | Firestore SDK uses structured queries and typed data — no raw query strings or SQL. |
-| A04 Insecure Design | Registration count uses atomic server-side increments. Role escalation is blocked at the database rule level. |
+| A04 Insecure Design | Registration count uses atomic server-side increments. Role escalation is blocked at the database rule level. `sendReleaseNoteEmail` currently allows any admin to mass-email the entire membership with no second-approval step — see [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md#risks-and-challenges). |
 | A05 Security Misconfiguration | Firestore rules deployed explicitly via CLI. No open-write rules in production. Storage rules restrict access. |
 | A06 Vulnerable Components | Dependencies tracked in `package.json` and `functions/package.json`. Run `npm audit` regularly. |
 | A07 Authentication Failures | Firebase Auth handles JWT lifecycle, token refresh, and secure session management. Short-lived tokens (1-hour expiry). |
@@ -311,3 +337,4 @@ flowchart TD
 | Run `npm audit` and `npm audit --prefix functions` regularly | High | Catch vulnerable dependency versions |
 | Review and rotate Brevo API key annually | Medium | Limit blast radius if the key is compromised |
 | Set up Firebase Alerting for Auth anomalies | Low | Detect unusual sign-in patterns |
+| Introduce a narrower "release manager" role or approval step before mass emails send | Medium | Currently any `admin` account can immediately email every member via `sendReleaseNoteEmail` — see [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture) |
