@@ -20,11 +20,12 @@ No installation is required — the app runs in your web browser on desktop, tab
 8. [Paying via GCash](#8-paying-via-gcash)
 9. [My Registrations](#9-my-registrations)
 10. [Your Signed Waiver](#10-your-signed-waiver)
-11. [For Climb Officers](#11-for-climb-officers)
-12. [For Administrators](#12-for-administrators)
-13. [Frequently Asked Questions](#13-frequently-asked-questions)
-14. [Troubleshooting](#14-troubleshooting)
-15. [Glossary](#15-glossary)
+11. [What's New (Release Notes)](#11-whats-new-release-notes)
+12. [For Climb Officers](#12-for-climb-officers)
+13. [For Administrators](#13-for-administrators)
+14. [Frequently Asked Questions](#14-frequently-asked-questions)
+15. [Troubleshooting](#15-troubleshooting)
+16. [Glossary](#16-glossary)
 
 ---
 
@@ -38,7 +39,7 @@ MMS Open Climbs lets you:
 - Track the status of every climb you've registered for
 - Print your signed waiver at any time
 
-Officers and administrators additionally get tools to manage climbs, review registrations, verify payments, and manage user accounts — see [For Climb Officers](#11-for-climb-officers) and [For Administrators](#12-for-administrators).
+Officers and administrators additionally get tools to manage climbs, review registrations, verify payments, and manage user accounts — see [For Climb Officers](#12-for-climb-officers) and [For Administrators](#13-for-administrators).
 
 Open the app at **[https://mms-open-climbs.web.app](https://mms-open-climbs.web.app)** to begin.
 
@@ -220,7 +221,7 @@ Each climb may have its own GCash QR code and account details, set by the organi
 
 If a climb's GCash details haven't been set up yet by the organizer, the form will say so — you can still fill out and submit your registration, and attach proof of payment once the QR/details are available. Contact the climb officers in the meantime for payment instructions.
 
-Your payment proof is reviewed by administrators (see [Section 12.4 — Payments](#124-payments)), who will mark it **Verified** or **Rejected**. If rejected, you may be asked to resubmit.
+Your payment proof is reviewed by administrators (see [Section 13.4 — Payments](#134-payments)), who will mark it **Verified** or **Rejected**. If rejected, you may be asked to resubmit.
 
 ---
 
@@ -260,7 +261,18 @@ Use your browser's print function (Ctrl+P / Cmd+P) to print it or save it as a P
 
 ---
 
-## 11. For Climb Officers
+## 11. What's New (Release Notes)
+
+Whenever the site adds a new feature or makes an important change, you'll be told about it in two ways:
+
+- **A one-time popup** appears the first time you sign in after a new update is published. It shows the update's title and a short description. Click **Got it** to dismiss it, or **View All Updates** to see the full history. Once dismissed, it won't reappear on any device you sign in from.
+- **A "What's New" link** in the header takes you to the full **Release Notes** page (`/release-notes`) at any time, listing every published update with its date, newest first.
+
+You may also receive an email about a significant update — this is sent at an administrator's discretion, not automatically for every release note.
+
+---
+
+## 12. For Climb Officers
 
 If an administrator assigns you as an officer for a specific climb, you'll see that climb under **"Assigned as Officer"** on your **My Registrations** page, with your role label (e.g. "Officer").
 
@@ -279,15 +291,15 @@ You'll also receive email notifications when someone registers for a climb you o
 
 ---
 
-## 12. For Administrators
+## 13. For Administrators
 
 Administrators sign in with an account that has the `admin` role. An **Admin** link appears in the header, leading to the admin area with the following sections:
 
-### 12.1 Dashboard
+### 13.1 Dashboard
 
 An overview of every climb — type, available slots, and confirmed/pending registration counts. Includes a one-click tool to import the season's full climb schedule into Firestore (useful for initial setup or reseeding).
 
-### 12.2 Climbs Management
+### 13.2 Climbs Management
 
 Create new climbs, edit existing ones, and control their registration state (open/closed). From here you can also:
 
@@ -296,7 +308,7 @@ Create new climbs, edit existing ones, and control their registration state (ope
 - Edit the itinerary and mountain profile fields
 - Assign or remove climb officers
 
-### 12.3 Climb Detail (per-climb registrants)
+### 13.3 Climb Detail (per-climb registrants)
 
 Opened via **Registrants** from Dashboard or Climbs Management. Shows every registration for a single climb, where you can:
 
@@ -310,11 +322,11 @@ Opened via **Registrants** from Dashboard or Climbs Management. Shows every regi
 - Add and save a private admin note per participant
 - Open a participant's printable waiver
 
-### 12.4 Payments
+### 13.4 Payments
 
 A cross-climb view for reviewing and managing GCash payments — verify or reject proof of payment, and manage each climb's GCash QR code and account details.
 
-### 12.5 All Registrations
+### 13.5 All Registrations
 
 A single searchable table of every registration across all climbs, with:
 
@@ -323,7 +335,7 @@ A single searchable table of every registration across all climbs, with:
 - **CSV export** of the currently filtered list
 - Quick links to a participant's printable waiver or their climb's registrant page
 
-### 12.6 User Management
+### 13.6 User Management
 
 - **Create a new user account** — this sends the new user a welcome/password-setup email
 - **Assign or change roles** — promote an existing user account to `admin`
@@ -334,13 +346,22 @@ You can also promote a user to admin from the command line during initial setup:
 node scripts/set-admin.mjs your@email.com
 ```
 
-### 12.7 Analytics
+### 13.7 Analytics
 
 A page-view traffic dashboard, broken down by guest, member, and admin visits over time — useful for understanding how members are using the site.
 
+### 13.8 Release Notes
+
+Publish "what's new" updates for members from **Admin > Release Notes**:
+
+- **Create a release note** — enter a title and body, and set its status to **Draft** while you're still writing, or **Published** to make it visible to members immediately.
+- Published notes appear as the one-time popup (for the newest one) and on the member-facing **Release Notes** page for everyone signed in — see [Section 11](#11-whats-new-release-notes).
+- **Send Email to All Members** — from a published note's edit page, this button emails every registered member about the update via the same system that sends registration confirmations. You'll be asked to confirm before it sends, since it cannot be undone once sent. The page shows how many members were emailed and when, after a send completes.
+- A release note must be **Published** before it can be emailed — the send button is disabled for drafts.
+
 ---
 
-## 13. Frequently Asked Questions
+## 14. Frequently Asked Questions
 
 **Do I need an account to see the climb schedule?**
 No. Browsing climbs and viewing event pages is open to everyone. You only need an account to register.
@@ -362,7 +383,7 @@ No — medical information is only visible to climb officers and administrators 
 
 ---
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 | Problem | Likely Cause | What to Do |
 | --- | --- | --- |
@@ -378,7 +399,7 @@ If none of the above resolves your issue, contact your climb officers or the MMS
 
 ---
 
-## 15. Glossary
+## 16. Glossary
 
 | Term | Meaning |
 | --- | --- |
@@ -394,3 +415,4 @@ If none of the above resolves your issue, contact your climb officers or the MMS
 | **Payment Status** | Whether your GCash proof of payment is Submitted, Verified, or Rejected |
 | **Officer** | A member assigned to help manage a specific climb's registrations |
 | **Admin** | A user account with full administrative access to all climbs, registrations, and users |
+| **Release Note** | A "what's new" announcement published by an admin, shown as a popup and on the Release Notes page |
