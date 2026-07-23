@@ -43,6 +43,8 @@ Officers and administrators additionally get tools to manage climbs, review regi
 
 Open the app at **[https://mms-open-climbs.web.app](https://mms-open-climbs.web.app)** to begin.
 
+**First-time welcome guide:** The first time you sign in, a step-by-step welcome guide walks you through browsing climbs, registering, uploading payment proof, tracking your registrations, and printing your waiver (administrators see additional steps covering climb management, payment verification, registrations/users, and analytics/release notes). It only appears automatically once per account per browser — after you dismiss it, you can reopen it any time via the help/guide icon in the header.
+
 ---
 
 ## 2. Browsing the Climb Schedule
@@ -229,6 +231,8 @@ Your payment proof is reviewed by administrators (see [Section 13.4 — Payments
 
 Click **My Registrations** in the header to see every climb you've registered for.
 
+**Notification bell:** The bell icon in the header keeps you updated without needing to check My Registrations directly — it flags a badge with your unread count and shows things like payment reminders, upcoming-climb reminders (a few days and one day before a climb you're confirmed for), and status changes to your registration. Click a notification to jump straight to the relevant page, or use **Mark all read** to clear the badge.
+
 Each registration card shows:
 
 - Climb name, date, and location
@@ -244,6 +248,8 @@ Each registration card shows:
 If no registrations exist yet, you'll see a prompt to **Browse Climbs**.
 
 If you are assigned as an **officer** for any climb, an **"Assigned as Officer"** section appears above your personal registrations, listing each climb you help manage with quick links to **View Climb** and **Registrants** (the admin view of that climb's registration list).
+
+**After the climb:** Once a climb's end date has passed, confirmed participants receive a one-time "Thank You" email recapping the climb and inviting them to check the schedule for what's next. This is sent automatically — there's nothing to do on your end.
 
 ---
 
@@ -321,6 +327,7 @@ Opened via **Registrants** from Dashboard or Climbs Management. Shows every regi
 - Mark payment status: **Verified**, **Rejected**, or reset to **Submitted** for re-review
 - Add and save a private admin note per participant
 - Open a participant's printable waiver
+- **Add Joiner** — manually record a walk-in participant who didn't register through the app themselves. You can either type their details in directly, or pick **an existing member from the dropdown** to prefill their name and email and link the registration to that member's account (so it shows up under their own My Registrations and they receive the same status/reminder notifications as a self-registered member).
 
 ### 13.4 Payments
 
@@ -339,6 +346,8 @@ A single searchable table of every registration across all climbs, with:
 
 - **Create a new user account** — this sends the new user a welcome/password-setup email
 - **Assign or change roles** — promote an existing user account to `admin`
+- **Edit Profile** — correct a user's display name or login email. Both the Firebase Auth login and the Firestore profile are updated together, so they never drift out of sync.
+- **Delete Account** — permanently removes a user's login and profile. Their past registrations are kept as historical records (with their name/email as submitted at the time), just no longer linked to a live account. You cannot delete your own account this way, as a safeguard against accidental admin lockout.
 
 You can also promote a user to admin from the command line during initial setup:
 
@@ -355,6 +364,7 @@ A page-view traffic dashboard, broken down by guest, member, and admin visits ov
 Publish "what's new" updates for members from **Admin > Release Notes**:
 
 - **Create a release note** — enter a title and body, and set its status to **Draft** while you're still writing, or **Published** to make it visible to members immediately.
+- **Generate from commits** — instead of writing from scratch, pick a commit range from the recent development history and click Generate to draft a title and grouped changelog body automatically. Review and edit the draft before publishing; nothing is saved until you save the note yourself.
 - Published notes appear as the one-time popup (for the newest one) and on the member-facing **Release Notes** page for everyone signed in — see [Section 11](#11-whats-new-release-notes).
 - **Send Email to All Members** — from a published note's edit page, this button emails every registered member about the update via the same system that sends registration confirmations. You'll be asked to confirm before it sends, since it cannot be undone once sent. The page shows how many members were emailed and when, after a send completes.
 - A release note must be **Published** before it can be emailed — the send button is disabled for drafts.
