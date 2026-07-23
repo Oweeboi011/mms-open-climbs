@@ -186,6 +186,17 @@ function tplReleaseNote({ title, body, appUrl }) {
     </p>`);
 }
 
+function tplThankYou({ name, climbTitle, appUrl }) {
+  return tplBase(`
+    <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Thank You, ${name}!</h2>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Congratulations on completing <strong>${climbTitle}</strong>! We hope it was an unforgettable journey.</p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">MMS thanks you for joining us on this climb. We'd love to see you again — check out the upcoming schedule and join us on the next one!</p>
+    <p style="margin:24px 0;">
+      <a href="${appUrl}" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">See Upcoming Climbs</a>
+    </p>
+    <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">Stay safe, and see you on the trail!</p>`);
+}
+
 // ── Helper: get officer emails and admin CC list for a climb ─────────────────
 async function getNotifyLists(climb) {
   // Officer emails stored directly on climb.officers[].email
@@ -519,8 +530,14 @@ exports.onRegistrationUpdated = onDocumentUpdated(
 );
 
 // ── Scheduled: daily reminders for unpaid registrations & upcoming climbs ─────
+const UPCOMING_REMINDER_DAYS = new Set([7, 5, 3, 1]);
+
 exports.sendReminderNotifications = onSchedule(
-  { schedule: "every day 09:00", timeZone: "Asia/Manila" },
+  {
+    schedule: "every day 09:00",
+    timeZone: "Asia/Manila",
+    secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"],
+  },
   async () => {
     const regsSnap = await db
       .collection("registrations")
@@ -563,16 +580,23 @@ exports.sendReminderNotifications = onSchedule(
         const daysUntil = Math.ceil(
           (climb.startDate.toDate().getTime() - now) / 86400000,
         );
-        if (daysUntil === 3 || daysUntil === 1) {
+        if (UPCOMING_REMINDER_DAYS.has(daysUntil)) {
+          const climbTitle = reg.climbTitle || climb.title;
+          const unpaid =
+            reg.paymentStatus === "unpaid" || reg.paymentStatus === "rejected";
+          let message = `${climbTitle} — ${reg.climbDate || climb.dateLabel || ""}. Check the event page for the itinerary, what to bring, and what to pay.`;
+          if (unpaid) {
+            message += " You haven't submitted payment yet — please do so from My Climbs.";
+          }
           await createNotification({
             userId: reg.userId,
             type: "upcoming_climb",
             title:
               daysUntil === 1
                 ? "Your climb is tomorrow!"
-                : "Your climb is in 3 days",
-            message: `${reg.climbTitle || climb.title} — ${reg.climbDate || climb.dateLabel || ""}`,
-            link: "/my-registrations",
+                : `Your climb is in ${daysUntil} days`,
+            message,
+            link: `/event/${reg.climbId}`,
             id: `upcoming${daysUntil}_${reg.id}`,
           });
           upcomingReminders++;
@@ -580,10 +604,51 @@ exports.sendReminderNotifications = onSchedule(
       }
     }
 
+    // Thank-you email for climbs that have finished — sent once per climb.
+    const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+    let thankYouEmails = 0;
+
+    for (const climbId of climbIds) {
+      const climb = climbs[climbId];
+      if (!climb || climb.thankYouSentAt || !climb.endDate?.toDate) continue;
+      if (climb.endDate.toDate().getTime() > now) continue;
+
+      const confirmedRegs = regs.filter(
+        (r) => r.climbId === climbId && r.status === "confirmed" && r.email,
+      );
+
+      for (const reg of confirmedRegs) {
+        try {
+          await sendEmail({
+            to: reg.email,
+            toName: reg.name,
+            subject: `Thank You for Climbing With Us — ${climb.title} | MMS Open Climbs 2026`,
+            html: tplThankYou({
+              name: reg.name,
+              climbTitle: climb.title,
+              appUrl,
+            }),
+          });
+          thankYouEmails++;
+        } catch (err) {
+          logger.error("[sendReminderNotifications] Thank-you email failed", {
+            climbId,
+            email: reg.email,
+            err: err.message,
+          });
+        }
+      }
+
+      await db
+        .doc(`climbs/${climbId}`)
+        .update({ thankYouSentAt: FieldValue.serverTimestamp() });
+    }
+
     logger.info("[sendReminderNotifications] Done", {
       totalRegs: regs.length,
       paymentReminders,
       upcomingReminders,
+      thankYouEmails,
     });
   },
 );
