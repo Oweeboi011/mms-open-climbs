@@ -5,13 +5,13 @@ import { useGuide } from "@/contexts/GuideContext";
 
 const STORAGE_KEY = (uid) => `oc_welcomed_${uid}`;
 
-2const MEMBER_STEPS = [
+const MEMBER_STEPS = [
   {
     icon: "🏔",
     title: "Browse Climbs",
     body: "The Schedule page lists all upcoming climbs. Click any climb card to view details — trail info, difficulty, fees, and dates.",
     bullets: [
-      "Use the Home page or the \"Schedule\" link in the top navigation to see what's coming up.",
+      'Use the Home page or the "Schedule" link in the top navigation to see what\'s coming up.',
       "Each card shows the destination, date, and remaining slots at a glance.",
       "Click a card to open the full event page before deciding to register.",
     ],
@@ -41,7 +41,7 @@ const STORAGE_KEY = (uid) => `oc_welcomed_${uid}`;
     title: "Track Your Registrations",
     body: "Check My Registrations to see your status. An admin will review and confirm your slot. You'll receive an email once confirmed.",
     bullets: [
-      "Open \"My Registrations\" from the account menu to see every climb you've signed up for.",
+      'Open "My Registrations" from the account menu to see every climb you\'ve signed up for.',
       "Status moves from Pending → Confirmed once an admin verifies your payment.",
       "You'll get an email notification the moment your status changes.",
     ],
@@ -64,7 +64,7 @@ const ADMIN_STEPS = [
     title: "Admin Dashboard",
     body: "The Admin Dashboard is your control center — quick links to climbs, registrations, payments, users, and analytics.",
     bullets: [
-      "Reach it any time via \"Admin\" in the top navigation (visible only to admin accounts).",
+      'Reach it any time via "Admin" in the top navigation (visible only to admin accounts).',
       "It summarizes pending payments, open registrations, and upcoming climbs at a glance.",
       "Use it as your starting point before diving into a specific management page.",
     ],
@@ -75,7 +75,7 @@ const ADMIN_STEPS = [
     body: "Create, edit, and publish climb events from Admin → Climbs. Set schedule, fees, slot limits, and difficulty.",
     bullets: [
       "Go to Admin → Climbs to see every event, draft or published.",
-      "Click \"New Climb\" to add one, or open an existing card to edit details.",
+      'Click "New Climb" to add one, or open an existing card to edit details.',
       "Fields like slot limits and fees directly affect what members see on the public Schedule.",
     ],
   },
@@ -96,7 +96,7 @@ const ADMIN_STEPS = [
     bullets: [
       "Filter registrations by climb or status to help officers plan headcount.",
       "In Admin → Users, promote a member to admin or adjust their profile as needed.",
-      "You can link a manually added \"Add Joiner\" entry to an existing member account.",
+      'You can link a manually added "Add Joiner" entry to an existing member account.',
     ],
   },
   {
@@ -164,7 +164,8 @@ export default function WelcomeModal() {
               !
             </div>
             <div className="welcome-subtitle">
-              MMS Open Climbs 2026 — {isAdmin ? "Member & Admin Guide" : "Quick Guide"}
+              MMS Open Climbs 2026 —{" "}
+              {isAdmin ? "Member & Admin Guide" : "Quick Guide"}
             </div>
           </div>
         </div>
