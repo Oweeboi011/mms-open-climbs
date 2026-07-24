@@ -86,8 +86,6 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `features` | string | No | Terrain features description |
 | `googleMapsUrl` | string | No | Google Maps URL for the embedded map |
 | `allTrailsUrl` | string | No | AllTrails link |
-| `stravaUrl` | string | No | Strava segment or activity link |
-| `komootUrl` | string | No | Komoot tour link |
 | `trailImages` | string[] | No | Firebase Storage or CDN image URLs for the photo carousel |
 | `waterSourceNote` | string | No | Water source information |
 | `weatherNote` | string | No | Seasonal weather notes |

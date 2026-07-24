@@ -396,8 +396,34 @@ export default function ManagePayments() {
                   onClick={() => setExpandedId(isOpen ? null : climb.id)}
                 >
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>
-                      {climb.title}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>
+                        {climb.title}
+                      </div>
+                      {climb.status === "completed" && (
+                        <span
+                          style={{
+                            display: "inline-block",
+                            padding: "1px 8px",
+                            borderRadius: 99,
+                            fontSize: "0.62rem",
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase",
+                            background: "#e6f0fc",
+                            color: "#0070E0",
+                            border: "1px solid #b8d4f5",
+                          }}
+                        >
+                          Completed
+                        </span>
+                      )}
                     </div>
                     <div
                       style={{
