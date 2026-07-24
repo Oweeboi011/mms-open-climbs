@@ -39,8 +39,8 @@ function getExperienceLevel(climb) {
 }
 
 const LEAD_ROLE_PRIORITY = [
-  /^(senior|sr\.?)\s*team leader$/i,
   /^team leader$/i,
+  /^(senior|sr\.?)\s*team leader$/i,
   /^(assistant|asst\.?)\s*team leader$/i,
   /lead|poc|point of contact/i,
 ];
