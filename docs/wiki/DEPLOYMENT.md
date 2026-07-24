@@ -43,7 +43,7 @@ graph TB
         FH["Firebase Hosting\nCDN — global edge"]
         FS["Cloud Firestore\nopenclimbs database"]
         ST["Firebase Storage"]
-        CF["Cloud Functions v2\nNode 20 — asia-east1"]
+        CF["Cloud Functions v2\nNode 22 — asia-east1"]
         FA["Firebase Auth"]
         SEC["Firebase Secrets Manager\nBREVO_API_KEY\nBREVO_FROM_EMAIL\nAPP_URL"]
     end
@@ -339,21 +339,46 @@ Managed via Firebase Secrets Manager. Set with `firebase functions:secrets:set`.
 
 ## CI/CD Considerations
 
-For automated deployments (GitHub Actions, etc.), the recommended approach is:
-
-1. Store Firebase service account credentials as a CI secret (`FIREBASE_SERVICE_ACCOUNT`).
-2. Store all `VITE_*` values as CI secrets and inject them during the build step.
-3. Run `npm run qa` (build + strict tests) as a gate before deploying.
-4. Deploy using `firebase deploy --only hosting,functions` with `--token` or Workload Identity Federation.
+Deployment is automated via GitHub Actions in `.github/workflows/firebase-ci-cd.yml`, triggered on every push to `develop`/`main` and on pull requests targeting `main`. It runs as three sequential jobs:
 
 ```mermaid
 flowchart TD
-    PR["Pull Request merged to main"]
-    T["Run npm run qa\nbuild + strict test coverage"]
-    D["firebase deploy\nhosting + functions"]
-    N["Notify on failure"]
+    subgraph Quality["Job: quality"]
+        Q1["npm ci (frontend)\nnpm ci --prefix functions"]
+        Q2["npm run qa\nbuild + strict test coverage\n(frontend and Cloud Functions)"]
+    end
 
-    PR --> T
-    T -- "Pass" --> D
-    T -- "Fail" --> N
+    subgraph Promote["Job: promote\n(push to develop only)"]
+        P1["Open or reuse a PR: develop -> main"]
+        P2["gh pr merge --merge"]
+    end
+
+    subgraph Deploy["Job: deploy\n(push to main, or after promote merges)"]
+        D1["npm run build\nwith VITE_* secrets injected"]
+        D2["google-github-actions/auth\nusing GCP_SA_KEY secret"]
+        D3["firebase-tools deploy --project mms-open-climbs\n--only firestore:rules,firestore:indexes,functions,hosting"]
+    end
+
+    Quality -- "quality passes" --> Promote
+    Quality -- "push to main" --> Deploy
+    Promote -- "merge succeeded" --> Deploy
 ```
+
+1. **`quality`** — installs frontend and Cloud Functions dependencies (Node 22, matching `functions/package.json` `engines.node`) and runs `npm run qa` (build + strict coverage) for both.
+2. **`promote`** (only on a push to `develop` that passes `quality`) — opens (or reuses) a PR from `develop` into `main` and merges it immediately with `gh pr merge --merge`. This merges directly, using the default `GITHUB_TOKEN`, instead of GitHub's "auto-merge" UI feature — auto-merge requires a paid plan on private repos, which this repo does not have. Merging directly in this job (rather than waiting for a separate merge event) also lets `deploy` run in the same workflow run, since a merge performed by `GITHUB_TOKEN` would not otherwise trigger a fresh push-triggered run on `main`.
+3. **`deploy`** (runs on a direct push to `main`, or after `promote` successfully merges) — checks out `main`, builds the frontend with `VITE_*` values injected from GitHub Actions secrets, authenticates to Google Cloud via `google-github-actions/auth` using a `GCP_SA_KEY` secret (a service account key, not a long-lived Firebase CLI token), then runs `firebase-tools deploy --project mms-open-climbs --only firestore:rules,firestore:indexes,functions,hosting --non-interactive`.
+
+### Other workflows
+
+Several other GitHub Actions workflows run independently of the deploy pipeline:
+
+| Workflow | Purpose |
+| --- | --- |
+| `codeql.yml` | CodeQL static analysis security scanning |
+| `create-release.yml` | Creates a GitHub Release on push to `main` |
+| `pr-title-checker.yml` | Enforces a PR title convention |
+| `broken-links-checker.yml` | Checks for broken links (including in `docs/`) |
+| `scheduled-Dependabot-PRs-Auto-Merge.yml` | Auto-merges passing Dependabot PRs on a schedule |
+| `stale-bot.yml` | Marks/closes stale issues and PRs |
+
+See [CONTRIBUTING.md — Git Workflow](CONTRIBUTING.md#git-workflow) for how `develop` and `main` fit into day-to-day contribution flow.

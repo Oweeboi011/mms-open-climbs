@@ -17,7 +17,7 @@ graph TB
         FA["Firebase Auth\n(Email + Google)"]
         FS["Cloud Firestore\n(openclimbs DB)"]
         ST["Firebase Storage\n(photos, proofs)"]
-        CF["Cloud Functions v2\n(Node 20)"]
+        CF["Cloud Functions v2\n(Node 22)"]
     end
 
     subgraph External["External"]
@@ -40,7 +40,7 @@ graph TB
 | Database            | Cloud Firestore (`openclimbs` DB) |
 | Authentication      | Firebase Auth (Email + Google)    |
 | Storage             | Firebase Storage                  |
-| Backend Functions   | Cloud Functions v2 (Node 20)      |
+| Backend Functions   | Cloud Functions v2 (Node 22)      |
 | Transactional Email | Brevo SMTP API                    |
 | Testing (Frontend)  | Vitest, Testing Library           |
 | Testing (Functions) | Jest                              |
@@ -61,6 +61,9 @@ graph TB
 - Track all your registrations with status (pending / confirmed / waitlisted / cancelled)
 - Print your waiver for any confirmed registration
 - See a one-time "what's new" popup after login for the latest release note, and browse the full history at any time on the Release Notes page
+- In-app notification bell for status updates and announcements
+- Guided welcome tour on first login walking through key member features
+- Automatic thank-you email once a climb you joined has concluded
 
 ### Admin features
 
@@ -69,9 +72,10 @@ graph TB
 - Climb detail — per-climb registrations list with status and payment controls
 - All registrations — cross-climb view with search, status and payment filters, and CSV export
 - Payment management — verify or reject GCash proof per registration; transport headcount per climb
-- User management — create accounts, assign admin roles
+- User management — create accounts, correct or delete accounts, assign admin roles, link walk-in "Add Joiner" entries to an existing member
 - Analytics — page view traffic dashboard
-- Release notes — publish "what's new" updates and optionally email every member about a published note
+- Failure logging — review client-side error reports (`failedRequests`) for troubleshooting
+- Release notes — publish "what's new" updates and optionally email every member about a published note, with AI-assisted draft generation from recent commits
 
 ---
 
@@ -148,7 +152,7 @@ graph LR
         SC3["purge-admin-pageviews.mjs — remove admin-generated pageView docs"]
     end
 
-    subgraph docs["docs/"]
+    subgraph docs["docs/wiki/"]
         D1["ARCHITECTURE.md — system design and diagrams"]
         D2["API.md — Cloud Functions API reference"]
         D3["DEPLOYMENT.md — production setup and deploy guide"]
@@ -159,7 +163,11 @@ graph LR
         D8["TROUBLESHOOTING.md — common issues and fixes"]
         D9["USER_MANUAL.md — end-user and admin guide"]
         D10["RELEASE_NOTES_FEATURE.md — release notes audit, roadmap, governance"]
-        D11["adr/ — architecture decision records (proposed, not yet created)"]
+    end
+
+    subgraph plans["docs/solution-plans/"]
+        P1["mms-open-climb-web.md — web solution plan"]
+        P2["mms-open-climb-mobile.md — mobile (Android/iOS) solution plan"]
     end
 
     infra["infra/ — reserved for future infrastructure as code"]
@@ -225,13 +233,15 @@ node scripts/set-admin.mjs your@email.com
 
 | Document | Description |
 | --- | --- |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, component diagrams, data model |
-| [API.md](docs/API.md) | Cloud Functions API reference |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production setup and deploy steps |
-| [SECURITY.md](docs/SECURITY.md) | Security model, rules, and OWASP assessment |
-| [DATA.md](docs/DATA.md) | Firestore schema and data reference |
-| [TESTING.md](docs/TESTING.md) | Test setup, patterns, and coverage guide |
-| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Contribution workflow and coding standards |
-| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
-| [USER_MANUAL.md](docs/USER_MANUAL.md) | End-user and administrator usage guide |
-| [RELEASE_NOTES_FEATURE.md](docs/RELEASE_NOTES_FEATURE.md) | Release notes feature audit, roadmap, and governance plan |
+| [ARCHITECTURE.md](docs/wiki/ARCHITECTURE.md) | System design, component diagrams, data model |
+| [API.md](docs/wiki/API.md) | Cloud Functions API reference |
+| [DEPLOYMENT.md](docs/wiki/DEPLOYMENT.md) | Production setup and deploy steps |
+| [SECURITY.md](docs/wiki/SECURITY.md) | Security model, rules, and OWASP assessment |
+| [DATA.md](docs/wiki/DATA.md) | Firestore schema and data reference |
+| [TESTING.md](docs/wiki/TESTING.md) | Test setup, patterns, and coverage guide |
+| [CONTRIBUTING.md](docs/wiki/CONTRIBUTING.md) | Contribution workflow and coding standards |
+| [TROUBLESHOOTING.md](docs/wiki/TROUBLESHOOTING.md) | Common issues and fixes |
+| [USER_MANUAL.md](docs/wiki/USER_MANUAL.md) | End-user and administrator usage guide |
+| [RELEASE_NOTES_FEATURE.md](docs/wiki/RELEASE_NOTES_FEATURE.md) | Release notes feature audit, roadmap, and governance plan |
+| [mms-open-climb-web.md](docs/solution-plans/mms-open-climb-web.md) | Web solution plan — challenges, recommendations, cost, environment, security |
+| [mms-open-climb-mobile.md](docs/solution-plans/mms-open-climb-mobile.md) | Mobile (Android/iOS) solution plan — challenges, recommendations, cost, environment, security |

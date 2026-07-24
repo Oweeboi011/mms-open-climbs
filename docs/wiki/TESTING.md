@@ -95,9 +95,14 @@ src/
 functions/
   tests/
     index.test.js         -- Cloud Function trigger and callable logic tests
+    notifications.test.js -- Collection-query-based tests for onRegistrationCreated,
+                              onRegistrationUpdated, and sendReminderNotifications
+                              (including the notifications collection and the
+                              post-climb thank-you email), using a mockDb.collection()
+                              implementation
 ```
 
-**Known gap:** `functions/tests/index.test.js` only mocks `mockDb.doc()`, not `mockDb.collection()`. Every callable/trigger that reads or writes via `db.collection(...)` — `getNotifyLists`, `onRegistrationCreated`, `onRegistrationUpdated`, `sendReminderNotifications`, and `sendReleaseNoteEmail` — is therefore untested at the function level today, even though the frontend components that call `sendReleaseNoteEmail` are covered. Extending `mockDb` with a `.collection()` mock would close this for all five functions in one pass. See [RELEASE_NOTES_FEATURE.md — Dead Code and Gap Audit](RELEASE_NOTES_FEATURE.md#dead-code-and-gap-audit).
+**Known gap:** `functions/tests/index.test.js` only mocks `mockDb.doc()`, not `mockDb.collection()`. `functions/tests/notifications.test.js` closes that gap for `onRegistrationCreated`, `onRegistrationUpdated`, and `sendReminderNotifications` (including its one-time thank-you email path) by adding a working `mockDb.collection()` implementation. `sendReleaseNoteEmail` is the one remaining collection-based callable without Cloud Function test coverage — see [RELEASE_NOTES_FEATURE.md — Dead Code and Gap Audit](RELEASE_NOTES_FEATURE.md#dead-code-and-gap-audit).
 
 ---
 

@@ -51,6 +51,8 @@ flowchart TB
         UR["users\nany signed-in read\nowner or admin update\nadmin delete"]
         PV["pageViews\npublic create\nadmin read/update/delete"]
         RN["releaseNotes\nsigned-in read (published only)\nadmin read (draft) + write"]
+        FR["failedRequests\npublic create\nadmin read/update/delete"]
+        NT["notifications\nowner read + toggle read flag only\nadmin read\ncreate/delete: server (Admin SDK) only"]
     end
 
     subgraph FunctionLayer["Cloud Function Security"]
@@ -58,6 +60,9 @@ flowchart TB
         CF2["onRegistrationUpdated\nNo auth check — triggered server-side only"]
         CF3["createUser\nVerifies caller role via Firestore\nbefore executing"]
         CF4["sendReleaseNoteEmail\nVerifies caller role via requireAdmin()\nbefore emailing every user"]
+        CF5["updateUserProfile / deleteUserAccount\nVerifies caller role via requireAdmin();\ndeleteUserAccount also blocks self-deletion"]
+        CF6["getReleaseNoteCommitOptions / generateReleaseNoteDraft\nVerifies caller role via requireAdmin()\nbefore calling the GitHub API"]
+        CF7["sendReminderNotifications\nNo auth check — Cloud Scheduler only,\nwrites notifications + thank-you emails via Admin SDK"]
     end
 
     PU -->|blocked by| PR
@@ -69,6 +74,8 @@ flowchart TB
     AU --> AR --> RN
     AU --> CF3
     AU --> CF4
+    AU --> CF5
+    AU --> CF6
 ```
 
 ---
@@ -178,7 +185,19 @@ flowchart TD
         C3["registrations/{regId}\nread: isOwner OR isAdmin\ncreate: isOwner AND climbIsOpen\nupdate: isAdmin OR isOwner\ndelete: isAdmin"]
         C4["pageViews/{viewId}\ncreate: public\nread/update/delete: isAdmin"]
         C5["releaseNotes/{noteId}\nread: isSignedIn AND (published OR isAdmin)\nwrite: isAdmin"]
+        C6["failedRequests/{id}\ncreate: public\nread/update/delete: isAdmin"]
+        C7["notifications/{notifId}\nread: isOwner OR isAdmin\nupdate: isOwner AND only the read field changed\ncreate/delete: false (Admin SDK bypasses rules)"]
     end
+```
+
+**`notifications` collection — server-only writes**
+
+Notifications are only ever created or deleted by Cloud Functions using the Admin SDK, which bypasses security rules entirely. The rules therefore deny client `create`/`delete` outright, and the only client write allowed is toggling the `read` flag on a notification the caller owns:
+
+```js
+allow update: if isSignedIn() && isOwner(resource.data.userId) &&
+  request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+allow create, delete: if false;
 ```
 
 **`releaseNotes` collection — draft visibility**
@@ -245,7 +264,7 @@ flowchart LR
     end
 
     subgraph Functions["Cloud Functions (server-side only)"]
-        SF["BREVO_API_KEY\nBREVO_FROM_EMAIL\nAPP_URL\nStored in Firebase Secrets Manager\nNever in source code or browser"]
+        SF["BREVO_API_KEY\nBREVO_FROM_EMAIL\nAPP_URL\nGITHUB_TOKEN\nStored in Firebase Secrets Manager\nNever in source code or browser"]
     end
 
     subgraph Git["Source Control"]
@@ -259,6 +278,7 @@ flowchart LR
 | `BREVO_API_KEY` | Firebase Secrets Manager | Cloud Functions only |
 | `BREVO_FROM_EMAIL` | Firebase Secrets Manager | Cloud Functions only |
 | `APP_URL` | Firebase Secrets Manager | Cloud Functions only |
+| `GITHUB_TOKEN` | Firebase Secrets Manager | Cloud Functions only (`getReleaseNoteCommitOptions`, `generateReleaseNoteDraft`) |
 
 Firebase API keys are designed to be public. They identify the Firebase project, not authenticate the caller. Access control is enforced entirely by Firestore security rules.
 

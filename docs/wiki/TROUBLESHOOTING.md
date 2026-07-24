@@ -165,9 +165,9 @@ Then redeploy: `firebase deploy --only functions`
 
 ### Functions deploy fails with "Node version not supported"
 
-**Cause:** The Functions runtime requires Node 20.
+**Cause:** The Functions runtime requires Node 22 (see `functions/package.json` `engines.node`).
 
-**Fix:** Install Node.js 20+ locally. Verify with `node --version`.
+**Fix:** Install Node.js 22 locally. Verify with `node --version`.
 
 ---
 
@@ -252,6 +252,18 @@ Or click the link in the browser console error — Firebase provides a direct li
 **Cause:** Both `ReleaseNotesNotice` and the `/release-notes` page filter by `status == "published"` and order by `publishedAt`, which requires the composite index defined in `firestore.indexes.json`. If that index was never deployed, both listeners fail silently in the popup and throw a visible Firestore error in the console.
 
 **Fix:** Deploy indexes (`firebase deploy --only firestore:indexes`) and confirm at least one release note has `status: published`. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md) for the full feature reference.
+
+---
+
+### Notification bell shows nothing, or a badge count that never clears
+
+**Cause:** Notifications are written to the `notifications` collection exclusively by Cloud Functions (Admin SDK) — the client can only read its own and toggle the `read` flag. An empty bell is usually just "no notifications yet"; a badge that won't clear is usually a failed `updateDoc` when marking as read.
+
+**Fix:**
+
+1. Confirm you're signed in as the account the notification belongs to (`userId` on the doc must match your UID) — the Firestore rule denies reads for anyone else.
+2. Check the browser console for a permission error on the `read` toggle — the rule only allows updating the `read` field itself (`request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"])`); any other field in the same write will be rejected.
+3. If reminders seem stuck or missing entirely, check `sendReminderNotifications` ran on schedule: `firebase functions:log --only sendReminderNotifications`.
 
 ---
 
