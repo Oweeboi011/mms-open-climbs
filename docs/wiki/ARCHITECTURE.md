@@ -33,7 +33,7 @@ The system is fully serverless — there is no custom application server. All co
 | Database            | Cloud Firestore (`openclimbs` DB)  | NoSQL document store for climbs, registrations, users |
 | Authentication      | Firebase Auth                      | Email/Password and Google OAuth identity              |
 | File Storage        | Firebase Storage                   | Trail photos, GCash payment proof images              |
-| Backend Functions   | Cloud Functions v2 (Node 20)       | Automated triggers, callable APIs, email dispatch     |
+| Backend Functions   | Cloud Functions v2 (Node 22)       | Automated triggers, callable APIs, email dispatch     |
 | Transactional Email | Brevo SMTP API                     | Registration confirmations and status update emails   |
 | Testing (Frontend)  | Vitest, Testing Library            | Unit and integration tests                            |
 | Testing (Functions) | Jest                               | Unit tests for Cloud Function logic                   |
@@ -55,7 +55,7 @@ graph TB
         FA["Firebase Auth\n(JWT identity)"]
         FS["Cloud Firestore\n(openclimbs database)"]
         ST["Firebase Storage\n(trail photos, GCash proofs)"]
-        CF["Cloud Functions v2\n(Node 20 — asia-east1)"]
+        CF["Cloud Functions v2\n(Node 22 — asia-east1)"]
     end
 
     subgraph External["External Services"]
@@ -157,13 +157,17 @@ graph TD
 
 The `usePageTracking` hook (`src/hooks/usePageTracking.js`) writes a `pageViews` document to Firestore on every route change. This enables the Analytics admin page to report page-level traffic without any third-party analytics SDK.
 
+### Failure Logging
+
+`logFailedRequest()` (`src/utils/logFailedRequest.js`) is a fire-and-forget helper that writes a `failedRequests` document whenever a Brevo email send, a Storage upload, a Firestore read/write, or an uncaught client-side error fails. It mirrors the `pageViews` write pattern — public create, admin-only read — so failures can be logged before a user is authenticated and without ever blocking or surfacing an error back to the caller (`.catch(() => {})` swallows any write failure of the logger itself). Cloud Functions log to the same collection via the Admin SDK for server-side failures. Surfaced on the Admin **Analytics** page. See [DATA.md — failedRequests](DATA.md#failedrequests).
+
 ---
 
 ## Backend Architecture
 
 ### Cloud Functions Overview
 
-All backend logic runs in Cloud Functions v2 deployed to the `asia-east1` region. There are two Firestore document-level event triggers, one scheduled function, and four HTTPS callable functions.
+All backend logic runs in Cloud Functions v2 deployed to the `asia-east1` region. There are two Firestore document-level event triggers, one scheduled function, and six HTTPS callable functions.
 
 ```mermaid
 graph LR
@@ -173,7 +177,7 @@ graph LR
     end
 
     subgraph Scheduled["Scheduled"]
-        S1["sendReminderNotifications\nDaily 09:00 Asia/Manila"]
+        S1["sendReminderNotifications\nDaily 09:00 Asia/Manila\n(reminders + one-time thank-you email)"]
     end
 
     subgraph Callables["HTTPS Callable Functions"]
@@ -181,12 +185,15 @@ graph LR
         C2["updateUserProfile\nAdmin only"]
         C3["deleteUserAccount\nAdmin only"]
         C4["sendReleaseNoteEmail\nAdmin only"]
+        C5["getReleaseNoteCommitOptions\nAdmin only"]
+        C6["generateReleaseNoteDraft\nAdmin only"]
     end
 
     subgraph Outputs["Side Effects"]
-        FS["Firestore\nregistrationCount, notifications,\nreleaseNotes.emailSentAt/Count updates"]
+        FS["Firestore\nregistrationCount, notifications,\nreleaseNotes.emailSentAt/Count,\nclimbs.thankYouSentAt updates"]
         EM["Brevo Email\nto registrant, officers, admins, or all members"]
         AU["Firebase Auth\nuser account create/update/delete"]
+        GH["GitHub REST API\ncommit history for release note drafts"]
     end
 
     T1 --> FS
@@ -194,6 +201,7 @@ graph LR
     T2 --> FS
     T2 --> EM
     S1 --> FS
+    S1 --> EM
     C1 --> FS
     C1 --> EM
     C1 --> AU
@@ -203,9 +211,15 @@ graph LR
     C3 --> AU
     C4 --> FS
     C4 --> EM
+    C5 --> GH
+    C6 --> GH
 ```
 
 `sendReleaseNoteEmail` follows the same `requireAdmin()` authorization helper as `updateUserProfile` and `deleteUserAccount`, and reuses the `sendEmail()`/`tplBase()` template infrastructure rather than introducing a new email path. Full reference: [API.md — sendReleaseNoteEmail](API.md#sendreleasenoteemail); feature design and roadmap: [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
+
+`getReleaseNoteCommitOptions` and `generateReleaseNoteDraft` (both admin-only, secured by the `GITHUB_TOKEN` secret) power the "Generate from commits" flow in `ReleaseNoteForm.jsx`, calling the GitHub REST API to list recent commits and build a grouped changelog draft rather than requiring the admin to write release notes from scratch. See [API.md — getReleaseNoteCommitOptions](API.md#getreleasenotecommitoptions) and [API.md — generateReleaseNoteDraft](API.md#generatereleasenotedraft).
+
+`sendReminderNotifications` also sends a one-time "Thank You" email (`tplThankYou`) to confirmed registrants once a climb's `endDate` has passed, gated by `climbs.thankYouSentAt` so each climb is only thanked once. See [API.md — sendReminderNotifications](API.md#sendremindernotifications) and [DATA.md — climbs](DATA.md#climbs).
 
 ### Registration Created Flow
 
@@ -278,6 +292,7 @@ erDiagram
         string gcashName
         string gcashNumber
         string gcashQrUrl
+        timestamp thankYouSentAt
     }
 
     registrations {
@@ -402,6 +417,8 @@ flowchart LR
         RR["registrations\nowner read + create\nadmin read + write all"]
         UR["users\nany signed-in read\nowner or admin update\nadmin delete"]
         PV["pageViews\npublic create\nadmin read/update/delete"]
+        FR["failedRequests\npublic create — admin read/update/delete"]
+        NT["notifications\nowner read + toggle read flag\nadmin read\ncreate/delete server-only"]
     end
 
     PG -->|passes for authenticated| RR
@@ -423,6 +440,7 @@ flowchart TD
         E2["Registration status changed"]
         E3["Admin creates new user account"]
         E4["Admin sends a published release note"]
+        E5["Daily schedule fires — climb's endDate has passed"]
     end
 
     subgraph Functions["Cloud Functions"]
@@ -430,6 +448,7 @@ flowchart TD
         F2["onRegistrationUpdated"]
         F3["createUser callable"]
         F4["sendReleaseNoteEmail callable"]
+        F5["sendReminderNotifications (scheduled)"]
     end
 
     subgraph Recipients["Email Recipients"]
@@ -438,12 +457,14 @@ flowchart TD
         R3["Admin Accounts — CC on all officer emails"]
         R4["New User — welcome email with password setup link"]
         R5["Every user in the users collection — release note announcement"]
+        R6["Confirmed registrants — one-time thank-you email per climb"]
     end
 
     E1 --> F1
     E2 --> F2
     E3 --> F3
     E4 --> F4
+    E5 --> F5
 
     F1 --> R1
     F1 --> R2
@@ -455,9 +476,12 @@ flowchart TD
 
     F3 --> R4
     F4 --> R5
+    F5 --> R6
 ```
 
 `sendReleaseNoteEmail` is the only email path that targets the entire membership rather than a bounded set of officers/admins/one recipient — see the scaling risk and proposed async redesign in [RELEASE_NOTES_FEATURE.md — Risks and Challenges](RELEASE_NOTES_FEATURE.md#risks-and-challenges).
+
+The thank-you email (`tplThankYou`, sent by `sendReminderNotifications`) is gated by `climbs.thankYouSentAt` so it fires exactly once per climb regardless of how many days pass after `endDate` — see [API.md — sendReminderNotifications](API.md#sendremindernotifications).
 
 ---
 

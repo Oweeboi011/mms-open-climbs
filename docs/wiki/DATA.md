@@ -98,6 +98,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `gcashName` | string | No | GCash account holder name |
 | `gcashNumber` | string | No | GCash mobile number |
 | `gcashQrUrl` | string | No | Firebase Storage URL for the GCash QR code image |
+| `thankYouSentAt` | timestamp | No | Set by `sendReminderNotifications` once the one-time post-climb thank-you email (`tplThankYou`) has been sent to all confirmed registrants; gates the email so it only sends once per climb — see [API.md — sendReminderNotifications](API.md#sendremindernotifications) |
 
 #### Climb status lifecycle
 

@@ -24,15 +24,18 @@ Contributions follow a standard fork-branch-pull-request workflow. All changes a
 ```mermaid
 flowchart LR
     A["Fork or clone the repo"]
-    B["Create feature branch from main"]
+    B["Create feature branch from develop"]
     C["Implement changes with tests"]
     D["Run npm run qa\nbuild + strict tests"]
-    E["Open PR against main"]
+    E["Open PR against develop"]
     F["dev-review-agent gates run"]
-    G["Reviewer approves and merges"]
+    G["Reviewer approves and merges into develop"]
+    H["CI auto-promotes develop -> main\nand deploys, once quality passes"]
 
-    A --> B --> C --> D --> E --> F --> G
+    A --> B --> C --> D --> E --> F --> G --> H
 ```
+
+Day-to-day work targets `develop`, not `main` — `main` only ever advances via the CI pipeline's automated promotion once `develop` passes its quality gate. See [DEPLOYMENT.md — CI/CD Considerations](DEPLOYMENT.md#cicd-considerations) for the full `quality` / `promote` / `deploy` pipeline.
 
 ---
 
@@ -40,10 +43,10 @@ flowchart LR
 
 1. Fork or clone the repository.
 2. Follow the [Development Environment Setup](#development-environment-setup) steps below.
-3. Create a feature branch from `main`.
+3. Create a feature branch from `develop`.
 4. Make your changes with appropriate tests.
 5. Run `npm run qa` to verify the build and test suite.
-6. Open a pull request against `main`.
+6. Open a pull request against `develop`. `main` only advances via the automated `develop` → `main` promotion in CI once quality checks pass — see [DEPLOYMENT.md — CI/CD Considerations](DEPLOYMENT.md#cicd-considerations).
 
 ---
 
@@ -106,22 +109,25 @@ flowchart LR
 
 ```mermaid
 gitGraph
-    commit id: "main baseline"
+    commit id: "develop baseline"
     branch feature/your-feature
     checkout feature/your-feature
     commit id: "implement feature"
     commit id: "add/update tests"
     commit id: "update docs if needed"
+    checkout develop
+    merge feature/your-feature id: "PR merged into develop"
     checkout main
-    merge feature/your-feature id: "PR merged"
+    merge develop id: "CI auto-promotes once quality passes"
 ```
 
 ### Rules
 
-- Always branch from the latest `main`.
+- Always branch from the latest `develop`.
 - Keep branches short-lived. Merge or close within a reasonable timeframe.
 - Squash commits if the history is noisy before requesting review.
-- Never force-push to `main`.
+- Never force-push to `main` or `develop`.
+- Do not push directly to `main` — it is only updated by the CI `promote` job. See [DEPLOYMENT.md — CI/CD Considerations](DEPLOYMENT.md#cicd-considerations).
 
 ---
 
@@ -224,16 +230,17 @@ npm run qa
 
 ```mermaid
 flowchart TD
-    A["Open PR against main"]
+    A["Open PR against develop"]
     B["Automated gate: dev-review-agent\nCode health, tests, performance\ncost, deployment readiness, doc sync"]
     C{"Gate passes?"}
     D["Address feedback from agent and reviewer"]
     E["At least one reviewer approves"]
-    F["Merge to main"]
+    F["Merge to develop"]
+    G["CI quality job re-runs on develop,\nthen auto-promotes and deploys to main"]
 
     A --> B --> C
     C -- "No" --> D --> B
-    C -- "Yes" --> E --> F
+    C -- "Yes" --> E --> F --> G
 ```
 
 ### PR checklist
@@ -245,6 +252,7 @@ flowchart TD
 - [ ] For architectural changes: ADR added or updated in `docs/adr/`
 - [ ] No secrets, real Firebase project IDs, or `.env` files committed
 - [ ] PR description explains the change and links to any related issues
+- [ ] PR is opened against `develop`, not `main`
 
 ---
 

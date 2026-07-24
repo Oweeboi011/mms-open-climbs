@@ -14,6 +14,8 @@
   - [updateUserProfile](#updateuserprofile)
   - [deleteUserAccount](#deleteuseraccount)
   - [sendReleaseNoteEmail](#sendreleasenoteemail)
+  - [getReleaseNoteCommitOptions](#getreleasenotecommitoptions)
+  - [generateReleaseNoteDraft](#generatereleasenotedraft)
 - [Environment Variables and Secrets](#environment-variables-and-secrets)
 - [Error Codes Reference](#error-codes-reference)
 - [Email Templates](#email-templates)
@@ -51,6 +53,8 @@ graph TD
         T2["onRegistrationUpdated\nFirestore trigger"]
         C1["createUser\nHTTPS Callable"]
         C2["sendReleaseNoteEmail\nHTTPS Callable"]
+        C3["getReleaseNoteCommitOptions\nHTTPS Callable"]
+        C4["generateReleaseNoteDraft\nHTTPS Callable"]
     end
 
     subgraph External["External Services"]
@@ -81,6 +85,17 @@ graph TD
     C2 -->|read all recipient emails| FS_U
     C2 -->|send email per recipient| EM
     C2 -->|write emailSentAt/Count| FS_RN
+
+    UI -->|httpsCallable| C3
+    UI -->|httpsCallable| C4
+    C3 -->|verify caller role| FS_U
+    C3 -->|list commits since last checkpoint| GH
+    C4 -->|verify caller role| FS_U
+    C4 -->|read commits, build draft| GH
+
+    subgraph External2["External Services"]
+        GH["GitHub REST API"]
+    end
 ```
 
 ---
@@ -201,6 +216,16 @@ Re-surfaces reminders in the notification bell for active (`pending`/`confirmed`
 | `status = confirmed` and climb starts in exactly 1 day | Creates `upcoming1_{regId}` notification (once) |
 
 Registrations with no `userId` (e.g. walk-in participants added manually by an admin — see `AddJoinerModal` in `ClimbDetail.jsx`) are skipped, since there's no account to notify.
+
+#### Thank-you email (post-climb, one-time)
+
+In the same run, the function also looks for climbs whose `endDate` has already passed and that haven't been thanked yet:
+
+| Condition | Action |
+| --- | --- |
+| `climb.endDate` is in the past **and** `climb.thankYouSentAt` is unset | Sends the `tplThankYou` email to every `confirmed` registrant with an email address, then stamps `climbs/{climbId}.thankYouSentAt` with `FieldValue.serverTimestamp()` |
+
+The `thankYouSentAt` stamp is what makes this one-time per climb — once set, the climb is skipped on every subsequent daily run regardless of how many more days pass. A failed send to an individual registrant is logged (`err.message`) and does not stop the loop or prevent the `thankYouSentAt` stamp from being written. See [DATA.md — climbs](DATA.md#climbs) for the field and [ARCHITECTURE.md — Email Notification Architecture](ARCHITECTURE.md#email-notification-architecture) for how this fits alongside the other email flows.
 
 ---
 
@@ -407,6 +432,73 @@ sequenceDiagram
 
 ---
 
+### getReleaseNoteCommitOptions
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'getReleaseNoteCommitOptions')`
+**Access:** Admin users only
+**Secrets required:** `GITHUB_TOKEN`
+
+Powers the "Generate from commits" picker in `ReleaseNoteForm.jsx`. Calls the GitHub REST API to list the most recent 30 commits on the default branch, and reports the last commit that was already turned into a release note (its "checkpoint"), so the admin can pick a range instead of re-summarizing history that's already been announced.
+
+#### Request payload
+
+None.
+
+#### Response
+
+```json
+{ "since": "abc1234" /* or null on first use */, "commits": [ /* shaped commit objects */ ] }
+```
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+| `internal` | GitHub API error, or `GITHUB_TOKEN` not configured |
+
+---
+
+### generateReleaseNoteDraft
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'generateReleaseNoteDraft')`
+**Access:** Admin users only
+**Secrets required:** `GITHUB_TOKEN`
+
+Builds a draft title and body for a release note from the commits between the last checkpoint and the commit SHA the admin selected in `ReleaseNoteForm.jsx`. Commits are grouped by conventional-commit prefix (`feat`, `fix`, `perf`, `refactor`, etc.) into changelog sections; noise commits (`docs`, `style`, `test`, `chore`, `ci`, anything mentioning "coverage") are dropped rather than listed. This is the same commit-grouping approach used by the standalone `scripts/generate-release-notes.mjs` CLI script, applied here inside a callable so it can back the in-app "Generate" button instead of requiring a terminal.
+
+#### Request payload
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `until` | string | Yes | Commit SHA to generate the draft up to (usually the latest commit from `getReleaseNoteCommitOptions`) |
+
+#### Response
+
+```json
+{
+  "title": "What's New — July 23, 2026",
+  "body": "Improvements\n- ...",
+  "sourceCommit": "def5678",
+  "commitCount": 12,
+  "droppedCount": 3
+}
+```
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+| `invalid-argument` | `until` missing |
+| `internal` | GitHub API error, or `GITHUB_TOKEN` not configured |
+
+---
+
 ## Environment Variables and Secrets
 
 ### Cloud Functions (`functions/.env` for emulator, Firebase secrets for production)
@@ -416,6 +508,7 @@ sequenceDiagram
 | `BREVO_API_KEY` | Secret | Yes | Brevo REST API key for sending emails |
 | `BREVO_FROM_EMAIL` | Secret | Yes | Verified sender email address in Brevo |
 | `APP_URL` | Secret | Yes | Base URL for generating waiver links in emails |
+| `GITHUB_TOKEN` | Secret | Yes (for `getReleaseNoteCommitOptions`/`generateReleaseNoteDraft`) | GitHub personal access token with read access to the repo, used to list/compare commits for release note draft generation |
 
 ### Frontend (`VITE_*` in `.env`)
 
@@ -436,6 +529,7 @@ These values are baked into the frontend bundle at build time by Vite. Firebase 
 firebase functions:secrets:set BREVO_API_KEY
 firebase functions:secrets:set BREVO_FROM_EMAIL
 firebase functions:secrets:set APP_URL
+firebase functions:secrets:set GITHUB_TOKEN
 ```
 
 ---
@@ -476,6 +570,7 @@ graph TD
         T4["tplOfficerStatusUpdate\nSent to climb officers on status change"]
         T5["tplWelcome\nSent to new user created by admin"]
         T6["tplReleaseNote\nSent to all members on admin-triggered blast"]
+        T7["tplThankYou\nSent once per climb after it ends"]
     end
 
     subgraph Trigger["Triggered by"]
@@ -483,6 +578,7 @@ graph TD
         TR2["onRegistrationUpdated"]
         TR3["createUser callable"]
         TR4["sendReleaseNoteEmail callable"]
+        TR5["sendReminderNotifications (scheduled)"]
     end
 
     TR1 --> T1
@@ -491,6 +587,7 @@ graph TD
     TR2 --> T4
     TR3 --> T5
     TR4 --> T6
+    TR5 --> T7
 ```
 
 | Template | Recipient | Trigger | Key content |
@@ -501,3 +598,4 @@ graph TD
 | `tplOfficerStatusUpdate` | Climb officers | `onRegistrationUpdated` | Registrant name, new status, reason, link to admin |
 | `tplWelcome` | New user | `createUser` | Welcome message, account setup link (password reset URL) |
 | `tplReleaseNote` | Every user in `users` | `sendReleaseNoteEmail` | Release note title and body, link to `/release-notes` |
+| `tplThankYou` | Confirmed registrants | `sendReminderNotifications` (once per climb, gated by `climb.thankYouSentAt`) | Thanks the member for completing the climb, links to the schedule to see upcoming climbs |

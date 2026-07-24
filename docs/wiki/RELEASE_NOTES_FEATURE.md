@@ -10,6 +10,7 @@
   - [Publish and Notify Flow](#publish-and-notify-flow)
   - [Popup Dismissal Flow](#popup-dismissal-flow)
   - [Email Blast Flow](#email-blast-flow)
+  - [Commit-Based Draft Generation Flow](#commit-based-draft-generation-flow)
   - [Release Note Lifecycle](#release-note-lifecycle)
 - [Component Reuse Ledger](#component-reuse-ledger)
 - [Implementation Roadmap](#implementation-roadmap)
@@ -45,6 +46,8 @@ This document is the single source of truth for the feature's current state, wha
 | Header navigation entry | Implemented |
 | Email blast callable (`sendReleaseNoteEmail`) | Implemented |
 | Email template (`tplReleaseNote`) | Implemented |
+| AI/commit-based draft generation (`getReleaseNoteCommitOptions`, `generateReleaseNoteDraft`) | Implemented |
+| Standalone CLI generator (`scripts/generate-release-notes.mjs`) | Implemented |
 | Frontend test coverage | Implemented |
 | Cloud Function test coverage for `sendReleaseNoteEmail` | Gap — not yet covered (see [Dead Code and Gap Audit](#dead-code-and-gap-audit)) |
 | Async/batched email dispatch for large member lists | Planned (Phase 2/3) |
@@ -188,6 +191,37 @@ sequenceDiagram
 
 The loop is sequential and best-effort per recipient — one failed send is logged and does not abort the batch. This mirrors nothing else in the codebase exactly (existing triggers only ever email a handful of officers/admins per event), which is why it is flagged as a scaling risk in [Risks and Challenges](#risks-and-challenges) rather than treated as a proven pattern.
 
+### Commit-Based Draft Generation Flow
+
+To avoid admins writing release notes from scratch, `ReleaseNoteForm.jsx` can generate a draft title and body from git history via two admin-only callables:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Admin (ReleaseNoteForm)
+    participant C1 as getReleaseNoteCommitOptions
+    participant C2 as generateReleaseNoteDraft
+    participant GH as GitHub REST API
+    participant FS as Firestore (releaseNotes)
+
+    A->>C1: call getReleaseNoteCommitOptions()
+    C1->>FS: requireAdmin(callerUid)
+    C1->>FS: findLastSourceCommit() — last checkpoint used for a prior note
+    C1->>GH: GET /commits (last 30 on default branch)
+    GH-->>C1: commit list
+    C1-->>A: { since, commits }
+    A->>A: Admin picks a commit range (or accepts the default)
+    A->>C2: call generateReleaseNoteDraft({ until })
+    C2->>FS: requireAdmin(callerUid)
+    C2->>GH: GET /commits or /compare/{since}...{until}
+    GH-->>C2: commits since last checkpoint
+    C2->>C2: Group by conventional-commit prefix,\ndrop docs/style/test/chore/ci/coverage noise
+    C2-->>A: { title, body, sourceCommit, commitCount, droppedCount }
+    A->>A: Admin reviews/edits draft, then saves as draft or published
+```
+
+This is a convenience layer only — it populates the same `title`/`body` fields an admin could type by hand; it does not change how a note is stored, published, or emailed. `scripts/generate-release-notes.mjs` implements the same commit-grouping approach as a standalone CLI (signing in via the Firebase Auth REST API) for admins who prefer generating and writing a release note directly from a terminal instead of the in-app form. See [API.md — getReleaseNoteCommitOptions](API.md#getreleasenotecommitoptions) and [API.md — generateReleaseNoteDraft](API.md#generatereleasenotedraft).
+
 ### Release Note Lifecycle
 
 ```mermaid
@@ -267,7 +301,7 @@ Findings from reviewing the four new frontend files, the new Cloud Function, the
 | Finding | Severity | Detail |
 | --- | --- | --- |
 | No dead code in new frontend files | — | All imports in `ReleaseNotesManage.jsx`, `ReleaseNoteForm.jsx`, `ReleaseNotes.jsx`, and `ReleaseNotesNotice.jsx` are used; no unreachable branches or leftover scaffolding found. |
-| `sendReleaseNoteEmail` has no Jest coverage | Gap | `functions/tests/index.test.js` only mocks `mockDb.doc()`, not `mockDb.collection()` — this is a pre-existing limitation shared by every `db.collection(...)`-based function (`getNotifyLists`, `onRegistrationCreated`, `onRegistrationUpdated`, `sendReminderNotifications`), not something introduced solely by this feature, but `sendReleaseNoteEmail` adds one more untested collection-based callable to that list. |
+| `sendReleaseNoteEmail` has no Jest coverage | Gap | `functions/tests/index.test.js` only mocks `mockDb.doc()`, not `mockDb.collection()`. `functions/tests/notifications.test.js` has since added a working `mockDb.collection()` implementation and closed this gap for `getNotifyLists`, `onRegistrationCreated`, `onRegistrationUpdated`, and `sendReminderNotifications` — `sendReleaseNoteEmail` is now the only remaining collection-based callable without Cloud Function test coverage. |
 | No delete/unpublish action | Gap | A note published in error can only be fixed by editing it back to `draft` — there is no way to remove it from Firestore through the UI. |
 | `docs/adr/` referenced but absent | Pre-existing gap | `CONTRIBUTING.md` and `README.md` both point to `docs/adr/` for architecture decision records; the directory does not exist in this repository. Not caused by this feature, but this feature is the first one large enough to warrant an ADR (see [Proposed Governance-Ready Architecture](#proposed-governance-ready-architecture)). |
 | No rate limiting or size cap on the email blast | Gap | `sendReleaseNoteEmail` iterates every document in `users` with no batching, concurrency limit, or hard cap — acceptable at the club's current membership size, a real risk beyond a few hundred members. |
@@ -295,7 +329,7 @@ Findings from reviewing the four new frontend files, the new Cloud Function, the
 - **Preview the rendered email** in the admin form before the "Send Email to All Members" action executes, so admins are not sending blind.
 - **Move to asynchronous dispatch** once membership size makes a synchronous callable risky — see [Proposed Governance-Ready Architecture](#proposed-governance-ready-architecture) below for the concrete shape of this change.
 - **Introduce audience segmentation** (all members vs. a specific climb's registrants vs. climb officers only) by reusing the `getNotifyLists()`-style targeting already built for registration emails, rather than hardcoding "all of `users`".
-- **Backfill Cloud Function tests** for `sendReleaseNoteEmail` — and, while touching that file, extend `mockDb` in `functions/tests/index.test.js` with a `.collection()` mock so the same investment covers `getNotifyLists`, `onRegistrationCreated`, and `onRegistrationUpdated` too, closing a gap that predates this feature.
+- **Backfill Cloud Function tests** for `sendReleaseNoteEmail` — `functions/tests/notifications.test.js` already demonstrates the `mockDb.collection()` pattern needed (used there for `getNotifyLists`, `onRegistrationCreated`, `onRegistrationUpdated`, and `sendReminderNotifications`), so extending that same mock to cover `sendReleaseNoteEmail` should be a small, well-precedented addition rather than new groundwork.
 - **Formalize an ADR process** — create `docs/adr/` (currently only referenced, never created) and write the first entry for the notification-channel decision described below, so the next architectural change to this feature has a documented decision trail to build on.
 
 ---
@@ -348,6 +382,7 @@ This keeps every existing building block (`sendEmail`, `tplReleaseNote`, Firesto
 | --- | --- |
 | `releaseNotes` schema and `users.lastSeenReleaseNoteId` field | [DATA.md](DATA.md#releasenotes) |
 | `sendReleaseNoteEmail` callable reference (payload, response, error codes) | [API.md](API.md#sendreleasenoteemail) |
+| `getReleaseNoteCommitOptions` / `generateReleaseNoteDraft` callable reference | [API.md](API.md#getreleasenotecommitoptions) |
 | Firestore rules for `releaseNotes` | [SECURITY.md](SECURITY.md#firestore-security-rules) |
 | Component hierarchy placement | [ARCHITECTURE.md](ARCHITECTURE.md#frontend-architecture) |
 | Composite index deployment step | [DEPLOYMENT.md](DEPLOYMENT.md#step-2--firestore-database-and-rules) |
