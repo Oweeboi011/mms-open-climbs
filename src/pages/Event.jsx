@@ -487,7 +487,7 @@ export default function Event() {
       <Header />
 
       <nav className="back-nav">
-        <button className="back-btn" onClick={() => navigate(-1)}>
+        <button className="back-btn" onClick={() => navigate("/")}>
           &#8592; Back to Schedule
         </button>
       </nav>

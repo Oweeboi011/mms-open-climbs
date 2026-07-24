@@ -88,6 +88,41 @@ describe("ClimbCard", () => {
     expect(link).toHaveAttribute("href", "/event/climb-1");
   });
 
+  it("shows the Team Leader when officers include one", () => {
+    render({
+      officers: [
+        { name: "Juan Dela Cruz", role: "Team Leader" },
+        { name: "Maria Santos", role: "Scribe" },
+      ],
+    });
+    expect(screen.getByText(/Team Leader/)).toBeInTheDocument();
+    expect(screen.getByText("Juan Dela Cruz")).toBeInTheDocument();
+  });
+
+  it("prefers Team Leader over Senior Team Leader when both are listed", () => {
+    render({
+      officers: [
+        { name: "Pedro Reyes", role: "Senior Team Leader" },
+        { name: "Juan Dela Cruz", role: "Team Leader" },
+      ],
+    });
+    expect(screen.getByText("Juan Dela Cruz")).toBeInTheDocument();
+    expect(screen.queryByText("Pedro Reyes")).not.toBeInTheDocument();
+  });
+
+  it("recognizes 'Asst. Team Leader' as Assistant Team Leader", () => {
+    render({
+      officers: [{ name: "Maria Santos", role: "Asst. Team Leader" }],
+    });
+    expect(screen.getByText(/Asst\. Team Leader/)).toBeInTheDocument();
+    expect(screen.getByText("Maria Santos")).toBeInTheDocument();
+  });
+
+  it("does not show a lead officer line when there are no officers", () => {
+    render({ officers: [] });
+    expect(screen.queryByText(/Team Leader/)).not.toBeInTheDocument();
+  });
+
   it("adds card-wide class when isWide is true", () => {
     render({ isWide: true });
     const link = screen.getByRole("link");
