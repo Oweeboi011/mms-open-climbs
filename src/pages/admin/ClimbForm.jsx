@@ -19,6 +19,13 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 
+const OFFICER_ROLES = [
+  "Senior Team Leader",
+  "Team Leader",
+  "Assistant Team Leader",
+  "Scribe",
+];
+
 const COLOR_OPTIONS = [
   { value: "c-slate", label: "Slate (grey-blue)" },
   { value: "c-crimson", label: "Crimson (red)" },
@@ -92,8 +99,6 @@ const EMPTY_FORM = {
   features: "",
   googleMapsUrl: "",
   allTrailsUrl: "",
-  stravaUrl: "",
-  komootUrl: "",
   trailImages: [],
   waterSourceNote: "",
   weatherNote: "",
@@ -701,34 +706,6 @@ export default function AdminClimbForm() {
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Strava Route URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://www.strava.com/routes/..."
-                value={form.stravaUrl}
-                onChange={(e) => set("stravaUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Strava route link — participants can follow or export to their
-                GPS device.
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Komoot Route URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://www.komoot.com/tour/..."
-                value={form.komootUrl}
-                onChange={(e) => set("komootUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Komoot tour link — participants can view the route, elevation
-                profile, and export to their device.
-              </div>
-            </div>
-            <div className="form-group">
               <label className="form-label">Trail Photos</label>
               <div
                 style={{
@@ -1234,19 +1211,46 @@ export default function AdminClimbForm() {
                   }
                   style={{ flex: "2 1 160px" }}
                 />
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Role (e.g. Climb Leader)"
-                  value={o.role}
+                <select
+                  className="form-select"
+                  value={
+                    OFFICER_ROLES.includes(o.role)
+                      ? o.role
+                      : o.role
+                        ? "Other"
+                        : ""
+                  }
                   onChange={(e) =>
                     updateListItem("officers", i, {
                       ...o,
-                      role: e.target.value,
+                      role: e.target.value === "Other" ? "Other" : e.target.value,
                     })
                   }
-                  style={{ flex: "2 1 140px" }}
-                />
+                  style={{ flex: "2 1 160px" }}
+                >
+                  <option value="">— Select role —</option>
+                  {OFFICER_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                  <option value="Other">Other</option>
+                </select>
+                {!OFFICER_ROLES.includes(o.role) && o.role !== "" && (
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Custom role"
+                    value={o.role === "Other" ? "" : o.role}
+                    onChange={(e) =>
+                      updateListItem("officers", i, {
+                        ...o,
+                        role: e.target.value,
+                      })
+                    }
+                    style={{ flex: "2 1 140px" }}
+                  />
+                )}
                 <input
                   type="text"
                   className="form-input"

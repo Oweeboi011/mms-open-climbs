@@ -80,7 +80,7 @@ Clicking a climb card opens its event page, which includes:
 - **Trail photo gallery** — scroll horizontally through trail photos; click any photo to open a full-screen lightbox viewer with keyboard (arrow key) navigation
 - **Weather forecast** — an automatically loaded forecast for the climb dates, once the climb's location and dates are set by the organizers
 - **Google Maps** — an embedded map of the jump-off point or trailhead
-- **External trail links** — where provided by organizers, direct links to the trail on [AllTrails](https://www.alltrails.com), [Strava](https://www.strava.com), [Komoot](https://www.komoot.com), or Google Maps for route details
+- **External trail links** — where provided by organizers, direct links to the trail on [AllTrails](https://www.alltrails.com) or Google Maps for route details
 - **Registration status** — a **Register** button appears if registration is currently open for that climb; if registration is closed, full, or not yet open, the page will indicate that instead
 
 ---
