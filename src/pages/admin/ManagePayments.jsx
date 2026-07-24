@@ -456,7 +456,28 @@ export default function ManagePayments() {
                           textTransform: "uppercase",
                         }}
                       >
-                        Pending
+                        Awaiting Review
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "center", minWidth: 60 }}>
+                      <div
+                        style={{
+                          fontWeight: 900,
+                          fontSize: "1.1rem",
+                          color: "#b91c1c",
+                        }}
+                      >
+                        {unpaidCount}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.65rem",
+                          color: "var(--ink-soft)",
+                          letterSpacing: 1.5,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Unpaid
                       </div>
                     </div>
                     <div
