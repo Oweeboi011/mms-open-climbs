@@ -52,7 +52,7 @@ graph TB
 ### Member features
 
 - Browse the climb schedule as a card grid with elevation, difficulty, and trip distance at a glance
-- View full mountain profiles: summit elevation, difficulty, jump-off point, elevation gain, distances, features, itinerary, water source notes, and external links (AllTrails, Strava, Komoot, Google Maps)
+- View full mountain profiles: summit elevation, difficulty, jump-off point, elevation gain, distances, features, itinerary, water source notes, and external links (AllTrails, Google Maps)
 - Trail photo carousel on event and registration pages — click any photo to open a full-screen lightbox with keyboard navigation
 - Register for a climb with personal details, emergency contact, experience level, and medical disclosure
 - Select optional fees (e.g., transport) and review the full fee breakdown before submitting

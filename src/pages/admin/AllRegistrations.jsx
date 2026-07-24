@@ -48,6 +48,8 @@ export default function AllRegistrations() {
   });
   const [expandedId, setExpandedId] = useState(null);
 
+  const [scope, setScope] = useState("active");
+
   useEffect(() => {
     // Load all climbs for the filter dropdown
     getDocs(collection(db, "climbs")).then((snap) => {
@@ -56,6 +58,7 @@ export default function AllRegistrations() {
           id: d.id,
           title: d.data().title,
           dateLabel: d.data().dateLabel,
+          status: d.data().status,
         }))
         .sort((a, b) => a.title.localeCompare(b.title));
       setClimbs(list);
@@ -98,8 +101,21 @@ export default function AllRegistrations() {
     if (expandedId === reg.id) setExpandedId(null);
   }
 
+  const climbStatusById = useMemo(() => {
+    const map = {};
+    for (const c of climbs) map[c.id] = c.status;
+    return map;
+  }, [climbs]);
+
+  const isPastReg = (r) => climbStatusById[r.climbId] === "completed";
+
+  const scoped = useMemo(
+    () => regs.filter((r) => (scope === "past" ? isPastReg(r) : !isPastReg(r))),
+    [regs, climbStatusById, scope],
+  );
+
   const filtered = useMemo(() => {
-    return regs.filter((r) => {
+    return scoped.filter((r) => {
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
@@ -112,18 +128,27 @@ export default function AllRegistrations() {
         filterPayment === "all" || r.paymentStatus === filterPayment;
       return matchSearch && matchClimb && matchStatus && matchPayment;
     });
-  }, [regs, search, filterClimb, filterStatus, filterPayment]);
+  }, [scoped, search, filterClimb, filterStatus, filterPayment]);
 
   const stats = useMemo(
     () => ({
-      total: regs.length,
-      pending: regs.filter((r) => r.status === "pending").length,
-      confirmed: regs.filter((r) => r.status === "confirmed").length,
-      paymentPending: regs.filter(
+      total: scoped.length,
+      pending: scoped.filter((r) => r.status === "pending").length,
+      confirmed: scoped.filter((r) => r.status === "confirmed").length,
+      paymentPending: scoped.filter(
         (r) => r.paymentStatus === "submitted" && r.status === "pending",
       ).length,
     }),
-    [regs],
+    [scoped],
+  );
+
+  const activeCount = useMemo(
+    () => regs.filter((r) => !isPastReg(r)).length,
+    [regs, climbStatusById],
+  );
+  const pastCount = useMemo(
+    () => regs.filter((r) => isPastReg(r)).length,
+    [regs, climbStatusById],
   );
 
   function exportCSV() {
@@ -166,7 +191,7 @@ export default function AllRegistrations() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "all-registrations.csv";
+    a.download = `${scope}-registrations.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -184,7 +209,9 @@ export default function AllRegistrations() {
         <div className="admin-page-header">
           <div>
             <div className="admin-page-title">All Registrations</div>
-            <div className="admin-page-subtitle">Across all climbs</div>
+            <div className="admin-page-subtitle">
+              Across all climbs — upcoming and past events
+            </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <Link to="/admin" className="btn btn-outline btn-sm">
@@ -204,6 +231,22 @@ export default function AllRegistrations() {
           <LoadingSpinner />
         ) : (
           <>
+            {/* Active / Past scope tabs */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <button
+                className={`btn btn-sm ${scope === "active" ? "btn-primary" : "btn-outline"}`}
+                onClick={() => setScope("active")}
+              >
+                Active Registrations ({activeCount})
+              </button>
+              <button
+                className={`btn btn-sm ${scope === "past" ? "btn-primary" : "btn-outline"}`}
+                onClick={() => setScope("past")}
+              >
+                Past Registrations ({pastCount})
+              </button>
+            </div>
+
             {/* Stats */}
             <div className="admin-stats">
               <div className="admin-stat-card accent">
@@ -289,7 +332,8 @@ export default function AllRegistrations() {
                 marginBottom: 8,
               }}
             >
-              Showing {filtered.length} of {regs.length} registrations
+              Showing {filtered.length} of {scoped.length}{" "}
+              {scope === "past" ? "past" : "active"} registrations
             </div>
 
             {/* Table */}

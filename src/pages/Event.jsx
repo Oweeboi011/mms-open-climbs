@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import Icon from "@/components/Icon";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -129,7 +130,9 @@ function LockedCard({ label, onUnlock }) {
         cursor: "pointer",
       }}
     >
-      <div style={{ fontSize: "2rem", marginBottom: 8 }}>&#128274;</div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+        <Icon name="lock" size={30} color="var(--ink-soft)" />
+      </div>
       <p
         style={{
           fontWeight: 700,
@@ -500,17 +503,18 @@ export default function Event() {
           </h2>
           <div className="event-meta">
             <div className="event-meta-item">
-              &#128197;{" "}
+              <Icon name="calendar" size={16} />
               <span>
                 <strong>{climb.dateLabel}</strong>
               </span>
             </div>
             <div className="event-meta-item">
-              &#128205; <span>{climb.location}</span>
+              <Icon name="pin" size={16} />
+              <span>{climb.location}</span>
             </div>
             {climb.elevation && (
               <div className="event-meta-item">
-                &#9968;{" "}
+                <Icon name="mountain" size={16} />
                 <span>
                   <strong>{climb.elevation} MASL</strong>
                   {climb.difficulty
@@ -521,7 +525,7 @@ export default function Event() {
             )}
             {climb.maxParticipants && (
               <div className="event-meta-item">
-                &#128101;{" "}
+                <Icon name="users" size={16} />
                 <span>
                   <strong>{climb.registrationCount ?? 0}</strong> /{" "}
                   {climb.maxParticipants} slots
@@ -550,7 +554,9 @@ export default function Event() {
 
           {!currentUser && (
             <div className="visitor-event-prompt">
-              <div className="visitor-event-prompt-icon">&#128274;</div>
+              <div className="visitor-event-prompt-icon">
+                <Icon name="lock" size={22} />
+              </div>
               <div className="visitor-event-prompt-text">
                 <strong>Sign in to access full event details</strong> — trail
                 map, participant list, expenses, and documents are visible to
@@ -583,7 +589,9 @@ export default function Event() {
           climb.description) && (
           <div className="section-card">
             <div className="section-header">
-              <span className="icon">&#9968;</span>
+              <span className="icon">
+                <Icon name="mountain" size={17} />
+              </span>
               <h3>Mountain Profile</h3>
             </div>
             <div className="section-body">
@@ -694,14 +702,12 @@ export default function Event() {
         )}
 
         {/* Trail Map */}
-        {(climb.allTrailsUrl ||
-          mapCoords ||
-          mapsEmbedSrc ||
-          climb.stravaUrl ||
-          climb.komootUrl) && (
+        {(climb.allTrailsUrl || mapCoords || mapsEmbedSrc) && (
           <div className="section-card">
             <div className="section-header">
-              <span className="icon">&#128205;</span>
+              <span className="icon">
+                <Icon name="pin" size={17} />
+              </span>
               <h3>Trail Map</h3>
             </div>
             <div className="section-body">
@@ -786,44 +792,12 @@ export default function Event() {
                           rel="noopener noreferrer"
                           className="btn btn-outline btn-sm"
                         >
-                          &#127758; View on Google Maps
+                          <Icon name="globe" size={14} style={{ marginRight: 4 }} />
+                        View on Google Maps
                         </a>
                       </div>
                     </>
                   ) : null}
-                  {(climb.stravaUrl || climb.komootUrl) && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 10,
-                        marginTop: 14,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {climb.stravaUrl && (
-                        <a
-                          href={climb.stravaUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-outline btn-sm"
-                          style={{ color: "#fc4c02", borderColor: "#fc4c02" }}
-                        >
-                          &#127939; View on Strava
-                        </a>
-                      )}
-                      {climb.komootUrl && (
-                        <a
-                          href={climb.komootUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-outline btn-sm"
-                          style={{ color: "#6db33f", borderColor: "#6db33f" }}
-                        >
-                          &#127748; Komoot Route
-                        </a>
-                      )}
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -834,7 +808,9 @@ export default function Event() {
         {climb.trailImages?.length > 0 && (
           <div className="section-card">
             <div className="section-header">
-              <span className="icon">&#128247;</span>
+              <span className="icon">
+                <Icon name="camera" size={17} />
+              </span>
               <h3>Photos</h3>
             </div>
             <div className="section-body">
@@ -1098,7 +1074,9 @@ export default function Event() {
         {climb.waterSourceNote && (
           <div className="section-card">
             <div className="section-header">
-              <span className="icon">&#128167;</span>
+              <span className="icon">
+                <Icon name="droplet" size={17} />
+              </span>
               <h3>Water Source Information</h3>
             </div>
             <div className="section-body">
@@ -1119,9 +1097,13 @@ export default function Event() {
                     textTransform: "uppercase",
                     color: "#7a5800",
                     marginBottom: 7,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
                   }}
                 >
-                  &#9888; Caution &mdash; Water Potability
+                  <Icon name="alert" size={13} />
+                  Caution &mdash; Water Potability
                 </div>
                 <div
                   style={{
@@ -1144,7 +1126,9 @@ export default function Event() {
           climb.startDate) && (
           <div className="section-card">
             <div className="section-header">
-              <span className="icon">&#127780;</span>
+              <span className="icon">
+                <Icon name="cloudSun" size={17} />
+              </span>
               <h3>Weather &amp; Forecast</h3>
             </div>
             <div className="section-body">
@@ -1182,19 +1166,23 @@ export default function Event() {
                       marginBottom: 14,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: "1.3rem",
-                        lineHeight: 1,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {weather.status === "error"
-                        ? "\u26A0\uFE0F"
-                        : weather.status === "past" ||
-                            weather.status === "unavailable"
-                          ? "\uD83D\uDCC5"
-                          : "\uD83D\uDD52"}
+                    <span style={{ flexShrink: 0 }}>
+                      <Icon
+                        name={
+                          weather.status === "error"
+                            ? "alert"
+                            : weather.status === "past" ||
+                                weather.status === "unavailable"
+                              ? "calendar"
+                              : "clock"
+                        }
+                        size={19}
+                        color={
+                          weather.status === "error"
+                            ? "#b45309"
+                            : "var(--ink-soft)"
+                        }
+                      />
                     </span>
                     <div>
                       <div
@@ -1315,7 +1303,8 @@ export default function Event() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    &#127788; Windy.com
+                    <Icon name="wind" size={14} style={{ marginRight: 4 }} />
+                    Windy.com
                   </a>
                 )}
                 <a
@@ -1324,7 +1313,8 @@ export default function Event() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  &#127782; PAG-ASA Forecast
+                  <Icon name="sun" size={14} style={{ marginRight: 4 }} />
+                  PAG-ASA Forecast
                 </a>
               </div>
               <p
@@ -1333,10 +1323,21 @@ export default function Event() {
                   color: "var(--ink-soft)",
                   marginTop: 12,
                   lineHeight: 1.5,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 5,
                 }}
               >
-                &#9888; Monitor PAG-ASA Tropical Cyclone bulletins. The climb
-                may be cancelled or rescheduled due to bad weather.
+                <Icon
+                  name="alert"
+                  size={13}
+                  color="var(--ink-soft)"
+                  style={{ marginTop: 2 }}
+                />
+                <span>
+                  Monitor PAG-ASA Tropical Cyclone bulletins. The climb may be
+                  cancelled or rescheduled due to bad weather.
+                </span>
               </p>
             </div>
           </div>
@@ -1345,7 +1346,9 @@ export default function Event() {
         {/* Itinerary */}
         <div className="section-card">
           <div className="section-header">
-            <span className="icon">&#128506;</span>
+            <span className="icon">
+              <Icon name="map" size={17} />
+            </span>
             <h3>Itinerary</h3>
           </div>
           <div className="section-body">
@@ -1367,8 +1370,17 @@ export default function Event() {
                 </div>
               ))
             ) : (
-              <p className="tbd-note">
-                &#128337; Detailed itinerary will be available soon.
+              <p
+                className="tbd-note"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <Icon name="clock" size={14} />
+                Detailed itinerary will be available soon.
               </p>
             )}
           </div>
@@ -1378,7 +1390,9 @@ export default function Event() {
           {/* Things to Bring */}
           <div className="section-card">
             <div className="section-header">
-              <span className="icon">&#127890;</span>
+              <span className="icon">
+                <Icon name="backpack" size={17} />
+              </span>
               <h3>Things to Bring</h3>
             </div>
             <div className="section-body">
@@ -1412,7 +1426,9 @@ export default function Event() {
           {/* Leave No Trace */}
           <div className="section-card">
             <div className="section-header">
-              <span className="icon">&#127807;</span>
+              <span className="icon">
+                <Icon name="leaf" size={17} />
+              </span>
               <h3>Leave No Trace</h3>
             </div>
             <div className="section-body">
@@ -1450,7 +1466,9 @@ export default function Event() {
         {/* Expenses */}
         <div className="section-card">
           <div className="section-header">
-            <span className="icon">&#128176;</span>
+            <span className="icon">
+              <Icon name="wallet" size={17} />
+            </span>
             <h3>Estimated Expenses</h3>
           </div>
           <div className="section-body">
@@ -1542,7 +1560,9 @@ export default function Event() {
         {/* Climb Officers */}
         <div className="section-card">
           <div className="section-header">
-            <span className="icon">&#128101;</span>
+            <span className="icon">
+              <Icon name="users" size={17} />
+            </span>
             <h3>Climb Officers</h3>
           </div>
           <div className="section-body">
@@ -1572,7 +1592,9 @@ export default function Event() {
         {/* Participants */}
         <div className="section-card">
           <div className="section-header">
-            <span className="icon">&#127939;</span>
+            <span className="icon">
+              <Icon name="activity" size={17} />
+            </span>
             <h3>Participants</h3>
           </div>
           <div className="section-body">
@@ -1736,8 +1758,14 @@ export default function Event() {
             >
               &#x2715;
             </button>
-            <div style={{ fontSize: "2.4rem", marginBottom: 12 }}>
-              &#127939;
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: 12,
+              }}
+            >
+              <Icon name="activity" size={36} color="var(--green-dark)" />
             </div>
             <h2
               id="signin-modal-title"
@@ -1782,9 +1810,7 @@ export default function Event() {
                 className="btn btn-outline"
                 onClick={() => setShowSignInModal(false)}
               >
-                $env:GOOGLE_APPLICATION_CREDENTIALS =
-                "C:\path\to\serviceAccountKey.json" node
-                scripts/set-storage-cors.mjs Create Account
+                Create Account
               </Link>
             </div>
           </div>

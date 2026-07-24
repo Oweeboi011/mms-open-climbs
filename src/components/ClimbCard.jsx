@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import Icon from "@/components/Icon";
 
 const BADGE_CLASS = {
   minor: "badge-minor",
@@ -25,6 +26,34 @@ function toDate(value) {
   return value.toDate ? value.toDate() : new Date(value);
 }
 
+function getExperienceLevel(climb) {
+  let n = parseInt(climb.trailClass, 10);
+  if (!n && climb.difficulty) {
+    const m = String(climb.difficulty).match(/(\d+)\s*\/\s*9/);
+    if (m) n = parseInt(m[1], 10);
+  }
+  if (!n) return { label: "Not Yet Rated", color: "#9e9e9e" };
+  if (n <= 3) return { label: "Beginner Friendly", color: "#2e7d32" };
+  if (n <= 5) return { label: "Moderate", color: "#b8860b" };
+  return { label: "Advanced", color: "#c0392b" };
+}
+
+const LEAD_ROLE_PRIORITY = [
+  /^(senior|sr\.?)\s*team leader$/i,
+  /^team leader$/i,
+  /^(assistant|asst\.?)\s*team leader$/i,
+  /lead|poc|point of contact/i,
+];
+
+function getLeadOfficer(officers) {
+  if (!officers?.length) return null;
+  for (const pattern of LEAD_ROLE_PRIORITY) {
+    const match = officers.find((o) => pattern.test(o.role || ""));
+    if (match) return match;
+  }
+  return officers[0];
+}
+
 function isClimbOngoing(climb) {
   const start = toDate(climb.startDate);
   if (!start) return false;
@@ -37,10 +66,14 @@ function isClimbOngoing(climb) {
 }
 
 export default function ClimbCard({ climb }) {
-  const seatsLeft = climb.maxParticipants - (climb.registrationCount ?? 0);
-  const isFull = seatsLeft <= 0;
-  const isLow = seatsLeft > 0 && seatsLeft <= 5;
+  const hasCap = Boolean(climb.maxParticipants);
+  const registered = climb.registrationCount ?? 0;
+  const seatsLeft = climb.maxParticipants - registered;
+  const isFull = hasCap && seatsLeft <= 0;
+  const isLow = hasCap && seatsLeft > 0 && seatsLeft <= 5;
   const isOngoing = climb.status !== "completed" && isClimbOngoing(climb);
+  const level = getExperienceLevel(climb);
+  const lead = getLeadOfficer(climb.officers);
 
   return (
     <Link
@@ -54,48 +87,98 @@ export default function ClimbCard({ climb }) {
           <div className="card-name">{climb.title}</div>
           <div className="card-location">{climb.location || "\u00A0"}</div>
 
+          <span className="card-level-badge">
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: level.color,
+                display: "inline-block",
+                flexShrink: 0,
+              }}
+            />
+            {level.label}
+          </span>
+
           {(climb.elevation || climb.difficulty || climb.roundTripDistance) && (
             <div className="card-stats">
               {climb.elevation && (
-                <span className="card-stat">📉{climb.elevation}m</span>
+                <span className="card-stat">
+                  <Icon name="mountain" size={12} />
+                  {climb.elevation}m
+                </span>
               )}
               {climb.difficulty && (
-                <span className="card-stat">🏔️{climb.difficulty}</span>
+                <span className="card-stat">
+                  <Icon name="gauge" size={12} />
+                  {climb.difficulty}
+                </span>
               )}
               {climb.roundTripDistance && (
-                <span className="card-stat">📍{climb.roundTripDistance}</span>
+                <span className="card-stat">
+                  <Icon name="route" size={12} />
+                  {climb.roundTripDistance}
+                </span>
               )}
             </div>
           )}
 
-          {climb.itinerary?.length > 0 ? (
-            <span className="card-itinerary-ready">
-              &#10003; Itinerary Available
-            </span>
-          ) : (
-            <span className="card-itinerary-tag">
-              &#8987; Itinerary Coming Soon
-            </span>
+          {lead && (
+            <div className="card-lead">
+              <Icon name="users" size={12} />
+              <span>
+                {lead.role || "Team Leader"}: <strong>{lead.name}</strong>
+              </span>
+            </div>
           )}
 
-          {isFull && (
-            <span className="card-seats-tag" style={{ marginLeft: 4 }}>
-              &#128683; Full
-            </span>
+          {hasCap && (
+            <div className="card-headcount">
+              <Icon name="users" size={12} />
+              <span>
+                {registered}/{climb.maxParticipants} joined
+              </span>
+              {isFull && (
+                <strong style={{ color: "#ff8a80" }}>&middot; Full</strong>
+              )}
+              {isLow && !isFull && (
+                <strong style={{ color: "#ffd580" }}>
+                  &middot; {seatsLeft} seat{seatsLeft !== 1 ? "s" : ""} left
+                </strong>
+              )}
+            </div>
           )}
-          {isLow && !isFull && (
-            <span className="card-seats-tag" style={{ marginLeft: 4 }}>
-              &#9888; {seatsLeft} seat{seatsLeft !== 1 ? "s" : ""} left
-            </span>
-          )}
-          {isOngoing && (
-            <span
-              className="card-status-tag card-status-ongoing"
-              style={{ marginLeft: 4 }}
-            >
-              &#128992; Happening Now
-            </span>
-          )}
+
+          <div
+            style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}
+          >
+            {climb.itinerary?.length > 0 ? (
+              <span className="card-itinerary-ready">
+                &#10003; Itinerary Available
+              </span>
+            ) : (
+              <span className="card-itinerary-tag">
+                <Icon name="clock" size={11} />
+                Itinerary Coming Soon
+              </span>
+            )}
+
+            {isOngoing && (
+              <span className="card-status-tag card-status-ongoing">
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "currentColor",
+                    display: "inline-block",
+                  }}
+                />
+                Happening Now
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="card-footer">
