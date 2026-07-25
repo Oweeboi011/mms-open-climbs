@@ -90,7 +90,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `waterSourceNote` | string | No | Water source information |
 | `weatherNote` | string | No | Seasonal weather notes |
 | `thingsToBring` | string[] | No | Recommended gear and supplies |
-| `expenses` | object[] | No | `[{ label, amount, note, optional }]` |
+| `fees` | object[] | No | `[{ label, amount, note, optional, isGuestFee }]` — `isGuestFee: true` marks the one fee charged only to non-member registrants (`memberType: "joiner"`), never to members; identified by this flag, not by label text |
 | `officers` | object[] | No | `[{ name, role, mobile, email }]` — used for email notifications |
 | `itinerary` | object[] | No | `[{ day, entries: [{ time, activity }] }]` |
 | `gcashName` | string | No | GCash account holder name |
@@ -292,7 +292,7 @@ erDiagram
         number maxParticipants
         number registrationCount
         object[] officers
-        object[] expenses
+        object[] fees
     }
 
     registrations {

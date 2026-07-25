@@ -103,7 +103,7 @@ const EMPTY_FORM = {
   waterSourceNote: "",
   weatherNote: "",
   thingsToBring: [...DEFAULT_THINGS_TO_BRING],
-  expenses: [
+  fees: [
     { label: "Registration Fee", amount: "TBA", note: "", optional: false },
     { label: "Guide Fee", amount: "TBA", note: "", optional: false },
     { label: "Environmental Fee", amount: "TBA", note: "", optional: false },
@@ -112,6 +112,7 @@ const EMPTY_FORM = {
       amount: "450",
       note: "Required for non-members / guests. Not charged to MMS members.",
       optional: true,
+      isGuestFee: true,
     },
     {
       label: "Transportation Fee",
@@ -1015,7 +1016,7 @@ export default function AdminClimbForm() {
             ))}
           </div>
 
-          {/* ── Expenses ── */}
+          {/* ── Fees ── */}
           <div className="admin-card">
             <div
               style={{
@@ -1026,13 +1027,13 @@ export default function AdminClimbForm() {
               }}
             >
               <div className="admin-card-title" style={{ marginBottom: 0 }}>
-                Estimated Expenses
+                Fees
               </div>
               <button
                 type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() =>
-                  addListItem("expenses", {
+                  addListItem("fees", {
                     label: "",
                     amount: "TBA",
                     note: "",
@@ -1040,10 +1041,10 @@ export default function AdminClimbForm() {
                   })
                 }
               >
-                + Add Expense
+                + Add Fee
               </button>
             </div>
-            {form.expenses.map((exp, i) => (
+            {form.fees.map((fee, i) => (
               <div
                 key={i}
                 style={{
@@ -1058,10 +1059,10 @@ export default function AdminClimbForm() {
                   type="text"
                   className="form-input"
                   placeholder="Label"
-                  value={exp.label}
+                  value={fee.label}
                   onChange={(e) =>
-                    updateListItem("expenses", i, {
-                      ...exp,
+                    updateListItem("fees", i, {
+                      ...fee,
                       label: e.target.value,
                     })
                   }
@@ -1071,10 +1072,10 @@ export default function AdminClimbForm() {
                   type="text"
                   className="form-input"
                   placeholder="Amount"
-                  value={exp.amount}
+                  value={fee.amount}
                   onChange={(e) =>
-                    updateListItem("expenses", i, {
-                      ...exp,
+                    updateListItem("fees", i, {
+                      ...fee,
                       amount: e.target.value,
                     })
                   }
@@ -1084,10 +1085,10 @@ export default function AdminClimbForm() {
                   type="text"
                   className="form-input"
                   placeholder="Note (optional)"
-                  value={exp.note}
+                  value={fee.note}
                   onChange={(e) =>
-                    updateListItem("expenses", i, {
-                      ...exp,
+                    updateListItem("fees", i, {
+                      ...fee,
                       note: e.target.value,
                     })
                   }
@@ -1106,20 +1107,43 @@ export default function AdminClimbForm() {
                 >
                   <input
                     type="checkbox"
-                    checked={!!exp.optional}
+                    checked={!!fee.optional}
                     onChange={(e) =>
-                      updateListItem("expenses", i, {
-                        ...exp,
+                      updateListItem("fees", i, {
+                        ...fee,
                         optional: e.target.checked,
                       })
                     }
                   />
                   Optional
                 </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: "0.8rem",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                  }}
+                  title="Charged only to non-member registrants; never charged to MMS members"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!fee.isGuestFee}
+                    onChange={(e) =>
+                      updateListItem("fees", i, {
+                        ...fee,
+                        isGuestFee: e.target.checked,
+                      })
+                    }
+                  />
+                  Guest Fee
+                </label>
                 <button
                   type="button"
                   className="btn btn-danger btn-sm"
-                  onClick={() => removeListItem("expenses", i)}
+                  onClick={() => removeListItem("fees", i)}
                 >
                   ✕
                 </button>

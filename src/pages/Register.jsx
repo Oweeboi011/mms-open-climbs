@@ -185,8 +185,8 @@ export default function Register() {
         paymentProofs,
         paymentStatus: paymentProofs.length > 0 ? "submitted" : "unpaid",
         amountPaid: paymentProofs.length > 0 ? parsedAmount : null,
-        feeBreakdown: (climb.expenses || []).map((exp) => {
-          const isGuestFee = /guest/i.test(exp.label);
+        feeBreakdown: (climb.fees || []).map((exp) => {
+          const isGuestFee = !!exp.isGuestFee;
           if (!exp.optional)
             return {
               label: exp.label,
@@ -598,17 +598,17 @@ export default function Register() {
           </div>
 
           {/* Fee Breakdown */}
-          {climb.expenses?.length > 0 &&
+          {climb.fees?.length > 0 &&
             (() => {
               const isJoiner = form.memberType === "joiner";
               // Guest Fee is always treated by memberType, regardless of optional field in data
-              const required = climb.expenses.filter((e) => {
-                if (/guest/i.test(e.label)) return isJoiner;
+              const required = climb.fees.filter((e) => {
+                if (e.isGuestFee) return isJoiner;
                 return !e.optional;
               });
               // Optional: optional fees excluding guest fee (guest fee is never a checkbox)
-              const optional = climb.expenses.filter((e) => {
-                if (/guest/i.test(e.label)) return false;
+              const optional = climb.fees.filter((e) => {
+                if (e.isGuestFee) return false;
                 return !!e.optional;
               });
               let expectedTotal = 0;
