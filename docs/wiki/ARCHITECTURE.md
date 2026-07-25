@@ -161,6 +161,10 @@ The `usePageTracking` hook (`src/hooks/usePageTracking.js`) writes a `pageViews`
 
 `logFailedRequest()` (`src/utils/logFailedRequest.js`) is a fire-and-forget helper that writes a `failedRequests` document whenever a Brevo email send, a Storage upload, a Firestore read/write, or an uncaught client-side error fails. It mirrors the `pageViews` write pattern — public create, admin-only read — so failures can be logged before a user is authenticated and without ever blocking or surfacing an error back to the caller (`.catch(() => {})` swallows any write failure of the logger itself). Cloud Functions log to the same collection via the Admin SDK for server-side failures. Surfaced on the Admin **Analytics** page. See [DATA.md — failedRequests](DATA.md#failedrequests).
 
+### Admin Dashboard Detail Rows
+
+The admin `Dashboard.jsx` climb rows are expand/collapse-able (with an "expand/collapse all" toggle) to reveal per-climb detail without navigating away. Two small reusable presentation components back this: `src/components/Icon.jsx` (a shared inline SVG icon set, replacing ad hoc emoji/text icons) and `src/components/DetailCell.jsx` (a labeled key/value display used across the expanded rows). The expanded content is computed by `src/utils/climbCompleteness.js` (`getMissingFields`, flags climbs with incomplete setup) and `src/utils/expenseSummary.js` (aggregates registration fee/expense data). No new Firestore data — this is a presentation layer over the existing `climbs`/`registrations` collections.
+
 ---
 
 ## Backend Architecture
