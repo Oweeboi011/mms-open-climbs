@@ -14,7 +14,7 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import DetailCell from "@/components/DetailCell";
 import { getMissingFields } from "@/utils/climbCompleteness";
-import { getExpenseSummary } from "@/utils/expenseSummary";
+import { getFeeSummary } from "@/utils/feeSummary";
 
 const STATUS_OPTIONS = ["draft", "open", "closed", "completed"];
 const TRAIL_CLASS_LABELS = {
@@ -456,7 +456,7 @@ export default function AdminClimbsManage() {
                               />
                               <DetailCell
                                 label="Expenses"
-                                value={getExpenseSummary(climb)}
+                                value={getFeeSummary(climb)}
                               />
                               <DetailCell
                                 label="Trail Photos"

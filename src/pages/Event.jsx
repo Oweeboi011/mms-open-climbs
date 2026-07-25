@@ -559,7 +559,7 @@ export default function Event() {
               </div>
               <div className="visitor-event-prompt-text">
                 <strong>Sign in to access full event details</strong> — trail
-                map, participant list, expenses, and documents are visible to
+                map, participant list, fees, and documents are visible to
                 registered members.
               </div>
               <div className="visitor-event-prompt-actions">
@@ -1463,42 +1463,38 @@ export default function Event() {
           </div>
         </div>
 
-        {/* Expenses */}
+        {/* Fees */}
         <div className="section-card">
           <div className="section-header">
             <span className="icon">
               <Icon name="wallet" size={17} />
             </span>
-            <h3>Estimated Expenses</h3>
+            <h3>Fees</h3>
           </div>
           <div className="section-body">
-            {climb.expenses?.length > 0 ? (
+            {climb.fees?.length > 0 ? (
               <>
-                {climb.expenses.map((exp, i) => (
+                {climb.fees.map((fee, i) => (
                   <div className="expense-row" key={i}>
                     <div>
-                      <div className="expense-label">{exp.label}</div>
-                      {exp.note && (
-                        <div className="expense-note">{exp.note}</div>
+                      <div className="expense-label">{fee.label}</div>
+                      {fee.note && (
+                        <div className="expense-note">{fee.note}</div>
                       )}
                     </div>
-                    <div className="expense-amount">{exp.amount || "TBA"}</div>
+                    <div className="expense-amount">{fee.amount || "TBA"}</div>
                   </div>
                 ))}
                 {(() => {
-                  const memberExpenses = climb.expenses.filter(
-                    (e) => !/guest/i.test(e.label),
-                  );
-                  const numericAmounts = memberExpenses
-                    .map((e) => parseFloat(String(e.amount).replace(/,/g, "")))
+                  const memberFees = climb.fees.filter((f) => !f.isGuestFee);
+                  const numericAmounts = memberFees
+                    .map((f) => parseFloat(String(f.amount).replace(/,/g, "")))
                     .filter((n) => !isNaN(n));
                   if (numericAmounts.length === 0) return null;
-                  const hasTBA = memberExpenses.some((e) =>
-                    isNaN(parseFloat(String(e.amount).replace(/,/g, ""))),
+                  const hasTBA = memberFees.some((f) =>
+                    isNaN(parseFloat(String(f.amount).replace(/,/g, ""))),
                   );
-                  const guestFee = climb.expenses.find((e) =>
-                    /guest/i.test(e.label),
-                  );
+                  const guestFee = climb.fees.find((f) => f.isGuestFee);
                   const total = numericAmounts.reduce((s, n) => s + n, 0);
                   return (
                     <>
