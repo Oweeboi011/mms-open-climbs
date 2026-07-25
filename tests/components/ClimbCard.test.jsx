@@ -118,9 +118,29 @@ describe("ClimbCard", () => {
     expect(screen.getByText("Maria Santos")).toBeInTheDocument();
   });
 
-  it("does not show a lead officer line when there are no officers", () => {
+  it("shows both Team Leader and Assistant Team Leader when both are listed", () => {
+    render({
+      officers: [
+        { name: "Juan Dela Cruz", role: "Team Leader" },
+        { name: "Maria Santos", role: "Assistant Team Leader" },
+        { name: "Pedro Reyes", role: "Scribe" },
+      ],
+    });
+    expect(screen.getByText("Juan Dela Cruz")).toBeInTheDocument();
+    expect(screen.getByText("Maria Santos")).toBeInTheDocument();
+    expect(screen.queryByText("Pedro Reyes")).not.toBeInTheDocument();
+  });
+
+  it("shows a 'No Officers Yet' placeholder when there are no officers", () => {
     render({ officers: [] });
     expect(screen.queryByText(/Team Leader/)).not.toBeInTheDocument();
+    expect(screen.getByText("No Officers Yet")).toBeInTheDocument();
+  });
+
+  it("shows a 'No Officers Yet' placeholder when officers exist but none are Team Leader/Assistant Team Leader", () => {
+    render({ officers: [{ name: "Pedro Reyes", role: "Scribe" }] });
+    expect(screen.getByText("No Officers Yet")).toBeInTheDocument();
+    expect(screen.queryByText("Pedro Reyes")).not.toBeInTheDocument();
   });
 
   it("adds card-wide class when isWide is true", () => {

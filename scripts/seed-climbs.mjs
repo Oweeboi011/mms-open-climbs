@@ -296,6 +296,27 @@ function ts(v) {
 function arr(items) {
   return { arrayValue: { values: items } };
 }
+function map(fields) {
+  return { mapValue: { fields } };
+}
+
+const DEFAULT_FEES = arr([
+  map({
+    label: str("Guest Fee"),
+    amount: str("450"),
+    note: str(
+      "Required for non-members / guests. Not charged to MMS members.",
+    ),
+    optional: bool(true),
+    isGuestFee: bool(true),
+  }),
+  map({
+    label: str("Transportation Fee"),
+    amount: str("TBA"),
+    note: str("Only if availing organized transport"),
+    optional: bool(true),
+  }),
+]);
 
 function buildDoc(climb) {
   return {
@@ -315,7 +336,7 @@ function buildDoc(climb) {
       itineraryReady: bool(climb.itineraryReady),
       description: str(climb.description || ""),
       thingsToBring: arr([]),
-      expenses: arr([]),
+      fees: DEFAULT_FEES,
       officers: arr([]),
       itinerary: arr([]),
     },

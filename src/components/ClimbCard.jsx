@@ -38,20 +38,19 @@ function getExperienceLevel(climb) {
   return { label: "Advanced", color: "#c0392b" };
 }
 
-const LEAD_ROLE_PRIORITY = [
-  /^team leader$/i,
-  /^(senior|sr\.?)\s*team leader$/i,
-  /^(assistant|asst\.?)\s*team leader$/i,
-  /lead|poc|point of contact/i,
-];
+const EXACT_TEAM_LEADER_RE = /^team leader$/i;
+const SENIOR_TEAM_LEADER_RE = /^(senior|sr\.?)\s*team leader$/i;
+const ASSISTANT_LEADER_RE = /^(assistant|asst\.?)\s*team leader$/i;
 
-function getLeadOfficer(officers) {
-  if (!officers?.length) return null;
-  for (const pattern of LEAD_ROLE_PRIORITY) {
-    const match = officers.find((o) => pattern.test(o.role || ""));
-    if (match) return match;
-  }
-  return officers[0];
+function getLeadOfficers(officers) {
+  if (!officers?.length) return [];
+  const teamLeader =
+    officers.find((o) => EXACT_TEAM_LEADER_RE.test(o.role || "")) ||
+    officers.find((o) => SENIOR_TEAM_LEADER_RE.test(o.role || ""));
+  const assistantLeader = officers.find((o) =>
+    ASSISTANT_LEADER_RE.test(o.role || ""),
+  );
+  return [teamLeader, assistantLeader].filter(Boolean);
 }
 
 function isClimbOngoing(climb) {
@@ -73,7 +72,7 @@ export default function ClimbCard({ climb }) {
   const isLow = hasCap && seatsLeft > 0 && seatsLeft <= 5;
   const isOngoing = climb.status !== "completed" && isClimbOngoing(climb);
   const level = getExperienceLevel(climb);
-  const lead = getLeadOfficer(climb.officers);
+  const leads = getLeadOfficers(climb.officers);
 
   return (
     <Link
@@ -124,12 +123,19 @@ export default function ClimbCard({ climb }) {
             </div>
           )}
 
-          {lead && (
+          {leads.length > 0 ? (
+            leads.map((lead, i) => (
+              <div className="card-lead" key={i}>
+                <Icon name="users" size={12} />
+                <span>
+                  {lead.role || "Team Leader"}: <strong>{lead.name}</strong>
+                </span>
+              </div>
+            ))
+          ) : (
             <div className="card-lead">
               <Icon name="users" size={12} />
-              <span>
-                {lead.role || "Team Leader"}: <strong>{lead.name}</strong>
-              </span>
+              <span>No Officers Yet</span>
             </div>
           )}
 
