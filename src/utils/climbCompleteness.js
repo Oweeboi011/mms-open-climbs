@@ -8,13 +8,9 @@ const MISSING_FIELD_CHECKS = [
   { label: "Max Participants", test: (c) => !c.maxParticipants },
   {
     label: "Team Leader",
-    test: (c) => !c.officers?.some((o) => /^team leader$/i.test(o.role || "")),
-  },
-  {
-    label: "Senior Team Leader",
     test: (c) =>
       !c.officers?.some((o) =>
-        /^(senior|sr\.?)\s*team leader$/i.test(o.role || ""),
+        /^(senior|sr\.?)?\s*team leader$/i.test(o.role || ""),
       ),
   },
   {
@@ -29,7 +25,7 @@ const MISSING_FIELD_CHECKS = [
     test: (c) => !c.officers?.some((o) => /^scribe$/i.test(o.role || "")),
   },
   { label: "Itinerary", test: (c) => !c.itinerary?.length },
-  { label: "Expenses", test: (c) => !c.expenses?.length },
+  { label: "Fees", test: (c) => !c.fees?.length },
   { label: "Trail Photos", test: (c) => !c.trailImages?.length },
   {
     label: "Trail Map (Google Maps link or coordinates)",

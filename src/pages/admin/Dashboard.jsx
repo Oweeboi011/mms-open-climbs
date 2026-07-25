@@ -19,7 +19,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import DetailCell from "@/components/DetailCell";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { getMissingFields } from "@/utils/climbCompleteness";
-import { getExpenseSummary } from "@/utils/expenseSummary";
+import { getFeeSummary } from "@/utils/feeSummary";
 
 function NavIcon({ path, color }) {
   return (
@@ -726,7 +726,7 @@ export default function AdminDashboard() {
                                 />
                                 <DetailCell
                                   label="Expenses"
-                                  value={getExpenseSummary(climb)}
+                                  value={getFeeSummary(climb)}
                                 />
                                 <DetailCell
                                   label="Trail Photos"
