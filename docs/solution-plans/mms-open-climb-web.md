@@ -2,7 +2,7 @@
 
 **Scope**: the web application (React SPA + Firebase backend) as it stands today, its recent evolution, and the forward-looking plan for hardening, cost, and growth.
 
-Last reviewed: 2026-07-23. Companion document: [mms-open-climb-mobile.md](mms-open-climb-mobile.md).
+Last reviewed: 2026-07-25. Companion document: [mms-open-climb-mobile.md](mms-open-climb-mobile.md).
 
 ---
 
@@ -31,6 +31,7 @@ The app is fully client-agnostic at the data layer — Firestore security rules,
 
 Grouped by theme, most recent first:
 
+- **Admin dashboard and event display polish** — `ManagePayments` renamed the "Submitted" payment-status label to "Awaiting Review" and added a live **Unpaid** count alongside Verified/Awaiting Review/Rejected in both the global summary and per-climb headers. The admin Dashboard's per-climb rows are now expand/collapse-able, backed by a shared `Icon.jsx` icon set, a `DetailCell.jsx` labeled-value component, and completeness/expense-summary utilities. `ClimbCard` also got a lead-role display priority fix (plain "Team Leader" now correctly preferred over "Senior Team Leader"), and the `Event` page back button now always returns to the schedule instead of relying on browser history.
 - **Thank-you emails for completed climbs** — `sendReminderNotifications` (scheduled function) now also sends a one-time "Thank You" email per climb once `climb.endDate` has passed, gated by a `thankYouSentAt` field so it fires exactly once per climb.
 - **Failure logging system** — a new `failedRequests` Firestore collection captures client-side errors for admin review (open `create`, admin-only `read`), giving the team a lightweight production error trail without a third-party APM tool.
 - **Add-Joiner linking** — admins can now link walk-in "Add Joiner" registration entries to an existing member account, closing a data-integrity gap where walk-in registrants were previously unlinked orphan records.
