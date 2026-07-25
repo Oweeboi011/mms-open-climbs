@@ -324,14 +324,14 @@ Opened via **Registrants** from Dashboard or Climbs Management. Shows every regi
 - **Confirm** a registration (officially accepts the participant)
 - **Waitlist** a registration
 - **Cancel** a registration
-- Mark payment status: **Verified**, **Rejected**, or reset to **Submitted** for re-review
+- Mark payment status: **Verified**, **Rejected**, or reset to **Awaiting Review** for re-review
 - Add and save a private admin note per participant
 - Open a participant's printable waiver
 - **Add Joiner** — manually record a walk-in participant who didn't register through the app themselves. You can either type their details in directly, or pick **an existing member from the dropdown** to prefill their name and email and link the registration to that member's account (so it shows up under their own My Registrations and they receive the same status/reminder notifications as a self-registered member).
 
 ### 13.4 Payments
 
-A cross-climb view for reviewing and managing GCash payments — verify or reject proof of payment, and manage each climb's GCash QR code and account details.
+A cross-climb view for reviewing and managing GCash payments — verify or reject proof of payment, and manage each climb's GCash QR code and account details. Both the global summary and each climb's header show live counts for **Verified**, **Awaiting Review**, **Rejected**, and **Unpaid** registrations, so you can spot climbs that still need payment follow-up at a glance.
 
 ### 13.5 All Registrations
 
@@ -422,7 +422,7 @@ If none of the above resolves your issue, contact your climb officers or the MMS
 | **Confirmed** | Registration accepted — your slot is secured |
 | **Waitlisted** | Registration held pending an open slot |
 | **Cancelled** | Registration withdrawn or declined |
-| **Payment Status** | Whether your GCash proof of payment is Submitted, Verified, or Rejected |
+| **Payment Status** | Whether your GCash proof of payment is Unpaid, Awaiting Review, Verified, or Rejected |
 | **Officer** | A member assigned to help manage a specific climb's registrations |
 | **Admin** | A user account with full administrative access to all climbs, registrations, and users |
 | **Release Note** | A "what's new" announcement published by an admin, shown as a popup and on the Release Notes page |
