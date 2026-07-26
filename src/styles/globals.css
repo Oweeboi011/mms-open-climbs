@@ -2852,6 +2852,24 @@ textarea {
   margin-bottom: 12px;
   padding-top: 4px;
 }
+.myreg-collapsible {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.myreg-collapsible::-webkit-details-marker {
+  display: none;
+}
+.myreg-collapsible::before {
+  content: "▶";
+  display: inline-block;
+  font-size: 0.65rem;
+  margin-right: 6px;
+  transition: transform 0.15s;
+}
+details[open] > .myreg-collapsible::before {
+  transform: rotate(90deg);
+}
 .reg-detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
