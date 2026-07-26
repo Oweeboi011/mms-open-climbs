@@ -225,13 +225,26 @@ If a climb's GCash details haven't been set up yet by the organizer, the form wi
 
 Your payment proof is reviewed by administrators (see [Section 13.4 — Payments](#134-payments)), who will mark it **Verified** or **Rejected**. If rejected, you may be asked to resubmit.
 
+If you skipped payment when registering (or your proof was rejected), you don't need to re-open the registration form — use the **Submit Payment** button on your registration card under **My Registrations** instead (see [Section 9](#9-my-registrations)). It opens the same fee breakdown and GCash QR/account details, plus the amount and proof-of-payment fields, in a popup.
+
 ---
 
 ## 9. My Registrations
 
-Click **My Registrations** in the header to see every climb you've registered for.
+Click **My Registrations** in the header to see every climb you've registered for. The page is titled **"My Climbs"**.
 
 **Notification bell:** The bell icon in the header keeps you updated without needing to check My Registrations directly — it flags a badge with your unread count and shows things like payment reminders, upcoming-climb reminders (a few days and one day before a climb you're confirmed for), and status changes to your registration. Click a notification to jump straight to the relevant page, or use **Mark all read** to clear the badge.
+
+**Summary tiles:** At the top of the page, six stat tiles give you an at-a-glance count of:
+
+- **Climbs Completed** — registrations for climbs whose event date has passed
+- **Upcoming Climbs** — registrations for climbs that haven't happened yet
+- **Climbs as Officer** — climbs you were assigned to officer that have already happened
+- **Tagged as Officer** — climbs you're currently assigned to officer that haven't happened yet
+- **Unpaid Climbs** — active (non-cancelled) registrations still `Unpaid` or `Rejected`
+- **Cancelled Climbs** — registrations you or an admin cancelled
+
+**Upcoming vs. Past:** Your registrations are split into an **Upcoming Climbs** section (soonest first) and a collapsed **Past Climbs** section (most recent first) that you can expand by clicking its heading. A climb only counts as "past" once its full event day (its end date, or start date for single-day climbs) has elapsed — same-day climbs still show as upcoming.
 
 Each registration card shows:
 
@@ -244,10 +257,11 @@ Each registration card shows:
 
 - **View Climb** — return to that climb's event page
 - **Print Waiver** — open your printable waiver (only shown once your waiver is signed)
+- **Submit Payment** — shown only while your payment is `Unpaid` or `Rejected`; opens a popup with your fee breakdown, the climb's GCash QR code and account details, and fields to enter the amount paid and upload proof (see [Section 8 — Paying via GCash](#8-paying-via-gcash))
 
 If no registrations exist yet, you'll see a prompt to **Browse Climbs**.
 
-If you are assigned as an **officer** for any climb, an **"Assigned as Officer"** section appears above your personal registrations, listing each climb you help manage with quick links to **View Climb** and **Registrants** (the admin view of that climb's registration list).
+If you are assigned as an **officer** for any climb, an **"Assigned as Officer"** section appears below your personal registrations, itself split into an **Upcoming** list and a collapsed **Past** list, with quick links to **View Climb** and **Registrants** (the admin view of that climb's registration list) for each.
 
 **After the climb:** Once a climb's end date has passed, confirmed participants receive a one-time "Thank You" email recapping the climb and inviting them to check the schedule for what's next. This is sent automatically — there's nothing to do on your end.
 
