@@ -12,9 +12,12 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import EditRegistrationModal from "@/components/EditRegistrationModal";
+import { logAuditEvent } from "@/utils/auditLog";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 const STATUS_CLASS = {
@@ -31,6 +34,7 @@ const PAYMENT_CLASS = {
 };
 
 export default function AllRegistrations() {
+  const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [regs, setRegs] = useState([]);
   const [climbs, setClimbs] = useState([]);
@@ -47,11 +51,13 @@ export default function AllRegistrations() {
     return "all";
   });
   const [expandedId, setExpandedId] = useState(null);
+  const [editingReg, setEditingReg] = useState(null);
 
   const [scope, setScope] = useState("active");
 
   useEffect(() => {
-    // Load all climbs for the filter dropdown
+    // Load all climbs for the filter dropdown and per-registration lookups
+    // (fee schedule + required-document flags).
     getDocs(collection(db, "climbs")).then((snap) => {
       const list = snap.docs
         .map((d) => ({
@@ -59,6 +65,9 @@ export default function AllRegistrations() {
           title: d.data().title,
           dateLabel: d.data().dateLabel,
           status: d.data().status,
+          fees: d.data().fees || [],
+          requiresRegistrationForm: !!d.data().requiresRegistrationForm,
+          requiresMedicalCert: !!d.data().requiresMedicalCert,
         }))
         .sort((a, b) => a.title.localeCompare(b.title));
       setClimbs(list);
@@ -81,12 +90,30 @@ export default function AllRegistrations() {
       updatedAt: serverTimestamp(),
       ...(status === "confirmed" ? { confirmedAt: serverTimestamp() } : {}),
     });
+    const reg = regs.find((r) => r.id === regId);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `registration_status_${status}`,
+      targetType: "registration",
+      targetId: regId,
+      targetLabel: reg?.name || regId,
+    });
   }
 
   async function changePaymentStatus(regId, paymentStatus) {
     await updateDoc(doc(db, "registrations", regId), {
       paymentStatus,
       updatedAt: serverTimestamp(),
+    });
+    const reg = regs.find((r) => r.id === regId);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `payment_status_${paymentStatus}`,
+      targetType: "registration",
+      targetId: regId,
+      targetLabel: reg?.name || regId,
     });
   }
 
@@ -99,8 +126,79 @@ export default function AllRegistrations() {
       return;
     await deleteDoc(doc(db, "registrations", reg.id));
     if (expandedId === reg.id) setExpandedId(null);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "registration_deleted",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+    });
   }
 
+  // Toggle a registrant's transportation selection (availing organized
+  // transport vs. arranging their own) directly from the row. Falls back to
+  // the climb's fee schedule when the registrant's own feeBreakdown snapshot
+  // doesn't have a transportation line item yet, so the toggle shows for
+  // every registrant on a climb that offers transportation, not just those
+  // whose snapshot happens to include it.
+  async function toggleTransportation(reg) {
+    const climb = climbs.find((c) => c.id === reg.climbId);
+    const breakdown = reg.feeBreakdown ? [...reg.feeBreakdown] : [];
+    let idx = breakdown.findIndex((f) => /transport/i.test(f.label));
+    if (idx === -1) {
+      const climbFee = (climb?.fees || []).find((f) =>
+        /transport/i.test(f.label),
+      );
+      if (!climbFee) return;
+      breakdown.push({
+        label: climbFee.label,
+        amount: climbFee.amount,
+        optional: true,
+        selected: false,
+      });
+      idx = breakdown.length - 1;
+    }
+    const updated = breakdown.map((f, i) =>
+      i === idx ? { ...f, selected: !f.selected } : f,
+    );
+    await updateDoc(doc(db, "registrations", reg.id), {
+      feeBreakdown: updated,
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "transportation_toggled",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: `Transportation set to ${!breakdown[idx].selected ? "availing" : "own transport"}`,
+    });
+  }
+
+  async function saveRegistrationEdit(regId, patch) {
+    await updateDoc(doc(db, "registrations", regId), {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    });
+    const reg = regs.find((r) => r.id === regId);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "registration_edited",
+      targetType: "registration",
+      targetId: regId,
+      targetLabel: reg?.name || regId,
+    });
+    setEditingReg(null);
+  }
+
+  const climbById = useMemo(() => {
+    const map = {};
+    for (const c of climbs) map[c.id] = c;
+    return map;
+  }, [climbs]);
   const climbStatusById = useMemo(() => {
     const map = {};
     for (const c of climbs) map[c.id] = c.status;
@@ -506,6 +604,13 @@ export default function AllRegistrations() {
                               >
                                 Climb
                               </Link>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => setEditingReg(reg)}
+                                title="Edit this registrant's details"
+                              >
+                                Edit
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -533,6 +638,14 @@ export default function AllRegistrations() {
                                 }}
                               >
                                 <InfoCell label="Mobile" value={reg.mobile} />
+                                <InfoCell
+                                  label="Amount Paid"
+                                  value={
+                                    reg.amountPaid
+                                      ? `₱${Number(reg.amountPaid).toLocaleString("en-PH")}`
+                                      : null
+                                  }
+                                />
                                 <InfoCell
                                   label="Date of Birth"
                                   value={reg.dateOfBirth}
@@ -573,6 +686,130 @@ export default function AllRegistrations() {
                                     value={reg.adminNotes}
                                   />
                                 )}
+                              </div>
+
+                              {/* Transportation + required documents */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: 24,
+                                  flexWrap: "wrap",
+                                  marginBottom: 16,
+                                }}
+                              >
+                                {(() => {
+                                  const transpoIdx = (
+                                    reg.feeBreakdown || []
+                                  ).findIndex((f) => /transport/i.test(f.label));
+                                  const climbHasTranspoFee = (
+                                    climbById[reg.climbId]?.fees || []
+                                  ).some((f) => /transport/i.test(f.label));
+                                  if (transpoIdx === -1 && !climbHasTranspoFee)
+                                    return null;
+                                  const availing =
+                                    transpoIdx !== -1
+                                      ? reg.feeBreakdown[transpoIdx].selected
+                                      : false;
+                                  return (
+                                    <div>
+                                      <div
+                                        style={{
+                                          fontSize: "0.68rem",
+                                          fontWeight: 700,
+                                          letterSpacing: 2,
+                                          textTransform: "uppercase",
+                                          color: "var(--ink-soft)",
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        Transportation
+                                      </div>
+                                      <label
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                          cursor: "pointer",
+                                          fontSize: "0.85rem",
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={!!availing}
+                                          onChange={() => toggleTransportation(reg)}
+                                        />
+                                        {availing
+                                          ? "Availing organized transport"
+                                          : "Own transport"}
+                                      </label>
+                                    </div>
+                                  );
+                                })()}
+
+                                {(() => {
+                                  const climb = climbById[reg.climbId];
+                                  if (
+                                    !climb?.requiresRegistrationForm &&
+                                    !climb?.requiresMedicalCert
+                                  )
+                                    return null;
+                                  return (
+                                    <div>
+                                      <div
+                                        style={{
+                                          fontSize: "0.68rem",
+                                          fontWeight: 700,
+                                          letterSpacing: 2,
+                                          textTransform: "uppercase",
+                                          color: "var(--ink-soft)",
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        Required Documents
+                                      </div>
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          gap: 14,
+                                          fontSize: "0.82rem",
+                                        }}
+                                      >
+                                        {climb.requiresRegistrationForm && (
+                                          reg.registrationFormUpload?.url ? (
+                                            <a
+                                              href={reg.registrationFormUpload.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              style={{ color: "#1a6b2c" }}
+                                            >
+                                              &#10003; Reg. Form
+                                            </a>
+                                          ) : (
+                                            <span style={{ color: "#b91c1c" }}>
+                                              &#10005; Reg. Form Missing
+                                            </span>
+                                          )
+                                        )}
+                                        {climb.requiresMedicalCert && (
+                                          reg.medicalCertUpload?.url ? (
+                                            <a
+                                              href={reg.medicalCertUpload.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              style={{ color: "#1a6b2c" }}
+                                            >
+                                              &#10003; Med. Cert
+                                            </a>
+                                          ) : (
+                                            <span style={{ color: "#b91c1c" }}>
+                                              &#10005; Med. Cert Missing
+                                            </span>
+                                          )
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
 
                               {/* Payment proof attachments */}
@@ -727,6 +964,15 @@ export default function AllRegistrations() {
           </>
         )}
       </main>
+
+      {editingReg && (
+        <EditRegistrationModal
+          reg={editingReg}
+          onClose={() => setEditingReg(null)}
+          onSave={saveRegistrationEdit}
+        />
+      )}
+
       <Footer />
     </div>
   );
