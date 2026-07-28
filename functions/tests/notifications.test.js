@@ -285,6 +285,40 @@ describe("onRegistrationUpdated", () => {
     expect(created).toBeTruthy();
   });
 
+  it("clears the document reminder once a required upload is submitted", async () => {
+    notifStore["regform_reg-1"] = { read: false, type: "document_reminder" };
+    notifStore["medcert_reg-1"] = { read: false, type: "document_reminder" };
+
+    await updatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            status: "pending",
+            paymentStatus: "unpaid",
+            climbId: "climb-1",
+            userId: "user-1",
+            registrationFormUpload: null,
+            medicalCertUpload: null,
+          }),
+        },
+        after: {
+          data: () => ({
+            status: "pending",
+            paymentStatus: "unpaid",
+            climbId: "climb-1",
+            userId: "user-1",
+            registrationFormUpload: { url: "https://x/form.pdf" },
+            medicalCertUpload: null,
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(notifStore["regform_reg-1"].read).toBe(true);
+    expect(notifStore["medcert_reg-1"].read).toBe(false);
+  });
+
   it("re-opens the payment reminder when payment is rejected", async () => {
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
 

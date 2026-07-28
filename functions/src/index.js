@@ -463,6 +463,22 @@ exports.onRegistrationUpdated = onDocumentUpdated(
       }
     }
 
+    // Required document uploaded → clear the corresponding nag notification.
+    if (!before.registrationFormUpload && after.registrationFormUpload) {
+      await db
+        .collection("notifications")
+        .doc(`regform_${regId}`)
+        .set({ read: true }, { merge: true })
+        .catch(() => {});
+    }
+    if (!before.medicalCertUpload && after.medicalCertUpload) {
+      await db
+        .collection("notifications")
+        .doc(`medcert_${regId}`)
+        .set({ read: true }, { merge: true })
+        .catch(() => {});
+    }
+
     if (before.status === after.status) return; // not a status change
 
     const notifyOn = ["confirmed", "cancelled", "waitlisted"];

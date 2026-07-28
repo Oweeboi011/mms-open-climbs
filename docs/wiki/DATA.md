@@ -84,8 +84,9 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `roundTripDistance` | string | No | Total round trip distance |
 | `recommendedDays` | string | No | Recommended number of days |
 | `features` | string | No | Terrain features description |
-| `googleMapsUrl` | string | No | Google Maps URL for the embedded map |
-| `allTrailsUrl` | string | No | AllTrails link |
+| `googleMapsUrl` | string | No | Google Maps URL for the embedded map; kept in sync with `trailMaps[0]` on save for backward compatibility (e.g. the weather forecast location lookup) |
+| `allTrailsUrl` | string | No | AllTrails link; kept in sync with `trailMaps[0]` on save |
+| `trailMaps` | object[] | No | `[{ label, googleMapsUrl, allTrailsUrl }]` — one or more alternate trail/route options; registrants see a tab per entry on the event page when there's more than one |
 | `trailImages` | string[] | No | Firebase Storage or CDN image URLs for the photo carousel |
 | `waterSourceNote` | string | No | Water source information |
 | `weatherNote` | string | No | Seasonal weather notes |
