@@ -10,7 +10,7 @@ import {
   climbFixture,
 } from "@tests/helpers";
 import AllRegistrations from "@/pages/admin/AllRegistrations";
-import { onSnapshot, getDocs } from "firebase/firestore";
+import { onSnapshot, getDocs, updateDoc } from "firebase/firestore";
 import { makeQuerySnapshot } from "@tests/setup";
 
 const regDoc = { id: registrationFixture.id, data: { ...registrationFixture } };
@@ -74,5 +74,79 @@ describe("Admin AllRegistrations", () => {
     await waitFor(() =>
       expect(screen.getAllByRole("combobox").length).toBeGreaterThan(0),
     );
+  });
+
+  it("shows a transportation toggle and updates it on click", async () => {
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: registrationFixture.id,
+            data: {
+              ...registrationFixture,
+              feeBreakdown: [
+                { label: "Transportation Fee", amount: "300", optional: true, selected: false },
+              ],
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Juan Cruz"));
+    await waitFor(() => expect(screen.getByText("Own transport")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.feeBreakdown)?.[1];
+    expect(patch.feeBreakdown[0].selected).toBe(true);
+  });
+
+  it("shows missing required documents for the registrant's climb", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: { ...climbFixture, requiresMedicalCert: true },
+        },
+      ]),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(makeQuerySnapshot([regDoc]));
+      return vi.fn();
+    });
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Med\. Cert Missing/i)).toBeInTheDocument(),
+    );
+  });
+
+  it("lets an admin edit a registrant's details", async () => {
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByRole("button", { name: /^Edit$/i })[0]);
+
+    await waitFor(() =>
+      expect(screen.getByText("Edit Registration")).toBeInTheDocument(),
+    );
+
+    const nameInput = screen.getByDisplayValue("Juan Cruz");
+    fireEvent.change(nameInput, { target: { value: "Juan Dela Cruz" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.name)?.[1];
+    expect(patch.name).toBe("Juan Dela Cruz");
   });
 });

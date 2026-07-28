@@ -183,7 +183,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
         }}
       >
         <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
-          Submit Payment
+          {reg.paymentStatus === "verified" ? "Add Fees / Pay More" : "Submit Payment"}
         </h3>
         <p
           style={{
@@ -193,8 +193,57 @@ function PayPrompt({ reg, onClose, onSaved }) {
           }}
         >
           For <strong>{reg.climbTitle}</strong>
+          {reg.paymentStatus === "verified" && (
+            <>
+              {" "}— check any additional service you're now availing, then
+              submit proof of the extra payment. This will move your payment
+              back to "Awaiting Review" until it's re-verified.
+            </>
+          )}
         </p>
         {error && <div className="alert alert-error">{error}</div>}
+
+        {reg.amountPaid > 0 && (
+          <div
+            style={{
+              background: "var(--surface-alt)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "10px 14px",
+              marginBottom: 16,
+              fontSize: "0.82rem",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 4,
+              }}
+            >
+              <strong>
+                Already Paid: ₱{Number(reg.amountPaid).toLocaleString("en-PH")}
+              </strong>
+              <span
+                className={`status-badge status-payment-${reg.paymentStatus}`}
+              >
+                {PAYMENT_LABEL[reg.paymentStatus] || reg.paymentStatus}
+              </span>
+            </div>
+            {reg.paymentSubmittedAt && (
+              <div style={{ color: "var(--ink-soft)" }}>
+                Submitted: {formatDateTime(reg.paymentSubmittedAt)}
+              </div>
+            )}
+            {reg.paymentStatus === "verified" && reg.verifiedAt && (
+              <div style={{ color: "var(--ink-soft)" }}>
+                Verified: {formatDateTime(reg.verifiedAt)}
+                {reg.verifiedBy?.name ? ` by ${reg.verifiedBy.name}` : ""}
+              </div>
+            )}
+          </div>
+        )}
 
         {(reg.feeBreakdown?.length > 0 || climb?.fees?.length > 0) &&
           (() => {
@@ -1136,6 +1185,15 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs }) {
               Submit Payment
             </button>
           )}
+        {reg.status !== "cancelled" && reg.paymentStatus === "verified" && (
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={onPay}
+            title="Availing an extra service (e.g. transportation)? Add it here and submit the additional payment."
+          >
+            Add Fees / Pay More
+          </button>
+        )}
         {(reg.paymentStatus === "submitted" ||
           reg.paymentStatus === "verified" ||
           reg.paymentStatus === "rejected") && (

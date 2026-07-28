@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   collection,
@@ -17,6 +17,7 @@ import {
 } from "firebase/storage";
 import { db, storage } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
+import { logAuditEvent } from "@/utils/auditLog";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -123,6 +124,7 @@ export default function ManagePayments() {
   const [regs, setRegs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  const [expandedRegId, setExpandedRegId] = useState(null);
   const [qrUploading, setQrUploading] = useState(null);
   const [qrError, setQrError] = useState({});
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -193,6 +195,88 @@ export default function ManagePayments() {
       };
     }
     await updateDoc(doc(db, "registrations", regId), patch);
+    const reg = regs.find((r) => r.id === regId);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `payment_status_${status}`,
+      targetType: "registration",
+      targetId: regId,
+      targetLabel: reg?.name || reg?.climbTitle || regId,
+      details: `Payment status set to "${status}"`,
+    });
+  }
+
+  const climbById = useMemo(() => {
+    const map = {};
+    for (const c of climbs) map[c.id] = c;
+    return map;
+  }, [climbs]);
+
+  // Toggle a registrant's transportation selection (availing organized
+  // transport vs. arranging their own) directly from the payments table.
+  // Falls back to the climb's current fee schedule when the registrant's own
+  // feeBreakdown snapshot doesn't have a transportation line item yet (e.g.
+  // they registered before the climb offered it), so every registrant on a
+  // climb with a transportation fee gets a toggle, not just the ones whose
+  // snapshot happens to include it.
+  async function toggleTransportation(reg) {
+    const climb = climbById[reg.climbId];
+    const breakdown = reg.feeBreakdown ? [...reg.feeBreakdown] : [];
+    let idx = breakdown.findIndex((f) => /transport/i.test(f.label));
+    if (idx === -1) {
+      const climbFee = (climb?.fees || []).find((f) =>
+        /transport/i.test(f.label),
+      );
+      if (!climbFee) return;
+      breakdown.push({
+        label: climbFee.label,
+        amount: climbFee.amount,
+        optional: true,
+        selected: false,
+      });
+      idx = breakdown.length - 1;
+    }
+    const updated = breakdown.map((f, i) =>
+      i === idx ? { ...f, selected: !f.selected } : f,
+    );
+    await updateDoc(doc(db, "registrations", reg.id), {
+      feeBreakdown: updated,
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "transportation_toggled",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: `Transportation set to ${!breakdown[idx].selected ? "availing" : "own transport"}`,
+    });
+  }
+
+  // Expected total for a registration, from its own fee snapshot if it has
+  // one, otherwise falling back to the climb's current required fees.
+  function getExpectedTotal(reg) {
+    const climb = climbById[reg.climbId];
+    const items = reg.feeBreakdown?.length
+      ? reg.feeBreakdown.filter((f) => f.selected)
+      : (climb?.fees || []).filter((f) => !f.optional);
+    let total = 0;
+    for (const item of items) {
+      const n = parseFloat(String(item.amount).replace(/[^0-9.]/g, ""));
+      if (!isNaN(n)) total += n;
+    }
+    return total;
+  }
+
+  // Remaining balance still to be settled: expected fee total minus
+  // whatever they've already paid. A rejected payment doesn't count toward
+  // what's been paid, since it wasn't accepted.
+  function getOutstanding(reg) {
+    const paidCounted =
+      reg.paymentStatus === "rejected" ? 0 : Number(reg.amountPaid) || 0;
+    return Math.max(getExpectedTotal(reg) - paidCounted, 0);
   }
 
   // Per-climb stats derived from regs
@@ -205,6 +289,7 @@ export default function ManagePayments() {
           regs: [],
           totalDeclared: 0,
           totalVerified: 0,
+          totalOutstanding: 0,
           transpoAvailed: 0,
           transpoOwn: 0,
         };
@@ -216,6 +301,7 @@ export default function ManagePayments() {
         parseFloat(String(reg.amountPaid || 0).replace(/[^0-9.]/g, "")) || 0;
       s.totalDeclared += paid;
       if (reg.paymentStatus === "verified") s.totalVerified += paid;
+      s.totalOutstanding += getOutstanding(reg);
 
       // Transportation breakdown from feeBreakdown
       const transpoItem = (reg.feeBreakdown || []).find((f) =>
@@ -230,22 +316,24 @@ export default function ManagePayments() {
       }
     }
     return map;
-  }, [regs]);
+  }, [regs, climbById]);
 
   const totalStats = useMemo(() => {
     let declared = 0,
       verified = 0,
-      submitted = 0;
+      submitted = 0,
+      outstanding = 0;
     for (const reg of regs) {
       if (reg.status === "cancelled") continue;
       const paid =
         parseFloat(String(reg.amountPaid || 0).replace(/[^0-9.]/g, "")) || 0;
       declared += paid;
       if (reg.paymentStatus === "verified") verified += paid;
+      outstanding += getOutstanding(reg);
       if (reg.paymentStatus === "submitted") submitted++;
     }
-    return { declared, verified, submitted };
-  }, [regs]);
+    return { declared, verified, submitted, outstanding };
+  }, [regs, climbById]);
 
   function fmt(n) {
     return (
@@ -354,6 +442,12 @@ export default function ManagePayments() {
             value={totalStats.submitted}
             sub="Submitted, not yet verified"
             color="#e67e00"
+          />
+          <StatBox
+            label="Total Outstanding"
+            value={fmt(totalStats.outstanding)}
+            sub="Expected fees not yet verified"
+            color="#b91c1c"
           />
         </div>
 
@@ -572,6 +666,12 @@ export default function ManagePayments() {
                             label="Verified"
                             value={fmt(cs.totalVerified)}
                             color="var(--green-dark)"
+                          />
+                          <StatBox
+                            label="Outstanding"
+                            value={fmt(cs.totalOutstanding)}
+                            sub="Expected fees not yet verified"
+                            color="#b91c1c"
                           />
                           <StatBox
                             label="Awaiting"
@@ -877,6 +977,7 @@ export default function ManagePayments() {
                                 <th style={{ width: "1%" }}>Type</th>
                                 <th style={{ width: "1%" }}>Transport</th>
                                 <th style={{ width: "1%" }}>Declared Paid</th>
+                                <th style={{ width: "1%" }}>Outstanding</th>
                                 <th style={{ width: "1%" }}>Proof</th>
                                 <th style={{ width: "1%" }}>Payment Status</th>
                               </tr>
@@ -886,9 +987,29 @@ export default function ManagePayments() {
                                 const transpoItem = (
                                   reg.feeBreakdown || []
                                 ).find((f) => /transport/i.test(f.label));
+                                const climbHasTranspoFee = (
+                                  climb.fees || []
+                                ).some((f) => /transport/i.test(f.label));
+                                const showTranspoToggle =
+                                  !!transpoItem || climbHasTranspoFee;
                                 const hasTranspo = transpoItem?.selected;
+                                const outstanding = getOutstanding(reg);
                                 return (
-                                  <tr key={reg.id}>
+                                  <React.Fragment key={reg.id}>
+                                  <tr
+                                    style={{
+                                      cursor: "pointer",
+                                      background:
+                                        expandedRegId === reg.id
+                                          ? "var(--surface-alt)"
+                                          : undefined,
+                                    }}
+                                    onClick={() =>
+                                      setExpandedRegId((p) =>
+                                        p === reg.id ? null : reg.id,
+                                      )
+                                    }
+                                  >
                                     <td
                                       style={{
                                         color: "var(--ink-soft)",
@@ -915,24 +1036,33 @@ export default function ManagePayments() {
                                         ? "MMS Member"
                                         : "Joiner"}
                                     </td>
-                                    <td style={{ fontSize: "0.82rem" }}>
-                                      {transpoItem ? (
-                                        hasTranspo ? (
-                                          <span
-                                            style={{
-                                              color: "#0070E0",
-                                              fontWeight: 700,
-                                            }}
-                                          >
-                                            🚌 Availing
-                                          </span>
-                                        ) : (
-                                          <span
-                                            style={{ color: "var(--ink-soft)" }}
-                                          >
-                                            Own
-                                          </span>
-                                        )
+                                    <td
+                                      style={{ fontSize: "0.82rem" }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {showTranspoToggle ? (
+                                        <label
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 6,
+                                            cursor: "pointer",
+                                            color: hasTranspo
+                                              ? "#0070E0"
+                                              : "var(--ink-soft)",
+                                            fontWeight: hasTranspo ? 700 : 400,
+                                            whiteSpace: "nowrap",
+                                          }}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={!!hasTranspo}
+                                            onChange={() =>
+                                              toggleTransportation(reg)
+                                            }
+                                          />
+                                          {hasTranspo ? "🚌 Availing" : "Own"}
+                                        </label>
                                       ) : (
                                         <span
                                           style={{
@@ -960,6 +1090,19 @@ export default function ManagePayments() {
                                           —
                                         </span>
                                       )}
+                                    </td>
+                                    <td
+                                      style={{
+                                        fontWeight: 700,
+                                        fontSize: "0.9rem",
+                                        whiteSpace: "nowrap",
+                                        color:
+                                          outstanding === 0
+                                            ? "var(--ink-soft)"
+                                            : "#b91c1c",
+                                      }}
+                                    >
+                                      {outstanding === 0 ? "—" : fmt(outstanding)}
                                     </td>
                                     <td>
                                       {reg.paymentProofs?.length > 0 ? (
@@ -1057,6 +1200,110 @@ export default function ManagePayments() {
                                       </select>
                                     </td>
                                   </tr>
+                                  {expandedRegId === reg.id &&
+                                    (() => {
+                                      const items = reg.feeBreakdown?.length
+                                        ? reg.feeBreakdown.filter(
+                                            (f) => f.selected,
+                                          )
+                                        : (climb.fees || []).filter(
+                                            (f) => !f.optional,
+                                          );
+                                      return (
+                                        <tr>
+                                          <td
+                                            colSpan={8}
+                                            style={{
+                                              background: "var(--surface-alt)",
+                                              padding: "12px 16px",
+                                            }}
+                                          >
+                                            {items.length === 0 ? (
+                                              <p
+                                                style={{
+                                                  fontSize: "0.82rem",
+                                                  color: "var(--ink-soft)",
+                                                  margin: 0,
+                                                }}
+                                              >
+                                                No fee breakdown recorded for
+                                                this registrant.
+                                              </p>
+                                            ) : (
+                                              <table
+                                                style={{
+                                                  width: "100%",
+                                                  maxWidth: 360,
+                                                  borderCollapse: "collapse",
+                                                  fontSize: "0.82rem",
+                                                }}
+                                              >
+                                                <tbody>
+                                                  {items.map((item, i) => (
+                                                    <tr
+                                                      key={i}
+                                                      style={{
+                                                        borderBottom:
+                                                          "1px solid var(--border)",
+                                                      }}
+                                                    >
+                                                      <td
+                                                        style={{
+                                                          padding: "4px 0",
+                                                        }}
+                                                      >
+                                                        {item.label}
+                                                      </td>
+                                                      <td
+                                                        style={{
+                                                          padding: "4px 0",
+                                                          textAlign: "right",
+                                                          fontWeight: 600,
+                                                          whiteSpace: "nowrap",
+                                                        }}
+                                                      >
+                                                        {item.amount || "TBA"}
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                                <tfoot>
+                                                  <tr
+                                                    style={{
+                                                      borderTop:
+                                                        "2px solid var(--border)",
+                                                    }}
+                                                  >
+                                                    <td
+                                                      style={{
+                                                        padding: "6px 0",
+                                                        fontWeight: 800,
+                                                      }}
+                                                    >
+                                                      Total
+                                                    </td>
+                                                    <td
+                                                      style={{
+                                                        padding: "6px 0",
+                                                        textAlign: "right",
+                                                        fontWeight: 900,
+                                                        color:
+                                                          "var(--green-dark)",
+                                                      }}
+                                                    >
+                                                      {fmt(
+                                                        getExpectedTotal(reg),
+                                                      )}
+                                                    </td>
+                                                  </tr>
+                                                </tfoot>
+                                              </table>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })()}
+                                  </React.Fragment>
                                 );
                               })}
                             </tbody>
