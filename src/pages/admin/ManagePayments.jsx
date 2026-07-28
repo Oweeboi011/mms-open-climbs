@@ -8,6 +8,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   ref as storageRef,
@@ -15,6 +16,7 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 import { db, storage } from "@/firebase/config";
+import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -116,6 +118,7 @@ function StatBox({ label, value, sub, color }) {
 }
 
 export default function ManagePayments() {
+  const { currentUser } = useAuth();
   const [climbs, setClimbs] = useState([]);
   const [regs, setRegs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -181,7 +184,15 @@ export default function ManagePayments() {
   }
 
   async function changePaymentStatus(regId, status) {
-    await updateDoc(doc(db, "registrations", regId), { paymentStatus: status });
+    const patch = { paymentStatus: status };
+    if (status === "verified") {
+      patch.verifiedAt = serverTimestamp();
+      patch.verifiedBy = {
+        uid: currentUser?.uid || null,
+        name: currentUser?.displayName || currentUser?.email || "Admin",
+      };
+    }
+    await updateDoc(doc(db, "registrations", regId), patch);
   }
 
   // Per-climb stats derived from regs

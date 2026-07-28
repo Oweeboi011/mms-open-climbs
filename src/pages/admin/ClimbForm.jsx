@@ -130,9 +130,17 @@ const EMPTY_FORM = {
   officers: [],
   officerEmails: [],
   itinerary: [],
+  announcements: [],
+  trailMaps: [],
   gcashName: "",
   gcashNumber: "",
   gcashQrUrl: "",
+  requiresRegistrationForm: false,
+  registrationFormUrl: "",
+  registrationFormFileName: "",
+  requiresMedicalCert: false,
+  medicalCertSampleUrl: "",
+  medicalCertSampleFileName: "",
 };
 
 export default function AdminClimbForm() {
@@ -147,6 +155,7 @@ export default function AdminClimbForm() {
   const [error, setError] = useState("");
   const [users, setUsers] = useState([]);
   const [gcashUploading, setGcashUploading] = useState(false);
+  const [docUploading, setDocUploading] = useState({});
   const [trailImgUploading, setTrailImgUploading] = useState(false);
   const [trailUrlInput, setTrailUrlInput] = useState("");
 
@@ -161,7 +170,24 @@ export default function AdminClimbForm() {
   useEffect(() => {
     if (!isEdit) return;
     getDoc(doc(db, "climbs", id)).then((snap) => {
-      if (snap.exists()) setForm({ ...EMPTY_FORM, ...snap.data() });
+      if (snap.exists()) {
+        const data = snap.data();
+        // Migrate the legacy single googleMapsUrl/allTrailsUrl fields into
+        // the new repeatable trailMaps list so existing data isn't lost.
+        const trailMaps =
+          data.trailMaps?.length > 0
+            ? data.trailMaps
+            : data.googleMapsUrl || data.allTrailsUrl
+              ? [
+                  {
+                    label: "",
+                    googleMapsUrl: data.googleMapsUrl || "",
+                    allTrailsUrl: data.allTrailsUrl || "",
+                  },
+                ]
+              : [];
+        setForm({ ...EMPTY_FORM, ...data, trailMaps });
+      }
       setLoading(false);
     });
   }, [id, isEdit]);
@@ -250,6 +276,34 @@ export default function AdminClimbForm() {
       setGcashUploading(false);
     }
   }
+  async function handleDocUpload(e, urlField, fileNameField, storagePrefix) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setDocUploading((p) => ({ ...p, [urlField]: true }));
+    try {
+      const sRef = ref(
+        storage,
+        `${storagePrefix}/${id || "new"}/${Date.now()}_${file.name}`,
+      );
+      await uploadBytes(sRef, file);
+      const url = await getDownloadURL(sRef);
+      setForm((p) => ({ ...p, [urlField]: url, [fileNameField]: file.name }));
+    } catch (err) {
+      setError("Failed to upload file: " + err.message);
+      logFailedRequest({
+        type: "upload",
+        source: "ClimbForm.jsx:docUpload",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        userRole: "admin",
+        climbId: id,
+      });
+    } finally {
+      setDocUploading((p) => ({ ...p, [urlField]: false }));
+      e.target.value = "";
+    }
+  }
   function removeDay(i) {
     removeListItem("itinerary", i);
   }
@@ -315,6 +369,11 @@ export default function AdminClimbForm() {
       payload.officerIds = (form.officers || [])
         .map((o) => o.userId)
         .filter(Boolean);
+      // Keep the legacy single googleMapsUrl/allTrailsUrl fields in sync
+      // with the first trail so older code paths (e.g. the weather forecast
+      // location lookup) still resolve correctly.
+      payload.googleMapsUrl = form.trailMaps?.[0]?.googleMapsUrl || "";
+      payload.allTrailsUrl = form.trailMaps?.[0]?.allTrailsUrl || "";
       if (isEdit) {
         await updateDoc(doc(db, "climbs", id), payload);
       } else {
@@ -673,39 +732,122 @@ export default function AdminClimbForm() {
               />
             </div>
             <div
-              className="admin-card-title"
-              style={{ fontSize: "0.75rem", marginTop: 16, marginBottom: 12 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 16,
+                marginBottom: 12,
+              }}
             >
-              Map &amp; Trail Data
-            </div>
-            <div className="form-group">
-              <label className="form-label">Google Maps URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://www.google.com/maps/@15.717,119.935,14z"
-                value={form.googleMapsUrl}
-                onChange={(e) => set("googleMapsUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Open Google Maps, navigate to the location, then copy the URL
-                from the browser address bar and paste it here.
+              <div
+                className="admin-card-title"
+                style={{ fontSize: "0.75rem", marginBottom: 0 }}
+              >
+                Map &amp; Trail Data
               </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() =>
+                  addListItem("trailMaps", {
+                    label: "",
+                    googleMapsUrl: "",
+                    allTrailsUrl: "",
+                  })
+                }
+              >
+                + Add Trail
+              </button>
             </div>
-            <div className="form-group">
-              <label className="form-label">AllTrails Trail URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://www.alltrails.com/trail/philippines/..."
-                value={form.allTrailsUrl}
-                onChange={(e) => set("allTrailsUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Paste the AllTrails trail page URL — the embed widget will
-                appear on the event page.
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 12,
+              }}
+            >
+              Add more than one trail if there's more than one route being
+              considered — registrants will see a tab to switch between them
+              on the event page.
+            </p>
+            {(form.trailMaps || []).length === 0 && (
+              <div className="form-hint" style={{ marginBottom: 12 }}>
+                No trail added yet. Click "+ Add Trail" to add a Google Maps
+                and/or AllTrails link.
               </div>
-            </div>
+            )}
+            {(form.trailMaps || []).map((trail, i) => (
+              <div
+                key={i}
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 10,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginBottom: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={`Trail label (e.g. "Trail A — Ambangeg")`}
+                    value={trail.label}
+                    onChange={(e) =>
+                      updateListItem("trailMaps", i, {
+                        ...trail,
+                        label: e.target.value,
+                      })
+                    }
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => removeListItem("trailMaps", i)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="form-group" style={{ marginBottom: 8 }}>
+                  <label className="form-label">Google Maps URL</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://www.google.com/maps/@15.717,119.935,14z"
+                    value={trail.googleMapsUrl}
+                    onChange={(e) =>
+                      updateListItem("trailMaps", i, {
+                        ...trail,
+                        googleMapsUrl: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">AllTrails Trail URL</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://www.alltrails.com/trail/philippines/..."
+                    value={trail.allTrailsUrl}
+                    onChange={(e) =>
+                      updateListItem("trailMaps", i, {
+                        ...trail,
+                        allTrailsUrl: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            ))}
             <div className="form-group">
               <label className="form-label">Trail Photos</label>
               <div
@@ -859,6 +1001,102 @@ export default function AdminClimbForm() {
                 style={{ resize: "vertical" }}
               />
             </div>
+          </div>
+
+          {/* ── Announcements ── */}
+          <div className="admin-card">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <div className="admin-card-title" style={{ marginBottom: 0 }}>
+                Announcements
+              </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() =>
+                  addListItem("announcements", {
+                    message: "",
+                    pinned: false,
+                    createdAt: Date.now(),
+                  })
+                }
+              >
+                + Add Announcement
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
+              Shown on the climb's public page, right under Mountain Profile —
+              use this for updates and reminders all joiners need to see
+              (schedule changes, weather advisories, what to prepare, etc.).
+            </p>
+            {(form.announcements || []).map((note, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  marginBottom: 8,
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
+                }}
+              >
+                <textarea
+                  className="form-input"
+                  rows={2}
+                  placeholder="Announcement text"
+                  value={note.message}
+                  onChange={(e) =>
+                    updateListItem("announcements", i, {
+                      ...note,
+                      message: e.target.value,
+                    })
+                  }
+                  style={{ flex: "1 1 260px", resize: "vertical" }}
+                />
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: "0.8rem",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                  }}
+                  title="Pin important reminders to the top, highlighted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!note.pinned}
+                    onChange={(e) =>
+                      updateListItem("announcements", i, {
+                        ...note,
+                        pinned: e.target.checked,
+                      })
+                    }
+                  />
+                  Pin as reminder
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={() => removeListItem("announcements", i)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
 
           {/* ── Itinerary ── */}
@@ -1384,6 +1622,149 @@ export default function AdminClimbForm() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ── Required Documents ── */}
+          <div className="admin-card">
+            <div className="admin-card-title">Required Documents</div>
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
+              Optionally require participants to download a template or
+              sample, then upload their own copy when they register.
+            </p>
+
+            <div className="form-group">
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.requiresRegistrationForm}
+                  onChange={(e) =>
+                    set("requiresRegistrationForm", e.target.checked)
+                  }
+                />
+                Require a signed registration form upload
+              </label>
+            </div>
+            {form.requiresRegistrationForm && (
+              <div className="form-group">
+                <label className="form-label">Registration Form Template</label>
+                {form.registrationFormUrl && (
+                  <div style={{ marginBottom: 8 }}>
+                    <a
+                      href={form.registrationFormUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline btn-sm"
+                    >
+                      &#128196; {form.registrationFormFileName || "View current template"}
+                    </a>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,image/*"
+                  className="form-input"
+                  onChange={(e) =>
+                    handleDocUpload(
+                      e,
+                      "registrationFormUrl",
+                      "registrationFormFileName",
+                      "registration-form-templates",
+                    )
+                  }
+                  disabled={docUploading.registrationFormUrl}
+                />
+                {docUploading.registrationFormUrl && (
+                  <div className="form-hint">Uploading template…</div>
+                )}
+                {form.registrationFormUrl && !docUploading.registrationFormUrl && (
+                  <div
+                    className="form-hint"
+                    style={{ color: "var(--green-dark)" }}
+                  >
+                    Template uploaded. Joiners will see a download link and a
+                    required upload field when they register.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="form-group" style={{ marginTop: 20 }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.requiresMedicalCert}
+                  onChange={(e) =>
+                    set("requiresMedicalCert", e.target.checked)
+                  }
+                />
+                Require a medical certificate upload
+              </label>
+            </div>
+            {form.requiresMedicalCert && (
+              <div className="form-group">
+                <label className="form-label">
+                  Sample Medical Certificate (for reference)
+                </label>
+                {form.medicalCertSampleUrl && (
+                  <div style={{ marginBottom: 8 }}>
+                    <a
+                      href={form.medicalCertSampleUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline btn-sm"
+                    >
+                      &#128196; {form.medicalCertSampleFileName || "View sample"}
+                    </a>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,image/*"
+                  className="form-input"
+                  onChange={(e) =>
+                    handleDocUpload(
+                      e,
+                      "medicalCertSampleUrl",
+                      "medicalCertSampleFileName",
+                      "medical-cert-samples",
+                    )
+                  }
+                  disabled={docUploading.medicalCertSampleUrl}
+                />
+                {docUploading.medicalCertSampleUrl && (
+                  <div className="form-hint">Uploading sample…</div>
+                )}
+                {form.medicalCertSampleUrl && !docUploading.medicalCertSampleUrl && (
+                  <div
+                    className="form-hint"
+                    style={{ color: "var(--green-dark)" }}
+                  >
+                    Sample uploaded. Joiners will see a reference link and a
+                    required upload field when they register.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Submit */}

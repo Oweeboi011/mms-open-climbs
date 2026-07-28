@@ -84,8 +84,9 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `roundTripDistance` | string | No | Total round trip distance |
 | `recommendedDays` | string | No | Recommended number of days |
 | `features` | string | No | Terrain features description |
-| `googleMapsUrl` | string | No | Google Maps URL for the embedded map |
-| `allTrailsUrl` | string | No | AllTrails link |
+| `googleMapsUrl` | string | No | Google Maps URL for the embedded map; kept in sync with `trailMaps[0]` on save for backward compatibility (e.g. the weather forecast location lookup) |
+| `allTrailsUrl` | string | No | AllTrails link; kept in sync with `trailMaps[0]` on save |
+| `trailMaps` | object[] | No | `[{ label, googleMapsUrl, allTrailsUrl }]` — one or more alternate trail/route options; registrants see a tab per entry on the event page when there's more than one |
 | `trailImages` | string[] | No | Firebase Storage or CDN image URLs for the photo carousel |
 | `waterSourceNote` | string | No | Water source information |
 | `weatherNote` | string | No | Seasonal weather notes |
@@ -93,9 +94,16 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `fees` | object[] | No | `[{ label, amount, note, optional, isGuestFee }]` — `isGuestFee: true` marks the one fee charged only to non-member registrants (`memberType: "joiner"`), never to members; identified by this flag, not by label text |
 | `officers` | object[] | No | `[{ name, role, mobile, email }]` — used for email notifications |
 | `itinerary` | object[] | No | `[{ day, entries: [{ time, activity }] }]` |
+| `announcements` | object[] | No | `[{ message, pinned, createdAt }]` — shown on the public climb page under Mountain Profile; `createdAt` is a client-set epoch ms number (not a Firestore timestamp, since `serverTimestamp()` isn't valid inside array elements); `pinned` entries sort first and render as a highlighted reminder |
 | `gcashName` | string | No | GCash account holder name |
 | `gcashNumber` | string | No | GCash mobile number |
 | `gcashQrUrl` | string | No | Firebase Storage URL for the GCash QR code image |
+| `requiresRegistrationForm` | boolean | No | When `true`, registrants must download `registrationFormUrl`, fill it out, and upload their own copy to register |
+| `registrationFormUrl` | string | No | Firebase Storage URL for the admin-uploaded registration form template |
+| `registrationFormFileName` | string | No | Original filename of the uploaded template |
+| `requiresMedicalCert` | boolean | No | When `true`, registrants must upload their own medical certificate to register |
+| `medicalCertSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded sample medical certificate (for reference only) |
+| `medicalCertSampleFileName` | string | No | Original filename of the uploaded sample |
 | `thankYouSentAt` | timestamp | No | Set by `sendReminderNotifications` once the one-time post-climb thank-you email (`tplThankYou`) has been sent to all confirmed registrants; gates the email so it only sends once per climb — see [API.md — sendReminderNotifications](API.md#sendremindernotifications) |
 
 #### Climb status lifecycle
@@ -140,7 +148,12 @@ Each document represents a single member's registration for a single climb.
 | `paymentStatus` | string | No | `unpaid` / `submitted` / `verified` / `rejected` — members can register without paying; the registration is created as `unpaid` until a GCash proof is submitted |
 | `amountPaid` | number | No | Exact amount sent via GCash |
 | `paymentProofs` | object[] | No | `[{ url, fileName }]` — uploaded receipt images |
+| `paymentSubmittedAt` | timestamp | No | Set when the member submits (or resubmits) a GCash proof |
+| `verifiedAt` | timestamp | No | Set when an admin marks the payment `verified`; cleared on resubmission |
+| `verifiedBy` | object | No | `{ uid, name }` of the admin who verified the payment; cleared on resubmission |
 | `feeBreakdown` | object[] | No | `[{ label, amount, optional, selected }]` |
+| `registrationFormUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresRegistrationForm` is `true` |
+| `medicalCertUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresMedicalCert` is `true` |
 | `adminNotes` | string | No | Admin-only internal notes |
 | `cancellationReason` | string | No | Reason provided when `status = cancelled` |
 | `confirmedAt` | timestamp | No | Set when status changes to `confirmed` |

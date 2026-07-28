@@ -101,6 +101,25 @@ function getWeatherLabel(code) {
   return WEATHER_CODE_LABELS[code] || "Weather update";
 }
 
+function getMapEmbed(googleMapsUrl, fallbackCoords) {
+  const placeName = parseGoogleMapsPlace(googleMapsUrl);
+  const parsed = parseGoogleMapsUrl(googleMapsUrl);
+  const coords = parsed
+    ? { lat: Number(parsed.lat), lng: Number(parsed.lng), zoom: parsed.zoom }
+    : fallbackCoords || null;
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const embedSrc = placeName
+    ? googleMapsApiKey
+      ? `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${encodeURIComponent(placeName)}`
+      : `https://maps.google.com/maps?q=${encodeURIComponent(placeName)}&output=embed`
+    : coords
+      ? googleMapsApiKey
+        ? `https://www.google.com/maps/embed/v1/view?key=${googleMapsApiKey}&center=${coords.lat},${coords.lng}&zoom=${coords.zoom}`
+        : `https://maps.google.com/maps?q=${coords.lat},${coords.lng}&z=${coords.zoom}&output=embed`
+      : null;
+  return { coords, embedSrc, placeName };
+}
+
 function getClimbCoords(climb) {
   if (climb?.mapLat && climb?.mapLng) {
     return {
@@ -162,6 +181,7 @@ export default function Event() {
   const [participants, setParticipants] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [selectedTrailIdx, setSelectedTrailIdx] = useState(0);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [weather, setWeather] = useState({
     status: "idle",
@@ -465,22 +485,30 @@ export default function Event() {
   }
 
   const mapCoords = getClimbCoords(climb);
+  const { embedSrc: mapsEmbedSrc } = getMapEmbed(climb.googleMapsUrl, mapCoords);
 
-  const mapsPlaceName = parseGoogleMapsPlace(climb.googleMapsUrl);
-  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const mapsEmbedSrc = (() => {
-    if (mapsPlaceName) {
-      return googleMapsApiKey
-        ? `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${encodeURIComponent(mapsPlaceName)}`
-        : `https://maps.google.com/maps?q=${encodeURIComponent(mapsPlaceName)}&output=embed`;
-    }
-    if (mapCoords) {
-      return googleMapsApiKey
-        ? `https://www.google.com/maps/embed/v1/view?key=${googleMapsApiKey}&center=${mapCoords.lat},${mapCoords.lng}&zoom=${mapCoords.zoom}`
-        : `https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=${mapCoords.zoom}&output=embed`;
-    }
-    return null;
-  })();
+  // Support multiple alternate trail options (e.g. two routes up the same
+  // mountain) via climb.trailMaps; fall back to the single legacy
+  // googleMapsUrl/allTrailsUrl fields for climbs created before this existed.
+  const trailMapEntries = climb.trailMaps?.length
+    ? climb.trailMaps
+    : climb.googleMapsUrl || climb.allTrailsUrl
+      ? [
+          {
+            label: "",
+            googleMapsUrl: climb.googleMapsUrl,
+            allTrailsUrl: climb.allTrailsUrl,
+          },
+        ]
+      : [];
+  const activeTrailIdx = Math.min(
+    selectedTrailIdx,
+    Math.max(trailMapEntries.length - 1, 0),
+  );
+  const activeTrail = trailMapEntries[activeTrailIdx];
+  const activeTrailMapEmbed = activeTrail
+    ? getMapEmbed(activeTrail.googleMapsUrl, null)
+    : null;
 
   return (
     <div>
@@ -701,8 +729,84 @@ export default function Event() {
           </div>
         )}
 
+        {/* Announcements */}
+        {climb.announcements?.length > 0 && (
+          <div className="section-card">
+            <div className="section-header">
+              <span className="icon">
+                <Icon name="alert" size={17} />
+              </span>
+              <h3>Announcements</h3>
+            </div>
+            <div className="section-body">
+              {[...climb.announcements]
+                .sort((a, b) => {
+                  if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+                  return (b.createdAt || 0) - (a.createdAt || 0);
+                })
+                .map((note, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
+                      padding: "10px 0",
+                      borderTop: i > 0 ? "1px solid rgba(0,0,0,0.06)" : "none",
+                    }}
+                  >
+                    {note.pinned && (
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          fontWeight: 800,
+                          letterSpacing: 1,
+                          textTransform: "uppercase",
+                          color: "var(--green-dark)",
+                          background: "rgba(13,43,18,0.08)",
+                          padding: "2px 8px",
+                          borderRadius: 99,
+                          whiteSpace: "nowrap",
+                          marginTop: 2,
+                        }}
+                      >
+                        Reminder
+                      </span>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: "0.86rem",
+                          lineHeight: 1.6,
+                          color: "var(--ink)",
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {note.message}
+                      </div>
+                      {note.createdAt && (
+                        <div
+                          style={{
+                            fontSize: "0.7rem",
+                            color: "var(--ink-soft)",
+                            marginTop: 4,
+                          }}
+                        >
+                          {new Date(note.createdAt).toLocaleDateString(
+                            "en-PH",
+                            { dateStyle: "medium" },
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {/* Trail Map */}
-        {(climb.allTrailsUrl || mapCoords || mapsEmbedSrc) && (
+        {trailMapEntries.length > 0 && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">
@@ -718,15 +822,40 @@ export default function Event() {
                 />
               ) : (
                 <>
-                  {climb.allTrailsUrl ? (
+                  {trailMapEntries.length > 1 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        marginBottom: 14,
+                      }}
+                    >
+                      {trailMapEntries.map((trail, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setSelectedTrailIdx(i)}
+                          className={
+                            i === activeTrailIdx
+                              ? "btn btn-primary btn-sm"
+                              : "btn btn-outline btn-sm"
+                          }
+                        >
+                          {trail.label || `Trail ${i + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {activeTrail?.allTrailsUrl ? (
                     <>
                       <iframe
                         src={
-                          climb.allTrailsUrl.replace(
+                          activeTrail.allTrailsUrl.replace(
                             "www.alltrails.com/trail/",
                             "www.alltrails.com/widget/trail/",
                           ) +
-                          (climb.allTrailsUrl.includes("?") ? "&" : "?") +
+                          (activeTrail.allTrailsUrl.includes("?") ? "&" : "?") +
                           "u=m&width=100%25"
                         }
                         title="AllTrails trail map"
@@ -749,7 +878,7 @@ export default function Event() {
                       >
                         Trail data &copy;{" "}
                         <a
-                          href={climb.allTrailsUrl}
+                          href={activeTrail.allTrailsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: "var(--accent)" }}
@@ -758,10 +887,10 @@ export default function Event() {
                         </a>
                       </p>
                     </>
-                  ) : mapsEmbedSrc ? (
+                  ) : activeTrailMapEmbed?.embedSrc ? (
                     <>
                       <iframe
-                        src={mapsEmbedSrc}
+                        src={activeTrailMapEmbed.embedSrc}
                         title={`${climb.title} location map`}
                         width="100%"
                         height="400"
@@ -785,8 +914,8 @@ export default function Event() {
                       >
                         <a
                           href={
-                            climb.googleMapsUrl ||
-                            `https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`
+                            activeTrail.googleMapsUrl ||
+                            `https://www.google.com/maps?q=${activeTrailMapEmbed.coords.lat},${activeTrailMapEmbed.coords.lng}`
                           }
                           target="_blank"
                           rel="noopener noreferrer"
