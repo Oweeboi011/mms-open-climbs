@@ -131,6 +131,7 @@ const EMPTY_FORM = {
   officerEmails: [],
   itinerary: [],
   announcements: [],
+  trailMaps: [],
   gcashName: "",
   gcashNumber: "",
   gcashQrUrl: "",
@@ -169,7 +170,24 @@ export default function AdminClimbForm() {
   useEffect(() => {
     if (!isEdit) return;
     getDoc(doc(db, "climbs", id)).then((snap) => {
-      if (snap.exists()) setForm({ ...EMPTY_FORM, ...snap.data() });
+      if (snap.exists()) {
+        const data = snap.data();
+        // Migrate the legacy single googleMapsUrl/allTrailsUrl fields into
+        // the new repeatable trailMaps list so existing data isn't lost.
+        const trailMaps =
+          data.trailMaps?.length > 0
+            ? data.trailMaps
+            : data.googleMapsUrl || data.allTrailsUrl
+              ? [
+                  {
+                    label: "",
+                    googleMapsUrl: data.googleMapsUrl || "",
+                    allTrailsUrl: data.allTrailsUrl || "",
+                  },
+                ]
+              : [];
+        setForm({ ...EMPTY_FORM, ...data, trailMaps });
+      }
       setLoading(false);
     });
   }, [id, isEdit]);
@@ -351,6 +369,11 @@ export default function AdminClimbForm() {
       payload.officerIds = (form.officers || [])
         .map((o) => o.userId)
         .filter(Boolean);
+      // Keep the legacy single googleMapsUrl/allTrailsUrl fields in sync
+      // with the first trail so older code paths (e.g. the weather forecast
+      // location lookup) still resolve correctly.
+      payload.googleMapsUrl = form.trailMaps?.[0]?.googleMapsUrl || "";
+      payload.allTrailsUrl = form.trailMaps?.[0]?.allTrailsUrl || "";
       if (isEdit) {
         await updateDoc(doc(db, "climbs", id), payload);
       } else {
@@ -709,39 +732,122 @@ export default function AdminClimbForm() {
               />
             </div>
             <div
-              className="admin-card-title"
-              style={{ fontSize: "0.75rem", marginTop: 16, marginBottom: 12 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 16,
+                marginBottom: 12,
+              }}
             >
-              Map &amp; Trail Data
-            </div>
-            <div className="form-group">
-              <label className="form-label">Google Maps URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://www.google.com/maps/@15.717,119.935,14z"
-                value={form.googleMapsUrl}
-                onChange={(e) => set("googleMapsUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Open Google Maps, navigate to the location, then copy the URL
-                from the browser address bar and paste it here.
+              <div
+                className="admin-card-title"
+                style={{ fontSize: "0.75rem", marginBottom: 0 }}
+              >
+                Map &amp; Trail Data
               </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() =>
+                  addListItem("trailMaps", {
+                    label: "",
+                    googleMapsUrl: "",
+                    allTrailsUrl: "",
+                  })
+                }
+              >
+                + Add Trail
+              </button>
             </div>
-            <div className="form-group">
-              <label className="form-label">AllTrails Trail URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://www.alltrails.com/trail/philippines/..."
-                value={form.allTrailsUrl}
-                onChange={(e) => set("allTrailsUrl", e.target.value)}
-              />
-              <div className="form-hint">
-                Paste the AllTrails trail page URL — the embed widget will
-                appear on the event page.
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 12,
+              }}
+            >
+              Add more than one trail if there's more than one route being
+              considered — registrants will see a tab to switch between them
+              on the event page.
+            </p>
+            {(form.trailMaps || []).length === 0 && (
+              <div className="form-hint" style={{ marginBottom: 12 }}>
+                No trail added yet. Click "+ Add Trail" to add a Google Maps
+                and/or AllTrails link.
               </div>
-            </div>
+            )}
+            {(form.trailMaps || []).map((trail, i) => (
+              <div
+                key={i}
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 10,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginBottom: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={`Trail label (e.g. "Trail A — Ambangeg")`}
+                    value={trail.label}
+                    onChange={(e) =>
+                      updateListItem("trailMaps", i, {
+                        ...trail,
+                        label: e.target.value,
+                      })
+                    }
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => removeListItem("trailMaps", i)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="form-group" style={{ marginBottom: 8 }}>
+                  <label className="form-label">Google Maps URL</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://www.google.com/maps/@15.717,119.935,14z"
+                    value={trail.googleMapsUrl}
+                    onChange={(e) =>
+                      updateListItem("trailMaps", i, {
+                        ...trail,
+                        googleMapsUrl: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">AllTrails Trail URL</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://www.alltrails.com/trail/philippines/..."
+                    value={trail.allTrailsUrl}
+                    onChange={(e) =>
+                      updateListItem("trailMaps", i, {
+                        ...trail,
+                        allTrailsUrl: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            ))}
             <div className="form-group">
               <label className="form-label">Trail Photos</label>
               <div

@@ -48,6 +48,7 @@ export default function Register() {
   const [sigName, setSigName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [missingFields, setMissingFields] = useState([]);
   const [successRegId, setSuccessRegId] = useState(null);
   const [successUnpaid, setSuccessUnpaid] = useState(false);
   const [paymentFiles, setPaymentFiles] = useState([]);
@@ -93,39 +94,48 @@ export default function Register() {
     setForm((p) => ({ ...p, [field]: value }));
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
+  function validate() {
+    const missing = [];
+    const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
 
-    if (!waiverAgreed) {
-      setError("You must agree to the waiver to continue.");
-      return;
+    if (!form.fullName.trim()) missing.push("Full Name");
+    if (!form.mobile.trim()) missing.push("Mobile Number");
+    if (!form.ecName.trim()) missing.push("Emergency Contact Name");
+    if (!form.ecMobile.trim()) missing.push("Emergency Contact Mobile");
+    if (!form.ecRelationship.trim()) missing.push("Emergency Contact Relationship");
+    if (climb.requiresRegistrationForm && !registrationFormFile) {
+      missing.push("Signed Registration Form upload");
     }
+    if (climb.requiresMedicalCert && !medicalCertFile) {
+      missing.push("Medical Certificate upload");
+    }
+    if (!waiverAgreed) missing.push("Agree to the Waiver and Release of Liability");
     if (!sigName.trim()) {
-      setError("Please enter your full name as your digital signature.");
-      return;
-    }
-    if (sigName.trim().length < 3) {
-      setError("Please enter your complete name as your signature.");
-      return;
+      missing.push("Digital Signature");
+    } else if (sigName.trim().length < 3) {
+      missing.push("Digital Signature (enter your complete name)");
     }
     // Payment is optional at registration time — members can pay later.
     // If they did start filling in payment info, require both parts together.
-    const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
     if (paymentFiles.length > 0 && (!amountPaid || isNaN(parsedAmount) || parsedAmount <= 0)) {
-      setError("Please enter the exact amount you paid via GCash.");
-      return;
+      missing.push("Amount Paid via GCash (to match your uploaded receipt)");
     }
     if (amountPaid && !isNaN(parsedAmount) && parsedAmount > 0 && paymentFiles.length === 0) {
-      setError("Please upload your proof of payment, or clear the amount to pay later.");
-      return;
+      missing.push("Proof of Payment upload (to match the amount entered)");
     }
-    if (climb.requiresRegistrationForm && !registrationFormFile) {
-      setError("Please upload your filled-out registration form.");
-      return;
-    }
-    if (climb.requiresMedicalCert && !medicalCertFile) {
-      setError("Please upload your medical certificate.");
+
+    return { missing, parsedAmount };
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setMissingFields([]);
+
+    const { missing, parsedAmount } = validate();
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setError("Please complete the following before submitting:");
       return;
     }
 
@@ -412,9 +422,22 @@ export default function Register() {
           </div>
         )}
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && (
+          <div className="alert alert-error">
+            <div>
+              <div>{error}</div>
+              {missingFields.length > 0 && (
+                <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+                  {missingFields.map((field, i) => (
+                    <li key={i}>{field}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {/* Personal Information */}
           <div className="register-form-card">
             <div className="form-section-title">Personal Information</div>
