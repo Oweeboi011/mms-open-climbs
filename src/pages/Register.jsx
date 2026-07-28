@@ -56,6 +56,8 @@ export default function Register() {
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [registrationFormFile, setRegistrationFormFile] = useState(null);
+  const [medicalCertFile, setMedicalCertFile] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -118,9 +120,19 @@ export default function Register() {
       setError("Please upload your proof of payment, or clear the amount to pay later.");
       return;
     }
+    if (climb.requiresRegistrationForm && !registrationFormFile) {
+      setError("Please upload your filled-out registration form.");
+      return;
+    }
+    if (climb.requiresMedicalCert && !medicalCertFile) {
+      setError("Please upload your medical certificate.");
+      return;
+    }
 
     setSubmitting(true);
     let paymentProofs = [];
+    let registrationFormUpload = null;
+    let medicalCertUpload = null;
     try {
       if (paymentFiles.length > 0) {
         setPaymentUploading(true);
@@ -138,10 +150,30 @@ export default function Register() {
         );
         setPaymentUploading(false);
       }
+      if (registrationFormFile) {
+        const timestamp = Date.now();
+        const fileRef = storageRef(
+          storage,
+          `registration-form-uploads/${climbId}/${currentUser.uid}/${timestamp}_${registrationFormFile.name}`,
+        );
+        await uploadBytes(fileRef, registrationFormFile);
+        const url = await getDownloadURL(fileRef);
+        registrationFormUpload = { url, fileName: registrationFormFile.name };
+      }
+      if (medicalCertFile) {
+        const timestamp = Date.now();
+        const fileRef = storageRef(
+          storage,
+          `medical-cert-uploads/${climbId}/${currentUser.uid}/${timestamp}_${medicalCertFile.name}`,
+        );
+        await uploadBytes(fileRef, medicalCertFile);
+        const url = await getDownloadURL(fileRef);
+        medicalCertUpload = { url, fileName: medicalCertFile.name };
+      }
     } catch (uploadErr) {
       setPaymentUploading(false);
       setSubmitting(false);
-      setError("Failed to upload proof of payment. Please try again.");
+      setError("Failed to upload one of your files. Please try again.");
       logFailedRequest({
         type: "upload",
         source: "Register.jsx:paymentUpload",
@@ -185,6 +217,11 @@ export default function Register() {
         paymentProofs,
         paymentStatus: paymentProofs.length > 0 ? "submitted" : "unpaid",
         amountPaid: paymentProofs.length > 0 ? parsedAmount : null,
+        paymentSubmittedAt:
+          paymentProofs.length > 0 ? serverTimestamp() : null,
+        // Required documents
+        registrationFormUpload,
+        medicalCertUpload,
         feeBreakdown: (climb.fees || []).map((exp) => {
           const isGuestFee = !!exp.isGuestFee;
           if (!exp.optional)
@@ -538,6 +575,79 @@ export default function Register() {
               </div>
             </div>
           </div>
+
+          {/* Required Documents */}
+          {(climb.requiresRegistrationForm || climb.requiresMedicalCert) && (
+            <div className="register-form-card">
+              <div className="form-section-title">Required Documents</div>
+
+              {climb.requiresRegistrationForm && (
+                <div className="form-group">
+                  <label className="form-label required">
+                    Signed Registration Form
+                  </label>
+                  {climb.registrationFormUrl && (
+                    <div style={{ marginBottom: 8 }}>
+                      <a
+                        href={climb.registrationFormUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline btn-sm"
+                      >
+                        &#128196; Download Registration Form
+                      </a>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,image/*"
+                    className="form-input"
+                    required
+                    onChange={(e) =>
+                      setRegistrationFormFile(e.target.files[0] || null)
+                    }
+                  />
+                  <div className="form-hint">
+                    Download the form above, fill it out, then upload your
+                    copy here.
+                  </div>
+                </div>
+              )}
+
+              {climb.requiresMedicalCert && (
+                <div className="form-group">
+                  <label className="form-label required">
+                    Medical Certificate
+                  </label>
+                  {climb.medicalCertSampleUrl && (
+                    <div style={{ marginBottom: 8 }}>
+                      <a
+                        href={climb.medicalCertSampleUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline btn-sm"
+                      >
+                        &#128196; View Sample Medical Certificate
+                      </a>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,image/*"
+                    className="form-input"
+                    required
+                    onChange={(e) =>
+                      setMedicalCertFile(e.target.files[0] || null)
+                    }
+                  />
+                  <div className="form-hint">
+                    Upload your own medical certificate from a licensed
+                    physician.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Waiver */}
           <div className="register-form-card">

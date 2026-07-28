@@ -296,6 +296,26 @@ exports.onRegistrationCreated = onDocumentCreated(
           id: `payment_${event.params.regId}`,
         });
       }
+      if (userId && climb.requiresRegistrationForm && !reg.registrationFormUpload) {
+        await createNotification({
+          userId,
+          type: "document_reminder",
+          title: "Registration form still needed",
+          message: `Please upload your signed registration form for ${climb.title}.`,
+          link: "/my-registrations",
+          id: `regform_${event.params.regId}`,
+        });
+      }
+      if (userId && climb.requiresMedicalCert && !reg.medicalCertUpload) {
+        await createNotification({
+          userId,
+          type: "document_reminder",
+          title: "Medical certificate still needed",
+          message: `Please upload your medical certificate for ${climb.title}.`,
+          link: "/my-registrations",
+          id: `medcert_${event.params.regId}`,
+        });
+      }
 
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
       const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
@@ -419,6 +439,27 @@ exports.onRegistrationUpdated = onDocumentUpdated(
           .doc(reminderId)
           .set({ read: true }, { merge: true })
           .catch(() => {});
+
+        // Let admins know a payment is waiting for review.
+        const adminSnap = await db
+          .collection("users")
+          .where("role", "==", "admin")
+          .get();
+        const amountLabel = after.amountPaid
+          ? `₱${Number(after.amountPaid).toLocaleString("en-PH")}`
+          : "a payment";
+        await Promise.all(
+          adminSnap.docs.map((d) =>
+            createNotification({
+              userId: d.id,
+              type: "payment_submitted",
+              title: "Payment submitted for review",
+              message: `${after.name || "A member"} submitted ${amountLabel} for ${after.climbTitle || "a climb"}.`,
+              link: "/admin/payments",
+              id: `submitted_${regId}_${d.id}`,
+            }),
+          ),
+        );
       }
     }
 
@@ -573,6 +614,28 @@ exports.sendReminderNotifications = onSchedule(
           id: `payment_${reg.id}`,
         });
         paymentReminders++;
+      }
+
+      // Missing required-document nags — re-surface as unread each run.
+      if (climb?.requiresRegistrationForm && !reg.registrationFormUpload) {
+        await createNotification({
+          userId: reg.userId,
+          type: "document_reminder",
+          title: "Registration form still needed",
+          message: `Please upload your signed registration form for ${reg.climbTitle || climb.title || "your climb"}.`,
+          link: "/my-registrations",
+          id: `regform_${reg.id}`,
+        });
+      }
+      if (climb?.requiresMedicalCert && !reg.medicalCertUpload) {
+        await createNotification({
+          userId: reg.userId,
+          type: "document_reminder",
+          title: "Medical certificate still needed",
+          message: `Please upload your medical certificate for ${reg.climbTitle || climb.title || "your climb"}.`,
+          link: "/my-registrations",
+          id: `medcert_${reg.id}`,
+        });
       }
 
       // Upcoming-climb reminders for confirmed participants only.
