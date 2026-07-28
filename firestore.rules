@@ -53,6 +53,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     match /notifications/{notifId} {
       allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
       // Only the read flag may be toggled by the owner; everything else is

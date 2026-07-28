@@ -29,6 +29,7 @@ import AdminUsersManage from "@/pages/admin/UsersManage";
 import AllRegistrations from "@/pages/admin/AllRegistrations";
 import ManagePayments from "@/pages/admin/ManagePayments";
 import AdminAnalytics from "@/pages/admin/Analytics";
+import AdminAppInsights from "@/pages/admin/AppInsights";
 import AdminReleaseNotesManage from "@/pages/admin/ReleaseNotesManage";
 import AdminReleaseNoteForm from "@/pages/admin/ReleaseNoteForm";
 
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/admin/registrations" element={<AllRegistrations />} />
           <Route path="/admin/payments" element={<ManagePayments />} />
           <Route path="/admin/analytics" element={<AdminAnalytics />} />
+          <Route path="/admin/insights" element={<AdminAppInsights />} />
           <Route
             path="/admin/release-notes"
             element={<AdminReleaseNotesManage />}

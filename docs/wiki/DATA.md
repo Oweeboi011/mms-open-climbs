@@ -261,7 +261,7 @@ Each document is one in-app reminder shown in the notification bell. Written onl
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `userId` | string | Yes | Firebase Auth UID of the recipient |
-| `type` | string | Yes | `payment_reminder` / `payment_verified` / `status_update` / `upcoming_climb` |
+| `type` | string | Yes | `payment_reminder` / `payment_verified` / `payment_submitted` / `document_reminder` / `climb_announcement` / `status_update` / `upcoming_climb` |
 | `title` | string | Yes | Short headline shown in the bell dropdown |
 | `message` | string | No | Supporting detail text |
 | `link` | string | No | In-app path to navigate to on click (e.g. `/my-registrations`) |
@@ -269,6 +269,25 @@ Each document is one in-app reminder shown in the notification bell. Written onl
 | `createdAt` | timestamp | Yes | Firestore server timestamp — reminders may bump this to resurface as unread |
 
 Some notification IDs are deterministic (e.g. `payment_{regId}`, `upcoming3_{regId}`, `upcoming1_{regId}`) so recurring reminders upsert the same document instead of piling up duplicates. A daily scheduled function (`sendReminderNotifications`) re-flags unpaid/rejected registrations as unread and notifies confirmed registrants 3 days and 1 day before their climb's `startDate`.
+
+---
+
+### auditLog
+
+Each document records one admin action, surfaced in the "Recent Admin Activity" table on the App Insights page (`/admin/insights`). Written client-side by admin pages (`ManagePayments.jsx`, `ClimbDetail.jsx`, `ClimbForm.jsx`, `AllRegistrations.jsx`) via the `logAuditEvent` helper (`src/utils/auditLog.js`); never fails the action it describes.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `actorUid` | string | No | Firebase Auth UID of the admin who performed the action |
+| `actorName` | string | Yes | Display name or email of the admin |
+| `action` | string | Yes | e.g. `payment_status_verified`, `registration_status_confirmed`, `registration_edited`, `climb_created`, `climb_updated`, `transportation_toggled` |
+| `targetType` | string | No | `registration` / `climb` |
+| `targetId` | string | No | Document ID of the affected record |
+| `targetLabel` | string | No | Human-readable label (participant name or climb title) for display |
+| `details` | string | No | Optional extra context |
+| `createdAt` | timestamp | Yes | Firestore server timestamp |
+
+Read and create are admin-only; update and delete are disabled — it's an append-only log.
 
 ---
 

@@ -127,6 +127,59 @@ describe("MyRegistrations page", () => {
     await waitFor(() => expect(screen.getByText("₱800")).toBeInTheDocument());
   });
 
+  it("lets a joiner add fees on an already-verified payment", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        fees: [
+          { label: "Registration Fee", amount: "500", optional: false },
+          { label: "Transportation Fee", amount: "300", optional: true },
+        ],
+      }),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: registrationFixture.id,
+            data: {
+              ...registrationFixture,
+              paymentStatus: "verified",
+              amountPaid: 500,
+              verifiedAt: { toDate: () => new Date("2026-07-10") },
+              verifiedBy: { name: "Admin User" },
+              feeBreakdown: [
+                { label: "Registration Fee", amount: "500", optional: false, selected: true },
+                { label: "Transportation Fee", amount: "300", optional: true, selected: false },
+              ],
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Add Fees \/ Pay More/i }),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Add Fees \/ Pay More/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Fee Breakdown")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("₱500")).toBeInTheDocument();
+
+    expect(screen.getByText(/Already Paid: ₱500/i)).toBeInTheDocument();
+    expect(screen.getByText(/Verified: /i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox"));
+    await waitFor(() => expect(screen.getByText("₱800")).toBeInTheDocument());
+  });
+
   it("shows the Official Receipt with fee breakdown and verification details", async () => {
     onSnapshot.mockImplementation((_q, cb) => {
       cb(
