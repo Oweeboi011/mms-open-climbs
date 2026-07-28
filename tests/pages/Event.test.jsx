@@ -10,7 +10,7 @@
  *  - Redirects to / when climb does not exist
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { getDoc, getDocs } from "firebase/firestore";
 import Event from "@/pages/Event";
 import {
@@ -344,5 +344,71 @@ describe("Event page", () => {
         screen.getByText(/Weather location could not be resolved/i),
       ).toBeInTheDocument(),
     );
+  });
+
+  it("shows pinned announcements before regular ones", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        announcements: [
+          { message: "Regular update", pinned: false, createdAt: 1000 },
+          { message: "Trail closed on the north side", pinned: true, createdAt: 500 },
+        ],
+      }),
+    );
+
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeMemberAuth(),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Announcements")).toBeInTheDocument(),
+    );
+    const messages = screen.getAllByText(/Regular update|Trail closed/);
+    expect(messages[0]).toHaveTextContent("Trail closed on the north side");
+    expect(messages[1]).toHaveTextContent("Regular update");
+  });
+
+  it("shows a tab per trail option and switches the active trail map", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        trailMaps: [
+          {
+            label: "Trail A",
+            allTrailsUrl: "https://www.alltrails.com/trail/philippines/trail-a",
+          },
+          {
+            label: "Trail B",
+            allTrailsUrl: "https://www.alltrails.com/trail/philippines/trail-b",
+          },
+        ],
+      }),
+    );
+
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeMemberAuth(),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Trail A" })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Trail B" })).toBeInTheDocument();
+
+    let iframe = document.querySelector("iframe[title='AllTrails trail map']");
+    expect(iframe.src).toContain("trail-a");
+
+    fireEvent.click(screen.getByRole("button", { name: "Trail B" }));
+
+    await waitFor(() => {
+      iframe = document.querySelector("iframe[title='AllTrails trail map']");
+      expect(iframe.src).toContain("trail-b");
+    });
   });
 });
