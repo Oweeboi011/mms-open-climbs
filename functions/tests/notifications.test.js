@@ -93,6 +93,7 @@ jest.mock("firebase-admin/firestore", () => ({
 
 let createdHandler;
 let updatedHandler;
+let climbUpdatedHandler;
 let scheduleHandler;
 
 jest.mock("firebase-functions/v2/firestore", () => ({
@@ -100,8 +101,12 @@ jest.mock("firebase-functions/v2/firestore", () => ({
     createdHandler = fn;
     return fn;
   },
-  onDocumentUpdated: (_opts, fn) => {
-    updatedHandler = fn;
+  onDocumentUpdated: (opts, fn) => {
+    if (opts.document === "climbs/{climbId}") {
+      climbUpdatedHandler = fn;
+    } else {
+      updatedHandler = fn;
+    }
     return fn;
   },
 }));
@@ -285,6 +290,41 @@ describe("onRegistrationUpdated", () => {
     expect(created).toBeTruthy();
   });
 
+  it("clears every admin's payment_submitted notification once the payment is verified", async () => {
+    userStore["admin-1"] = { role: "admin", email: "admin1@mms.ph" };
+    userStore["admin-2"] = { role: "admin", email: "admin2@mms.ph" };
+    notifStore["submitted_reg-1_admin-1"] = { read: false, type: "payment_submitted" };
+    notifStore["submitted_reg-1_admin-2"] = { read: false, type: "payment_submitted" };
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", paymentStatus: "submitted", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "pending", paymentStatus: "verified", climbId: "climb-1", userId: "user-1", climbTitle: "Mt. Pulag" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(notifStore["submitted_reg-1_admin-1"].read).toBe(true);
+    expect(notifStore["submitted_reg-1_admin-2"].read).toBe(true);
+  });
+
+  it("clears every admin's payment_submitted notification once the payment is rejected", async () => {
+    userStore["admin-1"] = { role: "admin", email: "admin1@mms.ph" };
+    notifStore["submitted_reg-1_admin-1"] = { read: false, type: "payment_submitted" };
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", paymentStatus: "submitted", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "pending", paymentStatus: "rejected", climbId: "climb-1", userId: "user-1", climbTitle: "Mt. Pulag" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(notifStore["submitted_reg-1_admin-1"].read).toBe(true);
+  });
+
   it("clears the document reminder once a required upload is submitted", async () => {
     notifStore["regform_reg-1"] = { read: false, type: "document_reminder" };
     notifStore["medcert_reg-1"] = { read: false, type: "document_reminder" };
@@ -383,6 +423,26 @@ describe("onRegistrationUpdated", () => {
     expect(Object.values(notifStore).filter((n) => n.type === "payment_submitted")).toHaveLength(2);
   });
 
+  it("clears admin notifications and re-nags the member when payment is reset to unpaid", async () => {
+    userStore["admin-1"] = { role: "admin", email: "admin1@mms.ph" };
+    notifStore["submitted_reg-1_admin-1"] = { read: false, type: "payment_submitted" };
+
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", paymentStatus: "submitted", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "pending", paymentStatus: "unpaid", climbId: "climb-1", userId: "user-1", climbTitle: "Mt. Pulag" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(notifStore["submitted_reg-1_admin-1"].read).toBe(true);
+    expect(notifStore["payment_reg-1"]).toMatchObject({
+      userId: "user-1",
+      type: "payment_reminder",
+      title: "Payment status reset",
+    });
+  });
+
   it("does nothing when neither status nor paymentStatus changed", async () => {
     await updatedHandler({
       data: {
@@ -423,6 +483,118 @@ describe("onRegistrationUpdated", () => {
       path: "climbs/climb-1",
       patch: { registrationCount: { __increment: -1 } },
     });
+  });
+});
+
+describe("onClimbUpdated", () => {
+  it("notifies every active registrant when a new announcement is added", async () => {
+    regStore["reg-1"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+    regStore["reg-2"] = { climbId: "climb-1", userId: "user-2", status: "confirmed" };
+    regStore["reg-cancelled"] = { climbId: "climb-1", userId: "user-3", status: "cancelled" };
+
+    await climbUpdatedHandler({
+      data: {
+        before: { data: () => ({ title: "Mt. Pulag", announcements: [] }) },
+        after: {
+          data: () => ({
+            title: "Mt. Pulag",
+            announcements: [
+              { message: "Bring extra water", pinned: false, createdAt: 1000 },
+            ],
+          }),
+        },
+      },
+      params: { climbId: "climb-1" },
+    });
+
+    expect(notifStore["announcement_climb-1_1000_user-1"]).toMatchObject({
+      userId: "user-1",
+      type: "climb_announcement",
+      message: "Bring extra water",
+      link: "/event/climb-1",
+    });
+    expect(notifStore["announcement_climb-1_1000_user-2"]).toMatchObject({
+      userId: "user-2",
+    });
+    expect(notifStore["announcement_climb-1_1000_user-3"]).toBeUndefined();
+  });
+
+  it("labels pinned announcements as reminders and skips ones already notified", async () => {
+    regStore["reg-1"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+
+    await climbUpdatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            title: "Mt. Pulag",
+            announcements: [{ message: "Old note", pinned: false, createdAt: 1000 }],
+          }),
+        },
+        after: {
+          data: () => ({
+            title: "Mt. Pulag",
+            announcements: [
+              { message: "Old note", pinned: false, createdAt: 1000 },
+              { message: "Trail closed on the north side", pinned: true, createdAt: 2000 },
+            ],
+          }),
+        },
+      },
+      params: { climbId: "climb-1" },
+    });
+
+    expect(notifStore["announcement_climb-1_2000_user-1"]).toMatchObject({
+      title: "New reminder — Mt. Pulag",
+      message: "Trail closed on the north side",
+    });
+    expect(notifStore["announcement_climb-1_1000_user-1"]).toBeUndefined();
+  });
+
+  it("clears the document reminders for active registrants once a requirement is turned off", async () => {
+    regStore["reg-1"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+    regStore["reg-2"] = { climbId: "climb-1", userId: "user-2", status: "cancelled" };
+    notifStore["regform_reg-1"] = { read: false, type: "document_reminder" };
+    notifStore["medcert_reg-1"] = { read: false, type: "document_reminder" };
+    notifStore["regform_reg-2"] = { read: false, type: "document_reminder" };
+
+    await climbUpdatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            title: "Mt. Pulag",
+            requiresRegistrationForm: true,
+            requiresMedicalCert: true,
+            announcements: [],
+          }),
+        },
+        after: {
+          data: () => ({
+            title: "Mt. Pulag",
+            requiresRegistrationForm: false,
+            requiresMedicalCert: true,
+            announcements: [],
+          }),
+        },
+      },
+      params: { climbId: "climb-1" },
+    });
+
+    expect(notifStore["regform_reg-1"].read).toBe(true);
+    // Medical cert requirement is still on, so its reminder stays untouched.
+    expect(notifStore["medcert_reg-1"].read).toBe(false);
+    // Cancelled registrants aren't touched either way.
+    expect(notifStore["regform_reg-2"].read).toBe(false);
+  });
+
+  it("does nothing when announcements are unchanged", async () => {
+    await climbUpdatedHandler({
+      data: {
+        before: { data: () => ({ announcements: [{ message: "x", createdAt: 1 }] }) },
+        after: { data: () => ({ announcements: [{ message: "x", createdAt: 1 }] }) },
+      },
+      params: { climbId: "climb-1" },
+    });
+    expect(Object.keys(notifStore)).toHaveLength(0);
   });
 });
 
