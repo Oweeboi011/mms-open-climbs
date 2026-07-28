@@ -878,6 +878,10 @@ export default function AdminClimbDetail() {
                     <th>Participant</th>
                     <th style={{ width: "1%" }}>Mobile</th>
                     <th style={{ width: "1%" }}>Waiver</th>
+                    {(climb?.requiresRegistrationForm ||
+                      climb?.requiresMedicalCert) && (
+                      <th style={{ width: "1%" }}>Docs</th>
+                    )}
                     <th style={{ width: "1%" }}>Payment</th>
                     <th style={{ width: "1%" }}>Status</th>
                     <th style={{ width: "1%" }}>Registered</th>
@@ -888,7 +892,12 @@ export default function AdminClimbDetail() {
                   {filtered.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={
+                          climb?.requiresRegistrationForm ||
+                          climb?.requiresMedicalCert
+                            ? 9
+                            : 8
+                        }
                         style={{
                           textAlign: "center",
                           color: "var(--ink-soft)",
@@ -983,6 +992,52 @@ export default function AdminClimbDetail() {
                               </span>
                             )}
                           </td>
+                          {(climb?.requiresRegistrationForm ||
+                            climb?.requiresMedicalCert) && (
+                            <td onClick={(e) => e.stopPropagation()}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 3,
+                                  fontSize: "0.72rem",
+                                }}
+                              >
+                                {climb?.requiresRegistrationForm && (
+                                  reg.registrationFormUpload?.url ? (
+                                    <a
+                                      href={reg.registrationFormUpload.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: "#1a6b2c" }}
+                                    >
+                                      &#10003; Form
+                                    </a>
+                                  ) : (
+                                    <span style={{ color: "#b91c1c" }}>
+                                      &#10005; Form
+                                    </span>
+                                  )
+                                )}
+                                {climb?.requiresMedicalCert && (
+                                  reg.medicalCertUpload?.url ? (
+                                    <a
+                                      href={reg.medicalCertUpload.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: "#1a6b2c" }}
+                                    >
+                                      &#10003; Med. Cert
+                                    </a>
+                                  ) : (
+                                    <span style={{ color: "#b91c1c" }}>
+                                      &#10005; Med. Cert
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            </td>
+                          )}
                           <td onClick={(e) => e.stopPropagation()}>
                             <StatusBadge
                               status={reg.paymentStatus}
@@ -1047,7 +1102,12 @@ export default function AdminClimbDetail() {
                         {expandedId === reg.id && (
                           <tr key={`${reg.id}-detail`}>
                             <td
-                              colSpan={8}
+                              colSpan={
+                                climb?.requiresRegistrationForm ||
+                                climb?.requiresMedicalCert
+                                  ? 9
+                                  : 8
+                              }
                               style={{
                                 background: "var(--surface)",
                                 padding: 0,

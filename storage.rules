@@ -33,6 +33,32 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
 
+    // Registration form / medical certificate templates and samples,
+    // uploaded by admins for a climb (admin check enforced in the UI).
+    match /registration-form-templates/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /medical-cert-samples/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Registration form / medical certificate copies uploaded by members
+    // when they register — same ownership rule as payment proofs.
+    match /registration-form-uploads/{climbId}/{userId}/{fileName} {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024;
+      allow read: if request.auth != null;
+    }
+    match /medical-cert-uploads/{climbId}/{userId}/{fileName} {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024;
+      allow read: if request.auth != null;
+    }
+
     // Deny everything else by default.
     match /{allPaths=**} {
       allow read, write: if false;

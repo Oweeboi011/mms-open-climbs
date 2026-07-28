@@ -48,6 +48,7 @@ export default function Register() {
   const [sigName, setSigName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [missingFields, setMissingFields] = useState([]);
   const [successRegId, setSuccessRegId] = useState(null);
   const [successUnpaid, setSuccessUnpaid] = useState(false);
   const [paymentFiles, setPaymentFiles] = useState([]);
@@ -56,6 +57,8 @@ export default function Register() {
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [registrationFormFile, setRegistrationFormFile] = useState(null);
+  const [medicalCertFile, setMedicalCertFile] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -91,36 +94,55 @@ export default function Register() {
     setForm((p) => ({ ...p, [field]: value }));
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
+  function validate() {
+    const missing = [];
+    const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
 
-    if (!waiverAgreed) {
-      setError("You must agree to the waiver to continue.");
-      return;
+    if (!form.fullName.trim()) missing.push("Full Name");
+    if (!form.mobile.trim()) missing.push("Mobile Number");
+    if (!form.ecName.trim()) missing.push("Emergency Contact Name");
+    if (!form.ecMobile.trim()) missing.push("Emergency Contact Mobile");
+    if (!form.ecRelationship.trim()) missing.push("Emergency Contact Relationship");
+    if (climb.requiresRegistrationForm && !registrationFormFile) {
+      missing.push("Signed Registration Form upload");
     }
+    if (climb.requiresMedicalCert && !medicalCertFile) {
+      missing.push("Medical Certificate upload");
+    }
+    if (!waiverAgreed) missing.push("Agree to the Waiver and Release of Liability");
     if (!sigName.trim()) {
-      setError("Please enter your full name as your digital signature.");
-      return;
-    }
-    if (sigName.trim().length < 3) {
-      setError("Please enter your complete name as your signature.");
-      return;
+      missing.push("Digital Signature");
+    } else if (sigName.trim().length < 3) {
+      missing.push("Digital Signature (enter your complete name)");
     }
     // Payment is optional at registration time — members can pay later.
     // If they did start filling in payment info, require both parts together.
-    const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
     if (paymentFiles.length > 0 && (!amountPaid || isNaN(parsedAmount) || parsedAmount <= 0)) {
-      setError("Please enter the exact amount you paid via GCash.");
-      return;
+      missing.push("Amount Paid via GCash (to match your uploaded receipt)");
     }
     if (amountPaid && !isNaN(parsedAmount) && parsedAmount > 0 && paymentFiles.length === 0) {
-      setError("Please upload your proof of payment, or clear the amount to pay later.");
+      missing.push("Proof of Payment upload (to match the amount entered)");
+    }
+
+    return { missing, parsedAmount };
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setMissingFields([]);
+
+    const { missing, parsedAmount } = validate();
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setError("Please complete the following before submitting:");
       return;
     }
 
     setSubmitting(true);
     let paymentProofs = [];
+    let registrationFormUpload = null;
+    let medicalCertUpload = null;
     try {
       if (paymentFiles.length > 0) {
         setPaymentUploading(true);
@@ -138,10 +160,30 @@ export default function Register() {
         );
         setPaymentUploading(false);
       }
+      if (registrationFormFile) {
+        const timestamp = Date.now();
+        const fileRef = storageRef(
+          storage,
+          `registration-form-uploads/${climbId}/${currentUser.uid}/${timestamp}_${registrationFormFile.name}`,
+        );
+        await uploadBytes(fileRef, registrationFormFile);
+        const url = await getDownloadURL(fileRef);
+        registrationFormUpload = { url, fileName: registrationFormFile.name };
+      }
+      if (medicalCertFile) {
+        const timestamp = Date.now();
+        const fileRef = storageRef(
+          storage,
+          `medical-cert-uploads/${climbId}/${currentUser.uid}/${timestamp}_${medicalCertFile.name}`,
+        );
+        await uploadBytes(fileRef, medicalCertFile);
+        const url = await getDownloadURL(fileRef);
+        medicalCertUpload = { url, fileName: medicalCertFile.name };
+      }
     } catch (uploadErr) {
       setPaymentUploading(false);
       setSubmitting(false);
-      setError("Failed to upload proof of payment. Please try again.");
+      setError("Failed to upload one of your files. Please try again.");
       logFailedRequest({
         type: "upload",
         source: "Register.jsx:paymentUpload",
@@ -185,6 +227,11 @@ export default function Register() {
         paymentProofs,
         paymentStatus: paymentProofs.length > 0 ? "submitted" : "unpaid",
         amountPaid: paymentProofs.length > 0 ? parsedAmount : null,
+        paymentSubmittedAt:
+          paymentProofs.length > 0 ? serverTimestamp() : null,
+        // Required documents
+        registrationFormUpload,
+        medicalCertUpload,
         feeBreakdown: (climb.fees || []).map((exp) => {
           const isGuestFee = !!exp.isGuestFee;
           if (!exp.optional)
@@ -375,9 +422,22 @@ export default function Register() {
           </div>
         )}
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && (
+          <div className="alert alert-error">
+            <div>
+              <div>{error}</div>
+              {missingFields.length > 0 && (
+                <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+                  {missingFields.map((field, i) => (
+                    <li key={i}>{field}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {/* Personal Information */}
           <div className="register-form-card">
             <div className="form-section-title">Personal Information</div>
@@ -538,6 +598,79 @@ export default function Register() {
               </div>
             </div>
           </div>
+
+          {/* Required Documents */}
+          {(climb.requiresRegistrationForm || climb.requiresMedicalCert) && (
+            <div className="register-form-card">
+              <div className="form-section-title">Required Documents</div>
+
+              {climb.requiresRegistrationForm && (
+                <div className="form-group">
+                  <label className="form-label required">
+                    Signed Registration Form
+                  </label>
+                  {climb.registrationFormUrl && (
+                    <div style={{ marginBottom: 8 }}>
+                      <a
+                        href={climb.registrationFormUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline btn-sm"
+                      >
+                        &#128196; Download Registration Form
+                      </a>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,image/*"
+                    className="form-input"
+                    required
+                    onChange={(e) =>
+                      setRegistrationFormFile(e.target.files[0] || null)
+                    }
+                  />
+                  <div className="form-hint">
+                    Download the form above, fill it out, then upload your
+                    copy here.
+                  </div>
+                </div>
+              )}
+
+              {climb.requiresMedicalCert && (
+                <div className="form-group">
+                  <label className="form-label required">
+                    Medical Certificate
+                  </label>
+                  {climb.medicalCertSampleUrl && (
+                    <div style={{ marginBottom: 8 }}>
+                      <a
+                        href={climb.medicalCertSampleUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline btn-sm"
+                      >
+                        &#128196; View Sample Medical Certificate
+                      </a>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,image/*"
+                    className="form-input"
+                    required
+                    onChange={(e) =>
+                      setMedicalCertFile(e.target.files[0] || null)
+                    }
+                  />
+                  <div className="form-hint">
+                    Upload your own medical certificate from a licensed
+                    physician.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Waiver */}
           <div className="register-form-card">

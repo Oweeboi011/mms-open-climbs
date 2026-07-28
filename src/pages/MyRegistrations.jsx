@@ -10,6 +10,7 @@ import {
   getDoc,
   doc,
   updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   ref as storageRef,
@@ -44,6 +45,11 @@ function PayPrompt({ reg, onClose, onSaved }) {
   const [error, setError] = useState("");
   const [climb, setClimb] = useState(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  // Live selections for optional fees (transportation, guest fee, shirt,
+  // etc.) so members can flip them on/off at payment time and see the total
+  // update immediately, instead of being stuck with whatever was picked at
+  // registration.
+  const [selections, setSelections] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +72,27 @@ function PayPrompt({ reg, onClose, onSaved }) {
       cancelled = true;
     };
   }, [reg.climbId]);
+
+  useEffect(() => {
+    if (!climb?.fees?.length) return;
+    const initial = {};
+    climb.fees.forEach((f) => {
+      if (!f.optional) return;
+      const stored = reg.feeBreakdown?.find((e) => e.label === f.label);
+      if (stored) {
+        initial[f.label] = !!stored.selected;
+      } else if (f.isGuestFee) {
+        initial[f.label] = reg.memberType === "joiner";
+      } else {
+        initial[f.label] = false;
+      }
+    });
+    setSelections(initial);
+  }, [climb, reg]);
+
+  function toggleFee(label) {
+    setSelections((p) => ({ ...p, [label]: !p[label] }));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -93,10 +120,24 @@ function PayPrompt({ reg, onClose, onSaved }) {
           return { url, fileName: file.name };
         }),
       );
+      const feeBreakdown = climb?.fees?.length
+        ? climb.fees.map((f) => ({
+            label: f.label,
+            amount: f.amount,
+            optional: !!f.optional,
+            selected: f.optional ? !!selections[f.label] : true,
+          }))
+        : reg.feeBreakdown;
       await updateDoc(doc(db, "registrations", reg.id), {
         paymentProofs,
         paymentStatus: "submitted",
         amountPaid: parsedAmount,
+        paymentSubmittedAt: serverTimestamp(),
+        // Clear any prior verification/rejection so the OR always reflects
+        // the review of this latest submission, not a stale one.
+        verifiedAt: null,
+        verifiedBy: null,
+        ...(feeBreakdown ? { feeBreakdown } : {}),
       });
       onSaved();
     } catch (err) {
@@ -157,19 +198,29 @@ function PayPrompt({ reg, onClose, onSaved }) {
 
         {(reg.feeBreakdown?.length > 0 || climb?.fees?.length > 0) &&
           (() => {
-            const usingFallback = !(reg.feeBreakdown?.length > 0);
-            const items = usingFallback
-              ? climb.fees.filter((e) => {
-                  if (e.isGuestFee) return reg.memberType === "joiner";
-                  return true;
-                })
-              : reg.feeBreakdown.filter((e) => e.selected);
+            // Fees can change after a member registers (new items added,
+            // "TBA" amounts filled in later) — always read the climb's
+            // current fee schedule for labels/amounts so those updates are
+            // reflected. Optional fees (transportation, guest fee, shirt,
+            // etc.) are toggleable here so members can change their mind at
+            // payment time and see the total update live.
+            const hasClimbFees = climb?.fees?.length > 0;
+            const required = hasClimbFees
+              ? climb.fees.filter((e) => !e.optional)
+              : reg.feeBreakdown.filter((e) => !e.optional && e.selected);
+            const optional = hasClimbFees
+              ? climb.fees.filter((e) => e.optional)
+              : [];
             let total = 0;
             let hasTba = false;
-            items.forEach((e) => {
-              const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
+            const addAmount = (amt) => {
+              const n = parseFloat(String(amt).replace(/[^0-9.]/g, ""));
               if (!isNaN(n)) total += n;
               else hasTba = true;
+            };
+            required.forEach((e) => addAmount(e.amount));
+            optional.forEach((e) => {
+              if (selections[e.label]) addAmount(e.amount);
             });
             const totalDisplay = hasTba
               ? `₱${total.toLocaleString("en-PH")} + TBA`
@@ -196,12 +247,28 @@ function PayPrompt({ reg, onClose, onSaved }) {
                   }}
                 >
                   <tbody>
-                    {items.map((e, i) => (
+                    {required.map((e, i) => (
                       <tr
-                        key={i}
+                        key={`req-${i}`}
                         style={{ borderBottom: "1px solid var(--border)" }}
                       >
-                        <td style={{ padding: "6px 0" }}>{e.label}</td>
+                        <td
+                          style={{ padding: "6px 0" }}
+                          colSpan={optional.length > 0 ? 2 : 1}
+                        >
+                          {e.label}
+                          {e.note && (
+                            <div
+                              style={{
+                                fontSize: "0.72rem",
+                                color: "var(--ink-soft)",
+                                marginTop: 2,
+                              }}
+                            >
+                              {e.note}
+                            </div>
+                          )}
+                        </td>
                         <td
                           style={{
                             padding: "6px 0",
@@ -214,10 +281,78 @@ function PayPrompt({ reg, onClose, onSaved }) {
                         </td>
                       </tr>
                     ))}
+                    {optional.map((e, i) => {
+                      const checked = !!selections[e.label];
+                      return (
+                        <tr
+                          key={`opt-${i}`}
+                          onClick={() => toggleFee(e.label)}
+                          style={{
+                            borderBottom: "1px solid var(--border)",
+                            cursor: "pointer",
+                            background: checked
+                              ? "var(--surface-alt)"
+                              : "transparent",
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: "6px 4px 6px 0",
+                              width: 20,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleFee(e.label)}
+                              onClick={(ev) => ev.stopPropagation()}
+                            />
+                          </td>
+                          <td style={{ padding: "6px 0" }}>
+                            {e.label}
+                            {e.isGuestFee && (
+                              <span
+                                style={{
+                                  fontSize: "0.68rem",
+                                  color: "var(--ink-soft)",
+                                  marginLeft: 4,
+                                }}
+                              >
+                                (guest)
+                              </span>
+                            )}
+                            {e.note && (
+                              <div
+                                style={{
+                                  fontSize: "0.72rem",
+                                  color: "var(--ink-soft)",
+                                  marginTop: 2,
+                                }}
+                              >
+                                {e.note}
+                              </div>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              padding: "6px 0",
+                              textAlign: "right",
+                              fontWeight: 600,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {e.amount || "TBA"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop: "2px solid var(--border)" }}>
-                      <td style={{ padding: "8px 0", fontWeight: 800 }}>
+                      <td
+                        style={{ padding: "8px 0", fontWeight: 800 }}
+                        colSpan={optional.length > 0 ? 2 : 1}
+                      >
                         Total
                       </td>
                       <td
@@ -233,7 +368,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
                     </tr>
                   </tfoot>
                 </table>
-                {usingFallback && (
+                {optional.length > 0 && (
                   <p
                     style={{
                       fontSize: "0.72rem",
@@ -241,8 +376,20 @@ function PayPrompt({ reg, onClose, onSaved }) {
                       marginTop: 6,
                     }}
                   >
-                    * Showing the climb's current fee schedule — this
-                    registration was made before fees were recorded.
+                    Check or uncheck any optional item above to update your
+                    total.
+                  </p>
+                )}
+                {!hasClimbFees && (
+                  <p
+                    style={{
+                      fontSize: "0.72rem",
+                      color: "var(--ink-soft)",
+                      marginTop: 6,
+                    }}
+                  >
+                    * Showing the fees recorded at registration — this
+                    climb's fee schedule is no longer available.
                   </p>
                 )}
               </div>
@@ -464,6 +611,418 @@ function PayPrompt({ reg, onClose, onSaved }) {
   );
 }
 
+const RECEIPT_STATUS_LABEL = {
+  submitted: "Awaiting Review",
+  verified: "Verified",
+  rejected: "Rejected",
+};
+
+function formatDateTime(value) {
+  const d = value?.toDate?.() ?? (value ? new Date(value) : null);
+  if (!d || isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function ReceiptModal({ reg, onClose }) {
+  const items = (reg.feeBreakdown || []).filter((e) => e.selected);
+  let total = 0;
+  let hasTba = false;
+  items.forEach((e) => {
+    const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
+    if (!isNaN(n)) total += n;
+    else hasTba = true;
+  });
+  const totalDisplay = hasTba
+    ? `₱${total.toLocaleString("en-PH")} + TBA`
+    : `₱${total.toLocaleString("en-PH")}`;
+  const orNumber = `OR-${reg.id.slice(-8).toUpperCase()}`;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(0,0,0,0.6)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--surface)",
+          borderRadius: 12,
+          padding: 24,
+          maxWidth: 420,
+          width: "100%",
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 4,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Official Receipt</h3>
+          <span
+            className={`status-badge status-payment-${reg.paymentStatus}`}
+          >
+            {RECEIPT_STATUS_LABEL[reg.paymentStatus] || reg.paymentStatus}
+          </span>
+        </div>
+        <p
+          style={{
+            fontSize: "0.78rem",
+            color: "var(--ink-soft)",
+            marginBottom: 16,
+          }}
+        >
+          {orNumber}
+        </p>
+
+        <div className="reg-detail-grid" style={{ marginBottom: 16 }}>
+          <div className="reg-detail-item">
+            <span className="reg-detail-label">Climb</span>
+            <strong>{reg.climbTitle}</strong>
+          </div>
+          <div className="reg-detail-item">
+            <span className="reg-detail-label">Participant</span>
+            <strong>{reg.name}</strong>
+          </div>
+        </div>
+
+        {items.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                color: "var(--ink-soft)",
+                marginBottom: 6,
+              }}
+            >
+              Fee Breakdown
+            </div>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "0.85rem",
+              }}
+            >
+              <tbody>
+                {items.map((e, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td style={{ padding: "6px 0" }}>{e.label}</td>
+                    <td
+                      style={{
+                        padding: "6px 0",
+                        textAlign: "right",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {e.amount || "TBA"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop: "2px solid var(--border)" }}>
+                  <td style={{ padding: "8px 0", fontWeight: 800 }}>Total</td>
+                  <td
+                    style={{
+                      padding: "8px 0",
+                      textAlign: "right",
+                      fontWeight: 900,
+                      color: "var(--green-dark)",
+                    }}
+                  >
+                    {totalDisplay}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        <div className="reg-detail-grid" style={{ marginBottom: 16 }}>
+          <div className="reg-detail-item">
+            <span className="reg-detail-label">Amount Paid</span>
+            <strong>
+              {reg.amountPaid
+                ? `₱${Number(reg.amountPaid).toLocaleString("en-PH")}`
+                : "—"}
+            </strong>
+          </div>
+          <div className="reg-detail-item">
+            <span className="reg-detail-label">Paid On</span>
+            <strong>{formatDateTime(reg.paymentSubmittedAt)}</strong>
+          </div>
+          <div className="reg-detail-item">
+            <span className="reg-detail-label">Confirmed On</span>
+            <strong>
+              {reg.paymentStatus === "verified"
+                ? formatDateTime(reg.verifiedAt)
+                : "—"}
+            </strong>
+          </div>
+          <div className="reg-detail-item">
+            <span className="reg-detail-label">Confirmed By</span>
+            <strong>
+              {reg.paymentStatus === "verified"
+                ? reg.verifiedBy?.name || "—"
+                : "—"}
+            </strong>
+          </div>
+        </div>
+
+        {reg.paymentProofs?.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                color: "var(--ink-soft)",
+                marginBottom: 6,
+              }}
+            >
+              Proof of Payment
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {reg.paymentProofs.map((proof, i) => (
+                <a
+                  key={i}
+                  href={proof.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "var(--green-dark)",
+                    textDecoration: "underline",
+                  }}
+                >
+                  {proof.fileName || `Receipt ${i + 1}`}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={onClose}
+          style={{ width: "100%" }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
+  const needsForm = climb?.requiresRegistrationForm && !reg.registrationFormUpload;
+  const needsCert = climb?.requiresMedicalCert && !reg.medicalCertUpload;
+
+  const [formFile, setFormFile] = useState(null);
+  const [certFile, setCertFile] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    if (needsForm && !formFile) {
+      setError("Please upload your filled-out registration form.");
+      return;
+    }
+    if (needsCert && !certFile) {
+      setError("Please upload your medical certificate.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const patch = {};
+      const timestamp = Date.now();
+      if (needsForm) {
+        const fileRef = storageRef(
+          storage,
+          `registration-form-uploads/${reg.climbId}/${reg.userId}/${timestamp}_${formFile.name}`,
+        );
+        await uploadBytes(fileRef, formFile);
+        const url = await getDownloadURL(fileRef);
+        patch.registrationFormUpload = { url, fileName: formFile.name };
+      }
+      if (needsCert) {
+        const fileRef = storageRef(
+          storage,
+          `medical-cert-uploads/${reg.climbId}/${reg.userId}/${timestamp}_${certFile.name}`,
+        );
+        await uploadBytes(fileRef, certFile);
+        const url = await getDownloadURL(fileRef);
+        patch.medicalCertUpload = { url, fileName: certFile.name };
+      }
+      await updateDoc(doc(db, "registrations", reg.id), patch);
+      onSaved();
+    } catch (err) {
+      setError("Failed to upload one of your files. Please try again.");
+      logFailedRequest({
+        type: "upload",
+        source: "MyRegistrations.jsx:DocumentPrompt",
+        message: err?.message,
+        path: window.location.pathname,
+        userId: currentUser?.uid,
+        climbId: reg.climbId,
+        registrationId: reg.id,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(0,0,0,0.6)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--surface)",
+          borderRadius: 12,
+          padding: 24,
+          maxWidth: 420,
+          width: "100%",
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+          Submit Required Documents
+        </h3>
+        <p
+          style={{
+            fontSize: "0.82rem",
+            color: "var(--ink-soft)",
+            marginBottom: 16,
+          }}
+        >
+          For <strong>{reg.climbTitle}</strong>
+        </p>
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          {needsForm && (
+            <div className="form-group">
+              <label className="form-label required">
+                Signed Registration Form
+              </label>
+              {climb?.registrationFormUrl && (
+                <div style={{ marginBottom: 8 }}>
+                  <a
+                    href={climb.registrationFormUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline btn-sm"
+                  >
+                    &#128196; Download Registration Form
+                  </a>
+                </div>
+              )}
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,image/*"
+                className="form-input"
+                onChange={(e) => setFormFile(e.target.files[0] || null)}
+              />
+              <div className="form-hint">
+                Download the form above, fill it out, then upload your copy
+                here.
+              </div>
+            </div>
+          )}
+
+          {needsCert && (
+            <div className="form-group">
+              <label className="form-label required">
+                Medical Certificate
+              </label>
+              {climb?.medicalCertSampleUrl && (
+                <div style={{ marginBottom: 8 }}>
+                  <a
+                    href={climb.medicalCertSampleUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline btn-sm"
+                  >
+                    &#128196; View Sample Medical Certificate
+                  </a>
+                </div>
+              )}
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,image/*"
+                className="form-input"
+                onChange={(e) => setCertFile(e.target.files[0] || null)}
+              />
+              <div className="form-hint">
+                Upload your own medical certificate from a licensed
+                physician.
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={onClose}
+              disabled={saving}
+              style={{ flex: 1 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              disabled={saving}
+              style={{ flex: 1 }}
+            >
+              {saving ? "Submitting…" : "Submit"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function OfficerCard({ climb, currentUser }) {
   const myEntry = (climb.officers || []).find(
     (o) => o.userId === currentUser.uid,
@@ -501,7 +1060,9 @@ function OfficerCard({ climb, currentUser }) {
   );
 }
 
-function RegCard({ reg, onPay }) {
+function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs }) {
+  const needsForm = climb?.requiresRegistrationForm && !reg.registrationFormUpload;
+  const needsCert = climb?.requiresMedicalCert && !reg.medicalCertUpload;
   return (
     <div className="reg-card" data-status={reg.status}>
       <div className="reg-card-header">
@@ -575,6 +1136,25 @@ function RegCard({ reg, onPay }) {
               Submit Payment
             </button>
           )}
+        {(reg.paymentStatus === "submitted" ||
+          reg.paymentStatus === "verified" ||
+          reg.paymentStatus === "rejected") && (
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={onViewReceipt}
+          >
+            View OR
+          </button>
+        )}
+        {reg.status !== "cancelled" && (needsForm || needsCert) && (
+          <button className="btn btn-accent btn-sm" onClick={onSubmitDocs}>
+            {needsForm && needsCert
+              ? "Submit Required Documents"
+              : needsForm
+                ? "Submit Registration Form"
+                : "Submit Medical Certificate"}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -587,6 +1167,8 @@ export default function MyRegistrations() {
   const [officerClimbs, setOfficerClimbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [payPromptReg, setPayPromptReg] = useState(null);
+  const [receiptReg, setReceiptReg] = useState(null);
+  const [docPromptReg, setDocPromptReg] = useState(null);
 
   useEffect(() => {
     const q = query(
@@ -788,7 +1370,10 @@ export default function MyRegistrations() {
                       <RegCard
                         key={reg.id}
                         reg={reg}
+                        climb={climbsMap[reg.climbId]}
                         onPay={() => setPayPromptReg(reg)}
+                        onViewReceipt={() => setReceiptReg(reg)}
+                        onSubmitDocs={() => setDocPromptReg(reg)}
                       />
                     ))}
                   </div>
@@ -804,7 +1389,10 @@ export default function MyRegistrations() {
                         <RegCard
                           key={reg.id}
                           reg={reg}
+                          climb={climbsMap[reg.climbId]}
                           onPay={() => setPayPromptReg(reg)}
+                          onViewReceipt={() => setReceiptReg(reg)}
+                          onSubmitDocs={() => setDocPromptReg(reg)}
                         />
                       ))}
                     </div>
@@ -861,6 +1449,20 @@ export default function MyRegistrations() {
           reg={payPromptReg}
           onClose={() => setPayPromptReg(null)}
           onSaved={() => setPayPromptReg(null)}
+        />
+      )}
+
+      {receiptReg && (
+        <ReceiptModal reg={receiptReg} onClose={() => setReceiptReg(null)} />
+      )}
+
+      {docPromptReg && (
+        <DocumentPrompt
+          reg={docPromptReg}
+          climb={climbsMap[docPromptReg.climbId]}
+          currentUser={currentUser}
+          onClose={() => setDocPromptReg(null)}
+          onSaved={() => setDocPromptReg(null)}
         />
       )}
 
