@@ -185,6 +185,65 @@ describe("onRegistrationCreated", () => {
     expect(global.fetch).toHaveBeenCalled();
   });
 
+  it("notifies about missing required documents on creation", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [],
+      requiresRegistrationForm: true,
+      requiresMedicalCert: true,
+    };
+    userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
+
+    await createdHandler({
+      data: {
+        data: () => ({
+          name: "Juan Cruz",
+          email: "juan@x.com",
+          climbId: "climb-1",
+          userId: "user-1",
+          paymentStatus: "unpaid",
+        }),
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(notifStore["regform_reg-1"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Registration form still needed",
+    });
+    expect(notifStore["medcert_reg-1"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Medical certificate still needed",
+    });
+  });
+
+  it("does not nag about documents that were already uploaded", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [],
+      requiresRegistrationForm: true,
+    };
+    userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
+
+    await createdHandler({
+      data: {
+        data: () => ({
+          name: "Juan Cruz",
+          email: "juan@x.com",
+          climbId: "climb-1",
+          userId: "user-1",
+          paymentStatus: "verified",
+          registrationFormUpload: { url: "https://x/form.pdf", fileName: "form.pdf" },
+        }),
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(notifStore["regform_reg-1"]).toBeUndefined();
+  });
+
   it("skips the confirmation email and payment reminder for admin-added walk-ins with no email/userId", async () => {
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
     userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
@@ -250,6 +309,44 @@ describe("onRegistrationUpdated", () => {
       read: false,
       type: "payment_reminder",
     });
+  });
+
+  it("notifies every admin when a member submits a payment", async () => {
+    userStore["admin-1"] = { role: "admin", email: "admin1@mms.ph" };
+    userStore["admin-2"] = { role: "admin", email: "admin2@mms.ph" };
+    userStore["user-1"] = { role: "member", email: "juan@x.com" };
+
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", paymentStatus: "unpaid", climbId: "climb-1", userId: "user-1" }) },
+        after: {
+          data: () => ({
+            status: "pending",
+            paymentStatus: "submitted",
+            climbId: "climb-1",
+            userId: "user-1",
+            climbTitle: "Mt. Pulag",
+            name: "Juan Cruz",
+            amountPaid: 500,
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(notifStore["submitted_reg-1_admin-1"]).toMatchObject({
+      userId: "admin-1",
+      type: "payment_submitted",
+      link: "/admin/payments",
+    });
+    expect(notifStore["submitted_reg-1_admin-2"]).toMatchObject({
+      userId: "admin-2",
+      type: "payment_submitted",
+    });
+    expect(notifStore["submitted_reg-1_admin-1"].message).toMatch(/Juan Cruz/);
+    expect(notifStore["submitted_reg-1_admin-1"].message).toMatch(/₱500/);
+    // The member's own reminder notification is not an admin notification.
+    expect(Object.values(notifStore).filter((n) => n.type === "payment_submitted")).toHaveLength(2);
   });
 
   it("does nothing when neither status nor paymentStatus changed", async () => {
@@ -341,6 +438,45 @@ describe("sendReminderNotifications", () => {
     });
     expect(Object.keys(notifStore)).not.toContain("upcoming3_reg-far");
     expect(Object.keys(notifStore)).not.toContain("upcoming1_reg-far");
+  });
+
+  it("nags registrants missing a required registration form or medical cert, but not those who already uploaded", async () => {
+    regStore["reg-missing"] = {
+      status: "pending",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+    };
+    regStore["reg-has-docs"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-2",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+      registrationFormUpload: { url: "https://x/form.pdf" },
+      medicalCertUpload: { url: "https://x/cert.pdf" },
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      requiresRegistrationForm: true,
+      requiresMedicalCert: true,
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["regform_reg-missing"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Registration form still needed",
+    });
+    expect(notifStore["medcert_reg-missing"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Medical certificate still needed",
+    });
+    expect(notifStore["regform_reg-has-docs"]).toBeUndefined();
+    expect(notifStore["medcert_reg-has-docs"]).toBeUndefined();
   });
 
   it("reminds confirmed climbers 7 days out, flagging unpaid registrants but not paid ones", async () => {
