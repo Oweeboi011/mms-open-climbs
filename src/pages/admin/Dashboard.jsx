@@ -80,6 +80,14 @@ const NAV_ICON_PATHS = {
       <line x1="7.5" y1="16" x2="13" y2="16" />
     </>
   ),
+  insights: (
+    <>
+      <path d="M4 19V10" />
+      <path d="M10 19V5" />
+      <path d="M16 19v-7" />
+      <path d="M4 19h16" />
+    </>
+  ),
 };
 
 const STATUS_LABEL = {
@@ -329,6 +337,13 @@ export default function AdminDashboard() {
               desc: "Site visits & event views",
               icon: "analytics",
               color: "#e74c3c",
+            },
+            {
+              to: "/admin/insights",
+              label: "App Insights",
+              desc: "Charts, health, email, storage & governance",
+              icon: "insights",
+              color: "#1a6b8a",
             },
             {
               to: "/admin/release-notes",

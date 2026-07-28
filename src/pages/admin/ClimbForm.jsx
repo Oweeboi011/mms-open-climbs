@@ -18,6 +18,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logAuditEvent } from "@/utils/auditLog";
 
 const OFFICER_ROLES = [
   "Senior Team Leader",
@@ -376,11 +377,27 @@ export default function AdminClimbForm() {
       payload.allTrailsUrl = form.trailMaps?.[0]?.allTrailsUrl || "";
       if (isEdit) {
         await updateDoc(doc(db, "climbs", id), payload);
+        logAuditEvent({
+          actorUid: currentUser?.uid,
+          actorName: currentUser?.displayName || currentUser?.email,
+          action: "climb_updated",
+          targetType: "climb",
+          targetId: id,
+          targetLabel: form.title,
+        });
       } else {
         payload.createdAt = serverTimestamp();
         payload.createdBy = currentUser.uid;
         payload.registrationCount = 0;
-        await addDoc(collection(db, "climbs"), payload);
+        const ref = await addDoc(collection(db, "climbs"), payload);
+        logAuditEvent({
+          actorUid: currentUser?.uid,
+          actorName: currentUser?.displayName || currentUser?.email,
+          action: "climb_created",
+          targetType: "climb",
+          targetId: ref.id,
+          targetLabel: form.title,
+        });
       }
       navigate("/admin/climbs");
     } catch (err) {

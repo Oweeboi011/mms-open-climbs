@@ -15,10 +15,13 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import EditRegistrationModal from "@/components/EditRegistrationModal";
 import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logAuditEvent } from "@/utils/auditLog";
 
 const EXPERIENCE_LABELS = {
   beginner: "Beginner",
@@ -376,6 +379,7 @@ function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
 
 export default function AdminClimbDetail() {
   const { id } = useParams();
+  const { currentUser } = useAuth();
 
   const [climb, setClimb] = useState(null);
   const [regs, setRegs] = useState([]);
@@ -388,6 +392,7 @@ export default function AdminClimbDetail() {
   const [savingNote, setSavingNote] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [addJoinerOpen, setAddJoinerOpen] = useState(false);
+  const [editingReg, setEditingReg] = useState(null);
 
   useEffect(() => {
     getDoc(doc(db, "climbs", id)).then((snap) => {
@@ -412,6 +417,16 @@ export default function AdminClimbDetail() {
       updatedAt: serverTimestamp(),
       ...(status === "confirmed" ? { confirmedAt: serverTimestamp() } : {}),
     });
+    const reg = regs.find((r) => r.id === regId);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `registration_status_${status}`,
+      targetType: "registration",
+      targetId: regId,
+      targetLabel: reg?.name || regId,
+      details: `Status set to "${status}" for ${climb?.title || "climb"}`,
+    });
   }
 
   async function changePaymentStatus(regId, paymentStatus) {
@@ -419,6 +434,74 @@ export default function AdminClimbDetail() {
       paymentStatus,
       updatedAt: serverTimestamp(),
     });
+    const reg = regs.find((r) => r.id === regId);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `payment_status_${paymentStatus}`,
+      targetType: "registration",
+      targetId: regId,
+      targetLabel: reg?.name || regId,
+      details: `Payment status set to "${paymentStatus}" for ${climb?.title || "climb"}`,
+    });
+  }
+
+  // Toggle a registrant's transportation selection (availing organized
+  // transport vs. arranging their own) directly from the registrants table.
+  // Falls back to the climb's fee schedule when the registrant's own
+  // feeBreakdown snapshot doesn't have a transportation line item yet, so
+  // the toggle shows for every registrant, not just those whose snapshot
+  // happens to include it.
+  async function toggleTransportation(reg) {
+    const breakdown = reg.feeBreakdown ? [...reg.feeBreakdown] : [];
+    let idx = breakdown.findIndex((f) => /transport/i.test(f.label));
+    if (idx === -1) {
+      const climbFee = (climb?.fees || []).find((f) =>
+        /transport/i.test(f.label),
+      );
+      if (!climbFee) return;
+      breakdown.push({
+        label: climbFee.label,
+        amount: climbFee.amount,
+        optional: true,
+        selected: false,
+      });
+      idx = breakdown.length - 1;
+    }
+    const updated = breakdown.map((f, i) =>
+      i === idx ? { ...f, selected: !f.selected } : f,
+    );
+    await updateDoc(doc(db, "registrations", reg.id), {
+      feeBreakdown: updated,
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "transportation_toggled",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: `Transportation set to ${!breakdown[idx].selected ? "availing" : "own transport"} for ${climb?.title || "climb"}`,
+    });
+  }
+
+  async function saveRegistrationEdit(regId, patch) {
+    await updateDoc(doc(db, "registrations", regId), {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    });
+    const reg = regs.find((r) => r.id === regId);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "registration_edited",
+      targetType: "registration",
+      targetId: regId,
+      targetLabel: reg?.name || regId,
+      details: `Edited registration for ${climb?.title || "climb"}`,
+    });
+    setEditingReg(null);
   }
 
   async function deleteRegistration(reg) {
@@ -430,6 +513,15 @@ export default function AdminClimbDetail() {
       return;
     await deleteDoc(doc(db, "registrations", reg.id));
     if (expandedId === reg.id) setExpandedId(null);
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "registration_deleted",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: `Deleted registration for ${climb?.title || "climb"}`,
+    });
   }
 
   function toggleExpand(regId) {
@@ -539,11 +631,35 @@ export default function AdminClimbDetail() {
           r.email?.toLowerCase().includes(q);
         const matchStatus = filterStatus === "all" || r.status === filterStatus;
         const matchPayment =
-          filterPayment === "all" || r.paymentStatus === filterPayment;
+          filterPayment === "all" ||
+          (filterPayment === "outstanding"
+            ? r.status !== "cancelled" && r.paymentStatus !== "verified"
+            : r.paymentStatus === filterPayment);
         return matchSearch && matchStatus && matchPayment;
       }),
     [regs, search, filterStatus, filterPayment],
   );
+
+  function getExpectedTotal(reg) {
+    const items = reg.feeBreakdown?.length
+      ? reg.feeBreakdown.filter((f) => f.selected)
+      : (climb?.fees || []).filter((f) => !f.optional);
+    let total = 0;
+    for (const item of items) {
+      const n = parseFloat(String(item.amount).replace(/[^0-9.]/g, ""));
+      if (!isNaN(n)) total += n;
+    }
+    return total;
+  }
+
+  // Remaining balance still to be settled: expected fee total minus
+  // whatever they've already paid. A rejected payment doesn't count toward
+  // what's been paid, since it wasn't accepted.
+  function getOutstanding(reg) {
+    const paidCounted =
+      reg.paymentStatus === "rejected" ? 0 : Number(reg.amountPaid) || 0;
+    return Math.max(getExpectedTotal(reg) - paidCounted, 0);
+  }
 
   const stats = useMemo(
     () => ({
@@ -554,8 +670,14 @@ export default function AdminClimbDetail() {
       cancelled: regs.filter((r) => r.status === "cancelled").length,
       awaitingPayment: regs.filter((r) => r.paymentStatus === "submitted")
         .length,
+      totalPaid: regs
+        .filter((r) => r.paymentStatus === "verified")
+        .reduce((s, r) => s + (Number(r.amountPaid) || 0), 0),
+      totalMissing: regs
+        .filter((r) => r.status !== "cancelled")
+        .reduce((s, r) => s + getOutstanding(r), 0),
     }),
-    [regs],
+    [regs, climb],
   );
 
   const statusStyleWithLabel = Object.fromEntries(
@@ -702,6 +824,18 @@ export default function AdminClimbDetail() {
               <div className="admin-stat-card gold">
                 <div className="admin-stat-num">{stats.awaitingPayment}</div>
                 <div className="admin-stat-label">Awaiting Payment Review</div>
+              </div>
+              <div className="admin-stat-card accent">
+                <div className="admin-stat-num">
+                  ₱{stats.totalPaid.toLocaleString("en-PH")}
+                </div>
+                <div className="admin-stat-label">Total Paid</div>
+              </div>
+              <div className="admin-stat-card danger">
+                <div className="admin-stat-num">
+                  ₱{stats.totalMissing.toLocaleString("en-PH")}
+                </div>
+                <div className="admin-stat-label">Total Outstanding</div>
               </div>
               {climb?.maxParticipants && (
                 <div className="admin-stat-card">
@@ -867,6 +1001,8 @@ export default function AdminClimbDetail() {
                 style={{ width: "auto" }}
               >
                 <option value="all">All Payments</option>
+                <option value="outstanding">Has Outstanding Balance</option>
+                <option value="unpaid">Unpaid</option>
                 <option value="submitted">Payment Submitted</option>
                 <option value="verified">Payment Verified</option>
                 <option value="rejected">Payment Rejected</option>
@@ -897,6 +1033,8 @@ export default function AdminClimbDetail() {
                       <th style={{ width: "1%" }}>Docs</th>
                     )}
                     <th style={{ width: "1%" }}>Payment</th>
+                    <th style={{ width: "1%" }}>Paid</th>
+                    <th style={{ width: "1%" }}>Outstanding</th>
                     <th style={{ width: "1%" }}>Status</th>
                     <th style={{ width: "1%" }}>Registered</th>
                     <th style={{ width: "1%" }}>Actions</th>
@@ -909,8 +1047,8 @@ export default function AdminClimbDetail() {
                         colSpan={
                           climb?.requiresRegistrationForm ||
                           climb?.requiresMedicalCert
-                            ? 9
-                            : 8
+                            ? 11
+                            : 10
                         }
                         style={{
                           textAlign: "center",
@@ -1070,6 +1208,35 @@ export default function AdminClimbDetail() {
                               </div>
                             )}
                           </td>
+                          <td
+                            style={{
+                              fontWeight: 700,
+                              fontSize: "0.85rem",
+                              whiteSpace: "nowrap",
+                              color: reg.amountPaid
+                                ? "var(--green-dark)"
+                                : "var(--ink-soft)",
+                            }}
+                          >
+                            {reg.amountPaid
+                              ? `₱${Number(reg.amountPaid).toLocaleString("en-PH")}`
+                              : "—"}
+                          </td>
+                          <td
+                            style={{
+                              fontWeight: 700,
+                              fontSize: "0.85rem",
+                              whiteSpace: "nowrap",
+                              color:
+                                getOutstanding(reg) === 0
+                                  ? "var(--ink-soft)"
+                                  : "#b91c1c",
+                            }}
+                          >
+                            {getOutstanding(reg) === 0
+                              ? "—"
+                              : `₱${getOutstanding(reg).toLocaleString("en-PH")}`}
+                          </td>
                           <td onClick={(e) => e.stopPropagation()}>
                             <select
                               className="form-select"
@@ -1119,8 +1286,8 @@ export default function AdminClimbDetail() {
                               colSpan={
                                 climb?.requiresRegistrationForm ||
                                 climb?.requiresMedicalCert
-                                  ? 9
-                                  : 8
+                                  ? 11
+                                  : 10
                               }
                               style={{
                                 background: "var(--surface)",
@@ -1153,6 +1320,16 @@ export default function AdminClimbDetail() {
                                   >
                                     Quick Actions:
                                   </span>
+                                  <button
+                                    className="btn btn-outline btn-sm"
+                                    title="Edit this registrant's details"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingReg(reg);
+                                    }}
+                                  >
+                                    &#9998; Edit
+                                  </button>
                                   <button
                                     className="btn btn-sm"
                                     style={{
@@ -1210,6 +1387,14 @@ export default function AdminClimbDetail() {
                                   }}
                                 >
                                   <InfoCell
+                                    label="Amount Paid"
+                                    value={
+                                      reg.amountPaid
+                                        ? `₱${Number(reg.amountPaid).toLocaleString("en-PH")}`
+                                        : null
+                                    }
+                                  />
+                                  <InfoCell
                                     label="Date of Birth"
                                     value={reg.dateOfBirth}
                                   />
@@ -1247,6 +1432,147 @@ export default function AdminClimbDetail() {
                                     }
                                   />
                                 </div>
+
+                                {/* Fee Breakdown */}
+                                {(() => {
+                                  const items = reg.feeBreakdown?.length
+                                    ? reg.feeBreakdown.filter((f) => f.selected)
+                                    : (climb?.fees || []).filter(
+                                        (f) => !f.optional,
+                                      );
+                                  if (items.length === 0) return null;
+                                  return (
+                                    <div style={{ marginBottom: 16 }}>
+                                      <div
+                                        style={{
+                                          fontSize: "0.68rem",
+                                          fontWeight: 700,
+                                          letterSpacing: 2,
+                                          textTransform: "uppercase",
+                                          color: "var(--ink-soft)",
+                                          marginBottom: 6,
+                                        }}
+                                      >
+                                        Fee Breakdown
+                                      </div>
+                                      <table
+                                        style={{
+                                          width: "100%",
+                                          maxWidth: 360,
+                                          borderCollapse: "collapse",
+                                          fontSize: "0.82rem",
+                                        }}
+                                      >
+                                        <tbody>
+                                          {items.map((item, i) => (
+                                            <tr
+                                              key={i}
+                                              style={{
+                                                borderBottom:
+                                                  "1px solid var(--border)",
+                                              }}
+                                            >
+                                              <td style={{ padding: "4px 0" }}>
+                                                {item.label}
+                                              </td>
+                                              <td
+                                                style={{
+                                                  padding: "4px 0",
+                                                  textAlign: "right",
+                                                  fontWeight: 600,
+                                                  whiteSpace: "nowrap",
+                                                }}
+                                              >
+                                                {item.amount || "TBA"}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                        <tfoot>
+                                          <tr
+                                            style={{
+                                              borderTop:
+                                                "2px solid var(--border)",
+                                            }}
+                                          >
+                                            <td
+                                              style={{
+                                                padding: "6px 0",
+                                                fontWeight: 800,
+                                              }}
+                                            >
+                                              Total
+                                            </td>
+                                            <td
+                                              style={{
+                                                padding: "6px 0",
+                                                textAlign: "right",
+                                                fontWeight: 900,
+                                                color: "var(--green-dark)",
+                                              }}
+                                            >
+                                              ₱
+                                              {getExpectedTotal(
+                                                reg,
+                                              ).toLocaleString("en-PH")}
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                  );
+                                })()}
+
+                                {/* Transportation */}
+                                {(() => {
+                                  const transpoIdx = (
+                                    reg.feeBreakdown || []
+                                  ).findIndex((f) => /transport/i.test(f.label));
+                                  const climbHasTranspoFee = (
+                                    climb?.fees || []
+                                  ).some((f) => /transport/i.test(f.label));
+                                  if (transpoIdx === -1 && !climbHasTranspoFee)
+                                    return null;
+                                  const availing =
+                                    transpoIdx !== -1
+                                      ? reg.feeBreakdown[transpoIdx].selected
+                                      : false;
+                                  return (
+                                    <div style={{ marginBottom: 16 }}>
+                                      <div
+                                        style={{
+                                          fontSize: "0.68rem",
+                                          fontWeight: 700,
+                                          letterSpacing: 2,
+                                          textTransform: "uppercase",
+                                          color: "var(--ink-soft)",
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        Transportation
+                                      </div>
+                                      <label
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                          cursor: "pointer",
+                                          fontSize: "0.85rem",
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={!!availing}
+                                          onChange={() => toggleTransportation(reg)}
+                                        />
+                                        {availing
+                                          ? "Availing organized transport"
+                                          : "Own transport"}
+                                      </label>
+                                    </div>
+                                  );
+                                })()}
 
                                 {/* Waiver section */}
                                 <div
@@ -1644,6 +1970,15 @@ export default function AdminClimbDetail() {
           </>
         )}
       </main>
+
+      {editingReg && (
+        <EditRegistrationModal
+          reg={editingReg}
+          onClose={() => setEditingReg(null)}
+          onSave={saveRegistrationEdit}
+        />
+      )}
+
       <Footer />
     </div>
   );
