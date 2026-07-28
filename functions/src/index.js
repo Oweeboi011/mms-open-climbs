@@ -396,6 +396,21 @@ exports.onRegistrationCreated = onDocumentCreated(
   },
 );
 
+// ── Helper: mark every admin's "payment submitted" notification read once a
+// submitted payment has actually been reviewed (verified or rejected) ────────
+async function clearAdminSubmittedNotifs(regId) {
+  const adminSnap = await db.collection("users").where("role", "==", "admin").get();
+  await Promise.all(
+    adminSnap.docs.map((d) =>
+      db
+        .collection("notifications")
+        .doc(`submitted_${regId}_${d.id}`)
+        .set({ read: true }, { merge: true })
+        .catch(() => {}),
+    ),
+  );
+}
+
 // ── Trigger: registration status changed → send status email ─────────────────
 exports.onRegistrationUpdated = onDocumentUpdated(
   {
@@ -417,6 +432,7 @@ exports.onRegistrationUpdated = onDocumentUpdated(
           .doc(reminderId)
           .set({ read: true }, { merge: true })
           .catch(() => {});
+        await clearAdminSubmittedNotifs(regId);
         await createNotification({
           userId: after.userId,
           type: "payment_verified",
@@ -425,11 +441,23 @@ exports.onRegistrationUpdated = onDocumentUpdated(
           link: "/my-registrations",
         });
       } else if (after.paymentStatus === "rejected") {
+        await clearAdminSubmittedNotifs(regId);
         await createNotification({
           userId: after.userId,
           type: "payment_reminder",
           title: "Payment rejected",
           message: `Your payment proof for ${after.climbTitle || "your climb"} was rejected${after.adminNotes ? `: ${after.adminNotes}` : ""}. Please resubmit from My Climbs.`,
+          link: "/my-registrations",
+          id: reminderId,
+        });
+      } else if (after.paymentStatus === "unpaid") {
+        // An admin reset a submitted/verified payment back to unpaid.
+        await clearAdminSubmittedNotifs(regId);
+        await createNotification({
+          userId: after.userId,
+          type: "payment_reminder",
+          title: "Payment status reset",
+          message: `Your payment for ${after.climbTitle || "your climb"} was reset to unpaid. Please resubmit your GCash proof from My Climbs.`,
           link: "/my-registrations",
           id: reminderId,
         });
@@ -581,6 +609,96 @@ exports.onRegistrationUpdated = onDocumentUpdated(
         userId: after.userId,
         climbId: after.climbId,
         registrationId: regId,
+      });
+    }
+  },
+);
+
+// ── Trigger: new climb announcement → notify all active registrants ──────────
+exports.onClimbUpdated = onDocumentUpdated(
+  {
+    document: "climbs/{climbId}",
+    database: "openclimbs",
+  },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const climbId = event.params.climbId;
+
+    const beforeAnnouncements = before.announcements || [];
+    const afterAnnouncements = after.announcements || [];
+    const newAnnouncements = afterAnnouncements.filter(
+      (a) => !beforeAnnouncements.some((b) => b.createdAt === a.createdAt),
+    );
+
+    // A requirement was switched off → clear any outstanding nag
+    // notifications for it instead of leaving them stuck unread forever.
+    const formTurnedOff =
+      before.requiresRegistrationForm && !after.requiresRegistrationForm;
+    const certTurnedOff =
+      before.requiresMedicalCert && !after.requiresMedicalCert;
+
+    if (newAnnouncements.length === 0 && !formTurnedOff && !certTurnedOff) {
+      return;
+    }
+
+    try {
+      const regsSnap = await db
+        .collection("registrations")
+        .where("climbId", "==", climbId)
+        .get();
+      const activeRegs = regsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((r) => r.userId && r.status !== "cancelled");
+
+      if (formTurnedOff || certTurnedOff) {
+        await Promise.all(
+          activeRegs.map(async (r) => {
+            if (formTurnedOff) {
+              await db
+                .collection("notifications")
+                .doc(`regform_${r.id}`)
+                .set({ read: true }, { merge: true })
+                .catch(() => {});
+            }
+            if (certTurnedOff) {
+              await db
+                .collection("notifications")
+                .doc(`medcert_${r.id}`)
+                .set({ read: true }, { merge: true })
+                .catch(() => {});
+            }
+          }),
+        );
+      }
+
+      if (newAnnouncements.length > 0) {
+        const recipientIds = [...new Set(activeRegs.map((r) => r.userId))];
+        for (const note of newAnnouncements) {
+          const title = note.pinned
+            ? `New reminder — ${after.title || "your climb"}`
+            : `New announcement — ${after.title || "your climb"}`;
+          await Promise.all(
+            recipientIds.map((userId) =>
+              createNotification({
+                userId,
+                type: "climb_announcement",
+                title,
+                message: note.message,
+                link: `/event/${climbId}`,
+                id: `announcement_${climbId}_${note.createdAt}_${userId}`,
+              }),
+            ),
+          );
+        }
+      }
+    } catch (err) {
+      logger.error("[onClimbUpdated] Failed", { err: err.message });
+      await logFailedRequest({
+        type: "firestore",
+        source: "onClimbUpdated",
+        message: err.message,
+        climbId,
       });
     }
   },

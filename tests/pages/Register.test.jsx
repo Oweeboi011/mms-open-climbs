@@ -66,6 +66,33 @@ describe("Register page", () => {
         expect(screen.getByText(/agree to the waiver/i)).toBeInTheDocument(),
       );
     });
+
+    it("lists every missing required field at once, not just the first one", async () => {
+      render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+
+      // fireEvent.submit bypasses jsdom's HTML5 required-field validation
+      fireEvent.submit(
+        screen
+          .getByRole("button", { name: /Submit Registration/i })
+          .closest("form"),
+      );
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Please complete the following before submitting:"),
+        ).toBeInTheDocument(),
+      );
+      const missingItems = screen
+        .getAllByRole("listitem")
+        .map((li) => li.textContent);
+      expect(missingItems).toContain("Mobile Number");
+      expect(missingItems).toContain("Emergency Contact Name");
+      expect(missingItems).toContain("Emergency Contact Mobile");
+      expect(missingItems).toContain("Digital Signature");
+    });
   });
 
   describe("when the climb is closed", () => {
