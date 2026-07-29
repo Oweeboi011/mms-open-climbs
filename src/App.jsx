@@ -2,7 +2,6 @@ import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import WelcomeModal from "@/components/WelcomeModal";
-import ReleaseNotesNotice from "@/components/ReleaseNotesNotice";
 import { GuideProvider } from "@/contexts/GuideContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
 
@@ -38,7 +37,6 @@ export default function App() {
   return (
     <GuideProvider>
       <WelcomeModal />
-      <ReleaseNotesNotice />
       <Routes>
         {/* Public */}
         <Route path="/" element={<Schedule />} />
