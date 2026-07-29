@@ -1,13 +1,12 @@
-import { getExpectedTotal } from "@/utils/registrationFees";
+import { getExpectedTotal, getFeeItems } from "@/utils/registrationFees";
 
-// Read-only itemized fee table for admin review — shows a registrant's
-// selected fees (or the climb's required fees, if their own snapshot is
-// empty) plus a total. Shared by ClimbDetail, ManagePayments, and
-// AllRegistrations so payment review looks the same everywhere.
+// Read-only itemized fee table for admin review — shows a registrant's fee
+// items at their current climb amounts (see registrationFees.js for how
+// that reconciles with what they selected) plus a total. Shared by
+// ClimbDetail, ManagePayments, and AllRegistrations so payment review looks
+// the same everywhere.
 export default function FeeBreakdownTable({ reg, climb, title = "Fee Breakdown", maxWidth = 360 }) {
-  const items = reg.feeBreakdown?.length
-    ? reg.feeBreakdown.filter((f) => f.selected)
-    : (climb?.fees || []).filter((f) => !f.optional);
+  const items = getFeeItems(reg, climb);
 
   if (items.length === 0) {
     return (
