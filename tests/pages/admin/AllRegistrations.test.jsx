@@ -107,6 +107,64 @@ describe("Admin AllRegistrations", () => {
     expect(patch.feeBreakdown[0].selected).toBe(true);
   });
 
+  it("shows each registrant's outstanding balance in the table", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: {
+            ...climbFixture,
+            fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+          },
+        },
+      ]),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: registrationFixture.id,
+            data: { ...registrationFixture, paymentStatus: "unpaid", amountPaid: null },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
+    expect(screen.getByText("₱500")).toBeInTheDocument();
+  });
+
+  it("shows the fee breakdown for a registrant when expanded", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: registrationFixture.id,
+            data: {
+              ...registrationFixture,
+              feeBreakdown: [
+                { label: "Registration Fee", amount: "500", optional: false, selected: true },
+              ],
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() => expect(screen.getByText("Fee Breakdown")).toBeInTheDocument());
+    expect(screen.getByText("Registration Fee")).toBeInTheDocument();
+  });
+
   it("shows missing required documents for the registrant's climb", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([
