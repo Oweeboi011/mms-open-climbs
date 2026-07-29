@@ -794,4 +794,74 @@ describe("sendReminderNotifications", () => {
     await scheduleHandler({});
     expect(Object.keys(notifStore)).toHaveLength(0);
   });
+
+  it("notifies officers (bell + email) when their climb has unpaid or missing-doc registrants", async () => {
+    regStore["reg-1"] = {
+      status: "pending",
+      paymentStatus: "unpaid",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+    };
+    regStore["reg-2"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-2",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+      registrationFormUpload: null,
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      requiresRegistrationForm: true,
+      officers: [
+        { name: "Officer One", email: "officer1@mms.ph", userId: "officer-1" },
+        { name: "Officer Two", email: "officer2@mms.ph" },
+      ],
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["officer_outstanding_climb-1_officer-1"]).toMatchObject({
+      userId: "officer-1",
+      type: "officer_outstanding_summary",
+      link: "/admin/climbs/climb-1",
+    });
+    expect(notifStore["officer_outstanding_climb-1_officer-1"].message).toMatch(
+      /1 unpaid\/rejected registrant/,
+    );
+    // Both registrants lack a registrationFormUpload, so both count as
+    // missing the required document (not just reg-2, which sets it null
+    // explicitly — reg-1 simply never had the field at all).
+    expect(notifStore["officer_outstanding_climb-1_officer-1"].message).toMatch(
+      /2 missing required documents/,
+    );
+
+    // Both officers get an email (even the one without a linked userId).
+    const emailCalls = global.fetch.mock.calls.filter(([, opts]) => {
+      const body = JSON.parse(opts.body);
+      return body.subject?.includes("Outstanding Registrant Items");
+    });
+    expect(emailCalls).toHaveLength(2);
+  });
+
+  it("does not notify officers when their climb has no outstanding items", async () => {
+    regStore["reg-1"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [{ name: "Officer One", email: "officer1@mms.ph", userId: "officer-1" }],
+    };
+
+    await scheduleHandler({});
+
+    expect(
+      Object.values(notifStore).some((n) => n.type === "officer_outstanding_summary"),
+    ).toBe(false);
+  });
 });

@@ -23,6 +23,30 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import WaiverText from "@/components/WaiverText";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 
+// Shared by the on-page Fee Breakdown card and the pre-submit confirmation
+// modal, so both always agree on the total.
+function computeExpectedTotal(climb, form, optionalFeeSelections) {
+  const isJoiner = form.memberType === "joiner";
+  const required = (climb.fees || []).filter((e) => {
+    if (e.isGuestFee) return isJoiner;
+    return !e.optional;
+  });
+  const optional = (climb.fees || []).filter((e) => {
+    if (e.isGuestFee) return false;
+    return !!e.optional;
+  });
+  let total = 0;
+  let hasTba = false;
+  [...required, ...optional.filter((e) => optionalFeeSelections[e.label])].forEach(
+    (e) => {
+      const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
+      if (!isNaN(n)) total += n;
+      else hasTba = true;
+    },
+  );
+  return { total, hasTba };
+}
+
 const INITIAL_FORM = {
   fullName: "",
   mobile: "",
@@ -59,6 +83,7 @@ export default function Register() {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [registrationFormFile, setRegistrationFormFile] = useState(null);
   const [medicalCertFile, setMedicalCertFile] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -127,18 +152,26 @@ export default function Register() {
     return { missing, parsedAmount };
   }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setMissingFields([]);
 
-    const { missing, parsedAmount } = validate();
+    const { missing } = validate();
     if (missing.length > 0) {
       setMissingFields(missing);
       setError("Please complete the following before submitting:");
       return;
     }
 
+    // Show a confirmation modal recapping the climb and what will happen —
+    // pay now vs. settle later — before actually creating the registration.
+    setShowConfirm(true);
+  }
+
+  async function doSubmit() {
+    setShowConfirm(false);
+    const { parsedAmount } = validate();
     setSubmitting(true);
     let paymentProofs = [];
     let registrationFormUpload = null;
@@ -744,16 +777,11 @@ export default function Register() {
                 if (e.isGuestFee) return false;
                 return !!e.optional;
               });
-              let expectedTotal = 0;
-              let hasTba = false;
-              [
-                ...required,
-                ...optional.filter((e) => optionalFeeSelections[e.label]),
-              ].forEach((e) => {
-                const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
-                if (!isNaN(n)) expectedTotal += n;
-                else hasTba = true;
-              });
+              const { total: expectedTotal, hasTba } = computeExpectedTotal(
+                climb,
+                form,
+                optionalFeeSelections,
+              );
               const totalDisplay = hasTba
                 ? `₱${expectedTotal.toLocaleString("en-PH")} + TBA`
                 : `₱${expectedTotal.toLocaleString("en-PH")}`;
@@ -1340,6 +1368,143 @@ export default function Register() {
       </div>
 
       <Footer />
+
+      {/* Pre-submit confirmation */}
+      {showConfirm &&
+        (() => {
+          const { total, hasTba } = computeExpectedTotal(
+            climb,
+            form,
+            optionalFeeSelections,
+          );
+          const totalDisplay = hasTba
+            ? `₱${total.toLocaleString("en-PH")} + TBA`
+            : `₱${total.toLocaleString("en-PH")}`;
+          const isPayingNow = paymentFiles.length > 0;
+          return (
+            <div
+              onClick={() => setShowConfirm(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1100,
+                background: "rgba(0,0,0,0.6)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 20,
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "var(--surface)",
+                  borderRadius: 12,
+                  padding: 24,
+                  maxWidth: 420,
+                  width: "100%",
+                }}
+              >
+                <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+                  Confirm Registration
+                </h3>
+                <p
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--ink-soft)",
+                    marginBottom: 16,
+                  }}
+                >
+                  For <strong>{climb.title}</strong>
+                  {climb.dateLabel ? ` — ${climb.dateLabel}` : ""}
+                </p>
+
+                {climb.fees?.length > 0 && (
+                  <div
+                    style={{
+                      background: "var(--surface-alt)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      padding: "12px 14px",
+                      marginBottom: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}
+                    >
+                      <span>Total Fees</span>
+                      <span style={{ color: "var(--green-dark)" }}>
+                        {totalDisplay}
+                      </span>
+                    </div>
+                    {isPayingNow ? (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "0.82rem",
+                          color: "var(--ink-soft)",
+                        }}
+                      >
+                        You're submitting <strong>₱{Number(amountPaid).toLocaleString("en-PH")}</strong> via
+                        GCash now. Your registration will be marked{" "}
+                        <strong>Payment Submitted</strong> and reviewed by a
+                        climb officer.
+                      </p>
+                    ) : (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "0.82rem",
+                          color: "var(--ink-soft)",
+                        }}
+                      >
+                        You haven't submitted payment yet. Your registration
+                        will be marked <strong>Unpaid</strong> — you'll still
+                        need to settle <strong>{totalDisplay}</strong> later
+                        from <strong>My Climbs</strong>.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <p
+                  style={{
+                    fontSize: "0.82rem",
+                    color: "var(--ink-soft)",
+                    marginBottom: 16,
+                  }}
+                >
+                  Your registration will be <strong>pending confirmation</strong>{" "}
+                  by a climb officer either way. Ready to submit?
+                </p>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setShowConfirm(false)}
+                    style={{ flex: 1 }}
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={doSubmit}
+                    style={{ flex: 1 }}
+                  >
+                    Confirm &amp; Submit
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* GCash QR Modal */}
       {qrModalOpen && (
