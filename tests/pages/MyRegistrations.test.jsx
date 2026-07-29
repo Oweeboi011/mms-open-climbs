@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { onSnapshot, getDocs, getDoc } from "firebase/firestore";
+import { onSnapshot, getDocs, getDoc, updateDoc } from "firebase/firestore";
 import MyRegistrations from "@/pages/MyRegistrations";
 import {
   renderWithProviders,
@@ -125,6 +125,56 @@ describe("MyRegistrations page", () => {
 
     fireEvent.click(screen.getByRole("checkbox"));
     await waitFor(() => expect(screen.getByText("₱800")).toBeInTheDocument());
+  });
+
+  it("shows a confirmation modal before submitting payment, and only writes after confirming", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+      }),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: registrationFixture.id,
+            data: { ...registrationFixture, paymentStatus: "unpaid" },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Submit Payment/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Fee Breakdown")).toBeInTheDocument(),
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = new File(["receipt"], "receipt.jpg", { type: "image/jpeg" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    const amountInput = document.querySelector('input[type="number"]');
+    fireEvent.change(amountInput, { target: { value: "500" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Submit$/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Confirm Payment")).toBeInTheDocument(),
+    );
+    expect(updateDoc).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirm & Submit/i }));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.paymentStatus)?.[1];
+    expect(patch.paymentStatus).toBe("submitted");
   });
 
   it("lets a joiner add fees on an already-verified payment", async () => {
