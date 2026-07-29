@@ -17,7 +17,12 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EditRegistrationModal from "@/components/EditRegistrationModal";
+import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { logAuditEvent } from "@/utils/auditLog";
+import {
+  getOutstanding,
+  toggleTransportationEntry,
+} from "@/utils/registrationFees";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 const STATUS_CLASS = {
@@ -144,24 +149,9 @@ export default function AllRegistrations() {
   // whose snapshot happens to include it.
   async function toggleTransportation(reg) {
     const climb = climbs.find((c) => c.id === reg.climbId);
-    const breakdown = reg.feeBreakdown ? [...reg.feeBreakdown] : [];
-    let idx = breakdown.findIndex((f) => /transport/i.test(f.label));
-    if (idx === -1) {
-      const climbFee = (climb?.fees || []).find((f) =>
-        /transport/i.test(f.label),
-      );
-      if (!climbFee) return;
-      breakdown.push({
-        label: climbFee.label,
-        amount: climbFee.amount,
-        optional: true,
-        selected: false,
-      });
-      idx = breakdown.length - 1;
-    }
-    const updated = breakdown.map((f, i) =>
-      i === idx ? { ...f, selected: !f.selected } : f,
-    );
+    const updated = toggleTransportationEntry(reg, climb);
+    if (!updated) return;
+    const nowSelected = updated.find((f) => /transport/i.test(f.label))?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -173,7 +163,7 @@ export default function AllRegistrations() {
       targetType: "registration",
       targetId: reg.id,
       targetLabel: reg.name || reg.id,
-      details: `Transportation set to ${!breakdown[idx].selected ? "availing" : "own transport"}`,
+      details: `Transportation set to ${nowSelected ? "availing" : "own transport"}`,
     });
   }
 
@@ -443,6 +433,7 @@ export default function AllRegistrations() {
                     <th>Participant</th>
                     <th>Climb</th>
                     <th style={{ width: "1%" }}>Payment</th>
+                    <th style={{ width: "1%" }}>Outstanding</th>
                     <th style={{ width: "1%" }}>Status</th>
                     <th style={{ width: "1%" }}>Registered</th>
                     <th style={{ width: "1%" }}>Actions</th>
@@ -452,7 +443,7 @@ export default function AllRegistrations() {
                   {filtered.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         style={{
                           textAlign: "center",
                           color: "var(--ink-soft)",
@@ -551,6 +542,21 @@ export default function AllRegistrations() {
                               </span>
                             )}
                           </td>
+                          <td
+                            style={{
+                              fontWeight: 700,
+                              fontSize: "0.85rem",
+                              whiteSpace: "nowrap",
+                              color:
+                                getOutstanding(reg, climbById[reg.climbId]) === 0
+                                  ? "var(--ink-soft)"
+                                  : "#b91c1c",
+                            }}
+                          >
+                            {getOutstanding(reg, climbById[reg.climbId]) === 0
+                              ? "—"
+                              : `₱${getOutstanding(reg, climbById[reg.climbId]).toLocaleString("en-PH")}`}
+                          </td>
                           <td onClick={(e) => e.stopPropagation()}>
                             <select
                               className="form-select"
@@ -619,7 +625,7 @@ export default function AllRegistrations() {
                         {expandedId === reg.id && (
                           <tr key={`${reg.id}-detail`}>
                             <td
-                              colSpan={7}
+                              colSpan={8}
                               style={{
                                 background: "var(--surface)",
                                 padding: "16px 20px",
@@ -686,6 +692,14 @@ export default function AllRegistrations() {
                                     value={reg.adminNotes}
                                   />
                                 )}
+                              </div>
+
+                              {/* Fee Breakdown */}
+                              <div style={{ marginBottom: 16 }}>
+                                <FeeBreakdownTable
+                                  reg={reg}
+                                  climb={climbById[reg.climbId]}
+                                />
                               </div>
 
                               {/* Transportation + required documents */}
