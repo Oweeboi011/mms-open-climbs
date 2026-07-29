@@ -38,6 +38,28 @@ const PAYMENT_LABEL = {
   rejected: "Payment Rejected",
 };
 
+// Shared by the on-page Fee Breakdown card and the pre-submit confirmation
+// modal, so both always agree on the total.
+function computeSelectedTotal(climb, reg, selections) {
+  const hasClimbFees = climb?.fees?.length > 0;
+  const required = hasClimbFees
+    ? climb.fees.filter((e) => !e.optional)
+    : (reg.feeBreakdown || []).filter((e) => !e.optional && e.selected);
+  const optional = hasClimbFees ? climb.fees.filter((e) => e.optional) : [];
+  let total = 0;
+  let hasTba = false;
+  const addAmount = (amt) => {
+    const n = parseFloat(String(amt).replace(/[^0-9.]/g, ""));
+    if (!isNaN(n)) total += n;
+    else hasTba = true;
+  };
+  required.forEach((e) => addAmount(e.amount));
+  optional.forEach((e) => {
+    if (selections[e.label]) addAmount(e.amount);
+  });
+  return { total, hasTba };
+}
+
 function PayPrompt({ reg, onClose, onSaved }) {
   const [files, setFiles] = useState([]);
   const [amount, setAmount] = useState("");
@@ -45,6 +67,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
   const [error, setError] = useState("");
   const [climb, setClimb] = useState(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   // Live selections for optional fees (transportation, guest fee, shirt,
   // etc.) so members can flip them on/off at payment time and see the total
   // update immediately, instead of being stuck with whatever was picked at
@@ -94,7 +117,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
     setSelections((p) => ({ ...p, [label]: !p[label] }));
   }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     setError("");
     if (files.length === 0) {
@@ -106,6 +129,13 @@ function PayPrompt({ reg, onClose, onSaved }) {
       setError("Please enter the exact amount you paid via GCash.");
       return;
     }
+    // Recap the climb and what happens next before actually writing anything.
+    setShowConfirm(true);
+  }
+
+  async function doSubmit() {
+    setShowConfirm(false);
+    const parsedAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
     setSaving(true);
     try {
       const timestamp = Date.now();
@@ -260,17 +290,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
             const optional = hasClimbFees
               ? climb.fees.filter((e) => e.optional)
               : [];
-            let total = 0;
-            let hasTba = false;
-            const addAmount = (amt) => {
-              const n = parseFloat(String(amt).replace(/[^0-9.]/g, ""));
-              if (!isNaN(n)) total += n;
-              else hasTba = true;
-            };
-            required.forEach((e) => addAmount(e.amount));
-            optional.forEach((e) => {
-              if (selections[e.label]) addAmount(e.amount);
-            });
+            const { total, hasTba } = computeSelectedTotal(climb, reg, selections);
             const totalDisplay = hasTba
               ? `₱${total.toLocaleString("en-PH")} + TBA`
               : `₱${total.toLocaleString("en-PH")}`;
@@ -577,6 +597,112 @@ function PayPrompt({ reg, onClose, onSaved }) {
           </div>
         </form>
       </div>
+
+      {showConfirm &&
+        (() => {
+          const { total, hasTba } = computeSelectedTotal(climb, reg, selections);
+          const totalDisplay = hasTba
+            ? `₱${total.toLocaleString("en-PH")} + TBA`
+            : `₱${total.toLocaleString("en-PH")}`;
+          const parsedAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
+          return (
+            <div
+              onClick={() => setShowConfirm(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1100,
+                background: "rgba(0,0,0,0.6)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 20,
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "var(--surface)",
+                  borderRadius: 12,
+                  padding: 24,
+                  maxWidth: 420,
+                  width: "100%",
+                }}
+              >
+                <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+                  Confirm Payment
+                </h3>
+                <p
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--ink-soft)",
+                    marginBottom: 16,
+                  }}
+                >
+                  For <strong>{reg.climbTitle}</strong>
+                </p>
+
+                <div
+                  style={{
+                    background: "var(--surface-alt)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    padding: "12px 14px",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontWeight: 700,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span>Total Fees Selected</span>
+                    <span style={{ color: "var(--green-dark)" }}>
+                      {totalDisplay}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "0.82rem",
+                      color: "var(--ink-soft)",
+                    }}
+                  >
+                    You're submitting{" "}
+                    <strong>
+                      ₱{isNaN(parsedAmount) ? 0 : parsedAmount.toLocaleString("en-PH")}
+                    </strong>{" "}
+                    via GCash. Your payment status will be set to{" "}
+                    <strong>Awaiting Review</strong> until a climb officer
+                    verifies it.
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setShowConfirm(false)}
+                    style={{ flex: 1 }}
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={doSubmit}
+                    style={{ flex: 1 }}
+                  >
+                    Confirm &amp; Submit
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {qrModalOpen && (
         <div

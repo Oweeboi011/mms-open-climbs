@@ -197,6 +197,35 @@ function tplThankYou({ name, climbTitle, appUrl }) {
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">Stay safe, and see you on the trail!</p>`);
 }
 
+function tplOfficerOutstandingSummary({
+  officerName,
+  climbTitle,
+  unpaidCount,
+  missingDocsCount,
+  climbUrl,
+}) {
+  const lines = [];
+  if (unpaidCount > 0) {
+    lines.push(
+      `<li style="margin-bottom:6px;"><strong>${unpaidCount}</strong> registrant${unpaidCount === 1 ? "" : "s"} with an unpaid or rejected payment.</li>`,
+    );
+  }
+  if (missingDocsCount > 0) {
+    lines.push(
+      `<li style="margin-bottom:6px;"><strong>${missingDocsCount}</strong> registrant${missingDocsCount === 1 ? "" : "s"} missing a required document.</li>`,
+    );
+  }
+  return tplBase(`
+    <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Outstanding items for ${climbTitle}</h2>
+    <p style="color:#4a4a4a;font-size:15px;">Hi <strong>${officerName}</strong>,</p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">As a team leader/officer for this climb, here's what still needs attention:</p>
+    <ul style="color:#4a4a4a;font-size:14px;line-height:1.6;padding-left:20px;">${lines.join("")}</ul>
+    <p style="margin:24px 0;">
+      <a href="${climbUrl}" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">Review Registrants</a>
+    </p>
+    <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">You'll get this reminder daily until it's resolved.</p>`);
+}
+
 // ── Helper: get officer emails and admin CC list for a climb ─────────────────
 async function getNotifyLists(climb) {
   // Officer emails stored directly on climb.officers[].email
@@ -801,6 +830,79 @@ exports.sendReminderNotifications = onSchedule(
       }
     }
 
+    // ── Officer/team-leader summary: unpaid & missing-doc registrants ──────
+    // Reminds each officer (bell + email) once per climb per day, as long as
+    // that climb still has outstanding items. Re-surfaces daily like the
+    // member-facing reminders above, until resolved.
+    const appUrlForOfficers = process.env.APP_URL || "https://mms-open-climbs.web.app";
+    let officerSummariesSent = 0;
+
+    for (const climbId of climbIds) {
+      const climb = climbs[climbId];
+      if (!climb?.officers?.length) continue;
+
+      const climbRegs = regs.filter((r) => r.climbId === climbId);
+      const unpaidCount = climbRegs.filter(
+        (r) => r.paymentStatus === "unpaid" || r.paymentStatus === "rejected",
+      ).length;
+      const missingDocsCount = climbRegs.filter(
+        (r) =>
+          (climb.requiresRegistrationForm && !r.registrationFormUpload) ||
+          (climb.requiresMedicalCert && !r.medicalCertUpload),
+      ).length;
+      if (unpaidCount === 0 && missingDocsCount === 0) continue;
+
+      const climbUrl = `${appUrlForOfficers}/admin/climbs/${climbId}`;
+      const summaryParts = [];
+      if (unpaidCount > 0) {
+        summaryParts.push(
+          `${unpaidCount} unpaid/rejected registrant${unpaidCount === 1 ? "" : "s"}`,
+        );
+      }
+      if (missingDocsCount > 0) {
+        summaryParts.push(
+          `${missingDocsCount} missing required document${missingDocsCount === 1 ? "" : "s"}`,
+        );
+      }
+      const summaryMessage = `${climb.title || "Your climb"}: ${summaryParts.join(", ")}.`;
+
+      for (const officer of climb.officers) {
+        if (officer.userId) {
+          await createNotification({
+            userId: officer.userId,
+            type: "officer_outstanding_summary",
+            title: "Outstanding registrant items",
+            message: summaryMessage,
+            link: `/admin/climbs/${climbId}`,
+            id: `officer_outstanding_${climbId}_${officer.userId}`,
+          });
+        }
+        if (officer.email) {
+          try {
+            await sendEmail({
+              to: officer.email,
+              toName: officer.name || "",
+              subject: `[Action Needed] ${climb.title || "Climb"} — Outstanding Registrant Items`,
+              html: tplOfficerOutstandingSummary({
+                officerName: officer.name || "there",
+                climbTitle: climb.title || "your climb",
+                unpaidCount,
+                missingDocsCount,
+                climbUrl,
+              }),
+            });
+          } catch (err) {
+            logger.error("[sendReminderNotifications] Officer summary email failed", {
+              climbId,
+              email: officer.email,
+              err: err.message,
+            });
+          }
+        }
+      }
+      officerSummariesSent++;
+    }
+
     // Thank-you email for climbs that have finished — sent once per climb.
     const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
     let thankYouEmails = 0;
@@ -846,6 +948,7 @@ exports.sendReminderNotifications = onSchedule(
       paymentReminders,
       upcomingReminders,
       thankYouEmails,
+      officerSummariesSent,
     });
   },
 );
