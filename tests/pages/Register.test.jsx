@@ -5,8 +5,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderAtRoute, makeMemberAuth, climbFixture } from "@tests/helpers";
 import Register from "@/pages/Register";
-import { getDoc, getDocs } from "firebase/firestore";
+import { getDoc, getDocs, addDoc } from "firebase/firestore";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
+
+function controlByLabel(container, labelText) {
+  const label = Array.from(container.querySelectorAll("label")).find((l) =>
+    l.textContent.trim().startsWith(labelText),
+  );
+  return label.closest(".form-group")?.querySelector("input,select,textarea");
+}
 
 function render(authOverrides = {}) {
   return renderAtRoute(
@@ -92,6 +99,42 @@ describe("Register page", () => {
       expect(missingItems).toContain("Emergency Contact Name");
       expect(missingItems).toContain("Emergency Contact Mobile");
       expect(missingItems).toContain("Digital Signature");
+    });
+
+    it("shows a confirmation modal before submitting, and only registers after confirming", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+
+      fireEvent.change(controlByLabel(container, "Mobile Number"), {
+        target: { value: "09171234567" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Name"), {
+        target: { value: "Maria Cruz" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Mobile"), {
+        target: { value: "09179876543" },
+      });
+      fireEvent.change(controlByLabel(container, "Relationship"), {
+        target: { value: "Mother" },
+      });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.change(
+        screen.getByPlaceholderText("Type your complete legal name"),
+        { target: { value: "Juan Cruz" } },
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+
+      await waitFor(() =>
+        expect(screen.getByText("Confirm Registration")).toBeInTheDocument(),
+      );
+      expect(addDoc).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: /Confirm & Submit/i }));
+
+      await waitFor(() => expect(addDoc).toHaveBeenCalled());
     });
   });
 
