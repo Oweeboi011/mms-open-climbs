@@ -909,13 +909,13 @@ textarea {
   background: var(--green-mid);
 }
 .section-header .icon {
-  font-size: 1.1rem;
+  font-size: 1.4rem;
 }
 .section-header h3 {
   font-family: var(--font-head);
-  font-size: 0.72rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   text-transform: uppercase;
 }
 .section-body {
