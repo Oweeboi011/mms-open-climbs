@@ -70,11 +70,16 @@ export default function AllRegistrations() {
           title: d.data().title,
           dateLabel: d.data().dateLabel,
           status: d.data().status,
+          startDate: d.data().startDate,
           fees: d.data().fees || [],
           requiresRegistrationForm: !!d.data().requiresRegistrationForm,
           requiresMedicalCert: !!d.data().requiresMedicalCert,
         }))
-        .sort((a, b) => a.title.localeCompare(b.title));
+        .sort((a, b) => {
+          const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
+          const db2 = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
+          return da - db2;
+        });
       setClimbs(list);
     });
 

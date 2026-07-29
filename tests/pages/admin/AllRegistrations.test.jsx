@@ -76,6 +76,30 @@ describe("Admin AllRegistrations", () => {
     );
   });
 
+  it("sorts the climb filter dropdown by start date ascending", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: "climb-later",
+          data: { title: "Later Climb", startDate: { toDate: () => new Date("2026-12-01") } },
+        },
+        {
+          id: "climb-sooner",
+          data: { title: "Sooner Climb", startDate: { toDate: () => new Date("2026-06-01") } },
+        },
+      ]),
+    );
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: /Sooner Climb/i })).toBeInTheDocument(),
+    );
+
+    const options = screen.getAllByRole("option").map((o) => o.textContent);
+    const climbOptions = options.filter((t) => /Climb$/.test(t));
+    expect(climbOptions).toEqual(["Sooner Climb", "Later Climb"]);
+  });
+
   it("shows a transportation toggle and updates it on click", async () => {
     onSnapshot.mockImplementation((_q, cb) => {
       cb(

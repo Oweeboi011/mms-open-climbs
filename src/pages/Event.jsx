@@ -1592,6 +1592,57 @@ export default function Event() {
           </div>
         </div>
 
+        {/* Requirements */}
+        {(climb.requiresMedicalCert || climb.requiresRegistrationForm) && (
+          <div className="section-card">
+            <div className="section-header">
+              <span className="icon">
+                <Icon name="alert" size={17} />
+              </span>
+              <h3>Requirements</h3>
+            </div>
+            <div className="section-body">
+              <div
+                style={{
+                  background: "#fff8e1",
+                  borderLeft: "4px solid var(--gold)",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-head)",
+                    fontSize: "0.7rem",
+                    fontWeight: 800,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "#7a5800",
+                    marginBottom: 7,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <Icon name="alert" size={13} />
+                  Required Before Registration is Confirmed
+                </div>
+                <ul
+                  className="info-list"
+                  style={{ margin: 0, fontSize: "0.86rem", color: "var(--ink)" }}
+                >
+                  {climb.requiresRegistrationForm && (
+                    <li>Signed Climb Registration Form</li>
+                  )}
+                  {climb.requiresMedicalCert && (
+                    <li>Valid Medical Certificate</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Fees */}
         <div className="section-card">
           <div className="section-header">
