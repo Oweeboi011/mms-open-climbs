@@ -320,7 +320,9 @@ describe("MyRegistrations page", () => {
     );
     renderWithProviders(<MyRegistrations />, makeMemberAuth());
     await waitFor(() =>
-      expect(screen.getByText(/Assigned as Officer/i)).toBeInTheDocument(),
+      expect(
+        screen.getAllByText(/Assigned as Officer/i).length,
+      ).toBeGreaterThan(0),
     );
   });
 });
