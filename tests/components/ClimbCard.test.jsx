@@ -154,4 +154,32 @@ describe("ClimbCard", () => {
     const link = screen.getByRole("link");
     expect(link).not.toHaveClass("card-wide");
   });
+
+  it("shows an Announcement flag when the climb has announcements", () => {
+    render({ announcements: [{ text: "Meetup moved", createdAt: 1 }] });
+    expect(screen.getByText("Announcement")).toBeInTheDocument();
+  });
+
+  it("does not show an Announcement flag when there are no announcements", () => {
+    render({ announcements: [] });
+    expect(screen.queryByText("Announcement")).not.toBeInTheDocument();
+  });
+
+  it("shows a single required-document flag when only one is required", () => {
+    render({ requiresRegistrationForm: true, requiresMedicalCert: false });
+    expect(
+      screen.getByText("Registration Form Required"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a combined 'Docs Required' flag when both documents are required", () => {
+    render({ requiresRegistrationForm: true, requiresMedicalCert: true });
+    expect(screen.getByText("Docs Required")).toBeInTheDocument();
+  });
+
+  it("does not show a document flag when none are required", () => {
+    render({ requiresRegistrationForm: false, requiresMedicalCert: false });
+    expect(screen.queryByText(/Docs Required/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Required$/)).not.toBeInTheDocument();
+  });
 });

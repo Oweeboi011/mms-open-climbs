@@ -41,6 +41,11 @@ const mockAdminAuth = {
   deleteUser: jest.fn().mockResolvedValue(),
 };
 
+const mockBigQueryQuery = jest.fn();
+jest.mock("@google-cloud/bigquery", () => ({
+  BigQuery: jest.fn().mockImplementation(() => ({ query: mockBigQueryQuery })),
+}));
+
 jest.mock("firebase-admin/app", () => ({ initializeApp: jest.fn() }));
 jest.mock("firebase-admin/auth", () => ({ getAuth: () => mockAdminAuth }));
 jest.mock("firebase-admin/firestore", () => ({
@@ -513,5 +518,67 @@ describe("deleteUserAccount callable", () => {
     const result = await handler({ auth: { uid: "admin-1" }, data: { uid: "ghost" } });
     expect(result).toEqual({ success: true });
     expect(mockDb.delete).toHaveBeenCalled();
+  });
+});
+
+describe("getBillingCost callable", () => {
+  const ORIGINAL_ENV = process.env.BILLING_EXPORT_TABLE;
+
+  beforeEach(() => {
+    mockDb.doc.mockReturnValue(mockDb);
+    // resetMocks: true wipes the module-mock factory's .mockImplementation
+    // before every test too, so it must be re-armed here each time.
+    require("@google-cloud/bigquery").BigQuery.mockImplementation(() => ({
+      query: mockBigQueryQuery,
+    }));
+  });
+
+  afterEach(() => {
+    if (ORIGINAL_ENV === undefined) delete process.env.BILLING_EXPORT_TABLE;
+    else process.env.BILLING_EXPORT_TABLE = ORIGINAL_ENV;
+  });
+
+  it("throws permission-denied for non-admin caller", async () => {
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "member" }) });
+    const handler = require("../src/index").getBillingCost;
+    await expect(
+      handler({ auth: { uid: "u1" }, data: {} }),
+    ).rejects.toMatchObject({ code: "permission-denied" });
+  });
+
+  it("returns not-configured when BILLING_EXPORT_TABLE is unset", async () => {
+    delete process.env.BILLING_EXPORT_TABLE;
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    const handler = require("../src/index").getBillingCost;
+    const result = await handler({ auth: { uid: "admin-1" }, data: {} });
+    expect(result).toMatchObject({ configured: false });
+  });
+
+  it("returns not-configured when the BigQuery query fails", async () => {
+    process.env.BILLING_EXPORT_TABLE = "proj.dataset.billing";
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    mockBigQueryQuery.mockRejectedValueOnce(new Error("Access Denied"));
+    const handler = require("../src/index").getBillingCost;
+    const result = await handler({ auth: { uid: "admin-1" }, data: {} });
+    expect(result).toMatchObject({ configured: false });
+  });
+
+  it("returns total cost and per-service breakdown on success", async () => {
+    process.env.BILLING_EXPORT_TABLE = "proj.dataset.billing";
+    mockDb.get.mockResolvedValueOnce({ exists: true, data: () => ({ role: "admin" }) });
+    mockBigQueryQuery.mockResolvedValueOnce([
+      [
+        { service: "Cloud Firestore", cost: 3.5 },
+        { service: "Cloud Functions", cost: 1.25 },
+      ],
+    ]);
+    const handler = require("../src/index").getBillingCost;
+    const result = await handler({ auth: { uid: "admin-1" }, data: {} });
+    expect(result.configured).toBe(true);
+    expect(result.totalCost).toBeCloseTo(4.75);
+    expect(result.byService).toEqual([
+      { service: "Cloud Firestore", cost: 3.5 },
+      { service: "Cloud Functions", cost: 1.25 },
+    ]);
   });
 });

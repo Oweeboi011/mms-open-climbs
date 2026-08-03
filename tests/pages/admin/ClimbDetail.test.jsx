@@ -18,20 +18,31 @@ const memberDoc = {
   data: { displayName: "Maria Santos", email: "maria@example.com" },
 };
 
+// The onSnapshot mock is generic (unaware of which collection the query
+// targets), so every test that stubs registrant rows must also stub an
+// empty result for the feedback subscription the page now also opens —
+// otherwise the registrant fixture bleeds into the feedback query too and
+// renders the same name twice.
+function mockRegistrantSnapshot(items) {
+  onSnapshot.mockImplementation((q, cb) => {
+    if (q[0]?.path === "feedback") {
+      cb(makeQuerySnapshot([]));
+      return vi.fn();
+    }
+    cb(makeQuerySnapshot(items));
+    return vi.fn();
+  });
+}
+
 describe("Admin ClimbDetail", () => {
   beforeEach(() => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, { ...climbFixture }),
     );
     getDocs.mockResolvedValue(makeQuerySnapshot([memberDoc]));
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
-          { id: registrationFixture.id, data: registrationFixture },
-        ]),
-      );
-      return vi.fn();
-    });
+    mockRegistrantSnapshot([
+      { id: registrationFixture.id, data: registrationFixture },
+    ]);
   });
 
   function render() {
@@ -104,35 +115,30 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("shows total paid and total outstanding stat tiles", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
-          {
-            id: registrationFixture.id,
-            data: {
-              ...registrationFixture,
-              paymentStatus: "verified",
-              amountPaid: 500,
-              feeBreakdown: [
-                { label: "Registration Fee", amount: "500", optional: false, selected: true },
-              ],
-            },
-          },
-          {
-            id: "reg-2",
-            data: {
-              ...registrationFixture,
-              name: "Maria Santos",
-              paymentStatus: "unpaid",
-              feeBreakdown: [
-                { label: "Registration Fee", amount: "500", optional: false, selected: true },
-              ],
-            },
-          },
-        ]),
-      );
-      return vi.fn();
-    });
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "verified",
+          amountPaid: 500,
+          feeBreakdown: [
+            { label: "Registration Fee", amount: "500", optional: false, selected: true },
+          ],
+        },
+      },
+      {
+        id: "reg-2",
+        data: {
+          ...registrationFixture,
+          name: "Maria Santos",
+          paymentStatus: "unpaid",
+          feeBreakdown: [
+            { label: "Registration Fee", amount: "500", optional: false, selected: true },
+          ],
+        },
+      },
+    ]);
 
     render();
     await waitFor(() => expect(screen.getByText("Total Paid")).toBeInTheDocument());
@@ -144,23 +150,18 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("shows each registrant's own outstanding amount in the table", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
-          {
-            id: registrationFixture.id,
-            data: {
-              ...registrationFixture,
-              paymentStatus: "unpaid",
-              feeBreakdown: [
-                { label: "Registration Fee", amount: "500", optional: false, selected: true },
-              ],
-            },
-          },
-        ]),
-      );
-      return vi.fn();
-    });
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "unpaid",
+          feeBreakdown: [
+            { label: "Registration Fee", amount: "500", optional: false, selected: true },
+          ],
+        },
+      },
+    ]);
 
     render();
     await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
@@ -170,24 +171,19 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("subtracts an already-declared partial payment from outstanding", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
-          {
-            id: registrationFixture.id,
-            data: {
-              ...registrationFixture,
-              paymentStatus: "submitted",
-              amountPaid: 300,
-              feeBreakdown: [
-                { label: "Registration Fee", amount: "500", optional: false, selected: true },
-              ],
-            },
-          },
-        ]),
-      );
-      return vi.fn();
-    });
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 300,
+          feeBreakdown: [
+            { label: "Registration Fee", amount: "500", optional: false, selected: true },
+          ],
+        },
+      },
+    ]);
 
     render();
     await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
@@ -197,23 +193,18 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("shows the fee breakdown when a registrant row is expanded", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
-          {
-            id: registrationFixture.id,
-            data: {
-              ...registrationFixture,
-              feeBreakdown: [
-                { label: "Registration Fee", amount: "500", optional: false, selected: true },
-                { label: "Transportation Fee", amount: "300", optional: true, selected: true },
-              ],
-            },
-          },
-        ]),
-      );
-      return vi.fn();
-    });
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          feeBreakdown: [
+            { label: "Registration Fee", amount: "500", optional: false, selected: true },
+            { label: "Transportation Fee", amount: "300", optional: true, selected: true },
+          ],
+        },
+      },
+    ]);
 
     render();
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
@@ -226,18 +217,13 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("filters to only registrants with an outstanding balance", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
-          { id: registrationFixture.id, data: { ...registrationFixture, paymentStatus: "unpaid" } },
-          {
-            id: "reg-2",
-            data: { ...registrationFixture, name: "Maria Santos", paymentStatus: "verified" },
-          },
-        ]),
-      );
-      return vi.fn();
-    });
+    mockRegistrantSnapshot([
+      { id: registrationFixture.id, data: { ...registrationFixture, paymentStatus: "unpaid" } },
+      {
+        id: "reg-2",
+        data: { ...registrationFixture, name: "Maria Santos", paymentStatus: "verified" },
+      },
+    ]);
 
     render();
     await waitFor(() => expect(screen.getByText("Maria Santos")).toBeInTheDocument());
@@ -252,22 +238,17 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("lets an admin toggle a registrant's transportation selection", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
-          {
-            id: registrationFixture.id,
-            data: {
-              ...registrationFixture,
-              feeBreakdown: [
-                { label: "Transportation Fee", amount: "300", optional: true, selected: false },
-              ],
-            },
-          },
-        ]),
-      );
-      return vi.fn();
-    });
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          feeBreakdown: [
+            { label: "Transportation Fee", amount: "300", optional: true, selected: false },
+          ],
+        },
+      },
+    ]);
 
     render();
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
@@ -299,5 +280,37 @@ describe("Admin ClimbDetail", () => {
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
     const patch = updateDoc.mock.calls.find((c) => c[1]?.name)?.[1];
     expect(patch.name).toBe("Juan Dela Cruz");
+  });
+
+  it("shows submitted feedback with an average rating", async () => {
+    onSnapshot.mockImplementation((q, cb) => {
+      if (q[0]?.path === "feedback") {
+        cb(
+          makeQuerySnapshot([
+            { id: "fb-1", data: { name: "Juan Cruz", rating: 5, comments: "Amazing climb!" } },
+            { id: "fb-2", data: { name: "Maria Santos", rating: 3, comments: "" } },
+          ]),
+        );
+        return vi.fn();
+      }
+      cb(makeQuerySnapshot([{ id: registrationFixture.id, data: registrationFixture }]));
+      return vi.fn();
+    });
+
+    render();
+    await waitFor(() => {
+      expect(screen.getByText("Climb Feedback (2)")).toBeInTheDocument();
+      expect(screen.getByText("4.0/5")).toBeInTheDocument();
+      expect(screen.getByText("Amazing climb!")).toBeInTheDocument();
+      expect(screen.getByText("No comments")).toBeInTheDocument();
+    });
+  });
+
+  it("hides the feedback card when there is no feedback yet", async () => {
+    render();
+    await waitFor(() =>
+      expect(screen.getByText("Mt. Pulag", { selector: ".admin-page-title" })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Climb Feedback/)).not.toBeInTheDocument();
   });
 });

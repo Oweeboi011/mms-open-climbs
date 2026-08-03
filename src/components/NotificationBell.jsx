@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
+import { renderMarkdownLite } from "@/utils/markdownLite";
 
 function timeAgo(date) {
   if (!date) return "";
@@ -119,7 +120,9 @@ export default function NotificationBell() {
                 >
                   <div className="notif-bell-item-title">{n.title}</div>
                   {n.message && (
-                    <div className="notif-bell-item-msg">{n.message}</div>
+                    <div className="notif-bell-item-msg">
+                      {renderMarkdownLite(n.message)}
+                    </div>
                   )}
                   <div className="notif-bell-item-time">
                     {timeAgo(n.createdAt?.toDate?.())}

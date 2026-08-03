@@ -135,6 +135,20 @@ const PATHS = {
       <line x1="6.4" y1="6.4" x2="17.6" y2="17.6" />
     </>
   ),
+  megaphone: (
+    <>
+      <path d="M3 11v2a1.5 1.5 0 0 0 1.5 1.5H6l3.5 4v-13L6 9.5H4.5A1.5 1.5 0 0 0 3 11Z" />
+      <path d="M9.5 5.5 19 3v14l-9.5-2.5" />
+      <path d="M6.5 14.5 8 19.5" />
+    </>
+  ),
+  fileCheck: (
+    <>
+      <path d="M7 3.5h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z" />
+      <path d="M14 3.5v4h4" />
+      <path d="M9 13.5l2 2 4-4.5" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 18, color = "currentColor", style }) {

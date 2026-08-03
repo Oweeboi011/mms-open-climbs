@@ -114,6 +114,9 @@ export default function AppInsights() {
   const [functionHealth, setFunctionHealth] = useState(null);
   const [healthLoading, setHealthLoading] = useState(false);
 
+  const [billingCost, setBillingCost] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+
   useEffect(() => {
     async function load() {
       const [regsSnap, climbsSnap, notifSnap, failSnap, auditSnap, usersSnap] =
@@ -176,6 +179,31 @@ export default function AppInsights() {
       setHealthLoading(false);
     }
   }
+
+  async function loadBillingCost() {
+    setBillingLoading(true);
+    try {
+      const fn = httpsCallable(functions, "getBillingCost");
+      const res = await fn();
+      setBillingCost(res.data);
+    } catch (err) {
+      setBillingCost({ configured: false, reason: err.message });
+    } finally {
+      setBillingLoading(false);
+    }
+  }
+
+  // These hit paid/rate-limited external calls (Brevo, GCS, Cloud Functions
+  // introspection, BigQuery billing export), so they used to require a
+  // manual "Load" click. Firing them once on mount instead means the page
+  // always shows a complete picture up front; the buttons still work as a
+  // manual "Refresh".
+  useEffect(() => {
+    loadEmailStats();
+    loadStorageStats();
+    loadFunctionHealth();
+    loadBillingCost();
+  }, []);
 
   const paymentBreakdown = useMemo(() => {
     const map = { unpaid: 0, submitted: 0, verified: 0, rejected: 0 };
@@ -472,9 +500,9 @@ export default function AppInsights() {
             }
           >
             {emailError && <div className="alert alert-error">{emailError}</div>}
-            {!emailStats && !emailError && (
+            {emailLoading && !emailStats && !emailError && (
               <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
-                Click "Load" to fetch delivery stats from Brevo.
+                Fetching delivery stats from Brevo…
               </p>
             )}
             {emailStats && (
@@ -500,9 +528,9 @@ export default function AppInsights() {
             }
           >
             {storageError && <div className="alert alert-error">{storageError}</div>}
-            {!storageStats && !storageError && (
+            {storageLoading && !storageStats && !storageError && (
               <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
-                Click "Load" to scan Firebase Storage (may take a few seconds).
+                Scanning Firebase Storage…
               </p>
             )}
             {storageStats && (
@@ -511,7 +539,7 @@ export default function AppInsights() {
                   Total: {formatBytes(storageStats.totalBytes)} across{" "}
                   {storageStats.totalFiles} files
                 </p>
-                {storageStats.folders.map((f) => (
+                {(storageStats.folders || []).map((f) => (
                   <BarRow
                     key={f.folder}
                     label={`${f.folder} (${f.fileCount})`}
@@ -536,9 +564,9 @@ export default function AppInsights() {
               </button>
             }
           >
-            {!functionHealth && (
+            {healthLoading && !functionHealth && (
               <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
-                Click "Load" to check Cloud Functions execution health.
+                Checking Cloud Functions execution health…
               </p>
             )}
             {functionHealth && !functionHealth.configured && (
@@ -571,6 +599,51 @@ export default function AppInsights() {
               </a>
               .
             </p>
+          </Card>
+
+          <Card
+            title="Cloud Billing Cost (this month)"
+            right={
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={loadBillingCost}
+                disabled={billingLoading}
+              >
+                {billingLoading ? "Loading…" : billingCost ? "Refresh" : "Load"}
+              </button>
+            }
+          >
+            {billingLoading && !billingCost && (
+              <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
+                Querying the billing export…
+              </p>
+            )}
+            {billingCost && !billingCost.configured && (
+              <div className="alert alert-warning">{billingCost.reason}</div>
+            )}
+            {billingCost?.configured && (
+              <>
+                <p style={{ fontWeight: 800, marginBottom: 10 }}>
+                  {billingCost.month}: ${billingCost.totalCost.toFixed(2)}{" "}
+                  {billingCost.currency}
+                </p>
+                {billingCost.byService.length === 0 ? (
+                  <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
+                    No billed usage yet this month.
+                  </p>
+                ) : (
+                  billingCost.byService.map((s) => (
+                    <BarRow
+                      key={s.service}
+                      label={s.service}
+                      count={Number(s.cost.toFixed(2))}
+                      max={billingCost.totalCost || 1}
+                      color="#0d9488"
+                    />
+                  ))
+                )}
+              </>
+            )}
           </Card>
         </div>
 
