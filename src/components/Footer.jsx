@@ -10,6 +10,7 @@ export default function Footer() {
       <div className="footer-content">
         <p><strong>Metropolitan Mountaineering Society</strong> &bull; Open Climbs 2026</p>
         <p>For inquiries, contact your MMS Open Climbs Coordinator.</p>
+        <p>Built and developed by MMS Batch 2026</p>
       </div>
     </footer>
   );
