@@ -73,6 +73,11 @@ export default function ClimbCard({ climb }) {
   const isOngoing = climb.status !== "completed" && isClimbOngoing(climb);
   const level = getExperienceLevel(climb);
   const leads = getLeadOfficers(climb.officers);
+  const hasAnnouncement = climb.announcements?.length > 0;
+  const docsRequired = [
+    climb.requiresRegistrationForm && "Registration Form",
+    climb.requiresMedicalCert && "Medical Certificate",
+  ].filter(Boolean);
 
   return (
     <Link
@@ -182,6 +187,25 @@ export default function ClimbCard({ climb }) {
                   }}
                 />
                 Happening Now
+              </span>
+            )}
+
+            {hasAnnouncement && (
+              <span className="card-flag-tag card-flag-announcement">
+                <Icon name="megaphone" size={11} />
+                Announcement
+              </span>
+            )}
+
+            {docsRequired.length > 0 && (
+              <span
+                className="card-flag-tag card-flag-docs"
+                title={`Required: ${docsRequired.join(", ")}`}
+              >
+                <Icon name="fileCheck" size={11} />
+                {docsRequired.length > 1
+                  ? "Docs Required"
+                  : `${docsRequired[0]} Required`}
               </span>
             )}
           </div>

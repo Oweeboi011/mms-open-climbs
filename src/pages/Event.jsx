@@ -14,6 +14,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Icon from "@/components/Icon";
+import { renderMarkdownLite } from "@/utils/markdownLite";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -729,6 +730,60 @@ export default function Event() {
           </div>
         )}
 
+        {/* Pre-Climb Meeting */}
+        {climb.preClimbMeetingDate && (
+          <div className="section-card">
+            <div className="section-header">
+              <span className="icon">
+                <Icon name="calendar" size={17} />
+              </span>
+              <h3>Pre-Climb Meeting</h3>
+            </div>
+            <div className="section-body">
+              <div
+                style={{
+                  fontSize: "0.86rem",
+                  lineHeight: 1.7,
+                  color: "var(--ink)",
+                }}
+              >
+                <strong>
+                  {new Date(
+                    `${climb.preClimbMeetingDate}T00:00:00`,
+                  ).toLocaleDateString("en-PH", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </strong>
+                {climb.preClimbMeetingTime && ` — ${climb.preClimbMeetingTime}`}
+                {climb.preClimbMeetingLocation && (
+                  <>
+                    <br />
+                    {climb.preClimbMeetingLocation}
+                  </>
+                )}
+              </div>
+              {climb.preClimbMeetingNotes && (
+                <div
+                  style={{
+                    fontSize: "0.82rem",
+                    lineHeight: 1.6,
+                    color: "var(--ink-soft)",
+                    marginTop: 10,
+                    borderTop: "1px solid rgba(0,0,0,0.06)",
+                    paddingTop: 10,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {climb.preClimbMeetingNotes}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Announcements */}
         {climb.announcements?.length > 0 && (
           <div className="section-card">
@@ -782,7 +837,7 @@ export default function Event() {
                           whiteSpace: "pre-wrap",
                         }}
                       >
-                        {note.message}
+                        {renderMarkdownLite(note.message)}
                       </div>
                       {note.createdAt && (
                         <div

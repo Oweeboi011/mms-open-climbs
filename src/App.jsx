@@ -18,6 +18,7 @@ import Register from "@/pages/Register";
 import MyRegistrations from "@/pages/MyRegistrations";
 import WaiverPrint from "@/pages/WaiverPrint";
 import ReleaseNotes from "@/pages/ReleaseNotes";
+import ClimbFeedback from "@/pages/ClimbFeedback";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/Dashboard";
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/my-registrations" element={<MyRegistrations />} />
           <Route path="/waiver/:registrationId" element={<WaiverPrint />} />
           <Route path="/release-notes" element={<ReleaseNotes />} />
+          <Route path="/feedback/:climbId" element={<ClimbFeedback />} />
         </Route>
 
         {/* Admin only */}

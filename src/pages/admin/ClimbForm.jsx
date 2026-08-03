@@ -132,6 +132,10 @@ const EMPTY_FORM = {
   officerEmails: [],
   itinerary: [],
   announcements: [],
+  preClimbMeetingDate: "",
+  preClimbMeetingTime: "",
+  preClimbMeetingLocation: "",
+  preClimbMeetingNotes: "",
   trailMaps: [],
   gcashName: "",
   gcashNumber: "",
@@ -1020,6 +1024,64 @@ export default function AdminClimbForm() {
             </div>
           </div>
 
+          {/* ── Pre-Climb Meeting ── */}
+          <div className="admin-card">
+            <div className="admin-card-title">Pre-Climb Meeting</div>
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
+              Optional briefing before the climb (gear check, final
+              headcount, orientation). Leave the date blank if there isn't
+              one — it won't be shown on the climb's public page.
+            </p>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Meeting Date</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={form.preClimbMeetingDate}
+                  onChange={(e) => set("preClimbMeetingDate", e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Meeting Time</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 6:00 PM"
+                  value={form.preClimbMeetingTime}
+                  onChange={(e) => set("preClimbMeetingTime", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Meeting Location</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. MMS Clubhouse, Quezon City"
+                value={form.preClimbMeetingLocation}
+                onChange={(e) => set("preClimbMeetingLocation", e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Meeting Notes</label>
+              <textarea
+                className="form-input"
+                rows={2}
+                placeholder="What to bring or expect at the meeting"
+                value={form.preClimbMeetingNotes}
+                onChange={(e) => set("preClimbMeetingNotes", e.target.value)}
+                style={{ resize: "vertical" }}
+              />
+            </div>
+          </div>
+
           {/* ── Announcements ── */}
           <div className="admin-card">
             <div
@@ -1057,6 +1119,7 @@ export default function AdminClimbForm() {
               Shown on the climb's public page, right under Mountain Profile —
               use this for updates and reminders all joiners need to see
               (schedule changes, weather advisories, what to prepare, etc.).
+              Supports <strong>**bold**</strong> and <em>*italic*</em>.
             </p>
             {(form.announcements || []).map((note, i) => (
               <div
