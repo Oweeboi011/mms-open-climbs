@@ -159,7 +159,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
           }))
         : reg.feeBreakdown;
       await updateDoc(doc(db, "registrations", reg.id), {
-        paymentProofs,
+        paymentProofs: [...(reg.paymentProofs || []), ...paymentProofs],
         paymentStatus: "submitted",
         amountPaid: parsedAmount,
         paymentSubmittedAt: serverTimestamp(),
