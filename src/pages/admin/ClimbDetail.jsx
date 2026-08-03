@@ -47,6 +47,7 @@ export default function AdminClimbDetail() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [addJoinerOpen, setAddJoinerOpen] = useState(false);
   const [editingReg, setEditingReg] = useState(null);
+  const [feedback, setFeedback] = useState([]);
 
   useEffect(() => {
     getDoc(doc(db, "climbs", id)).then((snap) => {
@@ -62,7 +63,19 @@ export default function AdminClimbDetail() {
       setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-    return unsub;
+
+    const feedbackQ = query(
+      collection(db, "feedback"),
+      where("climbId", "==", id),
+    );
+    const unsubFeedback = onSnapshot(feedbackQ, (snap) => {
+      setFeedback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsub();
+      unsubFeedback();
+    };
   }, [id]);
 
   async function changeStatus(regId, status) {
@@ -704,6 +717,53 @@ export default function AdminClimbDetail() {
               </table>
             </div>
           </>
+        )}
+
+        {feedback.length > 0 && (
+          <div className="admin-card" style={{ marginTop: 24 }}>
+            <div className="admin-card-title">
+              Climb Feedback ({feedback.length})
+            </div>
+            <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: 16 }}>
+              Average rating:{" "}
+              <strong>
+                {(
+                  feedback.reduce((sum, f) => sum + (f.rating || 0), 0) /
+                  feedback.length
+                ).toFixed(1)}
+                /5
+              </strong>
+            </p>
+            <table className="admin-table">
+              <tbody>
+                {feedback
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      (b.createdAt?.toDate?.()?.getTime() || 0) -
+                      (a.createdAt?.toDate?.()?.getTime() || 0),
+                  )
+                  .map((f) => (
+                    <tr key={f.id}>
+                      <td style={{ width: "1%", whiteSpace: "nowrap" }}>
+                        {f.name || "Anonymous"}
+                      </td>
+                      <td style={{ width: "1%", whiteSpace: "nowrap", color: "var(--gold)" }}>
+                        {"★".repeat(f.rating || 0)}
+                        {"☆".repeat(5 - (f.rating || 0))}
+                      </td>
+                      <td style={{ fontSize: "0.85rem" }}>
+                        {f.comments || (
+                          <span style={{ color: "var(--ink-soft)" }}>
+                            No comments
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </main>
 
