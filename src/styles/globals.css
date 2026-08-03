@@ -651,6 +651,28 @@ textarea {
   border: 1px solid rgba(255, 165, 0, 0.4);
   margin-top: 5px;
 }
+.card-flag-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-head);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 9px;
+  border-radius: 8px;
+}
+.card-flag-announcement {
+  background: rgba(255, 200, 0, 0.24);
+  color: #ffe082;
+  border: 1px solid rgba(255, 200, 0, 0.4);
+}
+.card-flag-docs {
+  background: rgba(255, 90, 90, 0.2);
+  color: #ffb3b3;
+  border: 1px solid rgba(255, 90, 90, 0.38);
+}
 /* Card colour palette */
 .c-slate {
   background: linear-gradient(145deg, #37474f 0%, #1c313a 100%);
@@ -1766,6 +1788,85 @@ textarea {
 }
 .reg-card-body {
   padding: 16px 20px;
+}
+
+/* ── RELEASE NOTE BODY ─────────────────────────────────────────────────────── */
+.rn-header {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.rn-chevron {
+  font-size: 1.1rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.7);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.rn-chevron--open {
+  transform: rotate(180deg);
+}
+.rn-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.rn-paragraph {
+  white-space: pre-line;
+  margin: 0;
+  line-height: 1.5;
+}
+.rn-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rn-section-title {
+  display: inline-block;
+  align-self: flex-start;
+  font-family: var(--font-head);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  border: 1px solid var(--border);
+}
+.rn-section-title--feature {
+  background: var(--green-pale);
+  color: var(--green-mid);
+  border-color: transparent;
+}
+.rn-section-title--fix {
+  background: #ffebee;
+  color: #c62828;
+  border-color: transparent;
+}
+.rn-section-title--performance {
+  background: var(--gold-pale);
+  color: #7d5d00;
+  border-color: transparent;
+}
+.rn-section-title--improvement {
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+  border-color: transparent;
+}
+.rn-list {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.5;
+}
+.rn-list li {
+  padding-left: 2px;
 }
 .reg-card-actions {
   display: flex;

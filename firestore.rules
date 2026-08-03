@@ -17,7 +17,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.role == 'member';
       allow update: if isAdmin() || isOwner(userId);
       allow delete: if isAdmin();
@@ -56,6 +56,19 @@ service cloud.firestore {
     match /auditLog/{id} {
       allow read: if isAdmin();
       allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /feedback/{feedbackId} {
+      // Doc ID is deterministic (`${climbId}_${userId}`, enforced client-side)
+      // so a duplicate submission hits this same create rule as an update,
+      // which is denied below — one feedback entry per member per climb.
+      allow create: if isSignedIn() &&
+        isOwner(request.resource.data.userId) &&
+        request.resource.data.climbId is string &&
+        request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+      allow read: if isAdmin() || isOwner(resource.data.userId);
       allow update, delete: if false;
     }
 

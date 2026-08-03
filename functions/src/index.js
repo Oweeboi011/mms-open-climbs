@@ -186,14 +186,16 @@ function tplReleaseNote({ title, body, appUrl }) {
     </p>`);
 }
 
-function tplThankYou({ name, climbTitle, appUrl }) {
+function tplThankYou({ name, climbTitle, appUrl, feedbackUrl }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Thank You, ${name}!</h2>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Congratulations on completing <strong>${climbTitle}</strong>! We hope it was an unforgettable journey.</p>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">MMS thanks you for joining us on this climb. We'd love to see you again — check out the upcoming schedule and join us on the next one!</p>
     <p style="margin:24px 0;">
+      <a href="${feedbackUrl}" style="background:#c8a000;color:#0d2b12;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-right:10px;">Share Your Feedback</a>
       <a href="${appUrl}" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">See Upcoming Climbs</a>
     </p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Got a minute? Tell us how the climb went — your feedback helps us plan better ones.</p>
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">Stay safe, and see you on the trail!</p>`);
 }
 
@@ -811,6 +813,12 @@ exports.sendReminderNotifications = onSchedule(
           const unpaid =
             reg.paymentStatus === "unpaid" || reg.paymentStatus === "rejected";
           let message = `${climbTitle} — ${reg.climbDate || climb.dateLabel || ""}. Check the event page for the itinerary, what to bring, and what to pay.`;
+          if (climb.preClimbMeetingDate) {
+            const meetingDate = new Date(
+              `${climb.preClimbMeetingDate}T00:00:00`,
+            ).toLocaleDateString("en-PH", { month: "long", day: "numeric" });
+            message += ` Pre-climb meeting: ${meetingDate}${climb.preClimbMeetingTime ? ` at ${climb.preClimbMeetingTime}` : ""}${climb.preClimbMeetingLocation ? ` — ${climb.preClimbMeetingLocation}` : ""}.`;
+          }
           if (unpaid) {
             message += " You haven't submitted payment yet — please do so from My Climbs.";
           }
@@ -903,9 +911,11 @@ exports.sendReminderNotifications = onSchedule(
       officerSummariesSent++;
     }
 
-    // Thank-you email for climbs that have finished — sent once per climb.
+    // Thank-you email + feedback request for climbs that have finished —
+    // sent once per climb, to every confirmed joiner (email + in-app bell).
     const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
     let thankYouEmails = 0;
+    let feedbackNotifications = 0;
 
     for (const climbId of climbIds) {
       const climb = climbs[climbId];
@@ -913,28 +923,44 @@ exports.sendReminderNotifications = onSchedule(
       if (climb.endDate.toDate().getTime() > now) continue;
 
       const confirmedRegs = regs.filter(
-        (r) => r.climbId === climbId && r.status === "confirmed" && r.email,
+        (r) => r.climbId === climbId && r.status === "confirmed",
       );
+      const feedbackUrl = `${appUrl}/feedback/${climbId}`;
 
       for (const reg of confirmedRegs) {
-        try {
-          await sendEmail({
-            to: reg.email,
-            toName: reg.name,
-            subject: `Thank You for Climbing With Us — ${climb.title} | MMS Open Climbs 2026`,
-            html: tplThankYou({
-              name: reg.name,
-              climbTitle: climb.title,
-              appUrl,
-            }),
+        if (reg.email) {
+          try {
+            await sendEmail({
+              to: reg.email,
+              toName: reg.name,
+              subject: `Thank You for Climbing With Us — ${climb.title} | MMS Open Climbs 2026`,
+              html: tplThankYou({
+                name: reg.name,
+                climbTitle: climb.title,
+                appUrl,
+                feedbackUrl,
+              }),
+            });
+            thankYouEmails++;
+          } catch (err) {
+            logger.error("[sendReminderNotifications] Thank-you email failed", {
+              climbId,
+              email: reg.email,
+              err: err.message,
+            });
+          }
+        }
+
+        if (reg.userId) {
+          await createNotification({
+            userId: reg.userId,
+            type: "feedback_request",
+            title: "How was your climb?",
+            message: `Share your feedback on ${climb.title} — it only takes a minute.`,
+            link: `/feedback/${climbId}`,
+            id: `feedback_${climbId}_${reg.userId}`,
           });
-          thankYouEmails++;
-        } catch (err) {
-          logger.error("[sendReminderNotifications] Thank-you email failed", {
-            climbId,
-            email: reg.email,
-            err: err.message,
-          });
+          feedbackNotifications++;
         }
       }
 
@@ -948,6 +974,7 @@ exports.sendReminderNotifications = onSchedule(
       paymentReminders,
       upcomingReminders,
       thankYouEmails,
+      feedbackNotifications,
       officerSummariesSent,
     });
   },
@@ -1569,6 +1596,71 @@ exports.getFunctionHealth = onCall(async (request) => {
       configured: false,
       reason:
         "Cloud Monitoring is not accessible from this function yet. Grant the runtime service account the \"Monitoring Viewer\" role in IAM, then retry.",
+    };
+  }
+});
+
+// ── Callable: App Insights — real GCP billing cost (best-effort) ──────────────
+// There is no general "get my current spend" REST API — Google's supported
+// mechanism is exporting detailed billing data to a BigQuery dataset, which
+// this then queries. Requires one-time setup that only a project/billing
+// admin can do (this function cannot enable APIs or grant IAM roles itself):
+//   1. Enable BigQuery export in the Cloud Billing Console (Billing >
+//      Billing export > Detailed usage cost) into a dataset in this project.
+//   2. Set the BILLING_EXPORT_TABLE env var (functions/.env) to the fully
+//      qualified table, e.g.
+//      "project.dataset.gcp_billing_export_v1_XXXXXX_XXXXXX_XXXXXX".
+//   3. Grant the Cloud Functions runtime service account the
+//      "BigQuery Data Viewer" and "BigQuery Job User" roles.
+// Without that, this returns a clear "not configured" result instead of
+// failing the whole insights page.
+exports.getBillingCost = onCall(async (request) => {
+  await requireAdmin(request.auth?.uid);
+
+  const table = process.env.BILLING_EXPORT_TABLE;
+  if (!table) {
+    return {
+      configured: false,
+      reason:
+        "No billing export table configured. Set BILLING_EXPORT_TABLE (functions/.env) to your BigQuery billing export table after enabling detailed usage cost export in the Cloud Billing Console.",
+    };
+  }
+
+  try {
+    const { BigQuery } = require("@google-cloud/bigquery");
+    const bigquery = new BigQuery();
+    const [rows] = await bigquery.query({
+      query: `
+        SELECT
+          service.description AS service,
+          SUM(cost) + SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)) AS cost
+        FROM \`${table}\`
+        WHERE invoice.month = FORMAT_DATE('%Y%m', CURRENT_DATE())
+        GROUP BY service
+        HAVING cost > 0
+        ORDER BY cost DESC
+      `,
+    });
+
+    const byService = rows.map((r) => ({
+      service: r.service,
+      cost: Number(r.cost || 0),
+    }));
+    const totalCost = byService.reduce((sum, r) => sum + r.cost, 0);
+
+    return {
+      configured: true,
+      currency: "USD",
+      month: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long" }),
+      totalCost,
+      byService,
+    };
+  } catch (err) {
+    logger.warn("[getBillingCost] Not available", { err: err.message });
+    return {
+      configured: false,
+      reason:
+        "Could not query the billing export table. Confirm BILLING_EXPORT_TABLE is correct and the runtime service account has BigQuery Data Viewer + Job User roles.",
     };
   }
 });

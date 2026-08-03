@@ -717,7 +717,30 @@ describe("sendReminderNotifications", () => {
     expect(notifStore["upcoming7_reg-7d-paid"].message).not.toMatch(/haven't submitted payment/);
   });
 
-  it("emails confirmed participants a thank-you once a climb has ended, and only once", async () => {
+  it("includes the pre-climb meeting details in the upcoming reminder when set", async () => {
+    regStore["reg-3d"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      startDate: { toDate: () => new Date(Date.now() + 3 * 86400000 - 60000) },
+      preClimbMeetingDate: "2026-07-30",
+      preClimbMeetingTime: "6:00 PM",
+      preClimbMeetingLocation: "MMS Clubhouse",
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["upcoming3_reg-3d"].message).toMatch(
+      /Pre-climb meeting: July 30 at 6:00 PM — MMS Clubhouse/,
+    );
+  });
+
+  it("emails confirmed participants a thank-you + feedback request once a climb has ended, and only once", async () => {
     regStore["reg-done"] = {
       status: "confirmed",
       paymentStatus: "verified",
@@ -746,10 +769,19 @@ describe("sendReminderNotifications", () => {
     const body = JSON.parse(opts.body);
     expect(body.to).toEqual([{ email: "juan@x.com", name: "Juan Cruz" }]);
     expect(body.htmlContent).toMatch(/Thank You, Juan Cruz/);
+    expect(body.htmlContent).toMatch(/Share Your Feedback/);
+    expect(body.htmlContent).toContain("/feedback/climb-1");
     expect(climbUpdates).toContainEqual({
       path: "climbs/climb-1",
       patch: { thankYouSentAt: "SERVER_TS" },
     });
+
+    expect(notifStore["feedback_climb-1_user-1"]).toMatchObject({
+      userId: "user-1",
+      type: "feedback_request",
+      link: "/feedback/climb-1",
+    });
+    expect(Object.keys(notifStore)).not.toContain("feedback_climb-1_user-2");
   });
 
   it("skips the thank-you email for climbs that already have thankYouSentAt or haven't ended", async () => {
