@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { addDoc, getDocs } from "firebase/firestore";
+import { addDoc, getDocs, setDoc } from "firebase/firestore";
 import { renderAtRoute, makeAdminAuth } from "@tests/helpers";
 import AdminClimbForm from "@/pages/admin/ClimbForm";
 import { makeQuerySnapshot } from "@tests/setup";
@@ -160,6 +160,57 @@ describe("Admin ClimbForm", () => {
     expect(payload.announcements[0]).toMatchObject({
       message: "Bring extra water, trail is dry season.",
       pinned: true,
+    });
+  });
+
+  it("writes pre-climb meeting details and resource links to climbPrivate, not the public climb doc", async () => {
+    renderAtRoute(
+      <AdminClimbForm />,
+      "/admin/climbs/new",
+      "/admin/climbs/new",
+      makeAdminAuth(),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText("New Climb", { selector: ".admin-page-title" }),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.change(controlByLabel("Climb Title"), { target: { value: "Mt. Sample" } });
+    fireEvent.change(controlByLabel("Date Label"), { target: { value: "Jul 1-2" } });
+    fireEvent.change(controlByLabel("Start Date"), { target: { value: "2026-07-01" } });
+    fireEvent.change(controlByLabel("End Date"), { target: { value: "2026-07-02" } });
+    fireEvent.change(controlByLabel("Location"), { target: { value: "Benguet" } });
+
+    fireEvent.change(controlByLabel("Meeting Date"), { target: { value: "2026-06-25" } });
+    fireEvent.change(controlByLabel("MS Teams / Zoom Link"), {
+      target: { value: "https://zoom.us/j/123" },
+    });
+    fireEvent.change(controlByLabel("Meeting Recording Link"), {
+      target: { value: "https://youtu.be/abc123" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Add Resource/i }));
+    fireEvent.change(screen.getByPlaceholderText("Label (e.g. Packing Tracker)"), {
+      target: { value: "Packing Tracker" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("https://docs.google.com/spreadsheets/…"), {
+      target: { value: "https://sheets.google.com/xyz" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Create Climb/i }));
+
+    await waitFor(() => expect(setDoc).toHaveBeenCalled());
+    const climbPayload = addDoc.mock.calls[0][1];
+    expect(climbPayload.preClimbMeetingDate).toBeNull();
+    expect(climbPayload.resources).toBeUndefined();
+
+    const [, privatePayload] = setDoc.mock.calls[0];
+    expect(privatePayload).toMatchObject({
+      preClimbMeetingDate: "2026-06-25",
+      preClimbMeetingLink: "https://zoom.us/j/123",
+      preClimbMeetingRecordingLink: "https://youtu.be/abc123",
+      resources: [{ label: "Packing Tracker", url: "https://sheets.google.com/xyz" }],
     });
   });
 

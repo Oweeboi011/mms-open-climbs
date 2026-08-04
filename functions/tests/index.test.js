@@ -59,6 +59,7 @@ jest.mock("firebase-admin/firestore", () => ({
 jest.mock("firebase-functions/v2/firestore", () => ({
   onDocumentCreated: (_opts, fn) => fn,
   onDocumentUpdated: (_opts, fn) => fn,
+  onDocumentDeleted: (_opts, fn) => fn,
 }));
 
 jest.mock("firebase-functions/v2/https", () => ({
