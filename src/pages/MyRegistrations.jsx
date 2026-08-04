@@ -272,6 +272,29 @@ function PayPrompt({ reg, onClose, onSaved }) {
                 {reg.verifiedBy?.name ? ` by ${reg.verifiedBy.name}` : ""}
               </div>
             )}
+            {reg.paymentProofs?.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ color: "var(--ink-soft)", marginBottom: 4 }}>
+                  Previously submitted:
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {reg.paymentProofs.map((proof, i) => (
+                    <a
+                      key={i}
+                      href={proof.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "var(--green-dark)",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      {proof.fileName || `Receipt ${i + 1}`}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1235,7 +1258,7 @@ function OfficerCard({ climb, currentUser }) {
   );
 }
 
-function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs }) {
+function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
   const needsForm = climb?.requiresRegistrationForm && !reg.registrationFormUpload;
   const needsCert = climb?.requiresMedicalCert && !reg.medicalCertUpload;
   return (
@@ -1338,6 +1361,14 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs }) {
                 ? "Submit Registration Form"
                 : "Submit Medical Certificate"}
           </button>
+        )}
+        {isPast && reg.status === "confirmed" && (
+          <Link
+            to={`/feedback/${reg.climbId}`}
+            className="btn btn-gold btn-sm"
+          >
+            Leave Feedback
+          </Link>
         )}
       </div>
     </div>
@@ -1577,6 +1608,7 @@ export default function MyRegistrations() {
                           onPay={() => setPayPromptReg(reg)}
                           onViewReceipt={() => setReceiptReg(reg)}
                           onSubmitDocs={() => setDocPromptReg(reg)}
+                          isPast
                         />
                       ))}
                     </div>

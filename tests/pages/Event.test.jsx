@@ -162,6 +162,67 @@ describe("Event page", () => {
     );
   });
 
+  it("shows Pre-Climb Meeting and Resources for a registered member", async () => {
+    getDoc.mockImplementation((ref) => {
+      if (ref.path.includes("climbPrivate")) {
+        return Promise.resolve(
+          makeSnapshot("climb-1", {
+            preClimbMeetingDate: "2026-07-30",
+            preClimbMeetingTime: "6:00 PM",
+            preClimbMeetingLocation: "MMS Clubhouse",
+            preClimbMeetingLink: "https://zoom.us/j/123",
+            resources: [{ label: "Packing Tracker", url: "https://sheets.google.com/xyz" }],
+          }),
+        );
+      }
+      return Promise.resolve(makeSnapshot("climb-1", OPEN_CLIMB));
+    });
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        { id: "reg-1", data: { status: "confirmed", climbId: "climb-1", userId: "user-1" } },
+      ]),
+    );
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeMemberAuth(),
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Pre-Climb Meeting")).toBeInTheDocument();
+      expect(screen.getByText("Join Meeting")).toBeInTheDocument();
+      expect(screen.getByText("Climb Resources")).toBeInTheDocument();
+      expect(screen.getByText("Packing Tracker")).toBeInTheDocument();
+    });
+  });
+
+  it("does not show Pre-Climb Meeting or Resources for a non-registered viewer", async () => {
+    getDoc.mockImplementation((ref) => {
+      if (ref.path.includes("climbPrivate")) {
+        return Promise.resolve(
+          makeSnapshot("climb-1", {
+            preClimbMeetingDate: "2026-07-30",
+            resources: [{ label: "Packing Tracker", url: "https://sheets.google.com/xyz" }],
+          }),
+        );
+      }
+      return Promise.resolve(makeSnapshot("climb-1", OPEN_CLIMB));
+    });
+    // No registration for this user — climbPrivate should never even be fetched.
+    getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeMemberAuth(),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Pre-Climb Meeting")).not.toBeInTheDocument();
+    expect(screen.queryByText("Climb Resources")).not.toBeInTheDocument();
+  });
+
   it("shows the climb type label", async () => {
     renderAtRoute(
       <Event />,

@@ -67,6 +67,16 @@ describe("ClimbCard", () => {
     expect(screen.queryByText(/seats left/)).not.toBeInTheDocument();
   });
 
+  it("hides the Full tag for a closed climb even with zero seats left", () => {
+    render({ maxParticipants: 10, registrationCount: 10, status: "closed" });
+    expect(screen.queryByText(/Full/)).not.toBeInTheDocument();
+  });
+
+  it("hides the low-seats tag for a completed climb", () => {
+    render({ maxParticipants: 15, registrationCount: 12, status: "completed" });
+    expect(screen.queryByText(/seats left/)).not.toBeInTheDocument();
+  });
+
   it("renders Major badge for a major climb", () => {
     render({ type: "major" });
     expect(screen.getByText("Major")).toBeInTheDocument();
@@ -165,15 +175,23 @@ describe("ClimbCard", () => {
     expect(screen.queryByText("Announcement")).not.toBeInTheDocument();
   });
 
-  it("shows a single required-document flag when only one is required", () => {
-    render({ requiresRegistrationForm: true, requiresMedicalCert: false });
+  it("shows a single required-document flag when only one is required and no one has registered yet", () => {
+    render({
+      requiresRegistrationForm: true,
+      requiresMedicalCert: false,
+      registrationCount: 0,
+    });
     expect(
       screen.getByText("Registration Form Required"),
     ).toBeInTheDocument();
   });
 
-  it("shows a combined 'Docs Required' flag when both documents are required", () => {
-    render({ requiresRegistrationForm: true, requiresMedicalCert: true });
+  it("shows a combined 'Docs Required' flag when both are required and no one has registered yet", () => {
+    render({
+      requiresRegistrationForm: true,
+      requiresMedicalCert: true,
+      registrationCount: 0,
+    });
     expect(screen.getByText("Docs Required")).toBeInTheDocument();
   });
 
@@ -181,5 +199,23 @@ describe("ClimbCard", () => {
     render({ requiresRegistrationForm: false, requiresMedicalCert: false });
     expect(screen.queryByText(/Docs Required/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Required$/)).not.toBeInTheDocument();
+  });
+
+  it("shows a docs-submitted progress count once climbers have registered", () => {
+    render({
+      requiresRegistrationForm: true,
+      registrationCount: 8,
+      docsCompleteCount: 3,
+    });
+    expect(screen.getByText("3/8 Docs Submitted")).toBeInTheDocument();
+  });
+
+  it("shows 0/N when no registrants have submitted the required doc yet", () => {
+    render({
+      requiresMedicalCert: true,
+      registrationCount: 5,
+      docsCompleteCount: 0,
+    });
+    expect(screen.getByText("0/5 Docs Submitted")).toBeInTheDocument();
   });
 });

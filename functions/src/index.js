@@ -4,6 +4,7 @@
 const {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
@@ -293,6 +294,15 @@ async function logFailedRequest({
   }
 }
 
+// ── Helper: has this registrant satisfied every document the climb
+// currently requires? Used to keep climbs/{id}.docsCompleteCount in sync,
+// which powers the "X/Y Docs Submitted" progress badge on climb cards ──────
+function regDocsComplete(climb, reg) {
+  if (climb?.requiresRegistrationForm && !reg?.registrationFormUpload) return false;
+  if (climb?.requiresMedicalCert && !reg?.medicalCertUpload) return false;
+  return true;
+}
+
 // ── Trigger: new registration → send confirmation email ───────────────────────
 exports.onRegistrationCreated = onDocumentCreated(
   {
@@ -316,6 +326,24 @@ exports.onRegistrationCreated = onDocumentCreated(
       await db
         .doc(`climbs/${climbId}`)
         .update({ registrationCount: FieldValue.increment(1) });
+
+      // Keep registeredUserIds in sync — this denormalized list is what the
+      // climbPrivate security rule checks to gate pre-climb meeting details
+      // and resource links to actual registrants (Firestore rules can't
+      // query registrations by climbId+userId directly).
+      const isActive = reg.status !== "cancelled";
+      if (userId && isActive) {
+        await db
+          .doc(`climbs/${climbId}`)
+          .update({ registeredUserIds: FieldValue.arrayUnion(userId) });
+      }
+
+      // Keep docsCompleteCount in sync for the climb card progress badge.
+      if (isActive && regDocsComplete(climb, reg)) {
+        await db
+          .doc(`climbs/${climbId}`)
+          .update({ docsCompleteCount: FieldValue.increment(1) });
+      }
 
       if (paymentStatus === "unpaid" && userId) {
         await createNotification({
@@ -538,6 +566,43 @@ exports.onRegistrationUpdated = onDocumentUpdated(
         .catch(() => {});
     }
 
+    // Keep registeredUserIds in sync whenever status moves in or out of the
+    // "active" set (pending/confirmed) — same denormalized list the
+    // climbPrivate rule checks. Runs even for status changes that don't
+    // trigger a notification below (e.g. waitlisted → pending).
+    const wasActive = ["pending", "confirmed"].includes(before.status);
+    const isActive = ["pending", "confirmed"].includes(after.status);
+    if (wasActive !== isActive && after.userId) {
+      await db.doc(`climbs/${after.climbId}`).update({
+        registeredUserIds: isActive
+          ? FieldValue.arrayUnion(after.userId)
+          : FieldValue.arrayRemove(after.userId),
+      });
+    }
+
+    // Keep docsCompleteCount in sync (climb card progress badge) whenever a
+    // status change or document upload could change whether this registrant
+    // counts as compliant with the climb's *current* requirements. Presence
+    // comparison, not reference equality — before/after come from separate
+    // snapshots so upload objects are never `===` even when unchanged.
+    const docsRelevantChange =
+      wasActive !== isActive ||
+      !!before.registrationFormUpload !== !!after.registrationFormUpload ||
+      !!before.medicalCertUpload !== !!after.medicalCertUpload;
+    if (docsRelevantChange && after.userId && after.climbId) {
+      const climbSnapForDocs = await db.doc(`climbs/${after.climbId}`).get();
+      if (climbSnapForDocs.exists) {
+        const climbForDocs = climbSnapForDocs.data();
+        const wasComplete = wasActive && regDocsComplete(climbForDocs, before);
+        const isComplete = isActive && regDocsComplete(climbForDocs, after);
+        if (wasComplete !== isComplete) {
+          await db.doc(`climbs/${after.climbId}`).update({
+            docsCompleteCount: FieldValue.increment(isComplete ? 1 : -1),
+          });
+        }
+      }
+    }
+
     if (before.status === after.status) return; // not a status change
 
     const notifyOn = ["confirmed", "cancelled", "waitlisted"];
@@ -645,6 +710,35 @@ exports.onRegistrationUpdated = onDocumentUpdated(
   },
 );
 
+// ── Trigger: registration hard-deleted (admin action) → keep
+// registeredUserIds and docsCompleteCount in sync, same as the create/update
+// triggers above ──────────────────────────────────────────────────────────
+exports.onRegistrationDeleted = onDocumentDeleted(
+  { document: "registrations/{regId}", database: "openclimbs" },
+  async (event) => {
+    const reg = event.data.data();
+    if (!reg.userId || !reg.climbId) return;
+    if (!["pending", "confirmed"].includes(reg.status)) return;
+    try {
+      await db
+        .doc(`climbs/${reg.climbId}`)
+        .update({ registeredUserIds: FieldValue.arrayRemove(reg.userId) });
+
+      const climbSnap = await db.doc(`climbs/${reg.climbId}`).get();
+      if (climbSnap.exists && regDocsComplete(climbSnap.data(), reg)) {
+        await db
+          .doc(`climbs/${reg.climbId}`)
+          .update({ docsCompleteCount: FieldValue.increment(-1) });
+      }
+    } catch (err) {
+      logger.error("[onRegistrationDeleted] Failed to sync registeredUserIds", {
+        err: err.message,
+        climbId: reg.climbId,
+      });
+    }
+  },
+);
+
 // ── Trigger: new climb announcement → notify all active registrants ──────────
 exports.onClimbUpdated = onDocumentUpdated(
   {
@@ -668,8 +762,13 @@ exports.onClimbUpdated = onDocumentUpdated(
       before.requiresRegistrationForm && !after.requiresRegistrationForm;
     const certTurnedOff =
       before.requiresMedicalCert && !after.requiresMedicalCert;
+    // Either requirement flipping in *either* direction changes who counts
+    // as "compliant" — docsCompleteCount needs a full recount either way.
+    const requirementsChanged =
+      !!before.requiresRegistrationForm !== !!after.requiresRegistrationForm ||
+      !!before.requiresMedicalCert !== !!after.requiresMedicalCert;
 
-    if (newAnnouncements.length === 0 && !formTurnedOff && !certTurnedOff) {
+    if (newAnnouncements.length === 0 && !requirementsChanged) {
       return;
     }
 
@@ -701,6 +800,13 @@ exports.onClimbUpdated = onDocumentUpdated(
             }
           }),
         );
+      }
+
+      if (requirementsChanged) {
+        const docsCompleteCount = activeRegs.filter((r) =>
+          regDocsComplete(after, r),
+        ).length;
+        await db.doc(`climbs/${climbId}`).update({ docsCompleteCount });
       }
 
       if (newAnnouncements.length > 0) {
@@ -753,10 +859,13 @@ exports.sendReminderNotifications = onSchedule(
 
     const climbIds = [...new Set(regs.map((r) => r.climbId).filter(Boolean))];
     const climbs = {};
+    const climbPrivates = {};
     await Promise.all(
       climbIds.map(async (climbId) => {
         const snap = await db.doc(`climbs/${climbId}`).get();
         if (snap.exists) climbs[climbId] = snap.data();
+        const privSnap = await db.doc(`climbPrivate/${climbId}`).get();
+        if (privSnap.exists) climbPrivates[climbId] = privSnap.data();
       }),
     );
 
@@ -813,11 +922,12 @@ exports.sendReminderNotifications = onSchedule(
           const unpaid =
             reg.paymentStatus === "unpaid" || reg.paymentStatus === "rejected";
           let message = `${climbTitle} — ${reg.climbDate || climb.dateLabel || ""}. Check the event page for the itinerary, what to bring, and what to pay.`;
-          if (climb.preClimbMeetingDate) {
+          const priv = climbPrivates[reg.climbId];
+          if (priv?.preClimbMeetingDate) {
             const meetingDate = new Date(
-              `${climb.preClimbMeetingDate}T00:00:00`,
+              `${priv.preClimbMeetingDate}T00:00:00`,
             ).toLocaleDateString("en-PH", { month: "long", day: "numeric" });
-            message += ` Pre-climb meeting: ${meetingDate}${climb.preClimbMeetingTime ? ` at ${climb.preClimbMeetingTime}` : ""}${climb.preClimbMeetingLocation ? ` — ${climb.preClimbMeetingLocation}` : ""}.`;
+            message += ` Pre-climb meeting: ${meetingDate}${priv.preClimbMeetingTime ? ` at ${priv.preClimbMeetingTime}` : ""}${priv.preClimbMeetingLocation ? ` — ${priv.preClimbMeetingLocation}` : ""}.`;
           }
           if (unpaid) {
             message += " You haven't submitted payment yet — please do so from My Climbs.";

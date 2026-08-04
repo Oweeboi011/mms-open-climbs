@@ -15,6 +15,10 @@ service cloud.firestore {
     function climbIsOpen(climbId) {
       return get(/databases/$(database)/documents/climbs/$(climbId)).data.status == 'open';
     }
+    function isRegisteredFor(climbId) {
+      return isSignedIn() && request.auth.uid in
+        get(/databases/$(database)/documents/climbs/$(climbId)).data.registeredUserIds;
+    }
 
     match /users/{userId} {
       allow read: if isAdmin() || isOwner(userId);
@@ -57,6 +61,14 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAdmin();
       allow update, delete: if false;
+    }
+
+    match /climbPrivate/{climbId} {
+      // Pre-climb meeting details and resource links — genuinely restricted
+      // to admins and actual registrants (climbs is publicly readable, so
+      // this data must live in its own doc rather than on the climb itself).
+      allow read: if isAdmin() || isRegisteredFor(climbId);
+      allow write: if isAdmin();
     }
 
     match /feedback/{feedbackId} {

@@ -68,8 +68,9 @@ export default function ClimbCard({ climb }) {
   const hasCap = Boolean(climb.maxParticipants);
   const registered = climb.registrationCount ?? 0;
   const seatsLeft = climb.maxParticipants - registered;
-  const isFull = hasCap && seatsLeft <= 0;
-  const isLow = hasCap && seatsLeft > 0 && seatsLeft <= 5;
+  const isActive = climb.status === "open";
+  const isFull = hasCap && isActive && seatsLeft <= 0;
+  const isLow = hasCap && isActive && seatsLeft > 0 && seatsLeft <= 5;
   const isOngoing = climb.status !== "completed" && isClimbOngoing(climb);
   const level = getExperienceLevel(climb);
   const leads = getLeadOfficers(climb.officers);
@@ -78,6 +79,7 @@ export default function ClimbCard({ climb }) {
     climb.requiresRegistrationForm && "Registration Form",
     climb.requiresMedicalCert && "Medical Certificate",
   ].filter(Boolean);
+  const docsComplete = climb.docsCompleteCount ?? 0;
 
   return (
     <Link
@@ -203,9 +205,11 @@ export default function ClimbCard({ climb }) {
                 title={`Required: ${docsRequired.join(", ")}`}
               >
                 <Icon name="fileCheck" size={11} />
-                {docsRequired.length > 1
-                  ? "Docs Required"
-                  : `${docsRequired[0]} Required`}
+                {registered > 0
+                  ? `${docsComplete}/${registered} Docs Submitted`
+                  : docsRequired.length > 1
+                    ? "Docs Required"
+                    : `${docsRequired[0]} Required`}
               </span>
             )}
           </div>

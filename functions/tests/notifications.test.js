@@ -13,6 +13,7 @@
 
 const notifStore = {};
 const climbStore = {};
+const climbPrivateStore = {};
 const userStore = {};
 const regStore = {};
 const climbUpdates = [];
@@ -21,6 +22,7 @@ let autoIdCounter = 0;
 function resetStores() {
   for (const k of Object.keys(notifStore)) delete notifStore[k];
   for (const k of Object.keys(climbStore)) delete climbStore[k];
+  for (const k of Object.keys(climbPrivateStore)) delete climbPrivateStore[k];
   for (const k of Object.keys(userStore)) delete userStore[k];
   for (const k of Object.keys(regStore)) delete regStore[k];
   climbUpdates.length = 0;
@@ -29,6 +31,7 @@ function resetStores() {
 
 function storeFor(col) {
   if (col === "climbs") return climbStore;
+  if (col === "climbPrivate") return climbPrivateStore;
   if (col === "users") return userStore;
   if (col === "registrations") return regStore;
   return notifStore;
@@ -88,12 +91,15 @@ jest.mock("firebase-admin/firestore", () => ({
   FieldValue: {
     serverTimestamp: jest.fn(() => "SERVER_TS"),
     increment: jest.fn((n) => ({ __increment: n })),
+    arrayUnion: jest.fn((...vals) => ({ __arrayUnion: vals })),
+    arrayRemove: jest.fn((...vals) => ({ __arrayRemove: vals })),
   },
 }));
 
 let createdHandler;
 let updatedHandler;
 let climbUpdatedHandler;
+let deletedHandler;
 let scheduleHandler;
 
 jest.mock("firebase-functions/v2/firestore", () => ({
@@ -107,6 +113,10 @@ jest.mock("firebase-functions/v2/firestore", () => ({
     } else {
       updatedHandler = fn;
     }
+    return fn;
+  },
+  onDocumentDeleted: (_opts, fn) => {
+    deletedHandler = fn;
     return fn;
   },
 }));
@@ -139,6 +149,8 @@ beforeEach(() => {
   mockDb.collection.mockImplementation((name) => collectionRef(name));
   FieldValue.serverTimestamp.mockImplementation(() => "SERVER_TS");
   FieldValue.increment.mockImplementation((n) => ({ __increment: n }));
+  FieldValue.arrayUnion.mockImplementation((...vals) => ({ __arrayUnion: vals }));
+  FieldValue.arrayRemove.mockImplementation((...vals) => ({ __arrayRemove: vals }));
   process.env.BREVO_API_KEY = "k";
   process.env.BREVO_FROM_EMAIL = "noreply@mms.ph";
   global.fetch = jest.fn().mockResolvedValue({
@@ -188,6 +200,65 @@ describe("onRegistrationCreated", () => {
       type: "payment_reminder",
     });
     expect(global.fetch).toHaveBeenCalled();
+  });
+
+  it("adds the registrant to registeredUserIds on creation", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    await createdHandler({
+      data: {
+        data: () => ({
+          name: "Juan Cruz",
+          climbId: "climb-1",
+          userId: "user-1",
+          status: "pending",
+        }),
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registeredUserIds: { __arrayUnion: ["user-1"] } },
+    });
+  });
+
+  it("increments docsCompleteCount when the registrant already satisfies all required docs", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [],
+      requiresRegistrationForm: true,
+    };
+    await createdHandler({
+      data: {
+        data: () => ({
+          climbId: "climb-1",
+          userId: "user-1",
+          status: "pending",
+          registrationFormUpload: { url: "https://x/form.pdf" },
+        }),
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { docsCompleteCount: { __increment: 1 } },
+    });
+  });
+
+  it("does not increment docsCompleteCount when a required doc is missing", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [],
+      requiresRegistrationForm: true,
+    };
+    await createdHandler({
+      data: {
+        data: () => ({ climbId: "climb-1", userId: "user-1", status: "pending" }),
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(
+      climbUpdates.some((u) => "docsCompleteCount" in u.patch),
+    ).toBe(false);
   });
 
   it("notifies about missing required documents on creation", async () => {
@@ -484,6 +555,165 @@ describe("onRegistrationUpdated", () => {
       patch: { registrationCount: { __increment: -1 } },
     });
   });
+
+  it("removes the user from registeredUserIds when cancelled, and re-adds on reinstatement", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "confirmed", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "cancelled", climbId: "climb-1", userId: "user-1" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registeredUserIds: { __arrayRemove: ["user-1"] } },
+    });
+
+    climbUpdates.length = 0;
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "cancelled", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "pending", climbId: "climb-1", userId: "user-1" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registeredUserIds: { __arrayUnion: ["user-1"] } },
+    });
+  });
+
+  it("does not touch registeredUserIds for a pending → confirmed transition", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", paymentStatus: "verified", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "confirmed", paymentStatus: "verified", climbId: "climb-1", userId: "user-1" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(
+      climbUpdates.some((u) => "registeredUserIds" in u.patch),
+    ).toBe(false);
+  });
+
+  it("increments docsCompleteCount once the missing document is uploaded", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [],
+      requiresRegistrationForm: true,
+    };
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", climbId: "climb-1", userId: "user-1" }) },
+        after: {
+          data: () => ({
+            status: "pending",
+            climbId: "climb-1",
+            userId: "user-1",
+            registrationFormUpload: { url: "https://x/form.pdf" },
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { docsCompleteCount: { __increment: 1 } },
+    });
+  });
+
+  it("decrements docsCompleteCount when a compliant registrant is cancelled", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [],
+      requiresRegistrationForm: true,
+    };
+    await updatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            status: "confirmed",
+            climbId: "climb-1",
+            userId: "user-1",
+            registrationFormUpload: { url: "https://x/form.pdf" },
+          }),
+        },
+        after: {
+          data: () => ({
+            status: "cancelled",
+            climbId: "climb-1",
+            userId: "user-1",
+            registrationFormUpload: { url: "https://x/form.pdf" },
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { docsCompleteCount: { __increment: -1 } },
+    });
+  });
+
+  it("does not touch docsCompleteCount for an unrelated field change (e.g. payment status)", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", paymentStatus: "submitted", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "pending", paymentStatus: "verified", climbId: "climb-1", userId: "user-1" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(
+      climbUpdates.some((u) => "docsCompleteCount" in u.patch),
+    ).toBe(false);
+  });
+});
+
+describe("onRegistrationDeleted", () => {
+  it("removes the user from registeredUserIds when an active registration is deleted", async () => {
+    await deletedHandler({
+      data: { data: () => ({ climbId: "climb-1", userId: "user-1", status: "confirmed" }) },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registeredUserIds: { __arrayRemove: ["user-1"] } },
+    });
+  });
+
+  it("does nothing when the deleted registration was already cancelled", async () => {
+    await deletedHandler({
+      data: { data: () => ({ climbId: "climb-1", userId: "user-1", status: "cancelled" }) },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toHaveLength(0);
+  });
+
+  it("decrements docsCompleteCount when a compliant registration is hard-deleted", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      requiresRegistrationForm: true,
+    };
+    await deletedHandler({
+      data: {
+        data: () => ({
+          climbId: "climb-1",
+          userId: "user-1",
+          status: "confirmed",
+          registrationFormUpload: { url: "https://x/form.pdf" },
+        }),
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { docsCompleteCount: { __increment: -1 } },
+    });
+  });
 });
 
 describe("onClimbUpdated", () => {
@@ -595,6 +825,44 @@ describe("onClimbUpdated", () => {
       params: { climbId: "climb-1" },
     });
     expect(Object.keys(notifStore)).toHaveLength(0);
+  });
+
+  it("recounts docsCompleteCount against every active registrant when a requirement turns on", async () => {
+    regStore["reg-1"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      registrationFormUpload: { url: "https://x/form.pdf" },
+    };
+    regStore["reg-2"] = {
+      climbId: "climb-1",
+      userId: "user-2",
+      status: "pending",
+      // no upload — not compliant
+    };
+    regStore["reg-cancelled"] = {
+      climbId: "climb-1",
+      userId: "user-3",
+      status: "cancelled",
+      registrationFormUpload: { url: "https://x/form.pdf" },
+    };
+
+    await climbUpdatedHandler({
+      data: {
+        before: {
+          data: () => ({ title: "Mt. Pulag", requiresRegistrationForm: false, announcements: [] }),
+        },
+        after: {
+          data: () => ({ title: "Mt. Pulag", requiresRegistrationForm: true, announcements: [] }),
+        },
+      },
+      params: { climbId: "climb-1" },
+    });
+
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { docsCompleteCount: 1 },
+    });
   });
 });
 
@@ -728,6 +996,8 @@ describe("sendReminderNotifications", () => {
     climbStore["climb-1"] = {
       title: "Mt. Pulag",
       startDate: { toDate: () => new Date(Date.now() + 3 * 86400000 - 60000) },
+    };
+    climbPrivateStore["climb-1"] = {
       preClimbMeetingDate: "2026-07-30",
       preClimbMeetingTime: "6:00 PM",
       preClimbMeetingLocation: "MMS Clubhouse",
