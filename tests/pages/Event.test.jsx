@@ -162,15 +162,24 @@ describe("Event page", () => {
     );
   });
 
-  it("shows Pre-Climb Meeting and Resources for a registered member", async () => {
+  it("shows Pre-Climb Meetings and Resources for a registered member", async () => {
     getDoc.mockImplementation((ref) => {
       if (ref.path.includes("climbPrivate")) {
         return Promise.resolve(
           makeSnapshot("climb-1", {
-            preClimbMeetingDate: "2026-07-30",
-            preClimbMeetingTime: "6:00 PM",
-            preClimbMeetingLocation: "MMS Clubhouse",
-            preClimbMeetingLink: "https://zoom.us/j/123",
+            preClimbMeetings: [
+              {
+                date: "2026-07-30",
+                time: "6:00 PM",
+                location: "MMS Clubhouse",
+                link: "https://zoom.us/j/123",
+              },
+              {
+                date: "2026-07-15",
+                time: "7:00 PM",
+                location: "Online",
+              },
+            ],
             resources: [{ label: "Packing Tracker", url: "https://sheets.google.com/xyz" }],
           }),
         );
@@ -189,19 +198,21 @@ describe("Event page", () => {
       makeMemberAuth(),
     );
     await waitFor(() => {
-      expect(screen.getByText("Pre-Climb Meeting")).toBeInTheDocument();
+      expect(screen.getByText("Pre-Climb Meetings")).toBeInTheDocument();
       expect(screen.getByText("Join Meeting")).toBeInTheDocument();
+      expect(screen.getByText(/July 30, 2026/)).toBeInTheDocument();
+      expect(screen.getByText(/July 15, 2026/)).toBeInTheDocument();
       expect(screen.getByText("Climb Resources")).toBeInTheDocument();
       expect(screen.getByText("Packing Tracker")).toBeInTheDocument();
     });
   });
 
-  it("does not show Pre-Climb Meeting or Resources for a non-registered viewer", async () => {
+  it("does not show Pre-Climb Meetings or Resources for a non-registered viewer", async () => {
     getDoc.mockImplementation((ref) => {
       if (ref.path.includes("climbPrivate")) {
         return Promise.resolve(
           makeSnapshot("climb-1", {
-            preClimbMeetingDate: "2026-07-30",
+            preClimbMeetings: [{ date: "2026-07-30" }],
             resources: [{ label: "Packing Tracker", url: "https://sheets.google.com/xyz" }],
           }),
         );

@@ -746,88 +746,103 @@ export default function Event() {
           </div>
         )}
 
-        {/* Pre-Climb Meeting — registrants + admins only (see climbPrivate) */}
-        {privateInfo?.preClimbMeetingDate && (
+        {/* Pre-Climb Meetings — registrants + admins only (see climbPrivate) */}
+        {privateInfo?.preClimbMeetings?.length > 0 && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">
                 <Icon name="calendar" size={17} />
               </span>
-              <h3>Pre-Climb Meeting</h3>
+              <h3>
+                Pre-Climb Meeting
+                {privateInfo.preClimbMeetings.length > 1 ? "s" : ""}
+              </h3>
             </div>
             <div className="section-body">
-              <div
-                style={{
-                  fontSize: "0.86rem",
-                  lineHeight: 1.7,
-                  color: "var(--ink)",
-                }}
-              >
-                <strong>
-                  {new Date(
-                    `${privateInfo.preClimbMeetingDate}T00:00:00`,
-                  ).toLocaleDateString("en-PH", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </strong>
-                {privateInfo.preClimbMeetingTime && ` — ${privateInfo.preClimbMeetingTime}`}
-                {privateInfo.preClimbMeetingLocation && (
-                  <>
-                    <br />
-                    {privateInfo.preClimbMeetingLocation}
-                  </>
-                )}
-              </div>
-              {privateInfo.preClimbMeetingNotes && (
-                <div
-                  style={{
-                    fontSize: "0.82rem",
-                    lineHeight: 1.6,
-                    color: "var(--ink-soft)",
-                    marginTop: 10,
-                    borderTop: "1px solid rgba(0,0,0,0.06)",
-                    paddingTop: 10,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {privateInfo.preClimbMeetingNotes}
-                </div>
-              )}
-              {(privateInfo.preClimbMeetingLink ||
-                privateInfo.preClimbMeetingRecordingLink) && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    flexWrap: "wrap",
-                    marginTop: 12,
-                  }}
-                >
-                  {privateInfo.preClimbMeetingLink && (
-                    <a
-                      href={privateInfo.preClimbMeetingLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-accent btn-sm"
+              {[...privateInfo.preClimbMeetings]
+                .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+                .map((meeting, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      paddingTop: i > 0 ? 14 : 0,
+                      marginTop: i > 0 ? 14 : 0,
+                      borderTop: i > 0 ? "1px solid rgba(0,0,0,0.06)" : "none",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "0.86rem",
+                        lineHeight: 1.7,
+                        color: "var(--ink)",
+                      }}
                     >
-                      Join Meeting
-                    </a>
-                  )}
-                  {privateInfo.preClimbMeetingRecordingLink && (
-                    <a
-                      href={privateInfo.preClimbMeetingRecordingLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-outline btn-sm"
-                    >
-                      Watch Recording
-                    </a>
-                  )}
-                </div>
-              )}
+                      <strong>
+                        {meeting.date
+                          ? new Date(
+                              `${meeting.date}T00:00:00`,
+                            ).toLocaleDateString("en-PH", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
+                          : "Date TBA"}
+                      </strong>
+                      {meeting.time && ` — ${meeting.time}`}
+                      {meeting.location && (
+                        <>
+                          <br />
+                          {meeting.location}
+                        </>
+                      )}
+                    </div>
+                    {meeting.notes && (
+                      <div
+                        style={{
+                          fontSize: "0.82rem",
+                          lineHeight: 1.6,
+                          color: "var(--ink-soft)",
+                          marginTop: 8,
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {meeting.notes}
+                      </div>
+                    )}
+                    {(meeting.link || meeting.recordingLink) && (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          flexWrap: "wrap",
+                          marginTop: 10,
+                        }}
+                      >
+                        {meeting.link && (
+                          <a
+                            href={meeting.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-accent btn-sm"
+                          >
+                            Join Meeting
+                          </a>
+                        )}
+                        {meeting.recordingLink && (
+                          <a
+                            href={meeting.recordingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-outline btn-sm"
+                          >
+                            Watch Recording
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
           </div>
         )}
