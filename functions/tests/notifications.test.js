@@ -985,7 +985,7 @@ describe("sendReminderNotifications", () => {
     expect(notifStore["upcoming7_reg-7d-paid"].message).not.toMatch(/haven't submitted payment/);
   });
 
-  it("includes the pre-climb meeting details in the upcoming reminder when set", async () => {
+  it("includes the next upcoming pre-climb meeting in the reminder, skipping past ones", async () => {
     regStore["reg-3d"] = {
       status: "confirmed",
       paymentStatus: "verified",
@@ -997,17 +997,25 @@ describe("sendReminderNotifications", () => {
       title: "Mt. Pulag",
       startDate: { toDate: () => new Date(Date.now() + 3 * 86400000 - 60000) },
     };
+    const pastDate = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
+    const nextDate = new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10);
+    const nextMonthDay = new Date(`${nextDate}T00:00:00`).toLocaleDateString(
+      "en-PH",
+      { month: "long", day: "numeric" },
+    );
     climbPrivateStore["climb-1"] = {
-      preClimbMeetingDate: "2026-07-30",
-      preClimbMeetingTime: "6:00 PM",
-      preClimbMeetingLocation: "MMS Clubhouse",
+      preClimbMeetings: [
+        { date: pastDate, time: "5:00 PM", location: "Old Venue" },
+        { date: nextDate, time: "6:00 PM", location: "MMS Clubhouse" },
+      ],
     };
 
     await scheduleHandler({});
 
     expect(notifStore["upcoming3_reg-3d"].message).toMatch(
-      /Pre-climb meeting: July 30 at 6:00 PM — MMS Clubhouse/,
+      new RegExp(`Pre-climb meeting: ${nextMonthDay} at 6:00 PM — MMS Clubhouse`),
     );
+    expect(notifStore["upcoming3_reg-3d"].message).not.toMatch(/Old Venue/);
   });
 
   it("emails confirmed participants a thank-you + feedback request once a climb has ended, and only once", async () => {
