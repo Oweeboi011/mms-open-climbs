@@ -923,11 +923,16 @@ exports.sendReminderNotifications = onSchedule(
             reg.paymentStatus === "unpaid" || reg.paymentStatus === "rejected";
           let message = `${climbTitle} — ${reg.climbDate || climb.dateLabel || ""}. Check the event page for the itinerary, what to bring, and what to pay.`;
           const priv = climbPrivates[reg.climbId];
-          if (priv?.preClimbMeetingDate) {
+          // Mention only the next upcoming meeting (there can be several) —
+          // past ones aren't relevant to a "your climb is coming up" nudge.
+          const nextMeeting = (priv?.preClimbMeetings || [])
+            .filter((m) => m.date && new Date(`${m.date}T23:59:59`).getTime() >= now)
+            .sort((a, b) => a.date.localeCompare(b.date))[0];
+          if (nextMeeting) {
             const meetingDate = new Date(
-              `${priv.preClimbMeetingDate}T00:00:00`,
+              `${nextMeeting.date}T00:00:00`,
             ).toLocaleDateString("en-PH", { month: "long", day: "numeric" });
-            message += ` Pre-climb meeting: ${meetingDate}${priv.preClimbMeetingTime ? ` at ${priv.preClimbMeetingTime}` : ""}${priv.preClimbMeetingLocation ? ` — ${priv.preClimbMeetingLocation}` : ""}.`;
+            message += ` Pre-climb meeting: ${meetingDate}${nextMeeting.time ? ` at ${nextMeeting.time}` : ""}${nextMeeting.location ? ` — ${nextMeeting.location}` : ""}.`;
           }
           if (unpaid) {
             message += " You haven't submitted payment yet — please do so from My Climbs.";

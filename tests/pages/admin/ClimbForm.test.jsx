@@ -182,6 +182,7 @@ describe("Admin ClimbForm", () => {
     fireEvent.change(controlByLabel("End Date"), { target: { value: "2026-07-02" } });
     fireEvent.change(controlByLabel("Location"), { target: { value: "Benguet" } });
 
+    fireEvent.click(screen.getByRole("button", { name: /\+ Add Meeting/i }));
     fireEvent.change(controlByLabel("Meeting Date"), { target: { value: "2026-06-25" } });
     fireEvent.change(controlByLabel("MS Teams / Zoom Link"), {
       target: { value: "https://zoom.us/j/123" },
@@ -202,16 +203,23 @@ describe("Admin ClimbForm", () => {
 
     await waitFor(() => expect(setDoc).toHaveBeenCalled());
     const climbPayload = addDoc.mock.calls[0][1];
-    expect(climbPayload.preClimbMeetingDate).toBeNull();
+    expect(climbPayload.preClimbMeetings).toBeUndefined();
     expect(climbPayload.resources).toBeUndefined();
 
     const [, privatePayload] = setDoc.mock.calls[0];
-    expect(privatePayload).toMatchObject({
-      preClimbMeetingDate: "2026-06-25",
-      preClimbMeetingLink: "https://zoom.us/j/123",
-      preClimbMeetingRecordingLink: "https://youtu.be/abc123",
-      resources: [{ label: "Packing Tracker", url: "https://sheets.google.com/xyz" }],
-    });
+    expect(privatePayload.preClimbMeetings).toEqual([
+      {
+        date: "2026-06-25",
+        time: "",
+        location: "",
+        link: "https://zoom.us/j/123",
+        recordingLink: "https://youtu.be/abc123",
+        notes: "",
+      },
+    ]);
+    expect(privatePayload.resources).toEqual([
+      { label: "Packing Tracker", url: "https://sheets.google.com/xyz" },
+    ]);
   });
 
   it("toggles required documents and reveals the template upload field", async () => {
