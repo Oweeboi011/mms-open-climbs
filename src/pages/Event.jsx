@@ -759,6 +759,17 @@ export default function Event() {
               </h3>
             </div>
             <div className="section-body">
+              <p
+                style={{
+                  fontSize: "0.82rem",
+                  color: "var(--ink-soft)",
+                  marginBottom: 14,
+                }}
+              >
+                Briefings before the climb — gear check, orientation, final
+                headcount. Join via the meeting link or catch up with the
+                recording if you can't make it live.
+              </p>
               {[...privateInfo.preClimbMeetings]
                 .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
                 .map((meeting, i) => (
@@ -857,6 +868,16 @@ export default function Event() {
               <h3>Climb Resources</h3>
             </div>
             <div className="section-body">
+              <p
+                style={{
+                  fontSize: "0.82rem",
+                  color: "var(--ink-soft)",
+                  marginBottom: 14,
+                }}
+              >
+                Links you'll need for this climb — trackers, shared sheets,
+                packing lists, and other post-climb resources.
+              </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {privateInfo.resources.map((res, i) => (
                   <a
