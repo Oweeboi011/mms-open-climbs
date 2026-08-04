@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   doc,
   getDoc,
+  setDoc,
   addDoc,
   updateDoc,
   collection,
@@ -136,6 +137,9 @@ const EMPTY_FORM = {
   preClimbMeetingTime: "",
   preClimbMeetingLocation: "",
   preClimbMeetingNotes: "",
+  preClimbMeetingLink: "",
+  preClimbMeetingRecordingLink: "",
+  resources: [],
   trailMaps: [],
   gcashName: "",
   gcashNumber: "",
@@ -174,7 +178,10 @@ export default function AdminClimbForm() {
 
   useEffect(() => {
     if (!isEdit) return;
-    getDoc(doc(db, "climbs", id)).then((snap) => {
+    Promise.all([
+      getDoc(doc(db, "climbs", id)),
+      getDoc(doc(db, "climbPrivate", id)),
+    ]).then(([snap, privateSnap]) => {
       if (snap.exists()) {
         const data = snap.data();
         // Migrate the legacy single googleMapsUrl/allTrailsUrl fields into
@@ -191,7 +198,23 @@ export default function AdminClimbForm() {
                   },
                 ]
               : [];
-        setForm({ ...EMPTY_FORM, ...data, trailMaps });
+        const priv = privateSnap.exists() ? privateSnap.data() : {};
+        setForm({
+          ...EMPTY_FORM,
+          ...data,
+          trailMaps,
+          // Pre-climb meeting fields used to live directly on the climb doc
+          // before it became registrants-only climbPrivate data — fall back
+          // to the legacy copy so nothing already saved gets lost; the next
+          // save clears it off the public doc for good (see handleSubmit).
+          preClimbMeetingDate: priv.preClimbMeetingDate ?? data.preClimbMeetingDate ?? "",
+          preClimbMeetingTime: priv.preClimbMeetingTime ?? data.preClimbMeetingTime ?? "",
+          preClimbMeetingLocation: priv.preClimbMeetingLocation ?? data.preClimbMeetingLocation ?? "",
+          preClimbMeetingNotes: priv.preClimbMeetingNotes ?? data.preClimbMeetingNotes ?? "",
+          preClimbMeetingLink: priv.preClimbMeetingLink ?? "",
+          preClimbMeetingRecordingLink: priv.preClimbMeetingRecordingLink ?? "",
+          resources: priv.resources ?? [],
+        });
       }
       setLoading(false);
     });
@@ -366,8 +389,31 @@ export default function AdminClimbForm() {
 
     setSaving(true);
     try {
+      const {
+        preClimbMeetingDate,
+        preClimbMeetingTime,
+        preClimbMeetingLocation,
+        preClimbMeetingNotes,
+        preClimbMeetingLink,
+        preClimbMeetingRecordingLink,
+        resources,
+        ...publicForm
+      } = form;
+      // Pre-climb meeting details and resource links are genuinely
+      // registrants-only (see climbPrivate rule in firestore.rules) — they
+      // must never land on the publicly-readable climbs document.
+      const privateData = {
+        preClimbMeetingDate,
+        preClimbMeetingTime,
+        preClimbMeetingLocation,
+        preClimbMeetingNotes,
+        preClimbMeetingLink,
+        preClimbMeetingRecordingLink,
+        resources: resources || [],
+      };
+
       const payload = {
-        ...form,
+        ...publicForm,
         maxParticipants: Number(form.maxParticipants),
         updatedAt: serverTimestamp(),
       };
@@ -379,8 +425,15 @@ export default function AdminClimbForm() {
       // location lookup) still resolve correctly.
       payload.googleMapsUrl = form.trailMaps?.[0]?.googleMapsUrl || "";
       payload.allTrailsUrl = form.trailMaps?.[0]?.allTrailsUrl || "";
+      // Clear any legacy copy left over from before these fields moved to
+      // climbPrivate, so the data isn't duplicated on the public doc.
+      payload.preClimbMeetingDate = null;
+      payload.preClimbMeetingTime = null;
+      payload.preClimbMeetingLocation = null;
+      payload.preClimbMeetingNotes = null;
       if (isEdit) {
         await updateDoc(doc(db, "climbs", id), payload);
+        await setDoc(doc(db, "climbPrivate", id), privateData, { merge: true });
         logAuditEvent({
           actorUid: currentUser?.uid,
           actorName: currentUser?.displayName || currentUser?.email,
@@ -394,6 +447,7 @@ export default function AdminClimbForm() {
         payload.createdBy = currentUser.uid;
         payload.registrationCount = 0;
         const ref = await addDoc(collection(db, "climbs"), payload);
+        await setDoc(doc(db, "climbPrivate", ref.id), privateData, { merge: true });
         logAuditEvent({
           actorUid: currentUser?.uid,
           actorName: currentUser?.displayName || currentUser?.email,
@@ -1035,8 +1089,9 @@ export default function AdminClimbForm() {
               }}
             >
               Optional briefing before the climb (gear check, final
-              headcount, orientation). Leave the date blank if there isn't
-              one — it won't be shown on the climb's public page.
+              headcount, orientation). Only visible to registered
+              participants and admins — not shown on the public climb page.
+              Leave the date blank if there isn't one.
             </p>
             <div className="form-row">
               <div className="form-group">
@@ -1070,6 +1125,26 @@ export default function AdminClimbForm() {
               />
             </div>
             <div className="form-group">
+              <label className="form-label">MS Teams / Zoom Link</label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://teams.microsoft.com/… or https://zoom.us/j/…"
+                value={form.preClimbMeetingLink}
+                onChange={(e) => set("preClimbMeetingLink", e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Meeting Recording Link</label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="YouTube (unlisted) or Google Drive link, once available"
+                value={form.preClimbMeetingRecordingLink}
+                onChange={(e) => set("preClimbMeetingRecordingLink", e.target.value)}
+              />
+            </div>
+            <div className="form-group">
               <label className="form-label">Meeting Notes</label>
               <textarea
                 className="form-input"
@@ -1080,6 +1155,87 @@ export default function AdminClimbForm() {
                 style={{ resize: "vertical" }}
               />
             </div>
+          </div>
+
+          {/* ── Climb Resources ── */}
+          <div className="admin-card">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <div className="admin-card-title" style={{ marginBottom: 0 }}>
+                Climb Resources
+              </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() =>
+                  addListItem("resources", { label: "", url: "" })
+                }
+              >
+                + Add Resource
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
+              Links registered participants need to check — trackers,
+              shared sheets, packing lists, etc. Only visible to registered
+              participants and admins.
+            </p>
+            {(form.resources || []).map((res, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  marginBottom: 8,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Label (e.g. Packing Tracker)"
+                  value={res.label}
+                  onChange={(e) =>
+                    updateListItem("resources", i, { ...res, label: e.target.value })
+                  }
+                  style={{ flex: "1 1 200px" }}
+                />
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://docs.google.com/spreadsheets/…"
+                  value={res.url}
+                  onChange={(e) =>
+                    updateListItem("resources", i, { ...res, url: e.target.value })
+                  }
+                  style={{ flex: "2 1 260px" }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={() => removeListItem("resources", i)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            {(form.resources || []).length === 0 && (
+              <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
+                No resources added yet.
+              </p>
+            )}
           </div>
 
           {/* ── Announcements ── */}

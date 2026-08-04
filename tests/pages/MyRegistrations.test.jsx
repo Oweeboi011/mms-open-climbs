@@ -90,6 +90,53 @@ describe("MyRegistrations page", () => {
     );
   });
 
+  it("shows a Leave Feedback link for confirmed past climbs", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        endDate: "2020-01-01",
+      }),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          { id: registrationFixture.id, data: { ...registrationFixture, status: "confirmed" } },
+        ]),
+      );
+      return vi.fn();
+    });
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(screen.getByText("Leave Feedback")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Leave Feedback")).toHaveAttribute(
+      "href",
+      `/feedback/${climbFixture.id}`,
+    );
+  });
+
+  it("does not show a Leave Feedback link for upcoming confirmed climbs", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        endDate: "2099-01-01",
+      }),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          { id: registrationFixture.id, data: { ...registrationFixture, status: "confirmed" } },
+        ]),
+      );
+      return vi.fn();
+    });
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Leave Feedback")).not.toBeInTheDocument();
+  });
+
   it("updates the fee total when an optional fee is toggled in Submit Payment", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, {
@@ -202,6 +249,7 @@ describe("MyRegistrations page", () => {
                 { label: "Registration Fee", amount: "500", optional: false, selected: true },
                 { label: "Transportation Fee", amount: "300", optional: true, selected: false },
               ],
+              paymentProofs: [{ url: "https://x/gcash1.png", fileName: "gcash1.png" }],
             },
           },
         ]),
@@ -225,6 +273,11 @@ describe("MyRegistrations page", () => {
 
     expect(screen.getByText(/Already Paid: ₱500/i)).toBeInTheDocument();
     expect(screen.getByText(/Verified: /i)).toBeInTheDocument();
+    expect(screen.getByText("Previously submitted:")).toBeInTheDocument();
+    expect(screen.getByText("gcash1.png")).toHaveAttribute(
+      "href",
+      "https://x/gcash1.png",
+    );
 
     fireEvent.click(screen.getByRole("checkbox"));
     await waitFor(() => expect(screen.getByText("₱800")).toBeInTheDocument());

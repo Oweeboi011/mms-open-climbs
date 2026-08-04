@@ -173,9 +173,10 @@ function LockedCard({ label, onUnlock }) {
 export default function Event() {
   const { climbId } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
 
   const [climb, setClimb] = useState(null);
+  const [privateInfo, setPrivateInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [alreadyReg, setAlreadyReg] = useState(false);
   const [regStatus, setRegStatus] = useState(null);
@@ -222,11 +223,26 @@ export default function Event() {
             where("userId", "==", currentUser.uid),
           );
           const regSnap = await getDocs(regQ);
+          let isRegistered = false;
           if (!regSnap.empty) {
             const reg = regSnap.docs[0].data();
             if (reg.status !== "cancelled") {
+              isRegistered = true;
               setAlreadyReg(true);
               setRegStatus(reg.status);
+            }
+          }
+
+          // Pre-climb meeting details and resource links are registrants
+          // (+ admin) only — the climbPrivate security rule enforces this
+          // server-side too, so this fetch simply won't return data for
+          // anyone else.
+          if (isRegistered || isAdmin) {
+            try {
+              const privSnap = await getDoc(doc(db, "climbPrivate", climbId));
+              if (privSnap.exists()) setPrivateInfo(privSnap.data());
+            } catch {
+              setPrivateInfo(null);
             }
           }
         }
@@ -237,7 +253,7 @@ export default function Event() {
       }
     }
     load();
-  }, [climbId, currentUser, navigate]);
+  }, [climbId, currentUser, isAdmin, navigate]);
 
   useEffect(() => {
     if (!contentRef.current) return;
@@ -730,8 +746,8 @@ export default function Event() {
           </div>
         )}
 
-        {/* Pre-Climb Meeting */}
-        {climb.preClimbMeetingDate && (
+        {/* Pre-Climb Meeting — registrants + admins only (see climbPrivate) */}
+        {privateInfo?.preClimbMeetingDate && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">
@@ -749,7 +765,7 @@ export default function Event() {
               >
                 <strong>
                   {new Date(
-                    `${climb.preClimbMeetingDate}T00:00:00`,
+                    `${privateInfo.preClimbMeetingDate}T00:00:00`,
                   ).toLocaleDateString("en-PH", {
                     weekday: "long",
                     year: "numeric",
@@ -757,15 +773,15 @@ export default function Event() {
                     day: "numeric",
                   })}
                 </strong>
-                {climb.preClimbMeetingTime && ` — ${climb.preClimbMeetingTime}`}
-                {climb.preClimbMeetingLocation && (
+                {privateInfo.preClimbMeetingTime && ` — ${privateInfo.preClimbMeetingTime}`}
+                {privateInfo.preClimbMeetingLocation && (
                   <>
                     <br />
-                    {climb.preClimbMeetingLocation}
+                    {privateInfo.preClimbMeetingLocation}
                   </>
                 )}
               </div>
-              {climb.preClimbMeetingNotes && (
+              {privateInfo.preClimbMeetingNotes && (
                 <div
                   style={{
                     fontSize: "0.82rem",
@@ -777,9 +793,72 @@ export default function Event() {
                     whiteSpace: "pre-wrap",
                   }}
                 >
-                  {climb.preClimbMeetingNotes}
+                  {privateInfo.preClimbMeetingNotes}
                 </div>
               )}
+              {(privateInfo.preClimbMeetingLink ||
+                privateInfo.preClimbMeetingRecordingLink) && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    marginTop: 12,
+                  }}
+                >
+                  {privateInfo.preClimbMeetingLink && (
+                    <a
+                      href={privateInfo.preClimbMeetingLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-accent btn-sm"
+                    >
+                      Join Meeting
+                    </a>
+                  )}
+                  {privateInfo.preClimbMeetingRecordingLink && (
+                    <a
+                      href={privateInfo.preClimbMeetingRecordingLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline btn-sm"
+                    >
+                      Watch Recording
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Climb Resources — registrants + admins only (see climbPrivate) */}
+        {privateInfo?.resources?.length > 0 && (
+          <div className="section-card">
+            <div className="section-header">
+              <span className="icon">
+                <Icon name="route" size={17} />
+              </span>
+              <h3>Climb Resources</h3>
+            </div>
+            <div className="section-body">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {privateInfo.resources.map((res, i) => (
+                  <a
+                    key={i}
+                    href={res.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: "0.86rem",
+                      color: "var(--green-dark)",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    {res.label || res.url}
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
         )}
