@@ -213,6 +213,55 @@ describe("Admin AllRegistrations", () => {
     );
   });
 
+  it("filters to registrants missing required documents", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: { ...climbFixture, requiresMedicalCert: true },
+        },
+      ]),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          regDoc,
+          {
+            id: "reg-3",
+            data: {
+              ...registrationFixture,
+              id: "reg-3",
+              name: "Complete Docs Guy",
+              medicalCertUpload: { url: "https://example.com/cert.pdf" },
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => {
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument();
+      expect(screen.getByText("Complete Docs Guy")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("Missing Required Docs", {
+        selector: ".admin-stat-label",
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue("All Documents"), {
+      target: { value: "missing" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument();
+      expect(screen.queryByText("Complete Docs Guy")).not.toBeInTheDocument();
+    });
+  });
+
   it("lets an admin edit a registrant's details", async () => {
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
