@@ -38,6 +38,17 @@ const PAYMENT_CLASS = {
   rejected: "status-cancelled",
 };
 
+// A registrant is missing required documents when their climb requires a
+// registration form and/or medical cert and the corresponding upload hasn't
+// been submitted yet.
+function hasMissingRequiredDocs(reg, climb) {
+  if (!climb) return false;
+  if (climb.requiresRegistrationForm && !reg.registrationFormUpload?.url)
+    return true;
+  if (climb.requiresMedicalCert && !reg.medicalCertUpload?.url) return true;
+  return false;
+}
+
 export default function AllRegistrations() {
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
@@ -55,6 +66,7 @@ export default function AllRegistrations() {
     if (f === "unpaid") return "unpaid";
     return "all";
   });
+  const [filterDocs, setFilterDocs] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
   const [editingReg, setEditingReg] = useState(null);
 
@@ -219,9 +231,12 @@ export default function AllRegistrations() {
       const matchStatus = filterStatus === "all" || r.status === filterStatus;
       const matchPayment =
         filterPayment === "all" || r.paymentStatus === filterPayment;
-      return matchSearch && matchClimb && matchStatus && matchPayment;
+      const matchDocs =
+        filterDocs !== "missing" ||
+        hasMissingRequiredDocs(r, climbById[r.climbId]);
+      return matchSearch && matchClimb && matchStatus && matchPayment && matchDocs;
     });
-  }, [scoped, search, filterClimb, filterStatus, filterPayment]);
+  }, [scoped, search, filterClimb, filterStatus, filterPayment, filterDocs, climbById]);
 
   const stats = useMemo(
     () => ({
@@ -231,8 +246,11 @@ export default function AllRegistrations() {
       paymentPending: scoped.filter(
         (r) => r.paymentStatus === "submitted" && r.status === "pending",
       ).length,
+      missingDocs: scoped.filter((r) =>
+        hasMissingRequiredDocs(r, climbById[r.climbId]),
+      ).length,
     }),
-    [scoped],
+    [scoped, climbById],
   );
 
   const activeCount = useMemo(
@@ -358,6 +376,10 @@ export default function AllRegistrations() {
                 <div className="admin-stat-num">{stats.paymentPending}</div>
                 <div className="admin-stat-label">Awaiting Payment Review</div>
               </div>
+              <div className="admin-stat-card gold">
+                <div className="admin-stat-num">{stats.missingDocs}</div>
+                <div className="admin-stat-label">Missing Required Docs</div>
+              </div>
             </div>
 
             {/* Filters */}
@@ -415,6 +437,15 @@ export default function AllRegistrations() {
                 <option value="submitted">Payment Submitted</option>
                 <option value="verified">Payment Verified</option>
                 <option value="rejected">Payment Rejected</option>
+              </select>
+              <select
+                className="form-select"
+                value={filterDocs}
+                onChange={(e) => setFilterDocs(e.target.value)}
+                style={{ width: "auto" }}
+              >
+                <option value="all">All Documents</option>
+                <option value="missing">Missing Required Docs</option>
               </select>
             </div>
 
