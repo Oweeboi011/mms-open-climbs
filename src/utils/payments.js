@@ -41,6 +41,8 @@ export function getPaymentEntries(reg) {
       status: normalizeStatus(p?.status),
       ...(p?.note ? { note: p.note } : {}),
       ...(p?.recordedBy ? { recordedBy: p.recordedBy } : {}),
+      ...(p?.reviewedBy ? { reviewedBy: p.reviewedBy } : {}),
+      ...(p?.reviewedAt ? { reviewedAt: p.reviewedAt } : {}),
     }));
   }
   const amount = parseAmount(reg?.amountPaid);
@@ -98,22 +100,32 @@ export function buildPaymentPatch(entries) {
   };
 }
 
+// Stamps who made a verdict and when, so money decisions are attributable
+// per payment rather than only at the registration level. `reviewedAt` uses
+// a client clock because serverTimestamp() isn't allowed inside an array.
+function withReviewer(entry, status, reviewer) {
+  const next = { ...entry, status: normalizeStatus(status) };
+  if (!reviewer) return next;
+  next.reviewedBy = reviewer.name || reviewer.uid || "admin";
+  next.reviewedAt = reviewer.at || null;
+  return next;
+}
+
 // Patch that reviews a single payment. Legacy registrations normalize into a
 // one-entry history on the way through, so reviewing them works the same.
-export function setEntryStatus(reg, index, status) {
+export function setEntryStatus(reg, index, status, reviewer) {
   const entries = getPaymentEntries(reg).map((e, i) =>
-    i === index ? { ...e, status: normalizeStatus(status) } : e,
+    i === index ? withReviewer(e, status, reviewer) : e,
   );
   return buildPaymentPatch(entries);
 }
 
 // Patch that applies one verdict to every payment — what the registration-
 // level Verify/Reject buttons and the status dropdown do.
-export function setAllEntryStatuses(reg, status) {
-  const entries = getPaymentEntries(reg).map((e) => ({
-    ...e,
-    status: normalizeStatus(status),
-  }));
+export function setAllEntryStatuses(reg, status, reviewer) {
+  const entries = getPaymentEntries(reg).map((e) =>
+    withReviewer(e, status, reviewer),
+  );
   if (entries.length === 0) return { paymentStatus: status };
   return buildPaymentPatch(entries);
 }

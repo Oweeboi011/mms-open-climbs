@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import {
   ref as storageRef,
@@ -98,10 +99,20 @@ export default function ManagePayments() {
 
   // Applies one verdict to every payment on the registration, so the rolled-
   // up status can't disagree with the individual payments behind it.
+  // Who's making the verdict, stamped onto each payment it touches.
+  function reviewer() {
+    return {
+      uid: currentUser?.uid,
+      name: currentUser?.displayName || currentUser?.email || "admin",
+      at: Timestamp.now(),
+    };
+  }
+
   async function changePaymentStatus(regId, status) {
     const patch = setAllEntryStatuses(
       regs.find((r) => r.id === regId) || {},
       status,
+      reviewer(),
     );
     if (status === "verified") {
       patch.verifiedAt = serverTimestamp();
@@ -127,7 +138,7 @@ export default function ManagePayments() {
   // and bounce only the instalment with the unreadable receipt.
   async function changeEntryStatus(reg, index, status) {
     await updateDoc(doc(db, "registrations", reg.id), {
-      ...setEntryStatus(reg, index, status),
+      ...setEntryStatus(reg, index, status, reviewer()),
     });
     logAuditEvent({
       actorUid: currentUser?.uid,
