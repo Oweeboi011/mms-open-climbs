@@ -1,7 +1,7 @@
 /**
  * Tests for the Admin Release Notes Manage page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { onSnapshot } from "firebase/firestore";
 import { renderWithProviders, makeAdminAuth } from "@tests/helpers";

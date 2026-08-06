@@ -6,8 +6,6 @@ import {
   orderBy,
   limit,
   getDocs,
-  where,
-  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import Header from "@/components/Header";
@@ -31,27 +29,8 @@ const FAILURE_TYPE_COLOR = {
   client: "#888",
 };
 
-function daysAgoTimestamp(days) {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  d.setHours(0, 0, 0, 0);
-  return Timestamp.fromDate(d);
-}
-
-function startOfDayTimestamp(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return Timestamp.fromDate(d);
-}
-
-function endOfDayTimestamp(date) {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return Timestamp.fromDate(d);
-}
-
 function formatDate(dateStr) {
-  const [y, m, d] = dateStr.split("-");
+  const [, m, d] = dateStr.split("-");
   return `${m}/${d}`;
 }
 

@@ -45,7 +45,7 @@ Day-to-day work targets `develop`, not `main` — `main` only ever advances via 
 2. Follow the [Development Environment Setup](#development-environment-setup) steps below.
 3. Create a feature branch from `develop`.
 4. Make your changes with appropriate tests.
-5. Run `npm run qa` to verify the build and test suite.
+5. Run `npm run qa` to verify the quality gates, build, and test suite. See [CODE-QUALITY.md](CODE-QUALITY.md) for what each gate checks and how to fix a failure.
 6. Open a pull request against `develop`. `main` only advances via the automated `develop` → `main` promotion in CI once quality checks pass — see [DEPLOYMENT.md — CI/CD Considerations](DEPLOYMENT.md#cicd-considerations).
 
 ---
@@ -246,7 +246,9 @@ flowchart TD
 ### PR checklist
 
 - [ ] Changes are scoped to a single concern
-- [ ] `npm run qa` passes locally
+- [ ] `npm run qa` passes locally (lint, architecture, duplication, build, coverage)
+- [ ] Quality ceilings in `eslint.config.js` were **lowered**, not raised, if this PR split a large file — see [CODE-QUALITY.md](CODE-QUALITY.md#ceilings-are-ratchets-not-targets)
+- [ ] Reviewed-not-gated items considered: right abstraction, cohesion, naming, test meaningfulness
 - [ ] New logic has corresponding tests
 - [ ] `README.md` and affected `docs/` files are updated if behavior, setup, or architecture changed
 - [ ] For architectural changes: ADR added or updated in `docs/adr/`
@@ -271,9 +273,9 @@ flowchart LR
     A --> B --> C --> D --> E
 ```
 
-ADRs follow the template in `docs/adr/`. Do not edit the template itself.
+Files are named `NNNN-title-with-hyphens.md` using the next available sequence number, and the index in [`docs/adr/README.md`](../adr/README.md) is updated in the same PR. Authoring rules live in [`.github/instructions/adr.instructions.md`](../../.github/instructions/adr.instructions.md).
 
-The `docs/adr/` directory does not yet exist in this repository — it is referenced here and in `README.md` but has never been created. The first architectural decision worth capturing this way is the release notes email-dispatch design; see [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture) for the decision that should become `ADR-0001`.
+Existing records: [ADR 0001 — admin payments pages refactor](../adr/0001-admin-payments-pages-refactor.md), [ADR 0002 — code quality gates](../adr/0002-code-quality-gates.md). The release notes email-dispatch design is still an open candidate; see [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture).
 
 ---
 

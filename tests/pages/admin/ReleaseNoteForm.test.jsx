@@ -1,7 +1,7 @@
 /**
  * Tests for Admin ReleaseNoteForm page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { addDoc, updateDoc, getDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
