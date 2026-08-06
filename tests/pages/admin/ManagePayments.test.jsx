@@ -169,6 +169,89 @@ describe("Admin ManagePayments", () => {
     fireEvent.click(screen.getByText("Juan Cruz"));
 
     await waitFor(() => expect(screen.getByText("Registration Fee")).toBeInTheDocument());
+    expect(screen.getByText("Fee Breakdown (current fees)")).toBeInTheDocument();
+  });
+
+  it("shows each registrant's expected total at the climb's current fee amounts", async () => {
+    // Registered when the fee was ₱500; the climb's schedule has since been
+    // corrected to ₱750 — the Expected column must show the current amount.
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: {
+            ...climbFixture,
+            fees: [{ label: "Registration Fee", amount: "750", optional: false }],
+          },
+        },
+      ]),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: "pay-1",
+            data: {
+              ...registrationFixture,
+              id: "pay-1",
+              paymentStatus: "submitted",
+              amountPaid: "500",
+              feeBreakdown: [
+                { label: "Registration Fee", amount: "500", optional: false, selected: true },
+              ],
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<ManagePayments />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Mt. Pulag"));
+
+    await waitFor(() => expect(screen.getByText("Expected")).toBeInTheDocument());
+    expect(screen.getAllByText("₱750").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("breaks out a registrant's instalments in the expanded row", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: "pay-1",
+            data: {
+              ...registrationFixture,
+              id: "pay-1",
+              paymentStatus: "submitted",
+              amountPaid: 800,
+              payments: [
+                { amount: 500, proofs: [], submittedAt: null },
+                { amount: 300, proofs: [], submittedAt: null, note: "balance" },
+              ],
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<ManagePayments />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Mt. Pulag"));
+
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    expect(screen.getByText("2 payments")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Juan Cruz"));
+    await waitFor(() =>
+      expect(screen.getByText(/Payment 1 of 2/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/balance/)).toBeInTheDocument();
+    expect(screen.getByText(/Total across 2 payments/)).toBeInTheDocument();
   });
 
   it("lets an admin toggle a registrant's transportation selection", async () => {

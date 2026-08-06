@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
+import PaymentHistory from "./PaymentHistory";
+import { getPaymentEntries, getAllProofs } from "@/utils/payments";
 import {
   StatusBadge,
   InfoCell,
@@ -22,6 +24,8 @@ export default function RegistrantRow({
   toggleExpand,
   changeStatus,
   changePaymentStatus,
+  onEntryStatusChange,
+  onRecordPayment,
   toggleTransportation,
   onEdit,
   deleteRegistration,
@@ -168,18 +172,27 @@ export default function RegistrantRow({
                               status={reg.paymentStatus}
                               styleMap={PAYMENT_STYLE}
                             />
-                            {reg.paymentProofs?.length > 0 && (
-                              <div
-                                style={{
-                                  fontSize: "0.65rem",
-                                  color: "var(--ink-soft)",
-                                  marginTop: 2,
-                                }}
-                              >
-                                {reg.paymentProofs.length} file
-                                {reg.paymentProofs.length > 1 ? "s" : ""}
-                              </div>
-                            )}
+                            {(() => {
+                              const proofCount = getAllProofs(reg).length;
+                              const paymentCount = getPaymentEntries(reg).length;
+                              if (proofCount === 0 && paymentCount < 2)
+                                return null;
+                              return (
+                                <div
+                                  style={{
+                                    fontSize: "0.65rem",
+                                    color: "var(--ink-soft)",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {paymentCount > 1 &&
+                                    `${paymentCount} payments`}
+                                  {paymentCount > 1 && proofCount > 0 && " · "}
+                                  {proofCount > 0 &&
+                                    `${proofCount} file${proofCount > 1 ? "s" : ""}`}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td
                             style={{
@@ -408,7 +421,11 @@ export default function RegistrantRow({
 
                                 {/* Fee Breakdown */}
                                 <div style={{ marginBottom: 16 }}>
-                                  <FeeBreakdownTable reg={reg} climb={climb} />
+                                  <FeeBreakdownTable
+                                    reg={reg}
+                                    climb={climb}
+                                    title="Fee Breakdown (current fees)"
+                                  />
                                 </div>
 
                                 {/* Transportation */}
@@ -553,109 +570,65 @@ export default function RegistrantRow({
                                       gap: 8,
                                     }}
                                   >
-                                    Proof of Payment
+                                    Payments
+                                    {getPaymentEntries(reg).length > 1 && (
+                                      <span
+                                        style={{
+                                          color: "var(--ink-soft)",
+                                          letterSpacing: 0,
+                                          textTransform: "none",
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        ({getPaymentEntries(reg).length}{" "}
+                                        submissions)
+                                      </span>
+                                    )}
                                     <StatusBadge
                                       status={reg.paymentStatus}
                                       styleMap={PAYMENT_STYLE}
                                     />
                                   </div>
 
-                                  {reg.paymentProofs?.length > 0 ? (
-                                    <>
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          gap: 10,
-                                          flexWrap: "wrap",
-                                          marginBottom: 12,
+                                  {getPaymentEntries(reg).length > 0 ? (
+                                    <PaymentHistory
+                                      reg={reg}
+                                      setLightboxUrl={setLightboxUrl}
+                                      onEntryStatusChange={onEntryStatusChange}
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{
+                                        color: "var(--ink-soft)",
+                                        fontSize: "0.85rem",
+                                        marginBottom: 12,
+                                      }}
+                                    >
+                                      No payments recorded yet.
+                                    </div>
+                                  )}
+
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 8,
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
+                                    {onRecordPayment && (
+                                      <button
+                                        className="btn btn-outline btn-sm"
+                                        title="Log a payment received outside the app (cash on-site, bank transfer) — it's added to this registrant's history and total"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onRecordPayment(reg);
                                         }}
                                       >
-                                        {reg.paymentProofs.map((proof, i) => (
-                                          <div
-                                            key={i}
-                                            style={{
-                                              border: "1px solid var(--border)",
-                                              borderRadius: 8,
-                                              overflow: "hidden",
-                                              background: "var(--surface-alt)",
-                                            }}
-                                          >
-                                            {proof.fileName?.match(
-                                              /\.(jpg|jpeg|png|gif|webp)$/i,
-                                            ) ? (
-                                              <img
-                                                src={proof.url}
-                                                alt={proof.fileName}
-                                                style={{
-                                                  width: 130,
-                                                  height: 130,
-                                                  objectFit: "cover",
-                                                  display: "block",
-                                                  cursor: "zoom-in",
-                                                }}
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setLightboxUrl(proof.url);
-                                                }}
-                                              />
-                                            ) : (
-                                              <a
-                                                href={proof.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style={{
-                                                  display: "flex",
-                                                  flexDirection: "column",
-                                                  alignItems: "center",
-                                                  justifyContent: "center",
-                                                  width: 130,
-                                                  height: 130,
-                                                  gap: 6,
-                                                  textDecoration: "none",
-                                                }}
-                                                onClick={(e) =>
-                                                  e.stopPropagation()
-                                                }
-                                              >
-                                                <span
-                                                  style={{ fontSize: "2.2rem" }}
-                                                >
-                                                  &#128196;
-                                                </span>
-                                                <span
-                                                  style={{
-                                                    fontSize: "0.72rem",
-                                                    color: "var(--ink-soft)",
-                                                  }}
-                                                >
-                                                  Open PDF
-                                                </span>
-                                              </a>
-                                            )}
-                                            <div
-                                              style={{
-                                                fontSize: "0.65rem",
-                                                color: "var(--ink-soft)",
-                                                padding: "4px 8px",
-                                                maxWidth: 130,
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap",
-                                              }}
-                                            >
-                                              {proof.fileName ||
-                                                `File ${i + 1}`}
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          gap: 8,
-                                          flexWrap: "wrap",
-                                        }}
-                                      >
+                                        + Record Payment
+                                      </button>
+                                    )}
+                                    {getPaymentEntries(reg).length > 0 && (
+                                      <>
                                         <button
                                           className="btn btn-sm"
                                           style={{
@@ -666,7 +639,7 @@ export default function RegistrantRow({
                                           disabled={
                                             reg.paymentStatus === "verified"
                                           }
-                                          title="Mark payment as verified — confirmed received"
+                                          title="Mark every payment above as verified — total confirmed received"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             changePaymentStatus(
@@ -709,18 +682,9 @@ export default function RegistrantRow({
                                         >
                                           Reset to Submitted
                                         </button>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <div
-                                      style={{
-                                        color: "var(--ink-soft)",
-                                        fontSize: "0.85rem",
-                                      }}
-                                    >
-                                      No proof of payment uploaded.
-                                    </div>
-                                  )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* Admin notes */}

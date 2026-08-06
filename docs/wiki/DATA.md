@@ -145,10 +145,11 @@ Each document represents a single member's registration for a single climb.
 | `waiverSigned` | boolean | Yes | `true` when member typed their signature |
 | `waiverSignedAt` | timestamp | No | Timestamp of digital signature |
 | `waiverSignedName` | string | No | Typed full name as digital signature |
-| `paymentStatus` | string | No | `unpaid` / `submitted` / `verified` / `rejected` — members can register without paying; the registration is created as `unpaid` until a GCash proof is submitted |
-| `amountPaid` | number | No | Exact amount sent via GCash |
-| `paymentProofs` | object[] | No | `[{ url, fileName }]` — uploaded receipt images |
-| `paymentSubmittedAt` | timestamp | No | Set when the member submits (or resubmits) a GCash proof |
+| `paymentStatus` | string | No | `unpaid` / `submitted` / `verified` / `rejected` — **derived**, never set on its own: it rolls up `payments[].status` (any payment awaiting review ⇒ `submitted`; otherwise `verified` if at least one stands, else `rejected`; no payments ⇒ `unpaid`). Members can register without paying |
+| `amountPaid` | number | No | Running total of the non-rejected payments — the source of truth for balance math; an admin can still override it from the edit modal, which the admin views flag |
+| `payments` | object[] | No | `[{ amount, proofs: [{ url, fileName }], submittedAt, status, note?, recordedBy? }]` — one entry per submission, oldest first. Members can pay in instalments (downpayment then balance, or an optional fee added later), and each submission appends an entry. `status` is `submitted`/`verified`/`rejected` and is reviewed per payment, so one instalment can be rejected while the others stand. Registrations created before this field exists carry only `amountPaid` + `paymentProofs`; `src/utils/payments.js` normalizes both shapes. Write through `buildPaymentPatch` / `setEntryStatus` / `setAllEntryStatuses` so `payments`, `amountPaid` and `paymentStatus` can't drift apart |
+| `paymentProofs` | object[] | No | `[{ url, fileName }]` — flat list of every uploaded receipt across all payments |
+| `paymentSubmittedAt` | timestamp | No | Set when the member submits (or resubmits) a GCash proof — reflects the most recent submission |
 | `verifiedAt` | timestamp | No | Set when an admin marks the payment `verified`; cleared on resubmission |
 | `verifiedBy` | object | No | `{ uid, name }` of the admin who verified the payment; cleared on resubmission |
 | `feeBreakdown` | object[] | No | `[{ label, amount, optional, selected }]` |

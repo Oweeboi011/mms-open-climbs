@@ -11,6 +11,7 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import {
   ref as storageRef,
@@ -23,6 +24,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { logFailedRequest } from "@/utils/logFailedRequest";
+import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
+import { getFeeItems } from "@/utils/registrationFees";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -63,6 +66,7 @@ function computeSelectedTotal(climb, reg, selections) {
 function PayPrompt({ reg, onClose, onSaved }) {
   const [files, setFiles] = useState([]);
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [climb, setClimb] = useState(null);
@@ -158,10 +162,26 @@ function PayPrompt({ reg, onClose, onSaved }) {
             selected: f.optional ? !!selections[f.label] : true,
           }))
         : reg.feeBreakdown;
+      // Each submission is its own entry in the history — this may be a
+      // downpayment's balance or an extra fee on top of an already-verified
+      // payment, so the amount entered here adds to what's already recorded
+      // rather than replacing it.
+      const payments = [
+        ...getPaymentEntries(reg),
+        {
+          amount: parsedAmount,
+          proofs: paymentProofs,
+          submittedAt: Timestamp.now(),
+          status: "submitted",
+          ...(note.trim() ? { note: note.trim() } : {}),
+        },
+      ];
       await updateDoc(doc(db, "registrations", reg.id), {
         paymentProofs: [...(reg.paymentProofs || []), ...paymentProofs],
-        paymentStatus: "submitted",
-        amountPaid: parsedAmount,
+        // Earlier payments keep whatever verdict they already had; only the
+        // new one is unreviewed, and the registration's status follows from
+        // the whole set.
+        ...buildPaymentPatch(payments),
         paymentSubmittedAt: serverTimestamp(),
         // Clear any prior verification/rejection so the OR always reflects
         // the review of this latest submission, not a stale one.
@@ -223,6 +243,14 @@ function PayPrompt({ reg, onClose, onSaved }) {
           }}
         >
           For <strong>{reg.climbTitle}</strong>
+          {reg.paymentStatus !== "verified" && (
+            <>
+              {" "}
+              — you can pay in batches: submit whatever you're sending now and
+              come back here for the balance, as long as it's fully paid before
+              the climb date.
+            </>
+          )}
           {reg.paymentStatus === "verified" && (
             <>
               {" "}— check any additional service you're now availing, then
@@ -567,7 +595,11 @@ function PayPrompt({ reg, onClose, onSaved }) {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label required">Amount Paid via GCash</label>
+            <label className="form-label required">
+              {reg.amountPaid > 0
+                ? "Amount of This Payment"
+                : "Amount Paid via GCash"}
+            </label>
             <input
               type="number"
               min="1"
@@ -577,6 +609,19 @@ function PayPrompt({ reg, onClose, onSaved }) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
+            {reg.amountPaid > 0 && (
+              <div
+                style={{
+                  fontSize: "0.72rem",
+                  color: "var(--ink-soft)",
+                  marginTop: 4,
+                }}
+              >
+                Enter only what you're sending now — it's added to the ₱
+                {Number(reg.amountPaid).toLocaleString("en-PH")} already
+                recorded.
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label className="form-label required">Proof of Payment</label>
@@ -598,6 +643,26 @@ function PayPrompt({ reg, onClose, onSaved }) {
                 &#10003; {files.length} file{files.length > 1 ? "s" : ""} selected
               </div>
             )}
+          </div>
+          <div className="form-group">
+            <label className="form-label">Payment Notes (Optional)</label>
+            <textarea
+              className="form-input"
+              rows={2}
+              placeholder="e.g. partial payment, paid for a friend, sent from another GCash number"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <div
+              style={{
+                fontSize: "0.72rem",
+                color: "var(--ink-soft)",
+                marginTop: 4,
+              }}
+            >
+              Anything the climb officers should know about this specific
+              payment.
+            </div>
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button
@@ -698,7 +763,20 @@ function PayPrompt({ reg, onClose, onSaved }) {
                     <strong>
                       ₱{isNaN(parsedAmount) ? 0 : parsedAmount.toLocaleString("en-PH")}
                     </strong>{" "}
-                    via GCash. Your payment status will be set to{" "}
+                    via GCash
+                    {reg.amountPaid > 0 && (
+                      <>
+                        , bringing your recorded total to{" "}
+                        <strong>
+                          ₱
+                          {(
+                            Number(reg.amountPaid) +
+                            (isNaN(parsedAmount) ? 0 : parsedAmount)
+                          ).toLocaleString("en-PH")}
+                        </strong>
+                      </>
+                    )}
+                    . Your payment status will be set to{" "}
                     <strong>Awaiting Review</strong> until a climb officer
                     verifies it.
                   </p>
@@ -824,8 +902,12 @@ function formatDateTime(value) {
   });
 }
 
-function ReceiptModal({ reg, onClose }) {
-  const items = (reg.feeBreakdown || []).filter((e) => e.selected);
+function ReceiptModal({ reg, climb, onClose }) {
+  // Read the climb's current fee schedule, not the snapshot frozen at
+  // registration — an officer who corrects a "TBA" amount or adds a fee
+  // afterwards should see the receipt follow, the same way the admin views
+  // and the outstanding math do.
+  const items = getFeeItems(reg, climb);
   let total = 0;
   let hasTba = false;
   items.forEach((e) => {
@@ -1669,7 +1751,11 @@ export default function MyRegistrations() {
       )}
 
       {receiptReg && (
-        <ReceiptModal reg={receiptReg} onClose={() => setReceiptReg(null)} />
+        <ReceiptModal
+          reg={receiptReg}
+          climb={climbsMap[receiptReg.climbId]}
+          onClose={() => setReceiptReg(null)}
+        />
       )}
 
       {docPromptReg && (
