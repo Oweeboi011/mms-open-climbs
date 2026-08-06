@@ -5,8 +5,13 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+    // exists() first: get() on a missing doc yields null, and reading .data
+    // off it is an evaluation error that denies the whole rule — which would
+    // lock out a signed-in user whose users/ profile hasn't been created yet
+    // (the Google redirect path can land there) even where they're the owner.
     function isAdmin() {
       return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     function isOwner(userId) {
@@ -20,10 +25,36 @@ service cloud.firestore {
         get(/databases/$(database)/documents/climbs/$(climbId)).data.registeredUserIds;
     }
 
+    // Which fields an update actually touches.
+    function affected() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // A member may *declare* a payment — "I sent ₱500, here's the receipt" —
+    // but never approve one. Verifying is the admin's call, and the
+    // verification record can only be cleared (which resubmitting does), not
+    // written, from the client.
+    //
+    // NOTE: rules cannot iterate arrays, so the per-payment `status` values
+    // inside `payments` are not validated here. The rolled-up paymentStatus
+    // is, which is what the balance math and the review queue key off.
+    function memberPaymentClaimIsHonest() {
+      return (!affected().hasAny(['paymentStatus']) ||
+              request.resource.data.paymentStatus in ['unpaid', 'submitted'])
+        && (!affected().hasAny(['verifiedAt']) ||
+              request.resource.data.verifiedAt == null)
+        && (!affected().hasAny(['verifiedBy']) ||
+              request.resource.data.verifiedBy == null);
+    }
+
     match /users/{userId} {
       allow read: if isAdmin() || isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.role == 'member';
-      allow update: if isAdmin() || isOwner(userId);
+      // Owners may maintain their own profile but never their own role —
+      // `create` pins it to 'member', and without this an update could hand
+      // the whole admin surface to anyone with a browser console.
+      allow update: if isAdmin() ||
+        (isOwner(userId) && !affected().hasAny(['role']));
       allow delete: if isAdmin();
     }
 
@@ -38,7 +69,19 @@ service cloud.firestore {
         (isSignedIn() &&
           isOwner(request.resource.data.userId) &&
           climbIsOpen(request.resource.data.climbId));
-      allow update: if isAdmin() || isOwner(resource.data.userId);
+      // Members only ever do two things to their own registration: submit a
+      // payment and upload the documents a climb requires. Everything else —
+      // status, admin notes, the waiver record — is admin territory.
+      // Owner branch first so the common member write never pays for the
+      // users/ lookup isAdmin() needs.
+      allow update: if (isOwner(resource.data.userId) &&
+          affected().hasOnly([
+            'paymentProofs', 'payments', 'amountPaid', 'paymentStatus',
+            'paymentSubmittedAt', 'verifiedAt', 'verifiedBy', 'feeBreakdown',
+            'registrationFormUpload', 'medicalCertUpload', 'updatedAt'
+          ]) &&
+          memberPaymentClaimIsHonest()) ||
+        isAdmin();
       allow delete: if isAdmin();
     }
 
