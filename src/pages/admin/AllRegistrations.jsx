@@ -18,25 +18,19 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EditRegistrationModal from "@/components/EditRegistrationModal";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
+import PaymentHistory from "@/components/admin/PaymentHistory";
 import { logAuditEvent } from "@/utils/auditLog";
+import {
+  getPaymentEntries,
+  setEntryStatus,
+  setAllEntryStatuses,
+} from "@/utils/payments";
 import {
   getOutstanding,
   toggleTransportationEntry,
 } from "@/utils/registrationFees";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
-const STATUS_CLASS = {
-  pending: "status-pending",
-  confirmed: "status-confirmed",
-  cancelled: "status-cancelled",
-  waitlisted: "status-waitlisted",
-};
-const PAYMENT_CLASS = {
-  unpaid: "status-cancelled",
-  submitted: "status-pending",
-  verified: "status-confirmed",
-  rejected: "status-cancelled",
-};
 
 // A registrant is missing required documents when their climb requires a
 // registration form and/or medical cert and the corresponding upload hasn't
@@ -123,12 +117,14 @@ export default function AllRegistrations() {
     });
   }
 
+  // One verdict across every payment on the registration — the rolled-up
+  // status and the payments behind it always agree.
   async function changePaymentStatus(regId, paymentStatus) {
+    const reg = regs.find((r) => r.id === regId);
     await updateDoc(doc(db, "registrations", regId), {
-      paymentStatus,
+      ...setAllEntryStatuses(reg || {}, paymentStatus),
       updatedAt: serverTimestamp(),
     });
-    const reg = regs.find((r) => r.id === regId);
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
@@ -136,6 +132,22 @@ export default function AllRegistrations() {
       targetType: "registration",
       targetId: regId,
       targetLabel: reg?.name || regId,
+    });
+  }
+
+  // Review a single payment without touching the rest of the history.
+  async function changeEntryStatus(reg, index, status) {
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...setEntryStatus(reg, index, status),
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `payment_entry_${status}`,
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
     });
   }
 
@@ -674,7 +686,7 @@ export default function AllRegistrations() {
                                   gridTemplateColumns:
                                     "repeat(auto-fill, minmax(200px, 1fr))",
                                   gap: "14px 24px",
-                                  marginBottom: reg.paymentProofs?.length
+                                  marginBottom: getPaymentEntries(reg).length
                                     ? 16
                                     : 0,
                                 }}
@@ -735,6 +747,7 @@ export default function AllRegistrations() {
                                 <FeeBreakdownTable
                                   reg={reg}
                                   climb={climbById[reg.climbId]}
+                                  title="Fee Breakdown (current fees)"
                                 />
                               </div>
 
@@ -862,8 +875,8 @@ export default function AllRegistrations() {
                                 })()}
                               </div>
 
-                              {/* Payment proof attachments */}
-                              {reg.paymentProofs?.length > 0 && (
+                              {/* Payment history — one block per submission */}
+                              {getPaymentEntries(reg).length > 0 && (
                                 <div>
                                   <div
                                     style={{
@@ -875,86 +888,15 @@ export default function AllRegistrations() {
                                       marginBottom: 8,
                                     }}
                                   >
-                                    Proof of Payment ({reg.paymentProofs.length}{" "}
-                                    file
-                                    {reg.paymentProofs.length > 1 ? "s" : ""})
+                                    Payments (
+                                    {getPaymentEntries(reg).length} submission
+                                    {getPaymentEntries(reg).length > 1 ? "s" : ""})
                                   </div>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      gap: 10,
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    {reg.paymentProofs.map((proof, i) => (
-                                      <a
-                                        key={i}
-                                        href={proof.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{
-                                          display: "block",
-                                          border: "1px solid var(--border)",
-                                          borderRadius: 8,
-                                          overflow: "hidden",
-                                          textDecoration: "none",
-                                        }}
-                                      >
-                                        {proof.fileName?.match(
-                                          /\.(jpg|jpeg|png|gif|webp)$/i,
-                                        ) ? (
-                                          <img
-                                            src={proof.url}
-                                            alt={proof.fileName}
-                                            style={{
-                                              width: 120,
-                                              height: 120,
-                                              objectFit: "cover",
-                                              display: "block",
-                                            }}
-                                          />
-                                        ) : (
-                                          <div
-                                            style={{
-                                              width: 120,
-                                              height: 120,
-                                              display: "flex",
-                                              flexDirection: "column",
-                                              alignItems: "center",
-                                              justifyContent: "center",
-                                              gap: 6,
-                                              background: "var(--surface-alt)",
-                                            }}
-                                          >
-                                            <span style={{ fontSize: "2rem" }}>
-                                              &#128196;
-                                            </span>
-                                            <span
-                                              style={{
-                                                fontSize: "0.65rem",
-                                                color: "var(--ink-soft)",
-                                              }}
-                                            >
-                                              PDF
-                                            </span>
-                                          </div>
-                                        )}
-                                        <div
-                                          style={{
-                                            fontSize: "0.65rem",
-                                            color: "var(--ink-soft)",
-                                            padding: "4px 8px",
-                                            maxWidth: 120,
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                          }}
-                                        >
-                                          {proof.fileName || `File ${i + 1}`}
-                                        </div>
-                                      </a>
-                                    ))}
-                                  </div>
+                                  <PaymentHistory
+                                    reg={reg}
+                                    thumbSize={120}
+                                    onEntryStatusChange={changeEntryStatus}
+                                  />
                                   <div
                                     style={{
                                       marginTop: 12,

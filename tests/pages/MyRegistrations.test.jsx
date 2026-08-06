@@ -283,6 +283,70 @@ describe("MyRegistrations page", () => {
     await waitFor(() => expect(screen.getByText("₱800")).toBeInTheDocument());
   });
 
+  it("adds a second payment to the history and the running total instead of replacing it", async () => {
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: registrationFixture.id,
+            data: {
+              ...registrationFixture,
+              paymentStatus: "verified",
+              amountPaid: 500,
+              paymentProofs: [{ url: "https://x/gcash1.png", fileName: "gcash1.png" }],
+              payments: [
+                {
+                  amount: 500,
+                  proofs: [{ url: "https://x/gcash1.png", fileName: "gcash1.png" }],
+                  submittedAt: null,
+                },
+              ],
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Add Fees \/ Pay More/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Add Fees \/ Pay More/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Amount of This Payment")).toBeInTheDocument(),
+    );
+
+    fireEvent.change(document.querySelector('input[type="file"]'), {
+      target: { files: [new File(["r"], "gcash2.jpg", { type: "image/jpeg" })] },
+    });
+    fireEvent.change(document.querySelector('input[type="number"]'), {
+      target: { value: "300" },
+    });
+    fireEvent.change(document.querySelector("textarea"), {
+      target: { value: "balance for transportation" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Submit$/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Confirm Payment")).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/bringing your recorded total to/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirm & Submit/i }));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.paymentStatus)?.[1];
+    expect(patch.amountPaid).toBe(800);
+    expect(patch.payments).toHaveLength(2);
+    expect(patch.payments[1].amount).toBe(300);
+    expect(patch.payments[1].note).toBe("balance for transportation");
+    expect(patch.paymentProofs).toHaveLength(2);
+  });
+
   it("shows the Official Receipt with fee breakdown and verification details", async () => {
     onSnapshot.mockImplementation((_q, cb) => {
       cb(
@@ -317,6 +381,46 @@ describe("MyRegistrations page", () => {
       expect(screen.getByText("Official Receipt")).toBeInTheDocument(),
     );
     expect(screen.getByText("Admin User")).toBeInTheDocument();
+  });
+
+  it("prices the Official Receipt off the climb's current fees, not the frozen snapshot", async () => {
+    // Registered when the fee was ₱500; an officer has since corrected the
+    // climb's schedule to ₱750 — the receipt must follow.
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        fees: [{ label: "Registration Fee", amount: "750", optional: false }],
+      }),
+    );
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          {
+            id: registrationFixture.id,
+            data: {
+              ...registrationFixture,
+              paymentStatus: "verified",
+              amountPaid: 500,
+              feeBreakdown: [
+                { label: "Registration Fee", amount: "500", optional: false, selected: true },
+              ],
+            },
+          },
+        ]),
+      );
+      return vi.fn();
+    });
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /View OR/i })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /View OR/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Official Receipt")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("₱750")).toBeInTheDocument();
   });
 
   it("shows a Submit Registration Form button with a download link when required and not yet uploaded", async () => {

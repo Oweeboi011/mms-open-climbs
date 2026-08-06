@@ -1,7 +1,7 @@
 /**
  * Tests for the Register page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderAtRoute, makeMemberAuth, climbFixture } from "@tests/helpers";
 import Register from "@/pages/Register";
@@ -135,6 +135,72 @@ describe("Register page", () => {
       fireEvent.click(screen.getByRole("button", { name: /Confirm & Submit/i }));
 
       await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    });
+
+    it("tells members they can pay in batches before the climb", async () => {
+      render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      expect(screen.getByText(/You can pay in batches\./i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/fully paid before the climb date/i),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Payment Notes (Optional)")).toBeInTheDocument();
+    });
+
+    it("records the first payment as a history entry, with the note", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+
+      fireEvent.change(controlByLabel(container, "Mobile Number"), {
+        target: { value: "09171234567" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Name"), {
+        target: { value: "Maria Cruz" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Mobile"), {
+        target: { value: "09179876543" },
+      });
+      fireEvent.change(controlByLabel(container, "Relationship"), {
+        target: { value: "Mother" },
+      });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.change(
+        screen.getByPlaceholderText("Type your complete legal name"),
+        { target: { value: "Juan Cruz" } },
+      );
+
+      fireEvent.change(controlByLabel(container, "Amount Paid"), {
+        target: { value: "300" },
+      });
+      fireEvent.change(
+        container.querySelector('input[accept*="image"]'),
+        {
+          target: {
+            files: [new File(["r"], "gcash.jpg", { type: "image/jpeg" })],
+          },
+        },
+      );
+      fireEvent.change(
+        screen.getByPlaceholderText(/downpayment only, balance to follow/i),
+        { target: { value: "downpayment, balance next week" } },
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+      await waitFor(() =>
+        expect(screen.getByText("Confirm Registration")).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Confirm & Submit/i }));
+
+      await waitFor(() => expect(addDoc).toHaveBeenCalled());
+      const payload = addDoc.mock.calls[0][1];
+      expect(payload.payments).toHaveLength(1);
+      expect(payload.payments[0].amount).toBe(300);
+      expect(payload.payments[0].note).toBe("downpayment, balance next week");
+      expect(payload.amountPaid).toBe(300);
     });
   });
 

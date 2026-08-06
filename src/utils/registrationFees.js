@@ -21,6 +21,8 @@
 // Only when the climb itself isn't available (e.g. it was deleted) do we
 // fall back to summing the frozen feeBreakdown snapshot as-is.
 
+import { getCountedTotal, hasPaymentHistory } from "./payments";
+
 function parseAmount(amount) {
   const n = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
   return isNaN(n) ? 0 : n;
@@ -54,10 +56,15 @@ export function getExpectedTotal(reg, climb) {
 
 // Remaining balance still to be settled: expected total minus whatever
 // they've already paid. A rejected payment doesn't count toward what's been
-// paid, since it wasn't accepted.
+// paid, since it wasn't accepted — with a payment history that's per
+// payment (one instalment can be rejected while others stand), and for
+// older single-payment registrations it's the registration's own status.
 export function getOutstanding(reg, climb) {
-  const paidCounted =
-    reg.paymentStatus === "rejected" ? 0 : Number(reg.amountPaid) || 0;
+  const paidCounted = hasPaymentHistory(reg)
+    ? getCountedTotal(reg)
+    : reg.paymentStatus === "rejected"
+      ? 0
+      : Number(reg.amountPaid) || 0;
   return Math.max(getExpectedTotal(reg, climb) - paidCounted, 0);
 }
 

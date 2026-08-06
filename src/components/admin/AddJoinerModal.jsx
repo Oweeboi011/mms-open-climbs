@@ -6,6 +6,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { logFailedRequest } from "@/utils/logFailedRequest";
@@ -83,6 +84,21 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
         amountPaid:
           form.amountPaid && !isNaN(parsedAmount) ? parsedAmount : null,
         paymentProofs: [],
+        payments:
+          form.amountPaid && !isNaN(parsedAmount)
+            ? [
+                {
+                  amount: parsedAmount,
+                  proofs: [],
+                  submittedAt: Timestamp.now(),
+                  status:
+                    form.paymentStatus === "unpaid"
+                      ? "submitted"
+                      : form.paymentStatus,
+                  recordedBy: "admin",
+                },
+              ]
+            : [],
         adminNotes:
           form.adminNotes.trim() ||
           "Added manually by admin — not self-registered.",

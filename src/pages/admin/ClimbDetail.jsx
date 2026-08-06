@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   doc,
   getDoc,
-  getDocs,
-  addDoc,
   collection,
   query,
   where,
@@ -13,6 +11,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,14 +21,19 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import EditRegistrationModal from "@/components/EditRegistrationModal";
 import RegistrantRow from "@/components/admin/RegistrantRow";
 import AddJoinerModal from "@/components/admin/AddJoinerModal";
+import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
-import { logFailedRequest } from "@/utils/logFailedRequest";
 import { logAuditEvent } from "@/utils/auditLog";
 import {
-  getExpectedTotal as getExpectedTotalShared,
   getOutstanding as getOutstandingShared,
   toggleTransportationEntry,
 } from "@/utils/registrationFees";
+import {
+  getPaymentEntries,
+  buildPaymentPatch,
+  setEntryStatus,
+  setAllEntryStatuses,
+} from "@/utils/payments";
 
 export default function AdminClimbDetail() {
   const { id } = useParams();
@@ -47,6 +51,7 @@ export default function AdminClimbDetail() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [addJoinerOpen, setAddJoinerOpen] = useState(false);
   const [editingReg, setEditingReg] = useState(null);
+  const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
 
   useEffect(() => {
@@ -96,12 +101,14 @@ export default function AdminClimbDetail() {
     });
   }
 
+  // The registration-level verdict — applies to every payment on record, so
+  // the rolled-up status and the individual payments can't disagree.
   async function changePaymentStatus(regId, paymentStatus) {
+    const reg = regs.find((r) => r.id === regId);
     await updateDoc(doc(db, "registrations", regId), {
-      paymentStatus,
+      ...setAllEntryStatuses(reg || {}, paymentStatus),
       updatedAt: serverTimestamp(),
     });
-    const reg = regs.find((r) => r.id === regId);
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
@@ -111,6 +118,57 @@ export default function AdminClimbDetail() {
       targetLabel: reg?.name || regId,
       details: `Payment status set to "${paymentStatus}" for ${climb?.title || "climb"}`,
     });
+  }
+
+  // Review a single payment without touching the others — the registration's
+  // own status re-derives from whatever the payments now say.
+  async function changeEntryStatus(reg, index, status) {
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...setEntryStatus(reg, index, status),
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `payment_entry_${status}`,
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: `Payment ${index + 1} set to "${status}" for ${climb?.title || "climb"}`,
+    });
+  }
+
+  // Log a payment the admin received outside the app (cash on-site, bank
+  // transfer). It appends to the same history members build up with their
+  // GCash submissions, so `amountPaid` stays the sum of actual payments
+  // rather than a hand-typed figure with no receipt behind it.
+  async function recordPayment(reg, { amount, note, markVerified }) {
+    const payments = [
+      ...getPaymentEntries(reg),
+      {
+        amount,
+        proofs: [],
+        submittedAt: Timestamp.now(),
+        status: markVerified ? "verified" : "submitted",
+        recordedBy:
+          currentUser?.displayName || currentUser?.email || "admin",
+        ...(note ? { note } : {}),
+      },
+    ];
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...buildPaymentPatch(payments),
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "payment_recorded",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: `Recorded a ₱${amount.toLocaleString("en-PH")} payment for ${climb?.title || "climb"}${note ? ` — ${note}` : ""}`,
+    });
+    setRecordingPaymentFor(null);
   }
 
   // Toggle a registrant's transportation selection (availing organized
@@ -221,6 +279,7 @@ export default function AdminClimbDetail() {
       "Status",
       "Payment Status",
       "Amount Paid",
+      "Payment Breakdown",
       "Payment Submitted",
       "Payment Verified",
       "Verified By",
@@ -247,6 +306,13 @@ export default function AdminClimbDetail() {
       r.status,
       r.paymentStatus || "",
       r.amountPaid ?? "",
+      getPaymentEntries(r)
+        .map((p) => {
+          const when =
+            p.submittedAt?.toDate?.().toLocaleDateString("en-PH") || "";
+          return `${p.amount}${when ? ` on ${when}` : ""}${p.note ? ` (${p.note})` : ""}`;
+        })
+        .join("; "),
       r.paymentSubmittedAt?.toDate?.().toLocaleDateString("en-PH") || "",
       r.paymentStatus === "verified"
         ? r.verifiedAt?.toDate?.().toLocaleDateString("en-PH") || ""
@@ -292,7 +358,6 @@ export default function AdminClimbDetail() {
     [regs, search, filterStatus, filterPayment],
   );
 
-  const getExpectedTotal = (reg) => getExpectedTotalShared(reg, climb);
   const getOutstanding = (reg) => getOutstandingShared(reg, climb);
 
   const stats = useMemo(
@@ -700,6 +765,8 @@ export default function AdminClimbDetail() {
                         toggleExpand={toggleExpand}
                         changeStatus={changeStatus}
                         changePaymentStatus={changePaymentStatus}
+                        onEntryStatusChange={changeEntryStatus}
+                        onRecordPayment={setRecordingPaymentFor}
                         toggleTransportation={toggleTransportation}
                         onEdit={setEditingReg}
                         deleteRegistration={deleteRegistration}
@@ -766,6 +833,14 @@ export default function AdminClimbDetail() {
           </div>
         )}
       </main>
+
+      {recordingPaymentFor && (
+        <RecordPaymentModal
+          reg={recordingPaymentFor}
+          onClose={() => setRecordingPaymentFor(null)}
+          onSave={recordPayment}
+        />
+      )}
 
       {editingReg && (
         <EditRegistrationModal
