@@ -75,8 +75,6 @@ function loadState() {
 const state = loadState();
 const rangeStart = since || state.lastCommit || "14 days ago";
 const isDateLike = /^\d{4}-\d{2}-\d{2}$/.test(rangeStart) || rangeStart === "14 days ago";
-const revRange = isDateLike ? `--since="${rangeStart}"` : `${rangeStart}..HEAD`;
-
 let log;
 try {
   const gitArgs = isDateLike

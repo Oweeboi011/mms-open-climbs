@@ -5,7 +5,6 @@
  * Gets a Firebase access token from the logged-in CLI session,
  * then uses the Firestore REST API to write the user doc directly.
  */
-import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
 
 const PROJECT_ID = 'mms-open-climbs';

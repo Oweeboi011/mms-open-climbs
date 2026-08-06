@@ -19,7 +19,7 @@ describe("Admin ClimbForm", () => {
   }
 
   it("renders trail class selector", async () => {
-    const { container } = renderAtRoute(
+    renderAtRoute(
       <AdminClimbForm />,
       "/admin/climbs/new",
       "/admin/climbs/new",
@@ -46,7 +46,7 @@ describe("Admin ClimbForm", () => {
   });
 
   it("submits selected trail class in payload", async () => {
-    const { container } = renderAtRoute(
+    renderAtRoute(
       <AdminClimbForm />,
       "/admin/climbs/new",
       "/admin/climbs/new",
