@@ -6,6 +6,7 @@ import { db, functions } from "@/firebase/config";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
 function toDate(value) {
   if (!value) return null;
@@ -734,6 +735,7 @@ export default function AppInsights() {
               No admin actions logged yet.
             </p>
           ) : (
+            <ResponsiveTable>
             <table className="admin-table">
               <thead>
                 <tr>
@@ -756,6 +758,7 @@ export default function AppInsights() {
                 ))}
               </tbody>
             </table>
+            </ResponsiveTable>
           )}
         </Card>
       </main>

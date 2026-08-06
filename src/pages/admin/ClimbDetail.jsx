@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   doc,
-  getDoc,
   collection,
   query,
   where,
@@ -34,6 +33,7 @@ import {
   setEntryStatus,
   setAllEntryStatuses,
 } from "@/utils/payments";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
 export default function AdminClimbDetail() {
   const { id } = useParams();
@@ -55,7 +55,10 @@ export default function AdminClimbDetail() {
   const [feedback, setFeedback] = useState([]);
 
   useEffect(() => {
-    getDoc(doc(db, "climbs", id)).then((snap) => {
+    // Live, not a one-shot read: every expected/outstanding figure on this
+    // page comes from the climb's current fee schedule, so a fee edited
+    // elsewhere has to land here without a reload.
+    const unsubClimb = onSnapshot(doc(db, "climbs", id), (snap) => {
       if (snap.exists()) setClimb({ id: snap.id, ...snap.data() });
     });
 
@@ -78,6 +81,7 @@ export default function AdminClimbDetail() {
     });
 
     return () => {
+      unsubClimb();
       unsub();
       unsubFeedback();
     };
@@ -160,8 +164,7 @@ export default function AdminClimbDetail() {
         proofs: [],
         submittedAt: Timestamp.now(),
         status: markVerified ? "verified" : "submitted",
-        recordedBy:
-          currentUser?.displayName || currentUser?.email || "admin",
+        recordedBy: currentUser?.displayName || currentUser?.email || "admin",
         ...(note ? { note } : {}),
       },
     ];
@@ -190,7 +193,9 @@ export default function AdminClimbDetail() {
   async function toggleTransportation(reg) {
     const updated = toggleTransportationEntry(reg, climb);
     if (!updated) return;
-    const nowSelected = updated.find((f) => /transport/i.test(f.label))?.selected;
+    const nowSelected = updated.find((f) =>
+      /transport/i.test(f.label),
+    )?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -725,23 +730,16 @@ export default function AdminClimbDetail() {
             </div>
 
             {/* Table */}
-            <div className="admin-table-wrap">
+            <ResponsiveTable>
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th style={{ width: "1%" }}>#</th>
                     <th>Participant</th>
-                    <th style={{ width: "1%" }}>Mobile</th>
-                    <th style={{ width: "1%" }}>Waiver</th>
-                    {(climb?.requiresRegistrationForm ||
-                      climb?.requiresMedicalCert) && (
-                      <th style={{ width: "1%" }}>Docs</th>
-                    )}
+                    <th style={{ width: "1%" }}>Compliance</th>
                     <th style={{ width: "1%" }}>Payment</th>
-                    <th style={{ width: "1%" }}>Paid</th>
-                    <th style={{ width: "1%" }}>Outstanding</th>
+                    <th style={{ width: "1%" }}>Balance</th>
                     <th style={{ width: "1%" }}>Status</th>
-                    <th style={{ width: "1%" }}>Registered</th>
                     <th style={{ width: "1%" }}>Actions</th>
                   </tr>
                 </thead>
@@ -749,12 +747,7 @@ export default function AdminClimbDetail() {
                   {filtered.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={
-                          climb?.requiresRegistrationForm ||
-                          climb?.requiresMedicalCert
-                            ? 11
-                            : 10
-                        }
+                        colSpan={7}
                         style={{
                           textAlign: "center",
                           color: "var(--ink-soft)",
@@ -792,7 +785,7 @@ export default function AdminClimbDetail() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           </>
         )}
 
@@ -801,7 +794,13 @@ export default function AdminClimbDetail() {
             <div className="admin-card-title">
               Climb Feedback ({feedback.length})
             </div>
-            <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: 16 }}>
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
               Average rating:{" "}
               <strong>
                 {(
@@ -825,7 +824,13 @@ export default function AdminClimbDetail() {
                       <td style={{ width: "1%", whiteSpace: "nowrap" }}>
                         {f.name || "Anonymous"}
                       </td>
-                      <td style={{ width: "1%", whiteSpace: "nowrap", color: "var(--gold)" }}>
+                      <td
+                        style={{
+                          width: "1%",
+                          whiteSpace: "nowrap",
+                          color: "var(--gold)",
+                        }}
+                      >
                         {"★".repeat(f.rating || 0)}
                         {"☆".repeat(5 - (f.rating || 0))}
                       </td>

@@ -1,16 +1,17 @@
 /**
  * Tests for the Admin Manage Payments page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderWithProviders,
   makeAdminAuth,
   registrationFixture,
   climbFixture,
+  mockLiveSnapshot,
 } from "@tests/helpers";
 import ManagePayments from "@/pages/admin/ManagePayments";
-import { onSnapshot, getDocs, updateDoc } from "firebase/firestore";
+import { getDocs, updateDoc } from "firebase/firestore";
 import { makeQuerySnapshot } from "@tests/setup";
 
 const paymentReg = {
@@ -26,11 +27,96 @@ const paymentReg = {
 
 describe("Admin ManagePayments", () => {
   beforeEach(() => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(makeQuerySnapshot([paymentReg]));
-      return vi.fn();
-    });
+    mockLiveSnapshot([paymentReg]);
     getDocs.mockResolvedValue(makeQuerySnapshot([]));
+  });
+
+  it("groups climbs into upcoming and completed sections", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: "climb-past",
+          data: {
+            ...climbFixture,
+            id: "climb-past",
+            title: "Mt. Past",
+            startDate: { toDate: () => new Date("2020-01-01") },
+          },
+        },
+        {
+          id: "climb-future",
+          data: {
+            ...climbFixture,
+            id: "climb-future",
+            title: "Mt. Future",
+            startDate: { toDate: () => new Date("2999-01-01") },
+          },
+        },
+        {
+          id: "climb-marked",
+          data: {
+            ...climbFixture,
+            id: "climb-marked",
+            title: "Mt. Marked",
+            status: "completed",
+            startDate: { toDate: () => new Date("2999-06-01") },
+          },
+        },
+      ]),
+    );
+
+    renderWithProviders(<ManagePayments />, makeAdminAuth());
+    await waitFor(() =>
+      expect(screen.getByText("Upcoming Climbs")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Completed Climbs")).toBeInTheDocument();
+
+    const upcoming = screen.getByText("Upcoming Climbs").closest("section");
+    const completed = screen.getByText("Completed Climbs").closest("section");
+    expect(upcoming).toHaveTextContent("Mt. Future");
+    expect(upcoming).not.toHaveTextContent("Mt. Past");
+    // Past by date, and one an admin marked completed despite a future date.
+    expect(completed).toHaveTextContent("Mt. Past");
+    expect(completed).toHaveTextContent("Mt. Marked");
+  });
+
+  it("shows the climb's current fee schedule in the expanded card", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: {
+            ...climbFixture,
+            fees: [
+              { label: "Registration Fee", amount: "500", optional: false },
+              { label: "Guide Fee", amount: "700", optional: false },
+              { label: "Transportation Fee", amount: "300", optional: true },
+              {
+                label: "Guest Fee",
+                amount: "450",
+                optional: true,
+                isGuestFee: true,
+              },
+            ],
+          },
+        },
+      ]),
+    );
+
+    renderWithProviders(<ManagePayments />, makeAdminAuth());
+    await waitFor(() =>
+      expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("Mt. Pulag"));
+
+    await waitFor(() =>
+      expect(screen.getByText("Current Fee Schedule")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Guide Fee")).toBeInTheDocument();
+    // Required total only — the optional and guest fees are listed apart.
+    expect(screen.getAllByText("₱1,200").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Optional — only if availed/)).toBeInTheDocument();
+    expect(screen.getByText("Joiners only")).toBeInTheDocument();
   });
 
   it("renders the Manage Payments heading", async () => {
@@ -69,9 +155,7 @@ describe("Admin ManagePayments", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: "pay-1",
             data: {
@@ -81,10 +165,7 @@ describe("Admin ManagePayments", () => {
               amountPaid: null,
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<ManagePayments />, makeAdminAuth());
     await waitFor(() =>
@@ -105,9 +186,7 @@ describe("Admin ManagePayments", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: "pay-1",
             data: {
@@ -118,10 +197,7 @@ describe("Admin ManagePayments", () => {
               feeBreakdown: [], // no transport entry recorded yet
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<ManagePayments />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
@@ -141,9 +217,7 @@ describe("Admin ManagePayments", () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: "pay-1",
             data: {
@@ -156,10 +230,7 @@ describe("Admin ManagePayments", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<ManagePayments />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
@@ -186,9 +257,7 @@ describe("Admin ManagePayments", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: "pay-1",
             data: {
@@ -201,10 +270,7 @@ describe("Admin ManagePayments", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<ManagePayments />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
@@ -218,9 +284,7 @@ describe("Admin ManagePayments", () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: "pay-1",
             data: {
@@ -234,10 +298,7 @@ describe("Admin ManagePayments", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<ManagePayments />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
@@ -258,9 +319,7 @@ describe("Admin ManagePayments", () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: "pay-1",
             data: {
@@ -273,10 +332,7 @@ describe("Admin ManagePayments", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<ManagePayments />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());

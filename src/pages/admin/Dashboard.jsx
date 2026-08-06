@@ -16,10 +16,17 @@ import { SCHEDULE_2026 } from "@/data/schedule2026";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import DetailCell from "@/components/DetailCell";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { getMissingFields } from "@/utils/climbCompleteness";
 import { getFeeSummary } from "@/utils/feeSummary";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import {
+  StatusBadge,
+  SectionLabel,
+  InfoCell,
+  PAYMENT_STYLE,
+  STATUS_STYLE,
+} from "@/components/admin/registrantShared";
 
 function NavIcon({ path, color }) {
   return (
@@ -39,9 +46,7 @@ function NavIcon({ path, color }) {
 }
 
 const NAV_ICON_PATHS = {
-  climbs: (
-    <path d="M3 20 L9 8 L13 15 L16 10 L21 20 Z" />
-  ),
+  climbs: <path d="M3 20 L9 8 L13 15 L16 10 L21 20 Z" />,
   registrations: (
     <>
       <rect x="6" y="4" width="12" height="17" rx="2" />
@@ -95,13 +100,22 @@ const STATUS_LABEL = {
   open: "Open",
   closed: "Closed",
   completed: "Completed",
+  cancelled: "Cancelled",
 };
 const STATUS_COLOR = {
-  draft: "#888",
-  open: "var(--green-dark)",
-  closed: "var(--ink-soft)",
-  completed: "#0070E0",
+  draft: "#b45309",
+  open: "#1a6b2c",
+  closed: "#b91c1c",
+  completed: "#6d5a00",
+  cancelled: "#6b7280",
 };
+const STATUS_GROUP_ORDER = [
+  "open",
+  "draft",
+  "closed",
+  "completed",
+  "cancelled",
+];
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -256,13 +270,6 @@ export default function AdminDashboard() {
     });
     return unsub;
   }, []);
-
-  const STATUS_CLASS = {
-    pending: "status-pending",
-    confirmed: "status-confirmed",
-    cancelled: "status-cancelled",
-    waitlisted: "status-waitlisted",
-  };
 
   return (
     <div className="admin-layout">
@@ -477,358 +484,545 @@ export default function AdminDashboard() {
                 </Link>
               </div>
             </div>
-            <div className="admin-table-wrap" style={{ marginBottom: 32 }}>
+            <ResponsiveTable style={{ marginBottom: 32 }}>
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th>Climb</th>
-                    <th style={{ width: "1%" }}>Date</th>
-                    <th style={{ width: "1%" }}>Status</th>
-                    <th style={{ textAlign: "center", width: "1%" }}>Slots</th>
+                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>Date</th>
                     <th
-                      style={{ textAlign: "center", width: "1%" }}
+                      style={{
+                        width: "1%",
+                        textAlign: "center",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Slots
+                    </th>
+                    <th
+                      style={{
+                        width: "1%",
+                        textAlign: "center",
+                        whiteSpace: "nowrap",
+                      }}
                       title="Confirmed · Pending · Unpaid"
                     >
                       Reg. (C&middot;P&middot;U)
                     </th>
-                    <th style={{ width: "1%" }}>Actions</th>
+                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {climbs.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="admin-table-empty">
+                      <td colSpan={5} className="admin-table-empty">
                         No climbs yet.
                       </td>
                     </tr>
                   ) : (
-                    climbs.map((climb) => {
-                      const s = climbRegStats[climb.id] || {};
-                      const total = s.total || 0;
-                      const max = climb.maxParticipants ?? null;
-                      const slotsLeft =
-                        max != null ? max - (s.confirmed || 0) : null;
-                      const isFull = slotsLeft != null && slotsLeft <= 0;
-                      const missing = getMissingFields(climb);
-                      const isOpen = expandedIds.has(climb.id);
-                      return (
-                        <React.Fragment key={climb.id}>
-                        <tr>
-                          <td>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => toggleExpanded(climb.id)}
-                                aria-label={
-                                  isOpen ? "Collapse details" : "Expand details"
-                                }
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  padding: 1,
-                                  color: "var(--ink-soft)",
-                                  fontSize: "0.75rem",
-                                  lineHeight: 1,
-                                  transform: isOpen
-                                    ? "rotate(90deg)"
-                                    : "none",
-                                  transition: "transform 0.15s",
-                                }}
-                              >
-                                &#9656;
-                              </button>
-                              <span style={{ fontWeight: 700 }}>
-                                {climb.title}
-                              </span>
-                              {climb.type && (
-                                <span
-                                  style={{
-                                    fontSize: "0.6rem",
-                                    fontWeight: 700,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.5,
-                                    color: "var(--ink-soft)",
-                                    border: "1px solid var(--border)",
-                                    borderRadius: 8,
-                                    padding: "1px 6px",
-                                  }}
-                                >
-                                  {climb.type}
-                                </span>
-                              )}
-                              <span
-                                style={{
-                                  fontSize: "0.7rem",
-                                  color: "var(--ink-soft)",
-                                }}
-                              >
-                                {climb.location}
-                              </span>
-                              {missing.length > 0 && (
-                                <span
-                                  title={`Missing: ${missing.join(", ")}`}
-                                  style={{
-                                    fontSize: "0.62rem",
-                                    color: "#b45309",
-                                    fontWeight: 700,
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  &#9888; {missing.length} missing
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            {climb.dateLabel || "—"}
-                          </td>
-                          <td>
-                            <span
-                              style={{
-                                display: "inline-block",
-                                padding: "2px 10px",
-                                borderRadius: 99,
-                                fontSize: "0.72rem",
-                                fontWeight: 700,
-                                letterSpacing: 0.5,
-                                background:
-                                  climb.status === "open"
-                                    ? "#e6f4ec"
-                                    : "var(--surface-alt)",
-                                color:
-                                  STATUS_COLOR[climb.status] ||
-                                  "var(--ink-soft)",
-                                border: `1px solid ${STATUS_COLOR[climb.status] || "var(--border)"}22`,
-                              }}
-                            >
-                              {STATUS_LABEL[climb.status] || climb.status}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: "center" }}>
-                            <span style={{ fontWeight: 700 }}>{total}</span>
-                            {max && (
-                              <span
-                                style={{
-                                  color: "var(--ink-soft)",
-                                  fontSize: "0.8rem",
-                                }}
-                              >
-                                {" "}
-                                / {max}
-                              </span>
-                            )}
-                            {isFull && (
-                              <span
-                                className="status-badge status-closed"
-                                style={{ marginLeft: 6, fontSize: "0.65rem" }}
-                              >
-                                Full
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
-                            <span
-                              title="Confirmed"
-                              style={{
-                                fontWeight: 700,
-                                color: "var(--green-dark)",
-                              }}
-                            >
-                              {s.confirmed || 0}
-                            </span>
-                            <span style={{ color: "var(--border)", margin: "0 4px" }}>
-                              &middot;
-                            </span>
-                            <span
-                              title="Pending"
-                              style={{ fontWeight: 700, color: "#e67e00" }}
-                            >
-                              {s.pending || 0}
-                            </span>
-                            <span style={{ color: "var(--border)", margin: "0 4px" }}>
-                              &middot;
-                            </span>
-                            <span
-                              title="Unpaid"
-                              style={{ fontWeight: 700, color: "#b91c1c" }}
-                            >
-                              {s.paymentUnpaid || 0}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="admin-table-actions">
-                              <Link
-                                to={`/admin/climbs/${climb.id}`}
-                                className="btn btn-outline btn-sm"
-                                title="View and manage all registrations for this climb"
-                              >
-                                Registrants
-                              </Link>
-                              <Link
-                                to={`/admin/climbs/${climb.id}/edit`}
-                                className="btn btn-accent btn-sm"
-                                title="Edit climb details, officers, and settings"
-                              >
-                                Edit
-                              </Link>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {isOpen && (
-                          <tr>
+                    STATUS_GROUP_ORDER.map((status) => ({
+                      status,
+                      label: STATUS_LABEL[status] || status,
+                      list: climbs.filter(
+                        (c) => (c.status || "draft") === status,
+                      ),
+                    }))
+                      .filter((g) => g.list.length > 0)
+                      .flatMap(({ status, label, list }) => {
+                        const groupColor =
+                          STATUS_COLOR[status] || "var(--ink-soft)";
+                        return [
+                          <tr key={`group-${status}`}>
                             <td
-                              colSpan={6}
+                              colSpan={5}
                               style={{
-                                background: "var(--surface)",
+                                background: "var(--surface-alt)",
+                                fontSize: "0.64rem",
+                                fontWeight: 800,
+                                letterSpacing: 2,
+                                textTransform: "uppercase",
+                                color: groupColor,
+                                borderLeft: `3px solid ${groupColor}`,
                                 padding: "8px 12px",
                               }}
                             >
-                              <div
+                              {label}{" "}
+                              <span
                                 style={{
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "repeat(auto-fill, minmax(150px, 1fr))",
-                                  gap: "6px 16px",
-                                  marginBottom: 8,
-                                }}
-                              >
-                                <DetailCell
-                                  label="Jump-off Point"
-                                  value={climb.jumpOff}
-                                />
-                                <DetailCell
-                                  label="Distance to Summit"
-                                  value={climb.distanceToSummit}
-                                />
-                                <DetailCell
-                                  label="Elevation Gain"
-                                  value={climb.elevationGain}
-                                />
-                                <DetailCell
-                                  label="Recommended Days"
-                                  value={climb.recommendedDays}
-                                />
-                                <DetailCell
-                                  label="Climb Officers"
-                                  value={
-                                    climb.officers?.length
-                                      ? climb.officers
-                                          .map((o) =>
-                                            o.role
-                                              ? `${o.name} (${o.role})`
-                                              : o.name,
-                                          )
-                                          .join(", ")
-                                      : null
-                                  }
-                                />
-                                <DetailCell
-                                  label="Itinerary Days"
-                                  value={
-                                    climb.itinerary?.length
-                                      ? `${climb.itinerary.length} day(s) set`
-                                      : null
-                                  }
-                                />
-                                <DetailCell
-                                  label="Expenses"
-                                  value={getFeeSummary(climb)}
-                                />
-                                <DetailCell
-                                  label="Trail Photos"
-                                  value={
-                                    climb.trailImages?.length
-                                      ? `${climb.trailImages.length} photo(s)`
-                                      : null
-                                  }
-                                />
-                                <DetailCell
-                                  label="GCash Details"
-                                  value={
-                                    climb.gcashQrUrl ||
-                                    climb.gcashName ||
-                                    climb.gcashNumber
-                                      ? [climb.gcashName, climb.gcashNumber]
-                                          .filter(Boolean)
-                                          .join(" — ") || "QR uploaded"
-                                      : null
-                                  }
-                                />
-                              </div>
-
-                              <div
-                                style={{
-                                  fontSize: "0.6rem",
-                                  fontWeight: 700,
-                                  letterSpacing: 1.2,
-                                  textTransform: "uppercase",
+                                  fontWeight: 400,
                                   color: "var(--ink-soft)",
-                                  marginBottom: 4,
                                 }}
                               >
-                                Completeness Check
-                              </div>
-                              {missing.length === 0 ? (
-                                <span
-                                  style={{
-                                    display: "inline-block",
-                                    padding: "2px 8px",
-                                    borderRadius: 20,
-                                    fontSize: "0.68rem",
-                                    fontWeight: 700,
-                                    background: "#e8f5e9",
-                                    color: "#1a6b2c",
-                                    border: "1px solid #a7d7b2",
-                                  }}
+                                ({list.length})
+                              </span>
+                            </td>
+                          </tr>,
+                          ...list.map((climb) => {
+                            const s = climbRegStats[climb.id] || {};
+                            const total = s.total || 0;
+                            const max = climb.maxParticipants ?? null;
+                            const slotsLeft =
+                              max != null ? max - (s.confirmed || 0) : null;
+                            const isFull = slotsLeft != null && slotsLeft <= 0;
+                            const missing = getMissingFields(climb);
+                            const isOpen = expandedIds.has(climb.id);
+                            const pct =
+                              max > 0
+                                ? Math.min(100, Math.round((total / max) * 100))
+                                : 0;
+                            const barClass =
+                              pct >= 100 ? "full" : pct >= 75 ? "low" : "ok";
+                            return (
+                              <React.Fragment key={climb.id}>
+                                <tr
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => toggleExpanded(climb.id)}
                                 >
-                                  &#10003; All details complete
-                                </span>
-                              ) : (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: 4,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  {missing.map((label) => (
-                                    <span
-                                      key={label}
+                                  {/* Climb */}
+                                  <td>
+                                    <div
                                       style={{
-                                        display: "inline-block",
-                                        padding: "2px 8px",
-                                        borderRadius: 20,
-                                        fontSize: "0.68rem",
-                                        fontWeight: 700,
-                                        background: "#fce8e8",
-                                        color: "#b91c1c",
-                                        border: "1px solid #fca5a5",
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        gap: 6,
                                       }}
                                     >
-                                      {label}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleExpanded(climb.id);
+                                        }}
+                                        aria-label={
+                                          isOpen
+                                            ? "Collapse details"
+                                            : "Expand details"
+                                        }
+                                        style={{
+                                          background: "none",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          padding: 1,
+                                          color: "var(--ink-soft)",
+                                          fontSize: "0.75rem",
+                                          lineHeight: 1,
+                                          marginTop: 3,
+                                          transform: isOpen
+                                            ? "rotate(90deg)"
+                                            : "none",
+                                          transition: "transform 0.15s",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        &#9656;
+                                      </button>
+                                      <div style={{ minWidth: 0 }}>
+                                        <div
+                                          style={{
+                                            fontWeight: 700,
+                                            fontSize: "0.84rem",
+                                          }}
+                                        >
+                                          {climb.title}
+                                        </div>
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: 6,
+                                            alignItems: "center",
+                                            marginTop: 2,
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          {climb.type && (
+                                            <span
+                                              style={{
+                                                fontSize: "0.56rem",
+                                                fontWeight: 700,
+                                                textTransform: "uppercase",
+                                                letterSpacing: 0.5,
+                                                color: "var(--ink-soft)",
+                                                border:
+                                                  "1px solid var(--border)",
+                                                borderRadius: 6,
+                                                padding: "1px 6px",
+                                                whiteSpace: "nowrap",
+                                              }}
+                                            >
+                                              {climb.type}
+                                            </span>
+                                          )}
+                                          <span
+                                            style={{
+                                              fontSize: "0.72rem",
+                                              color: "var(--ink-soft)",
+                                            }}
+                                          >
+                                            {climb.location}
+                                          </span>
+                                        </div>
+                                        {missing.length > 0 && (
+                                          <span
+                                            title={`Missing: ${missing.join(", ")}`}
+                                            style={{
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              gap: 3,
+                                              marginTop: 3,
+                                              fontSize: "0.6rem",
+                                              color: "#b45309",
+                                              fontWeight: 700,
+                                            }}
+                                          >
+                                            &#9888; {missing.length} missing
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Date */}
+                                  <td style={{ whiteSpace: "nowrap" }}>
+                                    <span
+                                      style={{
+                                        fontWeight: 500,
+                                        fontSize: "0.82rem",
+                                      }}
+                                    >
+                                      {climb.dateLabel || "\u2014"}
                                     </span>
-                                  ))}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                        </React.Fragment>
-                      );
-                    })
+                                  </td>
+
+                                  {/* Slots */}
+                                  <td
+                                    style={{
+                                      textAlign: "center",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          fontWeight: 700,
+                                          fontSize: "0.84rem",
+                                          fontFamily: "var(--font-head)",
+                                        }}
+                                      >
+                                        {total}
+                                      </span>
+                                      {max && (
+                                        <span
+                                          style={{
+                                            color: "var(--ink-soft)",
+                                            fontSize: "0.72rem",
+                                          }}
+                                        >
+                                          / {max}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {max > 0 && (
+                                      <div className="slot-bar">
+                                        <div
+                                          className={`slot-bar-fill ${barClass}`}
+                                          style={{ width: `${pct}%` }}
+                                        />
+                                      </div>
+                                    )}
+                                    {isFull && (
+                                      <span
+                                        style={{
+                                          fontSize: "0.58rem",
+                                          fontWeight: 800,
+                                          color: "#b91c1c",
+                                          textTransform: "uppercase",
+                                          letterSpacing: 0.5,
+                                        }}
+                                      >
+                                        Full
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* Reg. (C·P·U) */}
+                                  <td
+                                    style={{
+                                      textAlign: "center",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    <span
+                                      title="Confirmed"
+                                      style={{
+                                        fontWeight: 700,
+                                        color: "var(--green-dark)",
+                                      }}
+                                    >
+                                      {s.confirmed || 0}
+                                    </span>
+                                    <span
+                                      style={{
+                                        color: "var(--border)",
+                                        margin: "0 4px",
+                                      }}
+                                    >
+                                      &middot;
+                                    </span>
+                                    <span
+                                      title="Pending"
+                                      style={{
+                                        fontWeight: 700,
+                                        color: "#e67e00",
+                                      }}
+                                    >
+                                      {s.pending || 0}
+                                    </span>
+                                    <span
+                                      style={{
+                                        color: "var(--border)",
+                                        margin: "0 4px",
+                                      }}
+                                    >
+                                      &middot;
+                                    </span>
+                                    <span
+                                      title="Unpaid"
+                                      style={{
+                                        fontWeight: 700,
+                                        color: "#b91c1c",
+                                      }}
+                                    >
+                                      {s.paymentUnpaid || 0}
+                                    </span>
+                                  </td>
+
+                                  {/* Actions */}
+                                  <td onClick={(e) => e.stopPropagation()}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 5,
+                                        flexWrap: "nowrap",
+                                      }}
+                                    >
+                                      <Link
+                                        to={`/admin/climbs/${climb.id}`}
+                                        className="btn btn-outline btn-sm"
+                                        title="View registrations"
+                                      >
+                                        Registrants
+                                      </Link>
+                                      <Link
+                                        to={`/admin/climbs/${climb.id}/edit`}
+                                        className="btn btn-accent btn-sm"
+                                        title="Edit climb"
+                                      >
+                                        Edit
+                                      </Link>
+                                    </div>
+                                  </td>
+                                </tr>
+
+                                {/* Expanded detail */}
+                                {isOpen && (
+                                  <tr>
+                                    <td
+                                      colSpan={5}
+                                      style={{
+                                        background: "var(--green-pale)",
+                                        padding: "14px 18px",
+                                        borderBottom: "2px solid var(--border)",
+                                        borderLeft:
+                                          "3px solid var(--green-light)",
+                                      }}
+                                    >
+                                      <SectionLabel>
+                                        &#9968; Climb Details
+                                      </SectionLabel>
+                                      <div
+                                        style={{
+                                          display: "grid",
+                                          gridTemplateColumns:
+                                            "repeat(auto-fill, minmax(180px, 1fr))",
+                                          gap: "8px 16px",
+                                          marginBottom: 14,
+                                        }}
+                                      >
+                                        <InfoCell
+                                          label="Jump-off Point"
+                                          value={climb.jumpOff}
+                                        />
+                                        <InfoCell
+                                          label="Distance to Summit"
+                                          value={climb.distanceToSummit}
+                                        />
+                                        <InfoCell
+                                          label="Round-trip Distance"
+                                          value={climb.roundTripDistance}
+                                        />
+                                        <InfoCell
+                                          label="Elevation Gain"
+                                          value={climb.elevationGain}
+                                        />
+                                        <InfoCell
+                                          label="Recommended Days"
+                                          value={climb.recommendedDays}
+                                        />
+                                        <InfoCell
+                                          label="Expenses"
+                                          value={getFeeSummary(climb)}
+                                        />
+                                        <InfoCell
+                                          label="Trail Photos"
+                                          value={
+                                            climb.trailImages?.length
+                                              ? `${climb.trailImages.length} photo(s)`
+                                              : null
+                                          }
+                                        />
+                                        <InfoCell
+                                          label="Itinerary"
+                                          value={
+                                            climb.itinerary?.length
+                                              ? `${climb.itinerary.length} day(s) set`
+                                              : null
+                                          }
+                                        />
+                                        <InfoCell
+                                          label="GCash"
+                                          value={
+                                            climb.gcashQrUrl ||
+                                            climb.gcashName ||
+                                            climb.gcashNumber
+                                              ? [
+                                                  climb.gcashName,
+                                                  climb.gcashNumber,
+                                                ]
+                                                  .filter(Boolean)
+                                                  .join(" \u2014 ") ||
+                                                "QR uploaded"
+                                              : null
+                                          }
+                                        />
+                                      </div>
+
+                                      {climb.officers?.length > 0 && (
+                                        <>
+                                          <SectionLabel>
+                                            &#128101; Officers
+                                          </SectionLabel>
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              gap: 8,
+                                              flexWrap: "wrap",
+                                              marginBottom: 14,
+                                            }}
+                                          >
+                                            {climb.officers.map((o, i) => (
+                                              <span
+                                                key={i}
+                                                style={{
+                                                  display: "inline-flex",
+                                                  alignItems: "center",
+                                                  gap: 4,
+                                                  padding: "3px 10px",
+                                                  borderRadius: 99,
+                                                  fontSize: "0.72rem",
+                                                  fontWeight: 600,
+                                                  background:
+                                                    "rgba(255,255,255,0.7)",
+                                                  border:
+                                                    "1px solid var(--border)",
+                                                }}
+                                              >
+                                                {o.name}
+                                                {o.role && (
+                                                  <span
+                                                    style={{
+                                                      fontSize: "0.58rem",
+                                                      fontWeight: 700,
+                                                      color: "var(--ink-soft)",
+                                                      textTransform:
+                                                        "uppercase",
+                                                      letterSpacing: 0.5,
+                                                    }}
+                                                  >
+                                                    {o.role}
+                                                  </span>
+                                                )}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </>
+                                      )}
+
+                                      <SectionLabel>
+                                        &#10003; Completeness
+                                      </SectionLabel>
+                                      {missing.length === 0 ? (
+                                        <span
+                                          style={{
+                                            display: "inline-block",
+                                            padding: "2px 10px",
+                                            borderRadius: 20,
+                                            fontSize: "0.68rem",
+                                            fontWeight: 700,
+                                            background: "#e8f5e9",
+                                            color: "#1a6b2c",
+                                            border: "1px solid #a7d7b2",
+                                          }}
+                                        >
+                                          &#10003; All details complete
+                                        </span>
+                                      ) : (
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: 4,
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          {missing.map((mLabel) => (
+                                            <span
+                                              key={mLabel}
+                                              style={{
+                                                display: "inline-block",
+                                                padding: "2px 8px",
+                                                borderRadius: 20,
+                                                fontSize: "0.68rem",
+                                                fontWeight: 700,
+                                                background: "#fce8e8",
+                                                color: "#b91c1c",
+                                                border: "1px solid #fca5a5",
+                                              }}
+                                            >
+                                              &#10005; {mLabel}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          }),
+                        ];
+                      })
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
 
             {/* Recent Registrations */}
             <div className="admin-section-bar">
@@ -840,16 +1034,22 @@ export default function AdminDashboard() {
                 View All
               </Link>
             </div>
-            <div className="admin-table-wrap">
+            <ResponsiveTable>
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th>Participant</th>
                     <th>Climb</th>
-                    <th style={{ width: "1%" }}>Payment</th>
-                    <th style={{ width: "1%" }}>Status</th>
-                    <th style={{ width: "1%" }}>Date</th>
-                    <th style={{ width: "1%" }}>Actions</th>
+                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                      Payment
+                    </th>
+                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                      Status
+                    </th>
+                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>Date</th>
+                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -863,45 +1063,87 @@ export default function AdminDashboard() {
                     recentRegs.map((reg) => (
                       <tr key={reg.id}>
                         <td>
-                          <div className="admin-table-name">{reg.name}</div>
-                          <div className="admin-table-sub">{reg.email}</div>
-                        </td>
-                        <td>{reg.climbTitle}</td>
-                        <td>
-                          {reg.paymentStatus ? (
-                            <span
-                              className={`status-badge status-payment-${reg.paymentStatus}`}
-                            >
-                              {reg.paymentStatus}
-                            </span>
-                          ) : (
+                          <div style={{ fontWeight: 600, fontSize: "0.84rem" }}>
+                            {reg.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.7rem",
+                              color: "var(--ink-soft)",
+                              marginTop: 1,
+                            }}
+                          >
+                            {reg.email}
+                          </div>
+                          {reg.memberType && (
                             <span
                               style={{
-                                color: "var(--ink-soft)",
-                                fontSize: "0.78rem",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 3,
+                                marginTop: 3,
+                                fontSize: "0.56rem",
+                                fontWeight: 700,
+                                letterSpacing: 0.5,
+                                textTransform: "uppercase",
+                                background:
+                                  reg.memberType === "member"
+                                    ? "#e8f5e9"
+                                    : "#fff3e0",
+                                color:
+                                  reg.memberType === "member"
+                                    ? "#1a6b2c"
+                                    : "#c05c00",
+                                border: "1px solid",
+                                borderColor:
+                                  reg.memberType === "member"
+                                    ? "#a7d7b2"
+                                    : "#ffd399",
+                                borderRadius: 99,
+                                padding: "1px 7px",
+                                whiteSpace: "nowrap",
                               }}
                             >
-                              —
+                              {reg.memberType === "member"
+                                ? "\u2605 Member"
+                                : "\u2606 Joiner"}
                             </span>
                           )}
                         </td>
                         <td>
-                          <span
-                            className={`status-badge ${STATUS_CLASS[reg.status] || ""}`}
-                          >
-                            {reg.status}
-                          </span>
+                          <div style={{ fontWeight: 600, fontSize: "0.82rem" }}>
+                            {reg.climbTitle || "\u2014"}
+                          </div>
                         </td>
-                        <td className="admin-table-date">
-                          {reg.createdAt
-                            ?.toDate?.()
-                            .toLocaleDateString("en-PH") || "—"}
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <StatusBadge
+                            status={reg.paymentStatus}
+                            styleMap={PAYMENT_STYLE}
+                          />
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <StatusBadge
+                            status={reg.status}
+                            styleMap={STATUS_STYLE}
+                          />
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <span
+                            style={{
+                              fontSize: "0.78rem",
+                              color: "var(--ink-soft)",
+                            }}
+                          >
+                            {reg.createdAt
+                              ?.toDate?.()
+                              .toLocaleDateString("en-PH") || "\u2014"}
+                          </span>
                         </td>
                         <td>
                           <Link
                             to={`/admin/climbs/${reg.climbId}`}
                             className="btn btn-outline btn-sm"
-                            title="View all registrations for this climb"
+                            title="View registrations for this climb"
                           >
                             View
                           </Link>
@@ -911,7 +1153,7 @@ export default function AdminDashboard() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           </>
         )}
       </main>

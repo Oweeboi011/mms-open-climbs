@@ -84,6 +84,21 @@ describe("getExpectedTotal", () => {
     expect(getExpectedTotal({ memberType: "joiner" }, climb)).toBe(950);
   });
 
+  it("never charges a member the guest fee, even if it isn't flagged optional", () => {
+    const climbWithRequiredGuestFee = {
+      fees: [
+        { label: "Registration Fee", amount: "500", optional: false },
+        { label: "Guest Fee", amount: "450", optional: false, isGuestFee: true },
+      ],
+    };
+    expect(
+      getExpectedTotal({ memberType: "member" }, climbWithRequiredGuestFee),
+    ).toBe(500);
+    expect(
+      getExpectedTotal({ memberType: "joiner" }, climbWithRequiredGuestFee),
+    ).toBe(950);
+  });
+
   it("picks up a fee amount corrected after the registrant already selected it", () => {
     // Registered while the fee was still "TBA"; admin later fills in the
     // real amount on the climb — the registrant's total should reflect it.

@@ -1,10 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
+import ClimbFeeBreakdown from "@/components/ClimbFeeBreakdown";
 import { StatBox } from "@/components/admin/paymentShared";
 import PaymentHistory from "@/components/admin/PaymentHistory";
 import { getPaymentEntries, getAllProofs } from "@/utils/payments";
 import { getExpectedTotal } from "@/utils/registrationFees";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
 export default function ClimbPaymentCard({
   climb,
@@ -505,6 +507,32 @@ export default function ClimbPaymentCard({
                       </div>
                     </div>
 
+                    {/* Climb fee schedule — the source of every expected
+                        amount below, shown live so an edit made elsewhere is
+                        visible here without a reload. */}
+                    <div
+                      style={{
+                        marginBottom: 16,
+                        padding: "12px 14px",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        background: "var(--surface)",
+                      }}
+                    >
+                      <ClimbFeeBreakdown
+                        climb={climb}
+                        title="Current Fee Schedule"
+                      />
+                      <Link
+                        to={`/admin/climbs/${climb.id}/edit`}
+                        className="btn btn-outline btn-sm"
+                        style={{ marginTop: 10 }}
+                        title="Edit this climb's fees"
+                      >
+                        Edit Fees
+                      </Link>
+                    </div>
+
                     {/* Participant payment list */}
                     <div>
                       <div
@@ -540,7 +568,7 @@ export default function ClimbPaymentCard({
                           No registrations yet.
                         </p>
                       ) : (
-                        <div className="admin-table-wrap">
+                        <ResponsiveTable>
                           <table className="admin-table">
                             <thead>
                               <tr>
@@ -858,7 +886,7 @@ export default function ClimbPaymentCard({
                               })}
                             </tbody>
                           </table>
-                        </div>
+                        </ResponsiveTable>
                       )}
                     </div>
                   </div>

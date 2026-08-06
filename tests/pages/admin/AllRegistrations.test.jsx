@@ -1,16 +1,17 @@
 /**
  * Tests for the Admin All Registrations page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderWithProviders,
   makeAdminAuth,
   registrationFixture,
   climbFixture,
+  mockLiveSnapshot,
 } from "@tests/helpers";
 import AllRegistrations from "@/pages/admin/AllRegistrations";
-import { onSnapshot, getDocs, updateDoc } from "firebase/firestore";
+import { getDocs, updateDoc } from "firebase/firestore";
 import { makeQuerySnapshot } from "@tests/setup";
 
 const regDoc = { id: registrationFixture.id, data: { ...registrationFixture } };
@@ -28,10 +29,7 @@ const climbDoc = { id: climbFixture.id, data: { ...climbFixture } };
 describe("Admin AllRegistrations", () => {
   beforeEach(() => {
     getDocs.mockResolvedValue(makeQuerySnapshot([climbDoc]));
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(makeQuerySnapshot([regDoc, regDoc2]));
-      return vi.fn();
-    });
+    mockLiveSnapshot([regDoc, regDoc2]);
   });
 
   it("renders the All Registrations heading", async () => {
@@ -101,9 +99,7 @@ describe("Admin AllRegistrations", () => {
   });
 
   it("shows a transportation toggle and updates it on click", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: registrationFixture.id,
             data: {
@@ -113,10 +109,7 @@ describe("Admin AllRegistrations", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
@@ -143,17 +136,12 @@ describe("Admin AllRegistrations", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: registrationFixture.id,
             data: { ...registrationFixture, paymentStatus: "unpaid", amountPaid: null },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
@@ -164,9 +152,7 @@ describe("Admin AllRegistrations", () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: registrationFixture.id,
             data: {
@@ -176,10 +162,7 @@ describe("Admin AllRegistrations", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
@@ -202,10 +185,7 @@ describe("Admin AllRegistrations", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(makeQuerySnapshot([regDoc]));
-      return vi.fn();
-    });
+    mockLiveSnapshot([regDoc]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
@@ -226,9 +206,7 @@ describe("Admin AllRegistrations", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           regDoc,
           {
             id: "reg-3",
@@ -239,10 +217,7 @@ describe("Admin AllRegistrations", () => {
               medicalCertUpload: { url: "https://example.com/cert.pdf" },
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => {

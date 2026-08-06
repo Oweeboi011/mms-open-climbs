@@ -7,7 +7,6 @@ import {
   orderBy,
   onSnapshot,
   getDocs,
-  getDoc,
   doc,
   updateDoc,
   serverTimestamp,
@@ -26,6 +25,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
 import { getFeeItems } from "@/utils/registrationFees";
+import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -41,26 +41,38 @@ const PAYMENT_LABEL = {
   rejected: "Payment Rejected",
 };
 
+// The fee lines shown in the pay prompt. The climb's current schedule wins so
+// later corrections (a filled-in "TBA", a newly added fee) show up at payment
+// time; only if the climb is gone do we fall back to the snapshot frozen on
+// the registration. The guest fee follows member type — it is never a
+// checkbox — so members can't tick themselves into it, nor joiners out of it.
+function getPayPromptFees(climb, reg) {
+  if (!climb?.fees?.length) {
+    return {
+      required: (reg.feeBreakdown || []).filter((e) => !e.optional && e.selected),
+      optional: [],
+      fromSnapshot: true,
+    };
+  }
+  const { requiredFees, optionalFees, guestFee } = getClimbFeeModel(climb);
+  return {
+    required: [
+      ...requiredFees,
+      ...(reg.memberType === "joiner" && guestFee ? [guestFee] : []),
+    ],
+    optional: optionalFees,
+    fromSnapshot: false,
+  };
+}
+
 // Shared by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
 function computeSelectedTotal(climb, reg, selections) {
-  const hasClimbFees = climb?.fees?.length > 0;
-  const required = hasClimbFees
-    ? climb.fees.filter((e) => !e.optional)
-    : (reg.feeBreakdown || []).filter((e) => !e.optional && e.selected);
-  const optional = hasClimbFees ? climb.fees.filter((e) => e.optional) : [];
-  let total = 0;
-  let hasTba = false;
-  const addAmount = (amt) => {
-    const n = parseFloat(String(amt).replace(/[^0-9.]/g, ""));
-    if (!isNaN(n)) total += n;
-    else hasTba = true;
-  };
-  required.forEach((e) => addAmount(e.amount));
-  optional.forEach((e) => {
-    if (selections[e.label]) addAmount(e.amount);
-  });
-  return { total, hasTba };
+  const { required, optional } = getPayPromptFees(climb, reg);
+  return sumFeeAmounts([
+    ...required,
+    ...optional.filter((e) => selections[e.label]),
+  ]);
 }
 
 function PayPrompt({ reg, onClose, onSaved }) {
@@ -79,14 +91,14 @@ function PayPrompt({ reg, onClose, onSaved }) {
   const [selections, setSelections] = useState({});
 
   useEffect(() => {
-    let cancelled = false;
-    getDoc(doc(db, "climbs", reg.climbId))
-      .then((snap) => {
-        if (!cancelled && snap.exists()) {
-          setClimb(snap.data());
-        }
-      })
-      .catch((err) => {
+    // Live: the amount being asked for here has to reflect the climb's fees
+    // as they stand right now, not as they were when this modal opened.
+    const unsub = onSnapshot(
+      doc(db, "climbs", reg.climbId),
+      (snap) => {
+        if (snap.exists()) setClimb(snap.data());
+      },
+      (err) => {
         logFailedRequest({
           type: "firestore",
           source: "MyRegistrations.jsx:PayPrompt:climbFetch",
@@ -94,25 +106,19 @@ function PayPrompt({ reg, onClose, onSaved }) {
           path: window.location.pathname,
           climbId: reg.climbId,
         });
-      });
-    return () => {
-      cancelled = true;
-    };
+      },
+    );
+    return unsub;
   }, [reg.climbId]);
 
   useEffect(() => {
     if (!climb?.fees?.length) return;
     const initial = {};
-    climb.fees.forEach((f) => {
-      if (!f.optional) return;
+    // Only genuinely optional items are toggleable; the guest fee is decided
+    // by member type in getPayPromptFees, not here.
+    getClimbFeeModel(climb).optionalFees.forEach((f) => {
       const stored = reg.feeBreakdown?.find((e) => e.label === f.label);
-      if (stored) {
-        initial[f.label] = !!stored.selected;
-      } else if (f.isGuestFee) {
-        initial[f.label] = reg.memberType === "joiner";
-      } else {
-        initial[f.label] = false;
-      }
+      initial[f.label] = !!stored?.selected;
     });
     setSelections(initial);
   }, [climb, reg]);
@@ -159,7 +165,13 @@ function PayPrompt({ reg, onClose, onSaved }) {
             label: f.label,
             amount: f.amount,
             optional: !!f.optional,
-            selected: f.optional ? !!selections[f.label] : true,
+            // Guest fee follows member type, not a checkbox — same rule the
+            // registration form and the admin totals apply.
+            selected: f.isGuestFee
+              ? reg.memberType === "joiner"
+              : f.optional
+                ? !!selections[f.label]
+                : true,
           }))
         : reg.feeBreakdown;
       // Each submission is its own entry in the history — this may be a
@@ -328,19 +340,14 @@ function PayPrompt({ reg, onClose, onSaved }) {
 
         {(reg.feeBreakdown?.length > 0 || climb?.fees?.length > 0) &&
           (() => {
-            // Fees can change after a member registers (new items added,
-            // "TBA" amounts filled in later) — always read the climb's
-            // current fee schedule for labels/amounts so those updates are
-            // reflected. Optional fees (transportation, guest fee, shirt,
-            // etc.) are toggleable here so members can change their mind at
-            // payment time and see the total update live.
-            const hasClimbFees = climb?.fees?.length > 0;
-            const required = hasClimbFees
-              ? climb.fees.filter((e) => !e.optional)
-              : reg.feeBreakdown.filter((e) => !e.optional && e.selected);
-            const optional = hasClimbFees
-              ? climb.fees.filter((e) => e.optional)
-              : [];
+            // Optional fees (transportation, shirt, etc.) are toggleable here
+            // so members can change their mind at payment time and see the
+            // total update live. See getPayPromptFees for the rest.
+            const { required, optional, fromSnapshot } = getPayPromptFees(
+              climb,
+              reg,
+            );
+            const hasClimbFees = !fromSnapshot;
             const { total, hasTba } = computeSelectedTotal(climb, reg, selections);
             const totalDisplay = hasTba
               ? `₱${total.toLocaleString("en-PH")} + TBA`
@@ -377,6 +384,17 @@ function PayPrompt({ reg, onClose, onSaved }) {
                           colSpan={optional.length > 0 ? 2 : 1}
                         >
                           {e.label}
+                          {e.isGuestFee && (
+                            <span
+                              style={{
+                                fontSize: "0.68rem",
+                                color: "var(--ink-soft)",
+                                marginLeft: 4,
+                              }}
+                            >
+                              (guest)
+                            </span>
+                          )}
                           {e.note && (
                             <div
                               style={{
@@ -908,13 +926,7 @@ function ReceiptModal({ reg, climb, onClose }) {
   // afterwards should see the receipt follow, the same way the admin views
   // and the outstanding math do.
   const items = getFeeItems(reg, climb);
-  let total = 0;
-  let hasTba = false;
-  items.forEach((e) => {
-    const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
-    if (!isNaN(n)) total += n;
-    else hasTba = true;
-  });
+  const { total, hasTba } = sumFeeAmounts(items);
   const totalDisplay = hasTba
     ? `₱${total.toLocaleString("en-PH")} + TBA`
     : `₱${total.toLocaleString("en-PH")}`;
@@ -1483,26 +1495,31 @@ export default function MyRegistrations() {
   useEffect(() => {
     const climbIds = [...new Set(regs.map((r) => r.climbId))].filter(Boolean);
     if (climbIds.length === 0) return;
-    Promise.all(
-      climbIds.map((id) =>
-        getDoc(doc(db, "climbs", id)).then((snap) => [
-          id,
-          snap.exists() ? snap.data() : null,
-        ]),
+    // Subscribed rather than fetched once: fee amounts, schedules and GCash
+    // details get corrected by officers after people register, and what a
+    // member is shown they owe must follow those edits.
+    const unsubs = climbIds.map((id) =>
+      onSnapshot(
+        doc(db, "climbs", id),
+        (snap) => {
+          setClimbsMap((prev) => ({
+            ...prev,
+            [id]: snap.exists() ? snap.data() : null,
+          }));
+        },
+        (err) => {
+          logFailedRequest({
+            type: "firestore",
+            source: "MyRegistrations.jsx:climbsFetch",
+            message: err?.message,
+            path: window.location.pathname,
+            userId: currentUser.uid,
+            climbId: id,
+          });
+        },
       ),
-    )
-      .then((entries) => {
-        setClimbsMap(Object.fromEntries(entries));
-      })
-      .catch((err) => {
-        logFailedRequest({
-          type: "firestore",
-          source: "MyRegistrations.jsx:climbsFetch",
-          message: err?.message,
-          path: window.location.pathname,
-          userId: currentUser.uid,
-        });
-      });
+    );
+    return () => unsubs.forEach((unsub) => unsub());
   }, [regs, currentUser.uid]);
 
   // climb.startDate/endDate may be a Firestore Timestamp OR a plain

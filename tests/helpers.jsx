@@ -7,6 +7,8 @@
 import { render } from "@testing-library/react";
 import { BrowserRouter, MemoryRouter, Routes, Route } from "react-router-dom";
 import { vi } from "vitest";
+import { onSnapshot, getDocs, getDoc } from "firebase/firestore";
+import { makeQuerySnapshot } from "@tests/setup";
 import { AuthContext } from "@/contexts/AuthContext";
 import { GuideProvider } from "@/contexts/GuideContext";
 
@@ -111,6 +113,39 @@ export function renderAtRoute(ui, path, initialEntry, authValue) {
       </GuideProvider>
     </AuthContext.Provider>,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Firestore read routing
+// ---------------------------------------------------------------------------
+/**
+ * onSnapshot stub for pages that subscribe to more than one thing. `items` is
+ * served to the page's main collection subscription (registrations); anything
+ * else it opens is routed to the stub the test already set up:
+ *   - a single doc ref  ("climbs/climb-1") → the current getDoc mock
+ *   - the climbs list   ("climbs")         → the current getDocs mock
+ *   - any other collection                  → `others[name]`, default empty
+ * so tests describe their data once no matter whether a page reads a
+ * collection once or keeps it live.
+ */
+export function mockLiveSnapshot(items, others = { feedback: [] }) {
+  onSnapshot.mockImplementation((target, ...rest) => {
+    const cb = rest.find((arg) => typeof arg === "function");
+    const path = (Array.isArray(target) ? target[0]?.path : target?.path) ?? "";
+    const [collectionName, docId] = path.split("/");
+    if (!docId && collectionName in others) {
+      cb?.(makeQuerySnapshot(others[collectionName] || []));
+    } else if (collectionName === "feedback") {
+      cb?.(makeQuerySnapshot([]));
+    } else if (docId) {
+      getDoc(target).then((snap) => cb?.(snap));
+    } else if (collectionName === "climbs") {
+      getDocs(target).then((snap) => cb?.(snap));
+    } else {
+      cb?.(makeQuerySnapshot(items));
+    }
+    return vi.fn();
+  });
 }
 
 // ---------------------------------------------------------------------------
