@@ -1,0 +1,94 @@
+name: Code Quality
+
+# The diff-level gates (lint, architecture, duplication, coverage) also run
+# inside `npm run qa` in firebase-ci-cd.yml, which is what guards the deploy.
+# This workflow surfaces them per-PR, and adds the checks that don't belong in
+# `qa` because they depend on the state of the world rather than the diff.
+# See docs/wiki/CODE-QUALITY.md and docs/adr/0002-code-quality-gates.md.
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: Deterministic gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Lint (rules, layering, complexity ceilings)
+        run: npm run lint
+      - name: Architecture (cycles, layering, reachability)
+        run: npm run arch
+      - name: Duplication threshold
+        run: npm run dupes
+      - name: Upload duplication report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jscpd-report
+          path: .jscpd/
+          if-no-files-found: ignore
+
+  supply-chain:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    # Blocking at high+. The remaining moderate advisories (react-router,
+    # protobufjs) both need major upgrades and are tracked in
+    # docs/wiki/CODE-QUALITY.md — lower the threshold once they are cleared.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Audit production dependencies
+        run: npm run audit:deps
+      - name: Audit Cloud Functions production dependencies
+        run: npm --prefix functions audit --audit-level=high --omit=dev
+
+  patterns:
+    name: Semgrep (advisory)
+    runs-on: ubuntu-latest
+    # Advisory: reported in the job summary, never blocks a merge. CodeQL
+    # (codeql.yml) is the blocking security analysis.
+    continue-on-error: true
+    container:
+      image: semgrep/semgrep:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan with Semgrep rulesets
+        run: |
+          semgrep scan \
+            --config p/javascript \
+            --config p/react \
+            --config p/secrets \
+            --exclude dist --exclude coverage --exclude node_modules \
+            --sarif --output semgrep.sarif || true
+          semgrep scan \
+            --config p/javascript --config p/react --config p/secrets \
+            --exclude dist --exclude coverage --exclude node_modules \
+            --text >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: ignore

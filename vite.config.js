@@ -20,11 +20,13 @@ export default defineConfig({
       reporter: ["text", "lcov", "html"],
       include: ["src/**/*.{js,jsx}"],
       exclude: ["src/main.jsx"],
+      // Ratchets, like the ESLint ceilings — set just under today's actuals
+      // (63.6 / 57 / 62.6 / 52.5). Raise them when coverage improves.
       thresholds: {
-        lines: 45,
-        functions: 35,
-        statements: 45,
-        branches: 34,
+        lines: 63,
+        functions: 56,
+        statements: 62,
+        branches: 52,
       },
     },
   },

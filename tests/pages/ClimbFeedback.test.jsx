@@ -1,7 +1,7 @@
 /**
  * Tests for the ClimbFeedback page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { getDoc, setDoc } from "firebase/firestore";
 import { renderAtRoute, makeMemberAuth, climbFixture } from "@tests/helpers";
