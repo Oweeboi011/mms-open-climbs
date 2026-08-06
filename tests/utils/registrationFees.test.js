@@ -13,6 +13,55 @@ const climb = {
   ],
 };
 
+describe("getOutstanding with a payment history", () => {
+  const reg = (payments) => ({
+    memberType: "member",
+    feeBreakdown: [
+      { label: "Registration Fee", amount: "500", selected: true },
+    ],
+    payments,
+    paymentStatus: "submitted",
+  });
+
+  it("ignores a rejected instalment but keeps the ones that stand", () => {
+    // 500 owed, 300 verified, 200 rejected → 200 still outstanding.
+    expect(
+      getOutstanding(
+        reg([
+          { amount: 300, proofs: [], status: "verified" },
+          { amount: 200, proofs: [], status: "rejected" },
+        ]),
+        climb,
+      ),
+    ).toBe(200);
+  });
+
+  it("counts instalments still awaiting review", () => {
+    expect(
+      getOutstanding(
+        reg([
+          { amount: 300, proofs: [], status: "verified" },
+          { amount: 200, proofs: [], status: "submitted" },
+        ]),
+        climb,
+      ),
+    ).toBe(0);
+  });
+
+  it("still zeroes a legacy registration whose single payment was rejected", () => {
+    expect(
+      getOutstanding(
+        {
+          memberType: "member",
+          amountPaid: 500,
+          paymentStatus: "rejected",
+        },
+        climb,
+      ),
+    ).toBe(500);
+  });
+});
+
 describe("getExpectedTotal", () => {
   it("sums selected feeBreakdown items when present", () => {
     const reg = {

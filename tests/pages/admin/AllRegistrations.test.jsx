@@ -185,7 +185,11 @@ describe("Admin AllRegistrations", () => {
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Juan Cruz"));
 
-    await waitFor(() => expect(screen.getByText("Fee Breakdown")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText("Fee Breakdown (current fees)"),
+      ).toBeInTheDocument(),
+    );
     expect(screen.getByText("Registration Fee")).toBeInTheDocument();
   });
 

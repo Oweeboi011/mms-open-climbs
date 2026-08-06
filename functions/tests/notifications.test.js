@@ -361,6 +361,87 @@ describe("onRegistrationUpdated", () => {
     expect(created).toBeTruthy();
   });
 
+  it("tells the member when one instalment is rejected while the rest still stand", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+
+    // Both payments were awaiting review; the officer rejects only the
+    // second, so the registration rolls up to "verified" and the block above
+    // stays silent — the member still needs to hear about the ₱300.
+    await updatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            status: "pending",
+            paymentStatus: "submitted",
+            climbId: "climb-1",
+            userId: "user-1",
+            payments: [
+              { amount: 500, status: "verified" },
+              { amount: 300, status: "submitted" },
+            ],
+          }),
+        },
+        after: {
+          data: () => ({
+            status: "pending",
+            paymentStatus: "verified",
+            climbId: "climb-1",
+            userId: "user-1",
+            climbTitle: "Mt. Pulag",
+            payments: [
+              { amount: 500, status: "verified" },
+              { amount: 300, status: "rejected" },
+            ],
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    const rejected = Object.values(notifStore).find(
+      (n) => n.title === "A payment was rejected",
+    );
+    expect(rejected).toBeTruthy();
+    expect(rejected.message).toContain("₱300");
+    expect(rejected.message).toContain("other payments still stand");
+  });
+
+  it("doesn't double-notify when the whole registration was rejected", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+
+    await updatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            status: "pending",
+            paymentStatus: "submitted",
+            climbId: "climb-1",
+            userId: "user-1",
+            payments: [{ amount: 500, status: "submitted" }],
+          }),
+        },
+        after: {
+          data: () => ({
+            status: "pending",
+            paymentStatus: "rejected",
+            climbId: "climb-1",
+            userId: "user-1",
+            climbTitle: "Mt. Pulag",
+            payments: [{ amount: 500, status: "rejected" }],
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(
+      Object.values(notifStore).find((n) => n.title === "A payment was rejected"),
+    ).toBeFalsy();
+    expect(
+      Object.values(notifStore).find((n) => n.title === "Payment rejected"),
+    ).toBeTruthy();
+  });
+
   it("clears every admin's payment_submitted notification once the payment is verified", async () => {
     userStore["admin-1"] = { role: "admin", email: "admin1@mms.ph" };
     userStore["admin-2"] = { role: "admin", email: "admin2@mms.ph" };

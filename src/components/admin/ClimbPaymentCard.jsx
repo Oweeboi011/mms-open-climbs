@@ -2,6 +2,9 @@ import React from "react";
 import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { StatBox } from "@/components/admin/paymentShared";
+import PaymentHistory from "@/components/admin/PaymentHistory";
+import { getPaymentEntries, getAllProofs } from "@/utils/payments";
+import { getExpectedTotal } from "@/utils/registrationFees";
 
 export default function ClimbPaymentCard({
   climb,
@@ -15,6 +18,7 @@ export default function ClimbPaymentCard({
   fileRefs,
   handleQrUpload,
   changePaymentStatus,
+  onEntryStatusChange,
   toggleTransportation,
   getOutstanding,
   setLightboxUrl,
@@ -515,6 +519,17 @@ export default function ClimbPaymentCard({
                       >
                         Participant Payments ({cs.regs.length})
                       </div>
+                      <p
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--ink-soft)",
+                          margin: "-4px 0 10px",
+                        }}
+                      >
+                        Expected amounts use this climb's current fee schedule.
+                        Click a row for the itemized breakdown and payment
+                        history.
+                      </p>
                       {cs.regs.length === 0 ? (
                         <p
                           style={{
@@ -533,6 +548,7 @@ export default function ClimbPaymentCard({
                                 <th>Participant</th>
                                 <th style={{ width: "1%" }}>Type</th>
                                 <th style={{ width: "1%" }}>Transport</th>
+                                <th style={{ width: "1%" }}>Expected</th>
                                 <th style={{ width: "1%" }}>Declared Paid</th>
                                 <th style={{ width: "1%" }}>Outstanding</th>
                                 <th style={{ width: "1%" }}>Proof</th>
@@ -551,6 +567,7 @@ export default function ClimbPaymentCard({
                                   !!transpoItem || climbHasTranspoFee;
                                 const hasTranspo = transpoItem?.selected;
                                 const outstanding = getOutstanding(reg);
+                                const expected = getExpectedTotal(reg, climb);
                                 return (
                                   <React.Fragment key={reg.id}>
                                   <tr
@@ -637,9 +654,41 @@ export default function ClimbPaymentCard({
                                         fontSize: "0.9rem",
                                         whiteSpace: "nowrap",
                                       }}
+                                      title="Total of this registrant's fees at the climb's current amounts"
+                                    >
+                                      {expected > 0 ? (
+                                        fmt(expected)
+                                      ) : (
+                                        <span
+                                          style={{ color: "var(--ink-soft)" }}
+                                        >
+                                          —
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td
+                                      style={{
+                                        fontWeight: 700,
+                                        fontSize: "0.9rem",
+                                        whiteSpace: "nowrap",
+                                      }}
                                     >
                                       {reg.amountPaid ? (
-                                        fmt(reg.amountPaid)
+                                        <>
+                                          {fmt(reg.amountPaid)}
+                                          {getPaymentEntries(reg).length > 1 && (
+                                            <div
+                                              style={{
+                                                fontSize: "0.65rem",
+                                                fontWeight: 400,
+                                                color: "var(--ink-soft)",
+                                              }}
+                                            >
+                                              {getPaymentEntries(reg).length}{" "}
+                                              payments
+                                            </div>
+                                          )}
+                                        </>
                                       ) : (
                                         <span
                                           style={{ color: "var(--ink-soft)" }}
@@ -662,7 +711,7 @@ export default function ClimbPaymentCard({
                                       {outstanding === 0 ? "—" : fmt(outstanding)}
                                     </td>
                                     <td>
-                                      {reg.paymentProofs?.length > 0 ? (
+                                      {getAllProofs(reg).length > 0 ? (
                                         <div
                                           style={{
                                             display: "flex",
@@ -670,7 +719,7 @@ export default function ClimbPaymentCard({
                                             flexWrap: "wrap",
                                           }}
                                         >
-                                          {reg.paymentProofs.map((proof, i) =>
+                                          {getAllProofs(reg).map((proof, i) =>
                                             proof.fileName?.match(
                                               /\.(jpg|jpeg|png|gif|webp)$/i,
                                             ) ? (
@@ -760,13 +809,47 @@ export default function ClimbPaymentCard({
                                   {expandedRegId === reg.id && (
                                     <tr>
                                       <td
-                                        colSpan={8}
+                                        colSpan={9}
                                         style={{
                                           background: "var(--surface-alt)",
                                           padding: "12px 16px",
                                         }}
                                       >
-                                        <FeeBreakdownTable reg={reg} climb={climb} />
+                                        <FeeBreakdownTable
+                                          reg={reg}
+                                          climb={climb}
+                                          title="Fee Breakdown (current fees)"
+                                        />
+                                        {getPaymentEntries(reg).length > 0 && (
+                                          <div style={{ marginTop: 14 }}>
+                                            <div
+                                              style={{
+                                                fontSize: "0.68rem",
+                                                fontWeight: 700,
+                                                letterSpacing: 2,
+                                                textTransform: "uppercase",
+                                                color: "var(--ink-soft)",
+                                                marginBottom: 8,
+                                              }}
+                                            >
+                                              Payments (
+                                              {getPaymentEntries(reg).length}{" "}
+                                              submission
+                                              {getPaymentEntries(reg).length > 1
+                                                ? "s"
+                                                : ""}
+                                              )
+                                            </div>
+                                            <PaymentHistory
+                                              reg={reg}
+                                              thumbSize={110}
+                                              setLightboxUrl={setLightboxUrl}
+                                              onEntryStatusChange={
+                                                onEntryStatusChange
+                                              }
+                                            />
+                                          </div>
+                                        )}
                                       </td>
                                     </tr>
                                   )}

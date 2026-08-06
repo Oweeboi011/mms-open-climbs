@@ -210,10 +210,267 @@ describe("Admin ClimbDetail", () => {
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Juan Cruz"));
 
-    await waitFor(() => expect(screen.getByText("Fee Breakdown")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText("Fee Breakdown (current fees)"),
+      ).toBeInTheDocument(),
+    );
     expect(screen.getByText("Registration Fee")).toBeInTheDocument();
     expect(screen.getByText("Transportation Fee")).toBeInTheDocument();
     expect(screen.getAllByText("₱800").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("breaks out each payment when a registrant paid in instalments", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 800,
+          paymentProofs: [
+            { url: "https://x/a.jpg", fileName: "a.jpg" },
+            { url: "https://x/b.jpg", fileName: "b.jpg" },
+          ],
+          payments: [
+            {
+              amount: 500,
+              proofs: [{ url: "https://x/a.jpg", fileName: "a.jpg" }],
+              submittedAt: null,
+            },
+            {
+              amount: 300,
+              proofs: [{ url: "https://x/b.jpg", fileName: "b.jpg" }],
+              submittedAt: null,
+              note: "balance for transportation",
+            },
+          ],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Payment 1 of 2/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Payment 2 of 2/)).toBeInTheDocument();
+    expect(screen.getByText("₱500")).toBeInTheDocument();
+    expect(screen.getByText("₱300")).toBeInTheDocument();
+    expect(screen.getByText(/balance for transportation/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Total across 2 payments: ₱800/),
+    ).toBeInTheDocument();
+  });
+
+  it("still shows a pre-`payments` registration's receipts as one payment", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 500,
+          paymentProofs: [{ url: "https://x/a.jpg", fileName: "a.jpg" }],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(screen.getByText(/^Payment 1$/)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Total across/)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Verify Payment/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("flags an amount paid an admin edited away from the recorded payments", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 1000,
+          payments: [{ amount: 500, proofs: [], submittedAt: null }],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(screen.getByText(/adjusted by an admin/i)).toBeInTheDocument(),
+    );
+  });
+
+  it("lets an admin record an off-app payment, appending it to the history", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 500,
+          payments: [{ amount: 500, proofs: [], submittedAt: null }],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Record Payment/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /\+ Record Payment/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Amount Received")).toBeInTheDocument(),
+    );
+    fireEvent.change(document.querySelector('input[type="number"]'), {
+      target: { value: "300" },
+    });
+    fireEvent.change(document.querySelector("textarea"), {
+      target: { value: "cash at the jump-off" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Record Payment$/i }),
+    );
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.payments)?.[1];
+    expect(patch.payments).toHaveLength(2);
+    expect(patch.payments[1].amount).toBe(300);
+    expect(patch.payments[1].note).toBe("cash at the jump-off");
+    expect(patch.payments[1].recordedBy).toBeTruthy();
+    expect(patch.amountPaid).toBe(800);
+    // "Mark as verified" is checked by default, so the payment the admin just
+    // logged is verified — but the member's earlier GCash payment is still
+    // unreviewed, so the registration itself stays in the review queue.
+    expect(patch.payments[1].status).toBe("verified");
+    expect(patch.payments[0].status).toBe("submitted");
+    expect(patch.paymentStatus).toBe("submitted");
+  });
+
+  it("verifies the whole registration once every payment is reviewed", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 500,
+          payments: [{ amount: 500, proofs: [], status: "verified" }],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /\+ Record Payment/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /\+ Record Payment/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Amount Received")).toBeInTheDocument(),
+    );
+    fireEvent.change(document.querySelector('input[type="number"]'), {
+      target: { value: "300" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Record Payment$/i }));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.payments)?.[1];
+    expect(patch.paymentStatus).toBe("verified");
+    expect(patch.amountPaid).toBe(800);
+  });
+
+  it("lets an admin reject one instalment without voiding the rest", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 800,
+          feeBreakdown: [
+            { label: "Registration Fee", amount: "800", optional: false, selected: true },
+          ],
+          payments: [
+            { amount: 500, proofs: [], status: "verified" },
+            { amount: 300, proofs: [], status: "submitted" },
+          ],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Payment 2 of 2/)).toBeInTheDocument(),
+    );
+
+    // Per-payment controls: reject only the second instalment.
+    const rejectButtons = screen.getAllByTitle(/Reject just this payment/i);
+    fireEvent.click(rejectButtons[1]);
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.payments)?.[1];
+    expect(patch.payments[0].status).toBe("verified");
+    expect(patch.payments[1].status).toBe("rejected");
+    // The rejected ₱300 stops counting toward what they've paid, and with
+    // everything now reviewed the registration rolls up to verified.
+    expect(patch.amountPaid).toBe(500);
+    expect(patch.paymentStatus).toBe("verified");
+  });
+
+  it("offers Record Payment even when nothing has been paid yet", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "unpaid",
+          amountPaid: null,
+          paymentProofs: [],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(screen.getByText("No payments recorded yet.")).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: /\+ Record Payment/i }),
+    ).toBeInTheDocument();
+    // Nothing to verify or reject until a payment exists.
+    expect(
+      screen.queryByRole("button", { name: /Verify Payment/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("filters to only registrants with an outstanding balance", async () => {
