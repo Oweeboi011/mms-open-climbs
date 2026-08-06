@@ -6,6 +6,7 @@ import {
   addDoc,
   collection,
   serverTimestamp,
+  Timestamp,
   query,
   where,
   getDocs,
@@ -77,6 +78,7 @@ export default function Register() {
   const [successUnpaid, setSuccessUnpaid] = useState(false);
   const [paymentFiles, setPaymentFiles] = useState([]);
   const [paymentPreviews, setPaymentPreviews] = useState([]);
+  const [paymentNote, setPaymentNote] = useState("");
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
@@ -256,8 +258,21 @@ export default function Register() {
         waiverSigned: true,
         waiverSignedAt: serverTimestamp(),
         waiverSignedName: sigName.trim(),
-        // Payment
+        // Payment — `payments` is the history members add to over time;
+        // `paymentProofs` stays the flat list of every receipt.
         paymentProofs,
+        payments:
+          paymentProofs.length > 0
+            ? [
+                {
+                  amount: parsedAmount,
+                  proofs: paymentProofs,
+                  submittedAt: Timestamp.now(),
+                  status: "submitted",
+                  ...(paymentNote.trim() ? { note: paymentNote.trim() } : {}),
+                },
+              ]
+            : [],
         paymentStatus: paymentProofs.length > 0 ? "submitted" : "unpaid",
         amountPaid: paymentProofs.length > 0 ? parsedAmount : null,
         paymentSubmittedAt:
@@ -1032,6 +1047,24 @@ export default function Register() {
               until payment is submitted.
             </p>
 
+            <div
+              style={{
+                background: "var(--surface-alt)",
+                border: "1px solid var(--border)",
+                borderLeft: "3px solid var(--green-dark)",
+                borderRadius: 8,
+                padding: "10px 14px",
+                marginBottom: 16,
+                fontSize: "0.82rem",
+              }}
+            >
+              <strong>You can pay in batches.</strong> Send a downpayment now
+              and the rest later — go to <em>My Registrations</em> anytime and
+              submit another proof of payment. Each one is recorded separately
+              and added to your total. Just make sure everything is fully paid
+              before the climb date.
+            </div>
+
             {climb.gcashQrUrl || climb.gcashNumber || climb.gcashName ? (
               <div
                 style={{
@@ -1347,6 +1380,26 @@ export default function Register() {
                   {paymentFiles.length > 1 ? "s" : ""} selected
                 </div>
               )}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Payment Notes (Optional)</label>
+              <textarea
+                className="form-input"
+                rows={2}
+                placeholder="e.g. downpayment only, balance to follow; sent from another GCash number"
+                value={paymentNote}
+                onChange={(e) => setPaymentNote(e.target.value)}
+              />
+              <div
+                style={{
+                  fontSize: "0.72rem",
+                  color: "var(--ink-soft)",
+                  marginTop: 4,
+                }}
+              >
+                Anything the climb officers should know about this payment.
+              </div>
             </div>
           </div>
 

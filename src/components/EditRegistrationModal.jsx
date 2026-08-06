@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getPaymentEntries, getPaymentsTotal } from "@/utils/payments";
 
 export default function EditRegistrationModal({ reg, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -166,6 +167,22 @@ export default function EditRegistrationModal({ reg, onClose, onSave }) {
               value={form.amountPaid}
               onChange={(e) => set("amountPaid", e.target.value)}
             />
+            {getPaymentEntries(reg).length > 0 && (
+              <div
+                style={{
+                  fontSize: "0.72rem",
+                  color: "var(--ink-soft)",
+                  marginTop: 4,
+                }}
+              >
+                {getPaymentEntries(reg).length} payment
+                {getPaymentEntries(reg).length > 1 ? "s" : ""} on record
+                totalling ₱{getPaymentsTotal(reg).toLocaleString("en-PH")}. To
+                log money actually received, use{" "}
+                <strong>Record Payment</strong> instead — editing this figure
+                overrides the total without adding to the history.
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>

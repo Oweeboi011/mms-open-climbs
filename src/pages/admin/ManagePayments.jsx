@@ -24,59 +24,10 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import ClimbPaymentCard from "@/components/admin/ClimbPaymentCard";
 import { StatBox } from "@/components/admin/paymentShared";
 import {
-  getExpectedTotal as getExpectedTotalShared,
   getOutstanding as getOutstandingShared,
   toggleTransportationEntry,
 } from "@/utils/registrationFees";
-
-const PAYMENT_STYLE = {
-  unpaid: {
-    bg: "#fce8e8",
-    color: "#b91c1c",
-    border: "#fca5a5",
-    label: "Unpaid",
-  },
-  submitted: {
-    bg: "#fef9e7",
-    color: "#92400e",
-    border: "#fcd34d",
-    label: "Submitted",
-  },
-  verified: {
-    bg: "#e8f5e9",
-    color: "#1a6b2c",
-    border: "#a7d7b2",
-    label: "Verified",
-  },
-  rejected: {
-    bg: "#fce8e8",
-    color: "#b91c1c",
-    border: "#fca5a5",
-    label: "Rejected",
-  },
-};
-
-function PayBadge({ status }) {
-  const s = PAYMENT_STYLE[status];
-  if (!s) return null;
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 10px",
-        borderRadius: 99,
-        fontSize: "0.72rem",
-        fontWeight: 700,
-        background: s.bg,
-        color: s.color,
-        border: `1px solid ${s.border}`,
-      }}
-    >
-      {s.label}
-    </span>
-  );
-}
-
+import { setEntryStatus, setAllEntryStatuses } from "@/utils/payments";
 
 export default function ManagePayments() {
   const { currentUser } = useAuth();
@@ -145,8 +96,13 @@ export default function ManagePayments() {
     }
   }
 
+  // Applies one verdict to every payment on the registration, so the rolled-
+  // up status can't disagree with the individual payments behind it.
   async function changePaymentStatus(regId, status) {
-    const patch = { paymentStatus: status };
+    const patch = setAllEntryStatuses(
+      regs.find((r) => r.id === regId) || {},
+      status,
+    );
     if (status === "verified") {
       patch.verifiedAt = serverTimestamp();
       patch.verifiedBy = {
@@ -164,6 +120,23 @@ export default function ManagePayments() {
       targetId: regId,
       targetLabel: reg?.name || reg?.climbTitle || regId,
       details: `Payment status set to "${status}"`,
+    });
+  }
+
+  // Review one payment on its own — an officer can accept the downpayment
+  // and bounce only the instalment with the unreadable receipt.
+  async function changeEntryStatus(reg, index, status) {
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...setEntryStatus(reg, index, status),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: `payment_entry_${status}`,
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.climbTitle || reg.id,
+      details: `Payment ${index + 1} set to "${status}"`,
     });
   }
 
@@ -203,8 +176,6 @@ export default function ManagePayments() {
   // Expected total / outstanding for a registration, from its own fee
   // snapshot if it has one, otherwise falling back to the climb's current
   // required fees.
-  const getExpectedTotal = (reg) =>
-    getExpectedTotalShared(reg, climbById[reg.climbId]);
   const getOutstanding = (reg) =>
     getOutstandingShared(reg, climbById[reg.climbId]);
 
@@ -406,6 +377,7 @@ export default function ManagePayments() {
                 fileRefs={fileRefs}
                 handleQrUpload={handleQrUpload}
                 changePaymentStatus={changePaymentStatus}
+                onEntryStatusChange={changeEntryStatus}
                 toggleTransportation={toggleTransportation}
                 getOutstanding={getOutstanding}
                 setLightboxUrl={setLightboxUrl}

@@ -550,6 +550,36 @@ exports.onRegistrationUpdated = onDocumentUpdated(
       }
     }
 
+    // A single instalment was rejected while the registration as a whole is
+    // still fine — e.g. the downpayment stands but the balance receipt was
+    // unreadable. The rolled-up paymentStatus doesn't change in that case, so
+    // the block above stays silent and the member would otherwise never learn
+    // their balance went back up.
+    if (after.paymentStatus !== "rejected" && after.userId) {
+      const beforePayments = Array.isArray(before.payments)
+        ? before.payments
+        : [];
+      const newlyRejected = (
+        Array.isArray(after.payments) ? after.payments : []
+      ).filter(
+        (p, i) =>
+          p?.status === "rejected" && beforePayments[i]?.status !== "rejected",
+      );
+      if (newlyRejected.length > 0) {
+        const amountLabel = newlyRejected
+          .map((p) => `₱${Number(p.amount || 0).toLocaleString("en-PH")}`)
+          .join(" and ");
+        await createNotification({
+          userId: after.userId,
+          type: "payment_reminder",
+          title: "A payment was rejected",
+          message: `Your ${amountLabel} payment for ${after.climbTitle || "your climb"} was rejected${after.adminNotes ? `: ${after.adminNotes}` : ""}. Your other payments still stand — please resubmit the rejected amount from My Climbs.`,
+          link: "/my-registrations",
+          id: `payment_${regId}`,
+        });
+      }
+    }
+
     // Required document uploaded → clear the corresponding nag notification.
     if (!before.registrationFormUpload && after.registrationFormUpload) {
       await db
