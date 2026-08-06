@@ -180,9 +180,9 @@ flowchart TD
     end
 
     subgraph Collections["Collection Rules"]
-        C1["users/{userId}\nread: isSignedIn\ncreate: isOwner AND role=member only\nupdate: isAdmin OR isOwner\ndelete: isAdmin"]
+        C1["users/{userId}\nread: isSignedIn\ncreate: isOwner AND role=member only\nupdate: isAdmin OR (isOwner AND role unchanged)\ndelete: isAdmin"]
         C2["climbs/{climbId}\nread: public\nwrite: isAdmin"]
-        C3["registrations/{regId}\nread: isOwner OR isAdmin\ncreate: isOwner AND climbIsOpen\nupdate: isAdmin OR isOwner\ndelete: isAdmin"]
+        C3["registrations/{regId}\nread: isOwner OR isAdmin\ncreate: isOwner AND climbIsOpen\nupdate: isAdmin OR (isOwner AND member-writable fields only\nAND cannot self-verify)\ndelete: isAdmin"]
         C4["pageViews/{viewId}\ncreate: public\nread/update/delete: isAdmin"]
         C5["releaseNotes/{noteId}\nread: isSignedIn AND (published OR isAdmin)\nwrite: isAdmin"]
         C6["failedRequests/{id}\ncreate: public\nread/update/delete: isAdmin"]
@@ -215,10 +215,11 @@ Full feature reference: [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
 
 **`users` collection — role escalation prevention**
 
-New user documents can only be created with `role: member`. This prevents a client from self-assigning the `admin` role:
+New user documents can only be created with `role: member`, and an owner can never change the `role` field afterwards. Both halves are required: without the update guard, any member could self-assign `admin` from the browser console on a doc they legitimately own.
 
 ```js
 allow create: if isOwner(userId) && request.resource.data.role == 'member';
+allow update: if isAdmin() || (isOwner(userId) && !affected().hasAny(['role']));
 ```
 
 **`registrations` collection — creation gate**
@@ -230,6 +231,23 @@ allow create: if isSignedIn() &&
   isOwner(request.resource.data.userId) &&
   climbIsOpen(request.resource.data.climbId);
 ```
+
+**`registrations` collection — members declare payments, admins approve them**
+
+An owner's update is restricted to the fields the member-facing flows actually write (payment submission and required-document uploads), and a member may never claim a payment was accepted: `paymentStatus` can only move to `unpaid`/`submitted`, and `verifiedAt`/`verifiedBy` can only be cleared, never written. Status, admin notes and the waiver record are admin-only.
+
+```js
+allow update: if (isOwner(resource.data.userId) &&
+    affected().hasOnly([...member-writable fields...]) &&
+    memberPaymentClaimIsHonest()) ||
+  isAdmin();
+```
+
+**Known limitation.** Security rules cannot iterate arrays, so the per-payment `status` values inside `payments[]` are not validated server-side — a crafted client write could mark an individual payment `verified`. The rolled-up `paymentStatus`, which drives the review queue and the balance math, *is* enforced. Closing this properly means moving payment writes behind a callable Cloud Function.
+
+**`isAdmin()` is `exists()`-guarded**
+
+`get()` on a missing document returns null, and reading `.data` off it is an evaluation error that denies the entire rule. Without the `exists()` check, a signed-in user whose `users/` profile hasn't been created yet (the Google redirect path can land there) would be locked out of writes they legitimately own. Owner branches are also evaluated before `isAdmin()` so the common member write doesn't pay for the extra lookup.
 
 ---
 
