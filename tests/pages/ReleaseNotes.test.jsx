@@ -1,7 +1,7 @@
 /**
  * Tests for the public Release Notes history page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { onSnapshot } from "firebase/firestore";

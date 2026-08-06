@@ -163,6 +163,7 @@ graph LR
         D8["TROUBLESHOOTING.md — common issues and fixes"]
         D9["USER_MANUAL.md — end-user and admin guide"]
         D10["RELEASE_NOTES_FEATURE.md — release notes audit, roadmap, governance"]
+        D11["CODE-QUALITY.md — quality gates, layering rules, ratchets"]
     end
 
     subgraph plans["docs/solution-plans/"]
@@ -225,7 +226,12 @@ node scripts/set-admin.mjs your@email.com
 | `npm run test:coverage` | Frontend tests with coverage report |
 | `npm run test:all` | Run frontend + function tests |
 | `npm run test:strict` | Full strict coverage gate |
-| `npm run qa` | Build + strict coverage (pre-deploy gate) |
+| `npm run lint` | ESLint: correctness, layering, banned imports, size ceilings |
+| `npm run arch` | dependency-cruiser: cycles, layering, reachability |
+| `npm run dupes` | jscpd duplication threshold |
+| `npm run audit:deps` | npm audit, production dependencies, high+ |
+| `npm run quality` | lint + arch + dupes |
+| `npm run qa` | Quality gates + build + strict coverage (pre-deploy gate) |
 
 ---
 
@@ -240,6 +246,8 @@ node scripts/set-admin.mjs your@email.com
 | [DATA.md](docs/wiki/DATA.md) | Firestore schema and data reference |
 | [TESTING.md](docs/wiki/TESTING.md) | Test setup, patterns, and coverage guide |
 | [CONTRIBUTING.md](docs/wiki/CONTRIBUTING.md) | Contribution workflow and coding standards |
+| [CODE-QUALITY.md](docs/wiki/CODE-QUALITY.md) | Quality gates, layering rules, and enforcement tiers |
+| [docs/adr/](docs/adr/README.md) | Architecture Decision Records |
 | [TROUBLESHOOTING.md](docs/wiki/TROUBLESHOOTING.md) | Common issues and fixes |
 | [USER_MANUAL.md](docs/wiki/USER_MANUAL.md) | End-user and administrator usage guide |
 | [RELEASE_NOTES_FEATURE.md](docs/wiki/RELEASE_NOTES_FEATURE.md) | Release notes feature audit, roadmap, and governance plan |

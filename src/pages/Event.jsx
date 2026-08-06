@@ -502,7 +502,6 @@ export default function Event() {
   }
 
   const mapCoords = getClimbCoords(climb);
-  const { embedSrc: mapsEmbedSrc } = getMapEmbed(climb.googleMapsUrl, mapCoords);
 
   // Support multiple alternate trail options (e.g. two routes up the same
   // mountain) via climb.trailMaps; fall back to the single legacy
