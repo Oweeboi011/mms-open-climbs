@@ -22,11 +22,7 @@
 // fall back to summing the frozen feeBreakdown snapshot as-is.
 
 import { getCountedTotal, hasPaymentHistory } from "./payments";
-
-function parseAmount(amount) {
-  const n = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
-  return isNaN(n) ? 0 : n;
-}
+import { sumFeeAmounts } from "./feeSummary";
 
 // The fee line items this registrant currently owes. See file header for
 // how the climb's current fee schedule reconciles with their feeBreakdown
@@ -39,19 +35,18 @@ export function getFeeItems(reg, climb) {
       : [];
   }
   return climb.fees.filter((fee) => {
+    // The guest fee follows member type, never a stored selection or the
+    // `optional` flag — same rule the registration form applies.
+    if (fee.isGuestFee) return reg.memberType === "joiner";
     if (!fee.optional) return true;
     const stored = reg.feeBreakdown?.find((f) => f.label === fee.label);
-    if (stored) return !!stored.selected;
-    return fee.isGuestFee && reg.memberType === "joiner";
+    return !!stored?.selected;
   });
 }
 
 // Sum of the fees this registrant actually owes, at current amounts.
 export function getExpectedTotal(reg, climb) {
-  return getFeeItems(reg, climb).reduce(
-    (sum, item) => sum + parseAmount(item.amount),
-    0,
-  );
+  return sumFeeAmounts(getFeeItems(reg, climb)).total;
 }
 
 // Remaining balance still to be settled: expected total minus whatever

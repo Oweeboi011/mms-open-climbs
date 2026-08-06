@@ -1,16 +1,17 @@
 /**
  * Tests for the Admin Climb Detail page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderAtRoute,
   makeAdminAuth,
   climbFixture,
   registrationFixture,
+  mockLiveSnapshot,
 } from "@tests/helpers";
 import ClimbDetail from "@/pages/admin/ClimbDetail";
-import { getDoc, getDocs, addDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { getDoc, getDocs, addDoc, updateDoc } from "firebase/firestore";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 
 const memberDoc = {
@@ -18,20 +19,12 @@ const memberDoc = {
   data: { displayName: "Maria Santos", email: "maria@example.com" },
 };
 
-// The onSnapshot mock is generic (unaware of which collection the query
-// targets), so every test that stubs registrant rows must also stub an
-// empty result for the feedback subscription the page now also opens —
-// otherwise the registrant fixture bleeds into the feedback query too and
-// renders the same name twice.
+// The page opens three subscriptions — the climb doc, its registrations and
+// its feedback. mockLiveSnapshot serves the registrant rows and routes the
+// climb doc to whatever getDoc the test stubbed, so the registrant fixture
+// can't bleed into the other two.
 function mockRegistrantSnapshot(items) {
-  onSnapshot.mockImplementation((q, cb) => {
-    if (q[0]?.path === "feedback") {
-      cb(makeQuerySnapshot([]));
-      return vi.fn();
-    }
-    cb(makeQuerySnapshot(items));
-    return vi.fn();
-  });
+  mockLiveSnapshot(items);
 }
 
 describe("Admin ClimbDetail", () => {
@@ -540,19 +533,15 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("shows submitted feedback with an average rating", async () => {
-    onSnapshot.mockImplementation((q, cb) => {
-      if (q[0]?.path === "feedback") {
-        cb(
-          makeQuerySnapshot([
-            { id: "fb-1", data: { name: "Juan Cruz", rating: 5, comments: "Amazing climb!" } },
-            { id: "fb-2", data: { name: "Maria Santos", rating: 3, comments: "" } },
-          ]),
-        );
-        return vi.fn();
-      }
-      cb(makeQuerySnapshot([{ id: registrationFixture.id, data: registrationFixture }]));
-      return vi.fn();
-    });
+    mockLiveSnapshot(
+      [{ id: registrationFixture.id, data: registrationFixture }],
+      {
+        feedback: [
+          { id: "fb-1", data: { name: "Juan Cruz", rating: 5, comments: "Amazing climb!" } },
+          { id: "fb-2", data: { name: "Maria Santos", rating: 3, comments: "" } },
+        ],
+      },
+    );
 
     render();
     await waitFor(() => {

@@ -10,7 +10,6 @@ import {
   doc,
   serverTimestamp,
   Timestamp,
-  getDocs,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,6 +29,16 @@ import {
   getOutstanding,
   toggleTransportationEntry,
 } from "@/utils/registrationFees";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import {
+  StatusBadge,
+  InfoCell,
+  ComplianceCheck,
+  SectionLabel,
+  PAYMENT_STYLE,
+  STATUS_STYLE,
+  EXPERIENCE_LABELS,
+} from "@/components/admin/registrantShared";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 
@@ -68,9 +77,10 @@ export default function AllRegistrations() {
   const [scope, setScope] = useState("active");
 
   useEffect(() => {
-    // Load all climbs for the filter dropdown and per-registration lookups
-    // (fee schedule + required-document flags).
-    getDocs(collection(db, "climbs")).then((snap) => {
+    // Climbs feed the filter dropdown and every per-registration lookup (fee
+    // schedule + required-document flags). Kept live so a fee edited on the
+    // climb shows up in each registrant's breakdown without a reload.
+    const unsubClimbs = onSnapshot(collection(db, "climbs"), (snap) => {
       const list = snap.docs
         .map((d) => ({
           id: d.id,
@@ -98,7 +108,10 @@ export default function AllRegistrations() {
       setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-    return unsub;
+    return () => {
+      unsubClimbs();
+      unsub();
+    };
   }, []);
 
   async function changeStatus(regId, status) {
@@ -190,7 +203,9 @@ export default function AllRegistrations() {
     const climb = climbs.find((c) => c.id === reg.climbId);
     const updated = toggleTransportationEntry(reg, climb);
     if (!updated) return;
-    const nowSelected = updated.find((f) => /transport/i.test(f.label))?.selected;
+    const nowSelected = updated.find((f) =>
+      /transport/i.test(f.label),
+    )?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -256,9 +271,19 @@ export default function AllRegistrations() {
       const matchDocs =
         filterDocs !== "missing" ||
         hasMissingRequiredDocs(r, climbById[r.climbId]);
-      return matchSearch && matchClimb && matchStatus && matchPayment && matchDocs;
+      return (
+        matchSearch && matchClimb && matchStatus && matchPayment && matchDocs
+      );
     });
-  }, [scoped, search, filterClimb, filterStatus, filterPayment, filterDocs, climbById]);
+  }, [
+    scoped,
+    search,
+    filterClimb,
+    filterStatus,
+    filterPayment,
+    filterDocs,
+    climbById,
+  ]);
 
   const stats = useMemo(
     () => ({
@@ -483,17 +508,16 @@ export default function AllRegistrations() {
             </div>
 
             {/* Table */}
-            <div className="admin-table-wrap">
+            <ResponsiveTable>
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th style={{ width: "1%" }}>#</th>
                     <th>Participant</th>
                     <th>Climb</th>
-                    <th style={{ width: "1%" }}>Payment</th>
-                    <th style={{ width: "1%" }}>Outstanding</th>
-                    <th style={{ width: "1%" }}>Status</th>
-                    <th style={{ width: "1%" }}>Registered</th>
+                    <th>Compliance</th>
+                    <th style={{ whiteSpace: "nowrap" }}>Payment</th>
+                    <th style={{ whiteSpace: "nowrap" }}>Status</th>
                     <th style={{ width: "1%" }}>Actions</th>
                   </tr>
                 </thead>
@@ -501,7 +525,7 @@ export default function AllRegistrations() {
                   {filtered.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={7}
                         style={{
                           textAlign: "center",
                           color: "var(--ink-soft)",
@@ -512,270 +536,459 @@ export default function AllRegistrations() {
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((reg, idx) => (
-                      <React.Fragment key={reg.id}>
-                        <tr
-                          style={{ cursor: "pointer" }}
-                          onClick={() =>
-                            setExpandedId((p) => (p === reg.id ? null : reg.id))
-                          }
-                        >
-                          <td
-                            style={{
-                              color: "var(--ink-soft)",
-                              fontSize: "0.78rem",
-                            }}
+                    filtered.map((reg, idx) => {
+                      const climb = climbById[reg.climbId];
+                      const outstanding = getOutstanding(reg, climb);
+                      const hasWaiver = !!reg.waiverSignedName;
+                      const hasForm =
+                        !climb?.requiresRegistrationForm ||
+                        !!reg.registrationFormUpload?.url;
+                      const hasMedCert =
+                        !climb?.requiresMedicalCert ||
+                        !!reg.medicalCertUpload?.url;
+                      const allCompliant = hasWaiver && hasForm && hasMedCert;
+
+                      return (
+                        <React.Fragment key={reg.id}>
+                          <tr
+                            style={{ cursor: "pointer" }}
+                            onClick={() =>
+                              setExpandedId((p) =>
+                                p === reg.id ? null : reg.id,
+                              )
+                            }
                           >
-                            {idx + 1}
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: 600 }}>{reg.name}</div>
-                            <div
+                            {/* # */}
+                            <td
                               style={{
-                                fontSize: "0.75rem",
                                 color: "var(--ink-soft)",
+                                fontSize: "0.74rem",
+                                fontFamily: "var(--font-head)",
+                                fontWeight: 600,
                               }}
                             >
-                              {reg.email}
-                            </div>
-                            {reg.memberType && (
+                              {idx + 1}
+                            </td>
+
+                            {/* Participant */}
+                            <td>
                               <div
                                 style={{
-                                  fontSize: "0.68rem",
+                                  fontWeight: 600,
+                                  fontSize: "0.84rem",
+                                }}
+                              >
+                                {reg.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "0.7rem",
                                   color: "var(--ink-soft)",
                                   marginTop: 1,
-                                  textTransform: "capitalize",
                                 }}
                               >
-                                {reg.memberType === "member"
-                                  ? "MMS Member"
-                                  : "Joiner"}
+                                {reg.email}
                               </div>
-                            )}
-                          </td>
-                          <td>
-                            <div
-                              style={{ fontWeight: 600, fontSize: "0.85rem" }}
-                            >
-                              {reg.climbTitle || "—"}
-                            </div>
-                            {reg.climbDate && (
-                              <div
-                                style={{
-                                  fontSize: "0.72rem",
-                                  color: "var(--ink-soft)",
-                                }}
-                              >
-                                {reg.climbDate}
-                              </div>
-                            )}
-                          </td>
-                          <td onClick={(e) => e.stopPropagation()}>
-                            {reg.paymentStatus ? (
-                              <select
-                                className="form-select"
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "0.75rem",
-                                  width: "auto",
-                                }}
-                                value={reg.paymentStatus}
-                                onChange={(e) =>
-                                  changePaymentStatus(reg.id, e.target.value)
-                                }
-                              >
-                                <option value="unpaid">Unpaid</option>
-                                <option value="submitted">Submitted</option>
-                                <option value="verified">Verified</option>
-                                <option value="rejected">Rejected</option>
-                              </select>
-                            ) : (
-                              <span
-                                style={{
-                                  fontSize: "0.75rem",
-                                  color: "var(--ink-soft)",
-                                }}
-                              >
-                                —
-                              </span>
-                            )}
-                          </td>
-                          <td
-                            style={{
-                              fontWeight: 700,
-                              fontSize: "0.85rem",
-                              whiteSpace: "nowrap",
-                              color:
-                                getOutstanding(reg, climbById[reg.climbId]) === 0
-                                  ? "var(--ink-soft)"
-                                  : "#b91c1c",
-                            }}
-                          >
-                            {getOutstanding(reg, climbById[reg.climbId]) === 0
-                              ? "—"
-                              : `₱${getOutstanding(reg, climbById[reg.climbId]).toLocaleString("en-PH")}`}
-                          </td>
-                          <td onClick={(e) => e.stopPropagation()}>
-                            <select
-                              className="form-select"
-                              style={{
-                                padding: "4px 8px",
-                                fontSize: "0.75rem",
-                                width: "auto",
-                              }}
-                              value={reg.status}
-                              onChange={(e) =>
-                                changeStatus(reg.id, e.target.value)
-                              }
-                            >
-                              {STATUS_OPTIONS.map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td
-                            style={{
-                              fontSize: "0.78rem",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {reg.createdAt
-                              ?.toDate?.()
-                              .toLocaleDateString("en-PH") || "—"}
-                          </td>
-                          <td onClick={(e) => e.stopPropagation()}>
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 6,
-                                flexWrap: "nowrap",
-                              }}
-                            >
-                              <Link
-                                to={`/waiver/${reg.id}`}
-                                className="btn btn-outline btn-sm"
-                                target="_blank"
-                                title="Open the printable waiver for this participant"
-                              >
-                                Waiver
-                              </Link>
-                              <Link
-                                to={`/admin/climbs/${reg.climbId}`}
-                                className="btn btn-outline btn-sm"
-                                title="Go to the climb registrations page"
-                              >
-                                Climb
-                              </Link>
-                              <button
-                                className="btn btn-outline btn-sm"
-                                onClick={() => setEditingReg(reg)}
-                                title="Edit this registrant's details"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Expanded detail row */}
-                        {expandedId === reg.id && (
-                          <tr key={`${reg.id}-detail`}>
-                            <td
-                              colSpan={8}
-                              style={{
-                                background: "var(--surface)",
-                                padding: "16px 20px",
-                                borderBottom: "2px solid var(--border)",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "repeat(auto-fill, minmax(200px, 1fr))",
-                                  gap: "14px 24px",
-                                  marginBottom: getPaymentEntries(reg).length
-                                    ? 16
-                                    : 0,
-                                }}
-                              >
-                                <InfoCell label="Mobile" value={reg.mobile} />
-                                <InfoCell
-                                  label="Amount Paid"
-                                  value={
-                                    reg.amountPaid
-                                      ? `₱${Number(reg.amountPaid).toLocaleString("en-PH")}`
-                                      : null
-                                  }
-                                />
-                                <InfoCell
-                                  label="Date of Birth"
-                                  value={reg.dateOfBirth}
-                                />
-                                <InfoCell label="Address" value={reg.address} />
-                                <InfoCell
-                                  label="Experience"
-                                  value={reg.experienceLevel}
-                                  capitalize
-                                />
-                                <InfoCell
-                                  label="Emergency Contact"
-                                  value={
-                                    reg.emergencyContact?.name
-                                      ? `${reg.emergencyContact.name} (${reg.emergencyContact.relationship}) — ${reg.emergencyContact.mobile}`
-                                      : null
-                                  }
-                                />
-                                <InfoCell
-                                  label="Medical"
-                                  value={
-                                    reg.medicalConditions || "None declared"
-                                  }
-                                />
-                                <InfoCell
-                                  label="Waiver Signed As"
-                                  value={reg.waiverSignedName}
-                                />
-                                <InfoCell
-                                  label="Waiver Date"
-                                  value={reg.waiverSignedAt
-                                    ?.toDate?.()
-                                    .toLocaleDateString("en-PH")}
-                                />
-                                {reg.adminNotes && (
-                                  <InfoCell
-                                    label="Admin Notes"
-                                    value={reg.adminNotes}
-                                  />
-                                )}
-                              </div>
-
-                              {/* Fee Breakdown */}
-                              <div style={{ marginBottom: 16 }}>
-                                <FeeBreakdownTable
-                                  reg={reg}
-                                  climb={climbById[reg.climbId]}
-                                  title="Fee Breakdown (current fees)"
-                                />
-                              </div>
-
-                              {/* Transportation + required documents */}
                               <div
                                 style={{
                                   display: "flex",
-                                  gap: 24,
+                                  gap: 5,
+                                  marginTop: 4,
                                   flexWrap: "wrap",
-                                  marginBottom: 16,
+                                  alignItems: "center",
                                 }}
                               >
+                                {reg.memberType && (
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 3,
+                                      fontSize: "0.58rem",
+                                      fontWeight: 700,
+                                      letterSpacing: 0.5,
+                                      textTransform: "uppercase",
+                                      background:
+                                        reg.memberType === "member"
+                                          ? "#e8f5e9"
+                                          : "#fff3e0",
+                                      color:
+                                        reg.memberType === "member"
+                                          ? "#1a6b2c"
+                                          : "#c05c00",
+                                      border: "1px solid",
+                                      borderColor:
+                                        reg.memberType === "member"
+                                          ? "#a7d7b2"
+                                          : "#ffd399",
+                                      borderRadius: 99,
+                                      padding: "1px 8px",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {reg.memberType === "member"
+                                      ? "\u2605 Member"
+                                      : "\u2606 Joiner"}
+                                  </span>
+                                )}
+                                {reg.experienceLevel && (
+                                  <span
+                                    style={{
+                                      fontSize: "0.56rem",
+                                      fontWeight: 600,
+                                      color: "var(--ink-soft)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: 0.5,
+                                    }}
+                                  >
+                                    {EXPERIENCE_LABELS[reg.experienceLevel] ||
+                                      reg.experienceLevel}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Climb */}
+                            <td>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: "0.82rem",
+                                }}
+                              >
+                                {reg.climbTitle || "\u2014"}
+                              </div>
+                              {reg.climbDate && (
+                                <div
+                                  style={{
+                                    fontSize: "0.7rem",
+                                    color: "var(--ink-soft)",
+                                    marginTop: 1,
+                                  }}
+                                >
+                                  {reg.climbDate}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Compliance */}
+                            <td>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: 4,
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <ComplianceCheck
+                                  ok={hasWaiver}
+                                  label="Waiver"
+                                />
+                                {climb?.requiresRegistrationForm && (
+                                  <ComplianceCheck
+                                    ok={!!reg.registrationFormUpload?.url}
+                                    label="Form"
+                                    href={
+                                      reg.registrationFormUpload?.url ||
+                                      undefined
+                                    }
+                                  />
+                                )}
+                                {climb?.requiresMedicalCert && (
+                                  <ComplianceCheck
+                                    ok={!!reg.medicalCertUpload?.url}
+                                    label="Med Cert"
+                                    href={
+                                      reg.medicalCertUpload?.url || undefined
+                                    }
+                                  />
+                                )}
+                                {!allCompliant && (
+                                  <span
+                                    style={{
+                                      fontSize: "0.62rem",
+                                      color: "#b91c1c",
+                                      fontWeight: 700,
+                                    }}
+                                    title="One or more required items are missing"
+                                  >
+                                    &#9888;
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Payment */}
+                            <td style={{ whiteSpace: "nowrap" }}>
+                              <StatusBadge
+                                status={reg.paymentStatus}
+                                styleMap={PAYMENT_STYLE}
+                              />
+                              {outstanding > 0 && (
+                                <div
+                                  style={{
+                                    fontSize: "0.66rem",
+                                    fontWeight: 700,
+                                    color: "#b91c1c",
+                                    marginTop: 3,
+                                    fontFamily: "var(--font-head)",
+                                  }}
+                                >
+                                  &#8369;
+                                  {outstanding.toLocaleString("en-PH")} due
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Status */}
+                            <td style={{ whiteSpace: "nowrap" }}>
+                              <StatusBadge
+                                status={reg.status}
+                                styleMap={STATUS_STYLE}
+                              />
+                            </td>
+
+                            {/* Actions */}
+                            <td onClick={(e) => e.stopPropagation()}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: 5,
+                                  flexWrap: "nowrap",
+                                }}
+                              >
+                                <Link
+                                  to={`/admin/climbs/${reg.climbId}`}
+                                  className="btn btn-outline btn-sm"
+                                  title="Go to the climb registrations page"
+                                >
+                                  View
+                                </Link>
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => setEditingReg(reg)}
+                                  title="Edit this registrant's details"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* ── Expanded detail panel ── */}
+                          {expandedId === reg.id && (
+                            <tr key={`${reg.id}-detail`}>
+                              <td
+                                colSpan={7}
+                                style={{
+                                  background: "var(--green-pale)",
+                                  padding: "16px 20px",
+                                  borderBottom: "2px solid var(--border)",
+                                  borderLeft: "3px solid var(--green-light)",
+                                }}
+                              >
+                                {/* ── Quick actions bar ── */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 16,
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
+                                    marginBottom: 14,
+                                    paddingBottom: 10,
+                                    borderBottom: "1px solid var(--border)",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 6,
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: "0.64rem",
+                                        fontWeight: 700,
+                                        letterSpacing: 2,
+                                        textTransform: "uppercase",
+                                        color: "var(--ink-soft)",
+                                      }}
+                                    >
+                                      Status
+                                    </span>
+                                    <select
+                                      className="form-select"
+                                      style={{
+                                        padding: "4px 8px",
+                                        fontSize: "0.75rem",
+                                        width: "auto",
+                                      }}
+                                      value={reg.status}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        changeStatus(reg.id, e.target.value);
+                                      }}
+                                    >
+                                      {STATUS_OPTIONS.map((s) => (
+                                        <option key={s} value={s}>
+                                          {s}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 6,
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: "0.64rem",
+                                        fontWeight: 700,
+                                        letterSpacing: 2,
+                                        textTransform: "uppercase",
+                                        color: "var(--ink-soft)",
+                                      }}
+                                    >
+                                      Payment
+                                    </span>
+                                    <select
+                                      className="form-select"
+                                      style={{
+                                        padding: "4px 8px",
+                                        fontSize: "0.75rem",
+                                        width: "auto",
+                                      }}
+                                      value={reg.paymentStatus || "unpaid"}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        changePaymentStatus(
+                                          reg.id,
+                                          e.target.value,
+                                        );
+                                      }}
+                                    >
+                                      <option value="unpaid">Unpaid</option>
+                                      <option value="submitted">
+                                        Submitted
+                                      </option>
+                                      <option value="verified">Verified</option>
+                                      <option value="rejected">Rejected</option>
+                                    </select>
+                                  </div>
+                                  <div
+                                    style={{
+                                      marginLeft: "auto",
+                                      display: "flex",
+                                      gap: 6,
+                                    }}
+                                  >
+                                    <Link
+                                      to={`/waiver/${reg.id}`}
+                                      className="btn btn-outline btn-sm"
+                                      target="_blank"
+                                      title="Open the printable waiver"
+                                    >
+                                      &#128196; Waiver
+                                    </Link>
+                                    <Link
+                                      to={`/admin/climbs/${reg.climbId}`}
+                                      className="btn btn-outline btn-sm"
+                                      title="Go to the climb detail page"
+                                    >
+                                      &#9968; Climb
+                                    </Link>
+                                  </div>
+                                </div>
+
+                                {/* ── Participant Details ── */}
+                                <SectionLabel>
+                                  &#128203; Participant Details
+                                </SectionLabel>
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                      "repeat(auto-fill, minmax(200px, 1fr))",
+                                    gap: "10px 20px",
+                                    marginBottom: 16,
+                                  }}
+                                >
+                                  <InfoCell label="Mobile" value={reg.mobile} />
+                                  <InfoCell
+                                    label="Date of Birth"
+                                    value={reg.dateOfBirth}
+                                  />
+                                  <InfoCell
+                                    label="Address"
+                                    value={reg.address}
+                                  />
+                                  <InfoCell
+                                    label="Experience"
+                                    value={reg.experienceLevel}
+                                    capitalize
+                                  />
+                                  <InfoCell
+                                    label="Registered"
+                                    value={reg.createdAt
+                                      ?.toDate?.()
+                                      .toLocaleDateString("en-PH")}
+                                  />
+                                  <InfoCell
+                                    label="Emergency Contact"
+                                    value={
+                                      reg.emergencyContact?.name
+                                        ? `${reg.emergencyContact.name} (${reg.emergencyContact.relationship}) \u2014 ${reg.emergencyContact.mobile}`
+                                        : null
+                                    }
+                                  />
+                                  <InfoCell
+                                    label="Medical"
+                                    value={
+                                      reg.medicalConditions || "None declared"
+                                    }
+                                  />
+                                </div>
+
+                                {/* ── Waiver ── */}
+                                <SectionLabel>
+                                  {hasWaiver ? "\u2713" : "\u26A0"} Waiver
+                                </SectionLabel>
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                      "repeat(auto-fill, minmax(200px, 1fr))",
+                                    gap: "10px 20px",
+                                    marginBottom: 16,
+                                  }}
+                                >
+                                  <InfoCell
+                                    label="Waiver Signed As"
+                                    value={reg.waiverSignedName}
+                                  />
+                                  <InfoCell
+                                    label="Waiver Date"
+                                    value={reg.waiverSignedAt
+                                      ?.toDate?.()
+                                      .toLocaleDateString("en-PH")}
+                                  />
+                                </div>
+
+                                {/* ── Transportation ── */}
                                 {(() => {
                                   const transpoIdx = (
                                     reg.feeBreakdown || []
-                                  ).findIndex((f) => /transport/i.test(f.label));
+                                  ).findIndex((f) =>
+                                    /transport/i.test(f.label),
+                                  );
                                   const climbHasTranspoFee = (
-                                    climbById[reg.climbId]?.fees || []
+                                    climb?.fees || []
                                   ).some((f) => /transport/i.test(f.label));
                                   if (transpoIdx === -1 && !climbHasTranspoFee)
                                     return null;
@@ -784,185 +997,199 @@ export default function AllRegistrations() {
                                       ? reg.feeBreakdown[transpoIdx].selected
                                       : false;
                                   return (
-                                    <div>
-                                      <div
-                                        style={{
-                                          fontSize: "0.68rem",
-                                          fontWeight: 700,
-                                          letterSpacing: 2,
-                                          textTransform: "uppercase",
-                                          color: "var(--ink-soft)",
-                                          marginBottom: 4,
-                                        }}
-                                      >
-                                        Transportation
+                                    <>
+                                      <SectionLabel>
+                                        &#128652; Transportation
+                                      </SectionLabel>
+                                      <div style={{ marginBottom: 16 }}>
+                                        <label
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                            cursor: "pointer",
+                                            fontSize: "0.85rem",
+                                          }}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={!!availing}
+                                            onChange={() =>
+                                              toggleTransportation(reg)
+                                            }
+                                          />
+                                          {availing
+                                            ? "Availing organized transport"
+                                            : "Own transport"}
+                                        </label>
                                       </div>
-                                      <label
-                                        style={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: 8,
-                                          cursor: "pointer",
-                                          fontSize: "0.85rem",
-                                        }}
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={!!availing}
-                                          onChange={() => toggleTransportation(reg)}
+                                    </>
+                                  );
+                                })()}
+
+                                {/* ── Required Documents ── */}
+                                {(climb?.requiresRegistrationForm ||
+                                  climb?.requiresMedicalCert) && (
+                                  <>
+                                    <SectionLabel>
+                                      &#128196; Required Documents
+                                    </SectionLabel>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                        marginBottom: 16,
+                                      }}
+                                    >
+                                      {climb.requiresRegistrationForm && (
+                                        <ComplianceCheck
+                                          ok={!!reg.registrationFormUpload?.url}
+                                          label={
+                                            reg.registrationFormUpload?.url
+                                              ? "Reg. Form Uploaded"
+                                              : "Reg. Form Missing"
+                                          }
+                                          href={
+                                            reg.registrationFormUpload?.url ||
+                                            undefined
+                                          }
                                         />
-                                        {availing
-                                          ? "Availing organized transport"
-                                          : "Own transport"}
-                                      </label>
+                                      )}
+                                      {climb.requiresMedicalCert && (
+                                        <ComplianceCheck
+                                          ok={!!reg.medicalCertUpload?.url}
+                                          label={
+                                            reg.medicalCertUpload?.url
+                                              ? "Med. Cert Uploaded"
+                                              : "Med. Cert Missing"
+                                          }
+                                          href={
+                                            reg.medicalCertUpload?.url ||
+                                            undefined
+                                          }
+                                        />
+                                      )}
                                     </div>
-                                  );
-                                })()}
+                                  </>
+                                )}
 
-                                {(() => {
-                                  const climb = climbById[reg.climbId];
-                                  if (
-                                    !climb?.requiresRegistrationForm &&
-                                    !climb?.requiresMedicalCert
-                                  )
-                                    return null;
-                                  return (
-                                    <div>
-                                      <div
-                                        style={{
-                                          fontSize: "0.68rem",
-                                          fontWeight: 700,
-                                          letterSpacing: 2,
-                                          textTransform: "uppercase",
-                                          color: "var(--ink-soft)",
-                                          marginBottom: 4,
-                                        }}
-                                      >
-                                        Required Documents
-                                      </div>
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          gap: 14,
-                                          fontSize: "0.82rem",
-                                        }}
-                                      >
-                                        {climb.requiresRegistrationForm && (
-                                          reg.registrationFormUpload?.url ? (
-                                            <a
-                                              href={reg.registrationFormUpload.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              style={{ color: "#1a6b2c" }}
-                                            >
-                                              &#10003; Reg. Form
-                                            </a>
-                                          ) : (
-                                            <span style={{ color: "#b91c1c" }}>
-                                              &#10005; Reg. Form Missing
-                                            </span>
-                                          )
-                                        )}
-                                        {climb.requiresMedicalCert && (
-                                          reg.medicalCertUpload?.url ? (
-                                            <a
-                                              href={reg.medicalCertUpload.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              style={{ color: "#1a6b2c" }}
-                                            >
-                                              &#10003; Med. Cert
-                                            </a>
-                                          ) : (
-                                            <span style={{ color: "#b91c1c" }}>
-                                              &#10005; Med. Cert Missing
-                                            </span>
-                                          )
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-
-                              {/* Payment history — one block per submission */}
-                              {getPaymentEntries(reg).length > 0 && (
-                                <div>
-                                  <div
-                                    style={{
-                                      fontSize: "0.68rem",
-                                      fontWeight: 700,
-                                      letterSpacing: 2,
-                                      textTransform: "uppercase",
-                                      color: "var(--ink-soft)",
-                                      marginBottom: 8,
-                                    }}
-                                  >
-                                    Payments (
-                                    {getPaymentEntries(reg).length} submission
-                                    {getPaymentEntries(reg).length > 1 ? "s" : ""})
-                                  </div>
-                                  <PaymentHistory
+                                {/* ── Fee Breakdown ── */}
+                                <SectionLabel>
+                                  &#128179; Fee Breakdown
+                                </SectionLabel>
+                                <div style={{ marginBottom: 16 }}>
+                                  <FeeBreakdownTable
                                     reg={reg}
-                                    thumbSize={120}
-                                    onEntryStatusChange={changeEntryStatus}
+                                    climb={climb}
+                                    title={null}
                                   />
-                                  <div
-                                    style={{
-                                      marginTop: 12,
-                                      display: "flex",
-                                      gap: 8,
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    <button
-                                      className="btn btn-primary btn-sm"
-                                      onClick={() =>
-                                        changePaymentStatus(reg.id, "verified")
-                                      }
-                                      disabled={
-                                        reg.paymentStatus === "verified"
-                                      }
-                                    >
-                                      &#10003; Verify Payment
-                                    </button>
-                                    <button
-                                      className="btn btn-danger btn-sm"
-                                      onClick={() =>
-                                        changePaymentStatus(reg.id, "rejected")
-                                      }
-                                      disabled={
-                                        reg.paymentStatus === "rejected"
-                                      }
-                                    >
-                                      &#10005; Reject Payment
-                                    </button>
-                                  </div>
                                 </div>
-                              )}
-                              <div
-                                style={{
-                                  marginTop: 16,
-                                  paddingTop: 12,
-                                  borderTop: "1px solid var(--border)",
-                                }}
-                              >
-                                <button
-                                  className="btn btn-danger btn-sm"
-                                  onClick={() => deleteRegistration(reg)}
+
+                                {/* ── Payment History ── */}
+                                {getPaymentEntries(reg).length > 0 && (
+                                  <>
+                                    <SectionLabel>
+                                      &#128176; Payments (
+                                      {getPaymentEntries(reg).length} submission
+                                      {getPaymentEntries(reg).length > 1
+                                        ? "s"
+                                        : ""}
+                                      )
+                                    </SectionLabel>
+                                    <PaymentHistory
+                                      reg={reg}
+                                      thumbSize={120}
+                                      onEntryStatusChange={changeEntryStatus}
+                                    />
+                                    <div
+                                      style={{
+                                        marginTop: 12,
+                                        display: "flex",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() =>
+                                          changePaymentStatus(
+                                            reg.id,
+                                            "verified",
+                                          )
+                                        }
+                                        disabled={
+                                          reg.paymentStatus === "verified"
+                                        }
+                                      >
+                                        &#10003; Verify Payment
+                                      </button>
+                                      <button
+                                        className="btn btn-danger btn-sm"
+                                        onClick={() =>
+                                          changePaymentStatus(
+                                            reg.id,
+                                            "rejected",
+                                          )
+                                        }
+                                        disabled={
+                                          reg.paymentStatus === "rejected"
+                                        }
+                                      >
+                                        &#10005; Reject Payment
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* ── Admin Notes ── */}
+                                {reg.adminNotes && (
+                                  <>
+                                    <SectionLabel>
+                                      &#128221; Admin Notes
+                                    </SectionLabel>
+                                    <div
+                                      style={{
+                                        fontSize: "0.82rem",
+                                        padding: "8px 12px",
+                                        background: "rgba(255,255,255,0.7)",
+                                        borderRadius: 8,
+                                        borderLeft: "3px solid var(--gold)",
+                                        marginBottom: 16,
+                                      }}
+                                    >
+                                      {reg.adminNotes}
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* ── Danger zone ── */}
+                                <div
+                                  style={{
+                                    marginTop: 8,
+                                    paddingTop: 12,
+                                    borderTop: "1px solid var(--border)",
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                  }}
                                 >
-                                  &#128465; Delete Registration
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))
+                                  <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={() => deleteRegistration(reg)}
+                                  >
+                                    &#128465; Delete Registration
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           </>
         )}
       </main>
@@ -976,34 +1203,6 @@ export default function AllRegistrations() {
       )}
 
       <Footer />
-    </div>
-  );
-}
-
-function InfoCell({ label, value, capitalize }) {
-  if (!value) return null;
-  return (
-    <div>
-      <div
-        style={{
-          fontSize: "0.68rem",
-          fontWeight: 700,
-          letterSpacing: 2,
-          textTransform: "uppercase",
-          color: "var(--ink-soft)",
-          marginBottom: 3,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: "0.85rem",
-          textTransform: capitalize ? "capitalize" : undefined,
-        }}
-      >
-        {value}
-      </div>
     </div>
   );
 }

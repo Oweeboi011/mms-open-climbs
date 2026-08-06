@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
 const createUserFn = httpsCallable(functions, "createUser");
 const updateUserProfileFn = httpsCallable(functions, "updateUserProfile");
@@ -24,7 +25,7 @@ const CREATE_USER_ERROR_INFO = {
     title: "Account Already Exists",
     message: "An account with this email address already exists in the system.",
     nextStep:
-      "Check the Users list to see if this person is already registered. If they can't log in, ask them to use \"Forgot Password\" on the login page instead of creating a new account.",
+      'Check the Users list to see if this person is already registered. If they can\'t log in, ask them to use "Forgot Password" on the login page instead of creating a new account.',
   },
   "permission-denied": {
     title: "Not Authorized",
@@ -34,7 +35,8 @@ const CREATE_USER_ERROR_INFO = {
   },
   "invalid-argument": {
     title: "Missing Information",
-    message: "Email address and full name are both required to create an account.",
+    message:
+      "Email address and full name are both required to create an account.",
     nextStep: "Fill in both fields and try submitting again.",
   },
   unauthenticated: {
@@ -196,8 +198,10 @@ export default function AdminUsersManage() {
 
   async function saveProfile() {
     if (!selectedUser) return;
-    const nameChanged = editName.trim() && editName.trim() !== selectedUser.displayName;
-    const emailChanged = editEmail.trim() && editEmail.trim() !== selectedUser.email;
+    const nameChanged =
+      editName.trim() && editName.trim() !== selectedUser.displayName;
+    const emailChanged =
+      editEmail.trim() && editEmail.trim() !== selectedUser.email;
     if (!nameChanged && !emailChanged) return;
 
     setProfileSaving(true);
@@ -673,12 +677,18 @@ export default function AdminUsersManage() {
                   Edit Profile
                 </div>
                 {profileError && (
-                  <div className="alert alert-error" style={{ marginBottom: 10 }}>
+                  <div
+                    className="alert alert-error"
+                    style={{ marginBottom: 10 }}
+                  >
                     {profileError}
                   </div>
                 )}
                 {profileOk && (
-                  <div className="alert alert-success" style={{ marginBottom: 10 }}>
+                  <div
+                    className="alert alert-success"
+                    style={{ marginBottom: 10 }}
+                  >
                     {profileOk}
                   </div>
                 )}
@@ -836,7 +846,10 @@ export default function AdminUsersManage() {
                   Danger Zone
                 </div>
                 {deleteError && (
-                  <div className="alert alert-error" style={{ marginBottom: 10 }}>
+                  <div
+                    className="alert alert-error"
+                    style={{ marginBottom: 10 }}
+                  >
                     {deleteError}
                   </div>
                 )}
@@ -878,7 +891,7 @@ export default function AdminUsersManage() {
         {loading ? (
           <LoadingSpinner />
         ) : (
-          <div className="admin-table-wrap">
+          <ResponsiveTable>
             <table className="admin-table">
               <thead>
                 <tr>
@@ -937,13 +950,14 @@ export default function AdminUsersManage() {
                             {user.email}
                           </div>
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: "nowrap" }}>
                           <RoleBadge role={user.role} />
                         </td>
                         <td
                           style={{
                             fontSize: "0.78rem",
                             color: "var(--ink-soft)",
+                            whiteSpace: "nowrap",
                           }}
                         >
                           {user.addedBy === "self"
@@ -963,7 +977,7 @@ export default function AdminUsersManage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </main>
       <Footer />

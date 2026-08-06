@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   collection,
-  getDocs,
   doc,
   updateDoc,
   onSnapshot,
@@ -29,6 +28,7 @@ import {
   toggleTransportationEntry,
 } from "@/utils/registrationFees";
 import { setEntryStatus, setAllEntryStatuses } from "@/utils/payments";
+import { groupClimbsByCompletion } from "@/utils/climbGrouping";
 
 export default function ManagePayments() {
   const { currentUser } = useAuth();
@@ -42,9 +42,12 @@ export default function ManagePayments() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const fileRefs = useRef({});
 
-  // Load climbs (once)
+  // Live climbs — every expected/outstanding figure on this page is computed
+  // from the climb's current fee schedule, so a fee edited elsewhere has to
+  // land here without a reload.
   useEffect(() => {
-    getDocs(query(collection(db, "climbs"), orderBy("startDate", "asc"))).then(
+    const unsub = onSnapshot(
+      query(collection(db, "climbs"), orderBy("startDate", "asc")),
       (snap) => {
         const list = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
@@ -56,6 +59,7 @@ export default function ManagePayments() {
         setClimbs(list);
       },
     );
+    return unsub;
   }, []);
 
   // Live registrations
@@ -184,9 +188,9 @@ export default function ManagePayments() {
     });
   }
 
-  // Expected total / outstanding for a registration, from its own fee
-  // snapshot if it has one, otherwise falling back to the climb's current
-  // required fees.
+  // Outstanding for a registration, always against its climb's current fee
+  // schedule (the snapshot on the registration only says which optional items
+  // they picked) — see utils/registrationFees.js.
   const getOutstanding = (reg) =>
     getOutstandingShared(reg, climbById[reg.climbId]);
 
@@ -245,6 +249,11 @@ export default function ManagePayments() {
     }
     return { declared, verified, submitted, outstanding };
   }, [regs, climbById]);
+
+  const { upcoming: upcomingClimbs, completed: completedClimbs } = useMemo(
+    () => groupClimbsByCompletion(climbs),
+    [climbs],
+  );
 
   function fmt(n) {
     return (
@@ -362,40 +371,89 @@ export default function ManagePayments() {
           />
         </div>
 
-        {/* Per-climb cards */}
+        {/* Per-climb cards, upcoming first — collecting payments for a climb
+            that hasn't happened yet is the live work; completed climbs are
+            kept below for reconciliation. */}
         {climbs.length === 0 ? (
           <p style={{ color: "var(--ink-soft)" }}>No climbs found.</p>
         ) : (
-          climbs.map((climb) => {
-            const cs = climbStats[climb.id] || {
-              regs: [],
-              totalDeclared: 0,
-              totalVerified: 0,
-              transpoAvailed: 0,
-              transpoOwn: 0,
-            };
-            return (
-              <ClimbPaymentCard
-                key={climb.id}
-                climb={climb}
-                cs={cs}
-                expandedId={expandedId}
-                setExpandedId={setExpandedId}
-                expandedRegId={expandedRegId}
-                setExpandedRegId={setExpandedRegId}
-                qrUploading={qrUploading}
-                qrError={qrError}
-                fileRefs={fileRefs}
-                handleQrUpload={handleQrUpload}
-                changePaymentStatus={changePaymentStatus}
-                onEntryStatusChange={changeEntryStatus}
-                toggleTransportation={toggleTransportation}
-                getOutstanding={getOutstanding}
-                setLightboxUrl={setLightboxUrl}
-                fmt={fmt}
-              />
-            );
-          })
+          <>
+            {[
+              { title: "Upcoming Climbs", list: upcomingClimbs },
+              { title: "Completed Climbs", list: completedClimbs },
+            ].map(({ title, list }) => (
+              <section key={title} style={{ marginBottom: 22 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                    margin: "0 0 10px",
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: "0.72rem",
+                      fontWeight: 800,
+                      letterSpacing: 2,
+                      textTransform: "uppercase",
+                      color: "var(--ink-soft)",
+                      margin: 0,
+                    }}
+                  >
+                    {title}
+                  </h2>
+                  <span
+                    style={{ fontSize: "0.72rem", color: "var(--ink-soft)" }}
+                  >
+                    {list.length}
+                  </span>
+                </div>
+                {list.length === 0 ? (
+                  <p
+                    style={{
+                      color: "var(--ink-soft)",
+                      fontSize: "0.85rem",
+                      margin: "0 0 4px",
+                    }}
+                  >
+                    None.
+                  </p>
+                ) : (
+                  list.map((climb) => {
+                    const cs = climbStats[climb.id] || {
+                      regs: [],
+                      totalDeclared: 0,
+                      totalVerified: 0,
+                      transpoAvailed: 0,
+                      transpoOwn: 0,
+                    };
+                    return (
+                      <ClimbPaymentCard
+                        key={climb.id}
+                        climb={climb}
+                        cs={cs}
+                        expandedId={expandedId}
+                        setExpandedId={setExpandedId}
+                        expandedRegId={expandedRegId}
+                        setExpandedRegId={setExpandedRegId}
+                        qrUploading={qrUploading}
+                        qrError={qrError}
+                        fileRefs={fileRefs}
+                        handleQrUpload={handleQrUpload}
+                        changePaymentStatus={changePaymentStatus}
+                        onEntryStatusChange={changeEntryStatus}
+                        toggleTransportation={toggleTransportation}
+                        getOutstanding={getOutstanding}
+                        setLightboxUrl={setLightboxUrl}
+                        fmt={fmt}
+                      />
+                    );
+                  })
+                )}
+              </section>
+            ))}
+          </>
         )}
       </main>
       <Footer />

@@ -23,29 +23,15 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import WaiverText from "@/components/WaiverText";
 import { logFailedRequest } from "@/utils/logFailedRequest";
+import { computeExpectedTotal, getClimbFeeModel } from "@/utils/feeSummary";
 
-// Shared by the on-page Fee Breakdown card and the pre-submit confirmation
+// Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
-function computeExpectedTotal(climb, form, optionalFeeSelections) {
-  const isJoiner = form.memberType === "joiner";
-  const required = (climb.fees || []).filter((e) => {
-    if (e.isGuestFee) return isJoiner;
-    return !e.optional;
+function expectedTotalFor(climb, form, optionalFeeSelections) {
+  return computeExpectedTotal(climb, {
+    isJoiner: form.memberType === "joiner",
+    optionalSelections: optionalFeeSelections,
   });
-  const optional = (climb.fees || []).filter((e) => {
-    if (e.isGuestFee) return false;
-    return !!e.optional;
-  });
-  let total = 0;
-  let hasTba = false;
-  [...required, ...optional.filter((e) => optionalFeeSelections[e.label])].forEach(
-    (e) => {
-      const n = parseFloat(String(e.amount).replace(/[^0-9.]/g, ""));
-      if (!isNaN(n)) total += n;
-      else hasTba = true;
-    },
-  );
-  return { total, hasTba };
 }
 
 const INITIAL_FORM = {
@@ -782,17 +768,16 @@ export default function Register() {
           {climb.fees?.length > 0 &&
             (() => {
               const isJoiner = form.memberType === "joiner";
-              // Guest Fee is always treated by memberType, regardless of optional field in data
-              const required = climb.fees.filter((e) => {
-                if (e.isGuestFee) return isJoiner;
-                return !e.optional;
-              });
-              // Optional: optional fees excluding guest fee (guest fee is never a checkbox)
-              const optional = climb.fees.filter((e) => {
-                if (e.isGuestFee) return false;
-                return !!e.optional;
-              });
-              const { total: expectedTotal, hasTba } = computeExpectedTotal(
+              const { requiredFees, optionalFees, guestFee } =
+                getClimbFeeModel(climb);
+              // Guest Fee follows memberType, never a checkbox: joiners owe it
+              // as a required item, members never see it.
+              const required = [
+                ...requiredFees,
+                ...(isJoiner && guestFee ? [guestFee] : []),
+              ];
+              const optional = optionalFees;
+              const { total: expectedTotal, hasTba } = expectedTotalFor(
                 climb,
                 form,
                 optionalFeeSelections,
@@ -1425,7 +1410,7 @@ export default function Register() {
       {/* Pre-submit confirmation */}
       {showConfirm &&
         (() => {
-          const { total, hasTba } = computeExpectedTotal(
+          const { total, hasTba } = expectedTotalFor(
             climb,
             form,
             optionalFeeSelections,

@@ -5,6 +5,7 @@ import { db } from "@/firebase/config";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
 const STATUS_STYLE = {
   published: { background: "#e8f5e9", color: "#1a6b2c", border: "1px solid #a7d7b2" },
@@ -53,7 +54,7 @@ export default function AdminReleaseNotesManage() {
         {loading ? (
           <LoadingSpinner />
         ) : (
-          <div className="admin-table-wrap">
+          <ResponsiveTable>
             <table className="admin-table">
               <thead>
                 <tr>
@@ -121,7 +122,7 @@ export default function AdminReleaseNotesManage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTable>
         )}
       </main>
       <Footer />
