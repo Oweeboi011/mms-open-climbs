@@ -180,6 +180,14 @@ export default function PaymentHistory({
                 </span>
               )}
               <StatusBadge status={entry.status} styleMap={PAYMENT_STYLE} />
+              {entry.reviewedBy && entry.status !== "submitted" && (
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-soft)" }}>
+                  by {entry.reviewedBy}
+                  {formatSubmittedAt(entry.reviewedAt)
+                    ? ` · ${formatSubmittedAt(entry.reviewedAt)}`
+                    : ""}
+                </span>
+              )}
               {onEntryStatusChange && (
                 <span
                   style={{ display: "flex", gap: 6, marginLeft: "auto" }}
