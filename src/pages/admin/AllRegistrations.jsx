@@ -9,6 +9,7 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  Timestamp,
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
@@ -119,10 +120,19 @@ export default function AllRegistrations() {
 
   // One verdict across every payment on the registration — the rolled-up
   // status and the payments behind it always agree.
+  // Who's making the verdict, stamped onto each payment it touches.
+  function reviewer() {
+    return {
+      uid: currentUser?.uid,
+      name: currentUser?.displayName || currentUser?.email || "admin",
+      at: Timestamp.now(),
+    };
+  }
+
   async function changePaymentStatus(regId, paymentStatus) {
     const reg = regs.find((r) => r.id === regId);
     await updateDoc(doc(db, "registrations", regId), {
-      ...setAllEntryStatuses(reg || {}, paymentStatus),
+      ...setAllEntryStatuses(reg || {}, paymentStatus, reviewer()),
       updatedAt: serverTimestamp(),
     });
     logAuditEvent({
@@ -138,7 +148,7 @@ export default function AllRegistrations() {
   // Review a single payment without touching the rest of the history.
   async function changeEntryStatus(reg, index, status) {
     await updateDoc(doc(db, "registrations", reg.id), {
-      ...setEntryStatus(reg, index, status),
+      ...setEntryStatus(reg, index, status, reviewer()),
       updatedAt: serverTimestamp(),
     });
     logAuditEvent({

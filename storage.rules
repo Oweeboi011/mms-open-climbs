@@ -4,11 +4,15 @@ service firebase.storage {
 
     // Payment proof uploads: authenticated users can upload/read their own files.
     // Any authenticated user can read (admin access is enforced in the UI/Firestore).
+    // PDFs are allowed alongside images: both payment forms accept
+    // `image/*,application/pdf` and GCash receipts are often shared as PDFs,
+    // so an image-only rule silently failed those uploads.
     match /payment-proofs/{climbId}/{userId}/{fileName} {
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 10 * 1024 * 1024  // 10 MB limit
-                   && request.resource.contentType.matches('image/.*');
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
 
       allow read: if request.auth != null;
     }

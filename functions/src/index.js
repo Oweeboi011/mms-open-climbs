@@ -4,6 +4,7 @@
 const {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentUpdatedWithAuthContext,
   onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
@@ -12,6 +13,11 @@ const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const {
+  getOutstanding,
+  getCountedTotal,
+  getPaymentEntries,
+} = require("./paymentMath");
 
 initializeApp();
 
@@ -471,7 +477,9 @@ async function clearAdminSubmittedNotifs(regId) {
 }
 
 // ── Trigger: registration status changed → send status email ─────────────────
-exports.onRegistrationUpdated = onDocumentUpdated(
+// WithAuthContext, not the plain variant: only this one populates
+// `event.authId`, which the forged-payment-status guard below depends on.
+exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
   {
     document: "registrations/{regId}",
     database: "openclimbs",
@@ -481,6 +489,40 @@ exports.onRegistrationUpdated = onDocumentUpdated(
     const before = event.data.before.data();
     const after = event.data.after.data();
     const regId = event.params.regId;
+
+    // Security rules can't iterate arrays, so they can't stop a crafted
+    // client write from marking an individual payment "verified" inside
+    // `payments[]`. Catch it here instead: if the writer isn't an admin, no
+    // entry may gain a verdict it didn't already have. Skipped when the
+    // writer is unknown (Admin SDK / backfills), which is never a client.
+    const writerUid = event.authId;
+    if (writerUid && Array.isArray(after.payments)) {
+      const writerSnap = await db.doc(`users/${writerUid}`).get();
+      const writerIsAdmin =
+        writerSnap.exists && writerSnap.data().role === "admin";
+      if (!writerIsAdmin) {
+        const beforePayments = Array.isArray(before.payments)
+          ? before.payments
+          : [];
+        let tampered = false;
+        const clamped = after.payments.map((p, i) => {
+          const priorStatus = beforePayments[i] && beforePayments[i].status;
+          if (p && p.status && p.status !== "submitted" && p.status !== priorStatus) {
+            tampered = true;
+            return { ...p, status: priorStatus || "submitted" };
+          }
+          return p;
+        });
+        if (tampered) {
+          logger.warn("[onRegistrationUpdated] Clamped forged payment status", {
+            regId,
+            writerUid,
+          });
+          await event.data.after.ref.update({ payments: clamped });
+          return; // the corrective write re-runs this trigger on clean data
+        }
+      }
+    }
 
     // Payment status changed → surface an in-app notification for the member.
     if (before.paymentStatus !== after.paymentStatus && after.userId) {
@@ -532,9 +574,18 @@ exports.onRegistrationUpdated = onDocumentUpdated(
           .collection("users")
           .where("role", "==", "admin")
           .get();
-        const amountLabel = after.amountPaid
-          ? `₱${Number(after.amountPaid).toLocaleString("en-PH")}`
-          : "a payment";
+        // Name the payment that just came in, not the running total — a
+        // member sending ₱300 on top of ₱500 must not read as "₱800".
+        const beforeCount = Array.isArray(before.payments)
+          ? before.payments.length
+          : 0;
+        const newEntries = getPaymentEntries(after).slice(beforeCount);
+        const newAmount = newEntries.reduce((sum, p) => sum + p.amount, 0);
+        const amountLabel = newAmount
+          ? `₱${newAmount.toLocaleString("en-PH")}`
+          : after.amountPaid
+            ? `₱${Number(after.amountPaid).toLocaleString("en-PH")}`
+            : "a payment";
         await Promise.all(
           adminSnap.docs.map((d) =>
             createNotification({
@@ -907,13 +958,30 @@ exports.sendReminderNotifications = onSchedule(
       if (!reg.userId) continue;
       const climb = climbs[reg.climbId];
 
-      // Unpaid / rejected payment nag — re-surfaces as unread each run.
-      if (reg.paymentStatus === "unpaid" || reg.paymentStatus === "rejected") {
+      // Payment nag — re-surfaces as unread each run.
+      //
+      // Not just unpaid/rejected: members are told they can settle in
+      // batches, so someone who paid ₱500 of ₱800 rolls up as "submitted"
+      // or even "verified" while still owing the balance. Chase the
+      // outstanding amount, not the status.
+      const outstanding = getOutstanding(reg, climb);
+      if (
+        reg.paymentStatus === "unpaid" ||
+        reg.paymentStatus === "rejected" ||
+        outstanding > 0
+      ) {
+        const paidSoFar = getCountedTotal(reg);
+        const message =
+          paidSoFar > 0 && outstanding > 0
+            ? `You've paid ₱${paidSoFar.toLocaleString("en-PH")} for ${reg.climbTitle || "your climb"} — ₱${outstanding.toLocaleString("en-PH")} still to go. You can send the balance anytime before the climb.`
+            : `Don't forget to submit your GCash payment proof for ${reg.climbTitle || "your climb"}.`;
         await createNotification({
           userId: reg.userId,
           type: "payment_reminder",
-          title: "Payment still pending",
-          message: `Don't forget to submit your GCash payment proof for ${reg.climbTitle || "your climb"}.`,
+          title: outstanding > 0 && paidSoFar > 0
+            ? "Balance still outstanding"
+            : "Payment still pending",
+          message,
           link: "/my-registrations",
           id: `payment_${reg.id}`,
         });

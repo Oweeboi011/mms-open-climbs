@@ -101,12 +101,22 @@ export default function AdminClimbDetail() {
     });
   }
 
+  // Who's making a payment verdict, stamped onto each entry it touches.
+  // Timestamped client-side because serverTimestamp() can't go in an array.
+  function reviewer() {
+    return {
+      uid: currentUser?.uid,
+      name: currentUser?.displayName || currentUser?.email || "admin",
+      at: Timestamp.now(),
+    };
+  }
+
   // The registration-level verdict — applies to every payment on record, so
   // the rolled-up status and the individual payments can't disagree.
   async function changePaymentStatus(regId, paymentStatus) {
     const reg = regs.find((r) => r.id === regId);
     await updateDoc(doc(db, "registrations", regId), {
-      ...setAllEntryStatuses(reg || {}, paymentStatus),
+      ...setAllEntryStatuses(reg || {}, paymentStatus, reviewer()),
       updatedAt: serverTimestamp(),
     });
     logAuditEvent({
@@ -124,7 +134,7 @@ export default function AdminClimbDetail() {
   // own status re-derives from whatever the payments now say.
   async function changeEntryStatus(reg, index, status) {
     await updateDoc(doc(db, "registrations", reg.id), {
-      ...setEntryStatus(reg, index, status),
+      ...setEntryStatus(reg, index, status, reviewer()),
       updatedAt: serverTimestamp(),
     });
     logAuditEvent({

@@ -115,6 +115,12 @@ jest.mock("firebase-functions/v2/firestore", () => ({
     }
     return fn;
   },
+  // The registrations trigger uses the auth-context variant so it can see
+  // which user made the write.
+  onDocumentUpdatedWithAuthContext: (_opts, fn) => {
+    updatedHandler = fn;
+    return fn;
+  },
   onDocumentDeleted: (_opts, fn) => {
     deletedHandler = fn;
     return fn;
@@ -404,6 +410,114 @@ describe("onRegistrationUpdated", () => {
     expect(rejected).toBeTruthy();
     expect(rejected.message).toContain("₱300");
     expect(rejected.message).toContain("other payments still stand");
+  });
+
+  it("names the newly submitted amount to admins, not the running total", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
+
+    await updatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            paymentStatus: "verified",
+            climbId: "climb-1",
+            userId: "user-1",
+            amountPaid: 500,
+            payments: [{ amount: 500, status: "verified" }],
+          }),
+        },
+        after: {
+          data: () => ({
+            paymentStatus: "submitted",
+            climbId: "climb-1",
+            userId: "user-1",
+            name: "Juan Cruz",
+            climbTitle: "Mt. Pulag",
+            amountPaid: 800,
+            payments: [
+              { amount: 500, status: "verified" },
+              { amount: 300, status: "submitted" },
+            ],
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    const adminNotif = Object.values(notifStore).find(
+      (n) => n.type === "payment_submitted",
+    );
+    expect(adminNotif.message).toContain("₱300");
+    expect(adminNotif.message).not.toContain("₱800");
+  });
+
+  it("clamps a payment status a non-admin tried to verify from the client", async () => {
+    userStore["user-1"] = { role: "member" };
+    const writes = [];
+
+    await updatedHandler({
+      authId: "user-1",
+      data: {
+        before: {
+          data: () => ({
+            paymentStatus: "submitted",
+            climbId: "climb-1",
+            userId: "user-1",
+            payments: [{ amount: 500, status: "submitted" }],
+          }),
+        },
+        after: {
+          ref: { update: async (patch) => writes.push(patch) },
+          data: () => ({
+            paymentStatus: "submitted",
+            climbId: "climb-1",
+            userId: "user-1",
+            payments: [{ amount: 500, status: "verified" }],
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0].payments[0].status).toBe("submitted");
+  });
+
+  it("leaves an admin's per-payment verdict alone", async () => {
+    userStore["admin-1"] = { role: "admin" };
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    const writes = [];
+
+    await updatedHandler({
+      authId: "admin-1",
+      data: {
+        before: {
+          data: () => ({
+            paymentStatus: "submitted",
+            climbId: "climb-1",
+            userId: "user-1",
+            payments: [{ amount: 500, status: "submitted" }],
+          }),
+        },
+        after: {
+          ref: { update: async (patch) => writes.push(patch) },
+          data: () => ({
+            paymentStatus: "verified",
+            climbId: "climb-1",
+            userId: "user-1",
+            climbTitle: "Mt. Pulag",
+            payments: [{ amount: 500, status: "verified" }],
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(writes).toHaveLength(0);
+    expect(
+      Object.values(notifStore).find((n) => n.type === "payment_verified"),
+    ).toBeTruthy();
   });
 
   it("doesn't double-notify when the whole registration was rejected", async () => {
@@ -948,6 +1062,80 @@ describe("onClimbUpdated", () => {
 });
 
 describe("sendReminderNotifications", () => {
+  it("chases an outstanding balance even when the payment reads as verified", async () => {
+    // Paid ₱500 of ₱800 and verified — the old status-only check let this
+    // member sail through unreminded, which is exactly the flow the
+    // "you can pay in batches" messaging encourages.
+    regStore["reg-partial"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+      amountPaid: 500,
+      payments: [{ amount: 500, status: "verified" }],
+      feeBreakdown: [
+        { label: "Registration Fee", amount: "800", optional: false, selected: true },
+      ],
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      fees: [{ label: "Registration Fee", amount: "800", optional: false }],
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["payment_reg-partial"]).toMatchObject({
+      userId: "user-1",
+      type: "payment_reminder",
+      title: "Balance still outstanding",
+    });
+    expect(notifStore["payment_reg-partial"].message).toContain("₱300");
+  });
+
+  it("stays quiet once a registrant has settled in full", async () => {
+    regStore["reg-settled"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+      amountPaid: 800,
+      payments: [{ amount: 800, status: "verified" }],
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      fees: [{ label: "Registration Fee", amount: "800", optional: false }],
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["payment_reg-settled"]).toBeUndefined();
+  });
+
+  it("doesn't count a rejected instalment toward the balance", async () => {
+    regStore["reg-rejected-part"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-1",
+      climbTitle: "Mt. Pulag",
+      amountPaid: 500,
+      payments: [
+        { amount: 500, status: "verified" },
+        { amount: 300, status: "rejected" },
+      ],
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      fees: [{ label: "Registration Fee", amount: "800", optional: false }],
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["payment_reg-rejected-part"].message).toContain("₱300");
+  });
+
   it("nags unpaid/rejected registrants and reminds confirmed climbers 3 and 1 days out", async () => {
     regStore["reg-unpaid"] = {
       status: "pending",

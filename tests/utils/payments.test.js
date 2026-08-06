@@ -207,6 +207,25 @@ describe("status patches", () => {
     });
   });
 
+  it("stamps who made the verdict and when", () => {
+    const at = { seconds: 1 };
+    const patch = setEntryStatus(reg, 1, "verified", {
+      uid: "admin-1",
+      name: "Boss",
+      at,
+    });
+    expect(patch.payments[1].reviewedBy).toBe("Boss");
+    expect(patch.payments[1].reviewedAt).toBe(at);
+    // Untouched payments keep their own history.
+    expect(patch.payments[0].reviewedBy).toBeUndefined();
+  });
+
+  it("works without a reviewer, for callers that don't have one", () => {
+    const patch = setEntryStatus(reg, 1, "verified");
+    expect(patch.payments[1].status).toBe("verified");
+    expect(patch.payments[1].reviewedBy).toBeUndefined();
+  });
+
   it("moves payments, amountPaid and paymentStatus together", () => {
     const patch = buildPaymentPatch([
       { amount: 500, proofs: [], status: "verified" },

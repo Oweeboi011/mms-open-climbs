@@ -79,7 +79,7 @@ node scripts/purge-admin-pageviews.mjs     # Maintenance: clean admin page views
 ### Data flow
 
 1. Components subscribe to Firestore via `onSnapshot` (real-time). Always return the unsubscribe function from `useEffect`.
-2. Payment proof images upload to Storage at `proofs/{registrationId}/{filename}`.
+2. Payment proofs (images or PDFs) upload to Storage at `payment-proofs/{climbId}/{userId}/{timestamp}_{filename}`. Each submission is appended to the registration's `payments` array — members can pay in instalments — with `amountPaid` and `paymentStatus` derived from it; see `src/utils/payments.js`.
 3. Firestore document creates/updates trigger Cloud Functions which call Brevo API to email members, climb officers, and admin CCs.
 
 ### Firestore collections
