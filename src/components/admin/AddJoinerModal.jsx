@@ -61,21 +61,11 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    // Officers rely on these on the trail, so they're required here just as
-    // they are on the self-registration form. The member can correct them
-    // later from My Climbs — an admin is only ever recording their best
-    // information.
-    const missing = [];
-    if (!form.name.trim()) missing.push("Full Name");
-    if (!form.mobile.trim()) missing.push("Mobile");
-    if (!form.ecName.trim()) missing.push("Emergency Contact Name");
-    if (!form.ecMobile.trim()) missing.push("Emergency Contact Mobile");
-    if (!form.ecRelationship.trim()) missing.push("Relationship");
-    if (!form.medicalConditions.trim()) {
-      missing.push('Medical Conditions (write "None" if there are none)');
-    }
-    if (missing.length) {
-      setError(`Please complete: ${missing.join(", ")}.`);
+    // An admin only ever knows the name they were given. Mobile, next of kin
+    // and medical history belong to the participant, who completes them from
+    // My Climbs — so nothing here blocks getting them onto the list.
+    if (!form.name.trim()) {
+      setError("Please complete: Full Name.");
       return;
     }
     const parsedAmount = parseFloat(
@@ -187,20 +177,21 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
           asked to be signed up, or a walk-in joiner who never used the app.
         </p>
         {/* A waiver binds the person who signs it, so an admin can't sign on
-            their behalf. Linking to a member's account is what lets them
-            finish it themselves from My Climbs. */}
+            their behalf — and the same goes for details only the participant
+            really knows. Linking to a member's account is what lets them
+            finish both themselves from My Climbs. */}
         <div className="alert alert-warning" style={{ marginBottom: 16 }}>
           {selectedUserId ? (
             <>
-              They&rsquo;ll still need to <strong>sign the waiver</strong>{" "}
-              themselves — it appears on their My Climbs page as soon as you
-              add them.
+              They&rsquo;ll still need to <strong>sign the waiver</strong> and{" "}
+              <strong>complete their own details</strong> — both appear on
+              their My Climbs page as soon as you add them.
             </>
           ) : (
             <>
               A manual entry has <strong>no waiver</strong> and no account to
-              sign one from. Pick the member&rsquo;s account above if they
-              have one, so they can sign it themselves.
+              sign one or fill in details from. Pick the member&rsquo;s account
+              above if they have one, so they can finish it themselves.
             </>
           )}
         </div>
@@ -245,7 +236,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
               />
             </div>
             <div className="form-group">
-              <label className="form-label required">Mobile</label>
+              <label className="form-label">Mobile</label>
               <input
                 type="tel"
                 className="form-input"
@@ -256,10 +247,14 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
             </div>
           </div>
 
+          <div className="form-hint" style={{ marginBottom: 12 }}>
+            Leave the rest blank if you don&rsquo;t know it — mobile, emergency
+            contact and medical conditions are the participant&rsquo;s to
+            complete from My Climbs, and they&rsquo;re prompted until they do.
+            Anything you fill in here is a starting point they can correct.
+          </div>
           <div className="form-group">
-            <label className="form-label required">
-              Emergency Contact Name
-            </label>
+            <label className="form-label">Emergency Contact Name</label>
             <input
               type="text"
               className="form-input"
@@ -269,9 +264,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label required">
-                Emergency Contact Mobile
-              </label>
+              <label className="form-label">Emergency Contact Mobile</label>
               <input
                 type="tel"
                 className="form-input"
@@ -281,7 +274,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
               />
             </div>
             <div className="form-group">
-              <label className="form-label required">Relationship</label>
+              <label className="form-label">Relationship</label>
               <input
                 type="text"
                 className="form-input"
@@ -292,9 +285,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label required">
-              Medical Conditions / Allergies
-            </label>
+            <label className="form-label">Medical Conditions / Allergies</label>
             <textarea
               className="form-textarea"
               rows={2}
@@ -303,10 +294,10 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
               onChange={(e) => setField("medicalConditions", e.target.value)}
             />
             <div className="form-hint">
-              Required so a blank never has to be read as either &ldquo;nothing
-              to declare&rdquo; or &ldquo;nobody asked&rdquo;. Write{" "}
-              <strong>None</strong> if there are none. The participant can
-              correct this themselves from My Climbs.
+              Only fill this in if they told you. Write <strong>None</strong>{" "}
+              if there are none — a blank stays a blank, and the participant is
+              asked for it themselves so it never has to be read as either
+              &ldquo;nothing to declare&rdquo; or &ldquo;nobody asked&rdquo;.
             </div>
           </div>
           <div className="form-row">
