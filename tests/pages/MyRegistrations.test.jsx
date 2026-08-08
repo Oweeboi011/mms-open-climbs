@@ -587,4 +587,261 @@ describe("MyRegistrations page", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe("signing a waiver added by an admin", () => {
+    // An admin registering someone leaves waiverSigned false — a waiver binds
+    // the person who signs it, so it can't be signed on their behalf. Before
+    // this there was no way for them to finish it: no button, and
+    // firestore.rules kept the waiver fields admin-only.
+    function mockUnsigned(extra = {}) {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+      mockLiveSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            waiverSigned: false,
+            waiverSignedName: null,
+            addedByAdmin: true,
+            ...extra,
+          },
+        },
+      ]);
+    }
+
+    // The card button and the modal's submit share the "Sign Waiver" label;
+    // the submit is the one inside the form.
+    const submitSignature = () =>
+      document.querySelector('form button[type="submit"]');
+
+    it("tells the member their waiver is outstanding", async () => {
+      mockUnsigned();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        expect(
+          screen.getByText(/waiver isn.t signed yet/i),
+        ).toBeInTheDocument(),
+      );
+    });
+
+    it("offers Sign Waiver instead of Print Waiver", async () => {
+      mockUnsigned();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /Sign Waiver/i }),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole("link", { name: /Print Waiver/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("writes only the four fields the security rule permits", async () => {
+      mockUnsigned();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() => screen.getByRole("button", { name: /Sign Waiver/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Sign Waiver/i }));
+
+      await waitFor(() =>
+        expect(screen.getByText(/Digital Signature/i)).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(submitSignature());
+
+      await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+      const patch = updateDoc.mock.calls.find(
+        (c) => c[1]?.waiverSigned !== undefined,
+      )?.[1];
+      expect(Object.keys(patch).sort()).toEqual([
+        "updatedAt",
+        "waiverSigned",
+        "waiverSignedAt",
+        "waiverSignedName",
+      ]);
+      expect(patch.waiverSigned).toBe(true);
+      expect(patch.waiverSignedName).toBe("Juan Cruz");
+    });
+
+    it("refuses to sign without agreeing to the waiver", async () => {
+      mockUnsigned();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() => screen.getByRole("button", { name: /Sign Waiver/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Sign Waiver/i }));
+      await waitFor(() => screen.getByText(/Digital Signature/i));
+
+      fireEvent.click(submitSignature());
+      await waitFor(() =>
+        expect(screen.getByText(/must agree to the waiver/i)).toBeInTheDocument(),
+      );
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it("refuses a signature that is too short to be a name", async () => {
+      mockUnsigned({ name: "Jo" });
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() => screen.getByRole("button", { name: /Sign Waiver/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Sign Waiver/i }));
+      await waitFor(() => screen.getByText(/Digital Signature/i));
+
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(submitSignature());
+      await waitFor(() =>
+        expect(screen.getByText(/at least 3 characters/i)).toBeInTheDocument(),
+      );
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it("shows Print Waiver, not Sign Waiver, once it is signed", async () => {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+      mockLiveSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            waiverSigned: true,
+            waiverSignedName: "Juan Cruz",
+          },
+        },
+      ]);
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        expect(
+          screen.getByRole("link", { name: /Print Waiver/i }),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole("button", { name: /Sign Waiver/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("completing details an admin could only guess at", () => {
+    function mockThin(extra = {}) {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+      mockLiveSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            mobile: "",
+            emergencyContact: { name: "", mobile: "", relationship: "" },
+            medicalConditions: "",
+            addedByAdmin: true,
+            ...extra,
+          },
+        },
+      ]);
+    }
+
+    const saveDetails = () =>
+      screen.getByRole("button", { name: /Save Details/i });
+
+    it("flags that the record is incomplete", async () => {
+      mockThin();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        expect(screen.getByText(/details are incomplete/i)).toBeInTheDocument(),
+      );
+      expect(
+        screen.getByRole("button", { name: /Complete Your Details/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("writes only the fields the security rule permits", async () => {
+      mockThin();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        screen.getByRole("button", { name: /Complete Your Details/i }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: /Complete Your Details/i }),
+      );
+      await waitFor(() => expect(saveDetails()).toBeInTheDocument());
+
+      const form = saveDetails().closest("form");
+      const [mobile, ecName, ecMobile, ecRel] =
+        form.querySelectorAll("input");
+      fireEvent.change(mobile, { target: { value: "+63 917 000 0000" } });
+      fireEvent.change(ecName, { target: { value: "Maria Cruz" } });
+      fireEvent.change(ecMobile, { target: { value: "+63 917 111 1111" } });
+      fireEvent.change(ecRel, { target: { value: "Spouse" } });
+      fireEvent.change(form.querySelector("textarea"), {
+        target: { value: "None" },
+      });
+      fireEvent.click(saveDetails());
+
+      await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+      const patch = updateDoc.mock.calls.find((c) => c[1]?.mobile)?.[1];
+      expect(Object.keys(patch).sort()).toEqual([
+        "emergencyContact",
+        "medicalConditions",
+        "mobile",
+        "updatedAt",
+      ]);
+      expect(patch.emergencyContact).toEqual({
+        name: "Maria Cruz",
+        mobile: "+63 917 111 1111",
+        relationship: "Spouse",
+      });
+    });
+
+    it("will not save with medical conditions left blank", async () => {
+      // Blank must never be ambiguous between "nothing to declare" and
+      // "nobody asked" — "None" is the answer, not emptiness.
+      mockThin({
+        mobile: "+63 917 000 0000",
+        emergencyContact: {
+          name: "Maria Cruz",
+          mobile: "+63 917 111 1111",
+          relationship: "Spouse",
+        },
+      });
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        screen.getByRole("button", { name: /Complete Your Details/i }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: /Complete Your Details/i }),
+      );
+      await waitFor(() => expect(saveDetails()).toBeInTheDocument());
+
+      fireEvent.click(saveDetails());
+      // The label and hint also say "medical conditions" — assert the alert.
+      await waitFor(() =>
+        expect(screen.getByRole("alert")).toHaveTextContent(
+          /medical conditions/i,
+        ),
+      );
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it("offers Update Details, not Complete, once the record is filled in", async () => {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+      mockLiveSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            mobile: "+63 917 000 0000",
+            emergencyContact: {
+              name: "Maria Cruz",
+              mobile: "+63 917 111 1111",
+              relationship: "Spouse",
+            },
+            medicalConditions: "None",
+          },
+        },
+      ]);
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /Update Details/i }),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByText(/details are incomplete/i),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

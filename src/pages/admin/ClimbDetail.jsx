@@ -483,7 +483,7 @@ export default function AdminClimbDetail() {
               onClick={() => setAddJoinerOpen(true)}
               title="Manually add a participant who wasn't registered through the app — e.g. a walk-in joiner on a completed climb"
             >
-              + Add Joiner
+              + Add Participant
             </button>
             <Link
               to={`/admin/climbs/${id}/edit`}

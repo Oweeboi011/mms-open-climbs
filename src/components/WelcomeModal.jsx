@@ -93,11 +93,11 @@ const ADMIN_STEPS = [
   {
     icon: "📝",
     title: "Registrations & Users",
-    body: "Admin → Registrations lists every sign-up across all climbs. Admin → Users lets you manage roles and link Add Joiner entries.",
+    body: "Admin → Registrations lists every sign-up across all climbs. Admin → Users lets you manage roles and link manually added participants to accounts.",
     bullets: [
       "Filter registrations by climb or status to help officers plan headcount.",
       "In Admin → Users, promote a member to admin or adjust their profile as needed.",
-      'You can link a manually added "Add Joiner" entry to an existing member account.',
+      "Use Add Participant on a climb to register a member yourself — they only need to sign the waiver.",
     ],
   },
   {
