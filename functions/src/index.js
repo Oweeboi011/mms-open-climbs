@@ -1877,3 +1877,9 @@ exports.getBillingCost = onCall(async (request) => {
     };
   }
 });
+
+// ── Social preview prerender for /event/** ───────────────────────────────────
+// Serves the built app shell with per-climb OG tags injected, so links shared
+// to Messenger/Facebook render a real card instead of a bare URL. See the
+// hosting rewrite in firebase.json.
+exports.ogPrerender = require("./ogPrerender").ogPrerender;
