@@ -490,4 +490,101 @@ describe("MyRegistrations page", () => {
       ).toBeGreaterThan(0),
     );
   });
+
+  describe("paying while an earlier payment is still awaiting review", () => {
+    // Registration promises "you can pay in batches — go to My Climbs anytime
+    // and submit another proof of payment". The pay button used to be gated
+    // on paymentStatus unpaid/rejected/verified, so the moment a member
+    // submitted a downpayment their status became "submitted" and every way
+    // to pay the balance disappeared until an admin got round to verifying.
+    function mockSubmitted() {
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, {
+          ...climbFixture,
+          fees: [
+            { label: "Registration Fee", amount: "500", optional: false },
+            { label: "Transportation Fee", amount: "300", optional: true },
+          ],
+        }),
+      );
+      mockLiveSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            paymentStatus: "submitted",
+            amountPaid: 200,
+            payments: [
+              { amount: 200, proofs: [], status: "submitted" },
+            ],
+          },
+        },
+      ]);
+    }
+
+    it("still offers a way to pay the rest", async () => {
+      mockSubmitted();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /Add Fees \/ Pay More/i }),
+        ).toBeInTheDocument(),
+      );
+    });
+
+    it("opens the pay prompt with the current fee schedule", async () => {
+      mockSubmitted();
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        screen.getByRole("button", { name: /Add Fees \/ Pay More/i }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: /Add Fees \/ Pay More/i }),
+      );
+      await waitFor(() =>
+        expect(screen.getByText("Fee Breakdown")).toBeInTheDocument(),
+      );
+    });
+
+    it("labels it Submit Payment when nothing is on record yet", async () => {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+      mockLiveSnapshot([
+        {
+          id: registrationFixture.id,
+          data: { ...registrationFixture, paymentStatus: "unpaid" },
+        },
+      ]);
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /Submit Payment/i }),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole("button", { name: /Add Fees \/ Pay More/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("offers nothing to pay on a cancelled registration", async () => {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+      mockLiveSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            status: "cancelled",
+            paymentStatus: "submitted",
+          },
+        },
+      ]);
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() => screen.getByText("Mt. Pulag"));
+      expect(
+        screen.queryByRole("button", { name: /Add Fees \/ Pay More/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Submit Payment/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
