@@ -22,6 +22,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import DetailsPrompt, { detailsIncomplete } from "@/components/DetailsPrompt";
+import SignWaiverPrompt from "@/components/SignWaiverPrompt";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
 import { getFeeItems } from "@/utils/registrationFees";
@@ -49,9 +51,7 @@ const PAYMENT_LABEL = {
 // on a verdict from an admin would have made that promise false while a
 // payment sat awaiting review.
 function hasPaymentOnRecord(reg) {
-  return (
-    reg.paymentStatus === "submitted" || reg.paymentStatus === "verified"
-  );
+  return reg.paymentStatus === "submitted" || reg.paymentStatus === "verified";
 }
 
 function payActionLabel(reg) {
@@ -66,7 +66,9 @@ function payActionLabel(reg) {
 function getPayPromptFees(climb, reg) {
   if (!climb?.fees?.length) {
     return {
-      required: (reg.feeBreakdown || []).filter((e) => !e.optional && e.selected),
+      required: (reg.feeBreakdown || []).filter(
+        (e) => !e.optional && e.selected,
+      ),
       optional: [],
       fromSnapshot: true,
     };
@@ -282,9 +284,10 @@ function PayPrompt({ reg, onClose, onSaved }) {
           )}
           {reg.paymentStatus === "verified" && (
             <>
-              {" "}— check any additional service you're now availing, then
-              submit proof of the extra payment. This will move your payment
-              back to "Awaiting Review" until it's re-verified.
+              {" "}
+              — check any additional service you're now availing, then submit
+              proof of the extra payment. This will move your payment back to
+              "Awaiting Review" until it's re-verified.
             </>
           )}
         </p>
@@ -365,7 +368,11 @@ function PayPrompt({ reg, onClose, onSaved }) {
               reg,
             );
             const hasClimbFees = !fromSnapshot;
-            const { total, hasTba } = computeSelectedTotal(climb, reg, selections);
+            const { total, hasTba } = computeSelectedTotal(
+              climb,
+              reg,
+              selections,
+            );
             const totalDisplay = hasTba
               ? `₱${total.toLocaleString("en-PH")} + TBA`
               : `₱${total.toLocaleString("en-PH")}`;
@@ -543,8 +550,8 @@ function PayPrompt({ reg, onClose, onSaved }) {
                       marginTop: 6,
                     }}
                   >
-                    * Showing the fees recorded at registration — this
-                    climb's fee schedule is no longer available.
+                    * Showing the fees recorded at registration — this climb's
+                    fee schedule is no longer available.
                   </p>
                 )}
               </div>
@@ -583,7 +590,9 @@ function PayPrompt({ reg, onClose, onSaved }) {
                 marginTop: 4,
               }}
             >
-              {climb?.gcashQrUrl ? "Tap to enlarge & scan" : "QR code coming soon"}
+              {climb?.gcashQrUrl
+                ? "Tap to enlarge & scan"
+                : "QR code coming soon"}
             </div>
           </div>
           <div style={{ flex: 1, minWidth: 140, fontSize: "0.85rem" }}>
@@ -621,8 +630,8 @@ function PayPrompt({ reg, onClose, onSaved }) {
             )}
             {!climb?.gcashQrUrl && !climb?.gcashNumber && !climb?.gcashName && (
               <div style={{ color: "var(--ink-soft)" }}>
-                GCash details are being set up by the organizer. Please
-                contact the climb officers.
+                GCash details are being set up by the organizer. Please contact
+                the climb officers.
               </div>
             )}
           </div>
@@ -675,7 +684,8 @@ function PayPrompt({ reg, onClose, onSaved }) {
                   marginTop: 6,
                 }}
               >
-                &#10003; {files.length} file{files.length > 1 ? "s" : ""} selected
+                &#10003; {files.length} file{files.length > 1 ? "s" : ""}{" "}
+                selected
               </div>
             )}
           </div>
@@ -723,11 +733,17 @@ function PayPrompt({ reg, onClose, onSaved }) {
 
       {showConfirm &&
         (() => {
-          const { total, hasTba } = computeSelectedTotal(climb, reg, selections);
+          const { total, hasTba } = computeSelectedTotal(
+            climb,
+            reg,
+            selections,
+          );
           const totalDisplay = hasTba
             ? `₱${total.toLocaleString("en-PH")} + TBA`
             : `₱${total.toLocaleString("en-PH")}`;
-          const parsedAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
+          const parsedAmount = parseFloat(
+            String(amount).replace(/[^0-9.]/g, ""),
+          );
           return (
             <div
               onClick={() => setShowConfirm(false)}
@@ -796,7 +812,10 @@ function PayPrompt({ reg, onClose, onSaved }) {
                   >
                     You're submitting{" "}
                     <strong>
-                      ₱{isNaN(parsedAmount) ? 0 : parsedAmount.toLocaleString("en-PH")}
+                      ₱
+                      {isNaN(parsedAmount)
+                        ? 0
+                        : parsedAmount.toLocaleString("en-PH")}
                     </strong>{" "}
                     via GCash
                     {reg.amountPaid > 0 && (
@@ -984,9 +1003,7 @@ function ReceiptModal({ reg, climb, onClose }) {
           }}
         >
           <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Official Receipt</h3>
-          <span
-            className={`status-badge status-payment-${reg.paymentStatus}`}
-          >
+          <span className={`status-badge status-payment-${reg.paymentStatus}`}>
             {RECEIPT_STATUS_LABEL[reg.paymentStatus] || reg.paymentStatus}
           </span>
         </div>
@@ -1034,7 +1051,10 @@ function ReceiptModal({ reg, climb, onClose }) {
             >
               <tbody>
                 {items.map((e, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <tr
+                    key={i}
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                  >
                     <td style={{ padding: "6px 0" }}>{e.label}</td>
                     <td
                       style={{
@@ -1146,7 +1166,8 @@ function ReceiptModal({ reg, climb, onClose }) {
 }
 
 function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
-  const needsForm = climb?.requiresRegistrationForm && !reg.registrationFormUpload;
+  const needsForm =
+    climb?.requiresRegistrationForm && !reg.registrationFormUpload;
   const needsCert = climb?.requiresMedicalCert && !reg.medicalCertUpload;
 
   const [formFile, setFormFile] = useState(null);
@@ -1279,9 +1300,7 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
 
           {needsCert && (
             <div className="form-group">
-              <label className="form-label required">
-                Medical Certificate
-              </label>
+              <label className="form-label required">Medical Certificate</label>
               {climb?.medicalCertSampleUrl && (
                 <div style={{ marginBottom: 8 }}>
                   <a
@@ -1301,8 +1320,7 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
                 onChange={(e) => setCertFile(e.target.files[0] || null)}
               />
               <div className="form-hint">
-                Upload your own medical certificate from a licensed
-                physician.
+                Upload your own medical certificate from a licensed physician.
               </div>
             </div>
           )}
@@ -1361,7 +1379,10 @@ function OfficerCard({ climb, currentUser }) {
         <Link to={`/event/${climb.id}`} className="btn btn-outline btn-sm">
           View Climb
         </Link>
-        <Link to={`/admin/climbs/${climb.id}`} className="btn btn-primary btn-sm">
+        <Link
+          to={`/admin/climbs/${climb.id}`}
+          className="btn btn-primary btn-sm"
+        >
           Registrants
         </Link>
       </div>
@@ -1369,8 +1390,18 @@ function OfficerCard({ climb, currentUser }) {
   );
 }
 
-function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
-  const needsForm = climb?.requiresRegistrationForm && !reg.registrationFormUpload;
+function RegCard({
+  reg,
+  climb,
+  onPay,
+  onViewReceipt,
+  onSubmitDocs,
+  onSignWaiver,
+  onEditDetails,
+  isPast,
+}) {
+  const needsForm =
+    climb?.requiresRegistrationForm && !reg.registrationFormUpload;
   const needsCert = climb?.requiresMedicalCert && !reg.medicalCertUpload;
   return (
     <div className="reg-card" data-status={reg.status}>
@@ -1378,7 +1409,8 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
         <div>
           <div className="reg-card-title">{reg.climbTitle}</div>
           <div className="reg-card-date">
-            &#128197; {reg.climbDate} &nbsp;|&nbsp; &#128205; {reg.climbLocation}
+            &#128197; {reg.climbDate} &nbsp;|&nbsp; &#128205;{" "}
+            {reg.climbLocation}
           </div>
         </div>
         <div
@@ -1393,7 +1425,9 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
             {STATUS_LABEL[reg.status] || reg.status}
           </span>
           {reg.status !== "cancelled" && PAYMENT_LABEL[reg.paymentStatus] && (
-            <span className={`status-badge status-payment-${reg.paymentStatus}`}>
+            <span
+              className={`status-badge status-payment-${reg.paymentStatus}`}
+            >
               {PAYMENT_LABEL[reg.paymentStatus]}
             </span>
           )}
@@ -1422,10 +1456,24 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
             </strong>
           </div>
         </div>
-        {reg.waiverSigned && (
+        {reg.waiverSigned ? (
           <div className="reg-waiver-signed">
             &#10003; Waiver signed as{" "}
             <em>&ldquo;{reg.waiverSignedName}&rdquo;</em>
+          </div>
+        ) : (
+          reg.status !== "cancelled" && (
+            <div className="alert alert-warning" style={{ marginTop: 12 }}>
+              <strong>Your waiver isn&rsquo;t signed yet.</strong> This is
+              required before climb day — sign it below.
+            </div>
+          )
+        )}
+        {reg.status !== "cancelled" && detailsIncomplete(reg) && (
+          <div className="alert alert-warning" style={{ marginTop: 12 }}>
+            <strong>Your details are incomplete.</strong> Climb officers need
+            your mobile, emergency contact and any medical conditions before
+            climb day.
           </div>
         )}
       </div>
@@ -1434,10 +1482,28 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
         <Link to={`/event/${reg.climbId}`} className="btn btn-outline btn-sm">
           View Climb
         </Link>
-        {reg.waiverSigned && (
+        {reg.waiverSigned ? (
           <Link to={`/waiver/${reg.id}`} className="btn btn-primary btn-sm">
             Print Waiver
           </Link>
+        ) : (
+          reg.status !== "cancelled" && (
+            <button className="btn btn-accent btn-sm" onClick={onSignWaiver}>
+              Sign Waiver
+            </button>
+          )
+        )}
+        {reg.status !== "cancelled" && (
+          <button
+            className={`btn btn-sm ${
+              detailsIncomplete(reg) ? "btn-accent" : "btn-outline"
+            }`}
+            onClick={onEditDetails}
+          >
+            {detailsIncomplete(reg)
+              ? "Complete Your Details"
+              : "Update Details"}
+          </button>
         )}
         {reg.status !== "cancelled" && (
           <button
@@ -1457,10 +1523,7 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
         {(reg.paymentStatus === "submitted" ||
           reg.paymentStatus === "verified" ||
           reg.paymentStatus === "rejected") && (
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={onViewReceipt}
-          >
+          <button className="btn btn-outline btn-sm" onClick={onViewReceipt}>
             View OR
           </button>
         )}
@@ -1474,10 +1537,7 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
           </button>
         )}
         {isPast && reg.status === "confirmed" && (
-          <Link
-            to={`/feedback/${reg.climbId}`}
-            className="btn btn-gold btn-sm"
-          >
+          <Link to={`/feedback/${reg.climbId}`} className="btn btn-gold btn-sm">
             Leave Feedback
           </Link>
         )}
@@ -1495,6 +1555,8 @@ export default function MyRegistrations() {
   const [payPromptReg, setPayPromptReg] = useState(null);
   const [receiptReg, setReceiptReg] = useState(null);
   const [docPromptReg, setDocPromptReg] = useState(null);
+  const [waiverPromptReg, setWaiverPromptReg] = useState(null);
+  const [detailsPromptReg, setDetailsPromptReg] = useState(null);
 
   useEffect(() => {
     const q = query(
@@ -1571,7 +1633,8 @@ export default function MyRegistrations() {
   });
   const byEventDateAsc = (a, b) => {
     const da = eventStartOf(climbsMap[a.climbId]) ?? new Date(8640000000000000);
-    const dbb = eventStartOf(climbsMap[b.climbId]) ?? new Date(8640000000000000);
+    const dbb =
+      eventStartOf(climbsMap[b.climbId]) ?? new Date(8640000000000000);
     return da - dbb;
   };
   upcomingRegs.sort(byEventDateAsc);
@@ -1658,7 +1721,9 @@ export default function MyRegistrations() {
                 <div className="admin-stat-label">Climbs as Officer</div>
               </div>
               <div className="admin-stat-card">
-                <div className="admin-stat-num">{upcomingOfficerClimbs.length}</div>
+                <div className="admin-stat-num">
+                  {upcomingOfficerClimbs.length}
+                </div>
                 <div className="admin-stat-label">Tagged as Officer</div>
               </div>
               <div className="admin-stat-card danger">
@@ -1693,7 +1758,10 @@ export default function MyRegistrations() {
               <>
                 <h2 className="myreg-section-title">Upcoming Climbs</h2>
                 {upcomingRegs.length === 0 ? (
-                  <div className="alert alert-info" style={{ marginBottom: 36 }}>
+                  <div
+                    className="alert alert-info"
+                    style={{ marginBottom: 36 }}
+                  >
                     No upcoming registrations.
                   </div>
                 ) : (
@@ -1706,6 +1774,8 @@ export default function MyRegistrations() {
                         onPay={() => setPayPromptReg(reg)}
                         onViewReceipt={() => setReceiptReg(reg)}
                         onSubmitDocs={() => setDocPromptReg(reg)}
+                        onSignWaiver={() => setWaiverPromptReg(reg)}
+                        onEditDetails={() => setDetailsPromptReg(reg)}
                       />
                     ))}
                   </div>
@@ -1725,6 +1795,8 @@ export default function MyRegistrations() {
                           onPay={() => setPayPromptReg(reg)}
                           onViewReceipt={() => setReceiptReg(reg)}
                           onSubmitDocs={() => setDocPromptReg(reg)}
+                          onSignWaiver={() => setWaiverPromptReg(reg)}
+                          onEditDetails={() => setDetailsPromptReg(reg)}
                           isPast
                         />
                       ))}
@@ -1740,7 +1812,10 @@ export default function MyRegistrations() {
                   Assigned as Officer — Upcoming
                 </h2>
                 {upcomingOfficerClimbs.length === 0 ? (
-                  <div className="alert alert-info" style={{ marginBottom: 24 }}>
+                  <div
+                    className="alert alert-info"
+                    style={{ marginBottom: 24 }}
+                  >
                     No upcoming climbs assigned.
                   </div>
                 ) : (
@@ -1800,6 +1875,25 @@ export default function MyRegistrations() {
           currentUser={currentUser}
           onClose={() => setDocPromptReg(null)}
           onSaved={() => setDocPromptReg(null)}
+        />
+      )}
+
+      {detailsPromptReg && (
+        <DetailsPrompt
+          reg={detailsPromptReg}
+          currentUser={currentUser}
+          onClose={() => setDetailsPromptReg(null)}
+          onSaved={() => setDetailsPromptReg(null)}
+        />
+      )}
+
+      {waiverPromptReg && (
+        <SignWaiverPrompt
+          reg={waiverPromptReg}
+          climb={climbsMap[waiverPromptReg.climbId]}
+          currentUser={currentUser}
+          onClose={() => setWaiverPromptReg(null)}
+          onSaved={() => setWaiverPromptReg(null)}
         />
       )}
 

@@ -63,15 +63,52 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // A participant signs their own waiver — and only their own, only once,
+    // and only in the affirmative. Self-registration signs at create time,
+    // but an admin adding someone to a climb leaves the registration
+    // unsigned, and signing is the one thing that genuinely cannot be done
+    // on the participant's behalf. Without this the record could never be
+    // completed by the person it binds.
+    //
+    // Once signed it is immutable from the client: no un-signing, no
+    // re-signing under a different name, no back-dating. Corrections stay
+    // with admins.
+    // NOTE: `.get('waiverSigned', false)` rather than `.waiverSigned` — a
+    // registration created before the field existed, or one added by an admin
+    // that never set it, has no such key, and reading a missing key directly
+    // is an evaluation error that denies the whole rule. That would have
+    // blocked precisely the unsigned registrations this exists to serve.
+    function memberIsSigningOwnWaiver() {
+      return affected().hasOnly([
+          'waiverSigned', 'waiverSignedName', 'waiverSignedAt', 'updatedAt'
+        ])
+        && resource.data.get('waiverSigned', false) != true
+        && request.resource.data.waiverSigned == true
+        && request.resource.data.waiverSignedName is string
+        && request.resource.data.waiverSignedName.size() >= 3;
+    }
+
+    // Contact and medical details belong to the participant, and an admin
+    // registering someone on their behalf can only guess at them. The member
+    // corrects their own from My Climbs. Unlike the waiver these stay
+    // editable — a phone number changes, a condition develops — so there is
+    // no sign-once constraint, only a limit on which fields can move.
+    function memberIsUpdatingOwnDetails() {
+      return affected().hasOnly([
+        'mobile', 'emergencyContact', 'medicalConditions', 'updatedAt'
+      ]);
+    }
+
     match /registrations/{regId} {
       allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
       allow create: if isAdmin() ||
         (isSignedIn() &&
           isOwner(request.resource.data.userId) &&
           climbIsOpen(request.resource.data.climbId));
-      // Members only ever do two things to their own registration: submit a
-      // payment and upload the documents a climb requires. Everything else —
-      // status, admin notes, the waiver record — is admin territory.
+      // Members do three things to their own registration: submit a payment,
+      // upload the documents a climb requires, and sign the waiver once.
+      // Everything else — status, admin notes, an already-signed waiver — is
+      // admin territory.
       // Owner branch first so the common member write never pays for the
       // users/ lookup isAdmin() needs.
       allow update: if (isOwner(resource.data.userId) &&
@@ -81,6 +118,8 @@ service cloud.firestore {
             'registrationFormUpload', 'medicalCertUpload', 'updatedAt'
           ]) &&
           memberPaymentClaimIsHonest()) ||
+        (isOwner(resource.data.userId) && memberIsSigningOwnWaiver()) ||
+        (isOwner(resource.data.userId) && memberIsUpdatingOwnDetails()) ||
         isAdmin();
       allow delete: if isAdmin();
     }

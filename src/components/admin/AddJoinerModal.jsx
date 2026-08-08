@@ -20,6 +20,10 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
     name: "",
     email: "",
     mobile: "",
+    ecName: "",
+    ecMobile: "",
+    ecRelationship: "",
+    medicalConditions: "",
     memberType: "joiner",
     experienceLevel: "beginner",
     status: "confirmed",
@@ -57,8 +61,21 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!form.name.trim()) {
-      setError("Please enter the participant's full name.");
+    // Officers rely on these on the trail, so they're required here just as
+    // they are on the self-registration form. The member can correct them
+    // later from My Climbs — an admin is only ever recording their best
+    // information.
+    const missing = [];
+    if (!form.name.trim()) missing.push("Full Name");
+    if (!form.mobile.trim()) missing.push("Mobile");
+    if (!form.ecName.trim()) missing.push("Emergency Contact Name");
+    if (!form.ecMobile.trim()) missing.push("Emergency Contact Mobile");
+    if (!form.ecRelationship.trim()) missing.push("Relationship");
+    if (!form.medicalConditions.trim()) {
+      missing.push('Medical Conditions (write "None" if there are none)');
+    }
+    if (missing.length) {
+      setError(`Please complete: ${missing.join(", ")}.`);
       return;
     }
     const parsedAmount = parseFloat(
@@ -75,7 +92,12 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
         name: form.name.trim(),
         email: form.email.trim(),
         mobile: form.mobile.trim(),
-        emergencyContact: { name: "", mobile: "", relationship: "" },
+        emergencyContact: {
+          name: form.ecName.trim(),
+          mobile: form.ecMobile.trim(),
+          relationship: form.ecRelationship.trim(),
+        },
+        medicalConditions: form.medicalConditions.trim(),
         experienceLevel: form.experienceLevel,
         memberType: form.memberType,
         waiverSigned: false,
@@ -152,19 +174,36 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
         }}
       >
         <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
-          Add Joiner
+          Add Participant
         </h3>
         <p
           style={{
             fontSize: "0.82rem",
             color: "var(--ink-soft)",
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
-          Manually record a participant who wasn't registered through the
-          app — for example a walk-in joiner on a climb that has already
-          happened.
+          Register someone into this climb yourself — an existing member who
+          asked to be signed up, or a walk-in joiner who never used the app.
         </p>
+        {/* A waiver binds the person who signs it, so an admin can't sign on
+            their behalf. Linking to a member's account is what lets them
+            finish it themselves from My Climbs. */}
+        <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+          {selectedUserId ? (
+            <>
+              They&rsquo;ll still need to <strong>sign the waiver</strong>{" "}
+              themselves — it appears on their My Climbs page as soon as you
+              add them.
+            </>
+          ) : (
+            <>
+              A manual entry has <strong>no waiver</strong> and no account to
+              sign one from. Pick the member&rsquo;s account above if they
+              have one, so they can sign it themselves.
+            </>
+          )}
+        </div>
         {error && <div className="alert alert-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -206,13 +245,68 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Mobile</label>
+              <label className="form-label required">Mobile</label>
               <input
                 type="tel"
                 className="form-input"
+                placeholder="+63 9XX XXX XXXX"
                 value={form.mobile}
                 onChange={(e) => setField("mobile", e.target.value)}
               />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label required">
+              Emergency Contact Name
+            </label>
+            <input
+              type="text"
+              className="form-input"
+              value={form.ecName}
+              onChange={(e) => setField("ecName", e.target.value)}
+            />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label required">
+                Emergency Contact Mobile
+              </label>
+              <input
+                type="tel"
+                className="form-input"
+                placeholder="+63 9XX XXX XXXX"
+                value={form.ecMobile}
+                onChange={(e) => setField("ecMobile", e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label required">Relationship</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Parent, Spouse"
+                value={form.ecRelationship}
+                onChange={(e) => setField("ecRelationship", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label required">
+              Medical Conditions / Allergies
+            </label>
+            <textarea
+              className="form-textarea"
+              rows={2}
+              placeholder='e.g. asthma, peanut allergy — or "None"'
+              value={form.medicalConditions}
+              onChange={(e) => setField("medicalConditions", e.target.value)}
+            />
+            <div className="form-hint">
+              Required so a blank never has to be read as either &ldquo;nothing
+              to declare&rdquo; or &ldquo;nobody asked&rdquo;. Write{" "}
+              <strong>None</strong> if there are none. The participant can
+              correct this themselves from My Climbs.
             </div>
           </div>
           <div className="form-row">
@@ -310,7 +404,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
               disabled={saving}
               style={{ flex: 1 }}
             >
-              {saving ? "Adding…" : "Add Participant"}
+              {saving ? "Adding…" : "Add to Climb"}
             </button>
           </div>
         </form>
