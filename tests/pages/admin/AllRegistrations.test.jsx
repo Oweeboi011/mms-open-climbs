@@ -264,4 +264,36 @@ describe("Admin AllRegistrations", () => {
     const patch = updateDoc.mock.calls.find((c) => c[1]?.name)?.[1];
     expect(patch.name).toBe("Juan Dela Cruz");
   });
+
+  it("lets an admin record a payment received in person", async () => {
+    // This is the only admin page with a search box, so it's where an admin
+    // looking for one person by name actually lands.
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Record Payment/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Record Payment/i }));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('form input[type="number"]'),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.change(document.querySelector('form input[type="number"]'), {
+      target: { value: "300" },
+    });
+    fireEvent.click(document.querySelector('form button[type="submit"]'));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.payments)?.[1];
+    expect(patch.payments[patch.payments.length - 1]).toMatchObject({
+      amount: 300,
+      status: "verified",
+    });
+  });
 });

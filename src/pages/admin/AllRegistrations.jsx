@@ -19,7 +19,9 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import EditRegistrationModal from "@/components/EditRegistrationModal";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import PaymentHistory from "@/components/admin/PaymentHistory";
+import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import { logAuditEvent } from "@/utils/auditLog";
+import { recordManualPayment } from "@/utils/recordPayment";
 import {
   getPaymentEntries,
   setEntryStatus,
@@ -76,6 +78,7 @@ export default function AllRegistrations() {
   const [filterDocs, setFilterDocs] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
   const [editingReg, setEditingReg] = useState(null);
+  const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
 
   const [scope, setScope] = useState("active");
 
@@ -245,6 +248,16 @@ export default function AllRegistrations() {
     for (const c of climbs) map[c.id] = c;
     return map;
   }, [climbs]);
+
+  // Money handed over in person still has to land in the same history as an
+  // in-app GCash submission, from whichever page the admin happens to be on.
+  async function recordPayment(reg, entry) {
+    await recordManualPayment(reg, entry, {
+      currentUser,
+      climbTitle: climbById[reg.climbId]?.title || reg.climbTitle,
+    });
+    setRecordingPaymentFor(null);
+  }
   const climbStatusById = useMemo(() => {
     const map = {};
     for (const c of climbs) map[c.id] = c.status;
@@ -890,6 +903,16 @@ export default function AllRegistrations() {
                                       gap: 6,
                                     }}
                                   >
+                                    <button
+                                      className="btn btn-outline btn-sm"
+                                      title="Log a payment received outside the app (cash on-site, bank transfer) — it's added to this registrant's history and total"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setRecordingPaymentFor(reg);
+                                      }}
+                                    >
+                                      + Record Payment
+                                    </button>
                                     <Link
                                       to={`/waiver/${reg.id}`}
                                       className="btn btn-outline btn-sm"
@@ -1199,6 +1222,14 @@ export default function AllRegistrations() {
           climb={climbById[editingReg.climbId]}
           onClose={() => setEditingReg(null)}
           onSave={saveRegistrationEdit}
+        />
+      )}
+
+      {recordingPaymentFor && (
+        <RecordPaymentModal
+          reg={recordingPaymentFor}
+          onClose={() => setRecordingPaymentFor(null)}
+          onSave={recordPayment}
         />
       )}
 

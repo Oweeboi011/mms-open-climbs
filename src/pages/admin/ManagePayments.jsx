@@ -18,10 +18,12 @@ import {
 import { db, storage } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAuditEvent } from "@/utils/auditLog";
+import { recordManualPayment } from "@/utils/recordPayment";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ClimbPaymentCard from "@/components/admin/ClimbPaymentCard";
+import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import { StatBox } from "@/components/admin/paymentShared";
 import {
   getOutstanding as getOutstandingShared,
@@ -41,6 +43,7 @@ export default function ManagePayments() {
   const [qrUploading, setQrUploading] = useState(null);
   const [qrError, setQrError] = useState({});
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
   const fileRefs = useRef({});
 
   // Live climbs — every expected/outstanding figure on this page is computed
@@ -161,6 +164,16 @@ export default function ManagePayments() {
     for (const c of climbs) map[c.id] = c;
     return map;
   }, [climbs]);
+
+  // The money page could show every peso owed but not take one. Cash at the
+  // jump-off is the most common way a balance actually gets settled.
+  async function recordPayment(reg, entry) {
+    await recordManualPayment(reg, entry, {
+      currentUser,
+      climbTitle: climbById[reg.climbId]?.title || reg.climbTitle,
+    });
+    setRecordingPaymentFor(null);
+  }
 
   // Toggle whether a registrant is availing one of the climb's optional
   // services from the payments table. Falls back to the climb's current fee
@@ -436,6 +449,7 @@ export default function ManagePayments() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         toggleOptionalFee={toggleOptionalFee}
+                        onRecordPayment={setRecordingPaymentFor}
                         getOutstanding={getOutstanding}
                         setLightboxUrl={setLightboxUrl}
                         fmt={fmt}
@@ -448,6 +462,14 @@ export default function ManagePayments() {
           </>
         )}
       </main>
+      {recordingPaymentFor && (
+        <RecordPaymentModal
+          reg={recordingPaymentFor}
+          onClose={() => setRecordingPaymentFor(null)}
+          onSave={recordPayment}
+        />
+      )}
+
       <Footer />
     </div>
   );
