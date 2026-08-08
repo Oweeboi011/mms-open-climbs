@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   doc,
   getDoc,
@@ -34,6 +34,36 @@ function expectedTotalFor(climb, form, optionalFeeSelections) {
   });
 }
 
+// Submit order, top to bottom. Drives which field the page scrolls to when
+// validation fails — the form is ~2500px tall, so "first invalid" has to mean
+// first on the page, not first in object-key order.
+const FIELD_ORDER = [
+  "fullName",
+  "mobile",
+  "ecName",
+  "ecMobile",
+  "ecRelationship",
+  "registrationForm",
+  "medicalCert",
+  "waiverAgreed",
+  "sigName",
+  "amountPaid",
+  "paymentFiles",
+];
+
+// The status check catches more than "closed" — say which one it is.
+const CLOSED_REASON = {
+  closed: "closed",
+  completed: "already finished",
+  cancelled: "cancelled",
+  draft: "not open yet",
+};
+
+function FieldError({ message }) {
+  if (!message) return null;
+  return <div className="form-error-msg">{message}</div>;
+}
+
 const INITIAL_FORM = {
   fullName: "",
   mobile: "",
@@ -59,7 +89,8 @@ export default function Register() {
   const [sigName, setSigName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [missingFields, setMissingFields] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [blockedReason, setBlockedReason] = useState(null);
   const [successRegId, setSuccessRegId] = useState(null);
   const [successUnpaid, setSuccessUnpaid] = useState(false);
   const [paymentFiles, setPaymentFiles] = useState([]);
@@ -73,82 +104,157 @@ export default function Register() {
   const [medicalCertFile, setMedicalCertFile] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const fieldRefs = useRef({});
+  function bindField(key) {
+    return (node) => {
+      fieldRefs.current[key] = node;
+    };
+  }
+  function inputClass(key, base = "form-input") {
+    return fieldErrors[key] ? `${base} input-error` : base;
+  }
+
   useEffect(() => {
     async function load() {
-      const snap = await getDoc(doc(db, "climbs", climbId));
-      if (!snap.exists() || snap.data().status !== "open") {
-        navigate("/");
-        return;
-      }
+      try {
+        const snap = await getDoc(doc(db, "climbs", climbId));
+        if (!snap.exists()) {
+          navigate("/", { replace: true });
+          return;
+        }
+        const climbData = { id: snap.id, ...snap.data() };
 
-      // Check not already registered
-      const regQ = query(
-        collection(db, "registrations"),
-        where("climbId", "==", climbId),
-        where("userId", "==", currentUser.uid),
-      );
-      const regSnap = await getDocs(regQ);
-      if (!regSnap.empty && regSnap.docs[0].data().status !== "cancelled") {
-        navigate(`/my-registrations`);
-        return;
-      }
+        if (climbData.status !== "open") {
+          // Was a silent navigate("/"). A member who taps a shared link to a
+          // climb that has since closed deserves to be told, on the page they
+          // asked for.
+          setClimb(climbData);
+          setBlockedReason("closed");
+          return;
+        }
 
-      setClimb({ id: snap.id, ...snap.data() });
-      setForm((p) => ({
-        ...p,
-        fullName: userProfile?.displayName || currentUser.displayName || "",
-      }));
-      setLoading(false);
+        // Check not already registered
+        const regQ = query(
+          collection(db, "registrations"),
+          where("climbId", "==", climbId),
+          where("userId", "==", currentUser.uid),
+        );
+        const regSnap = await getDocs(regQ);
+        if (!regSnap.empty && regSnap.docs[0].data().status !== "cancelled") {
+          setClimb(climbData);
+          setBlockedReason("registered");
+          return;
+        }
+
+        setClimb(climbData);
+        setForm((p) => ({
+          ...p,
+          fullName: userProfile?.displayName || currentUser.displayName || "",
+        }));
+      } catch (err) {
+        console.error(err);
+        setError("Could not load this climb. Please refresh and try again.");
+        logFailedRequest({
+          type: "firestore",
+          source: "Register.jsx:load",
+          message: err?.message,
+          path: window.location.pathname,
+          userId: currentUser?.uid,
+          userRole: userProfile?.role === "admin" ? "admin" : "member",
+          climbId,
+        });
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [climbId, currentUser, userProfile, navigate]);
 
   function setField(field, value) {
     setForm((p) => ({ ...p, [field]: value }));
+    clearFieldError(field);
+  }
+
+  function clearFieldError(key) {
+    setFieldErrors((p) => {
+      if (!p[key]) return p;
+      const next = { ...p };
+      delete next[key];
+      return next;
+    });
   }
 
   function validate() {
-    const missing = [];
+    const errors = {};
     const parsedAmount = parseFloat(String(amountPaid).replace(/[^0-9.]/g, ""));
 
-    if (!form.fullName.trim()) missing.push("Full Name");
-    if (!form.mobile.trim()) missing.push("Mobile Number");
-    if (!form.ecName.trim()) missing.push("Emergency Contact Name");
-    if (!form.ecMobile.trim()) missing.push("Emergency Contact Mobile");
-    if (!form.ecRelationship.trim()) missing.push("Emergency Contact Relationship");
+    if (!form.fullName.trim()) errors.fullName = "Enter your full name.";
+    if (!form.mobile.trim()) errors.mobile = "Enter your mobile number.";
+    if (!form.ecName.trim()) {
+      errors.ecName = "Enter your emergency contact's name.";
+    }
+    if (!form.ecMobile.trim()) {
+      errors.ecMobile = "Enter your emergency contact's mobile number.";
+    }
+    if (!form.ecRelationship.trim()) {
+      errors.ecRelationship = "Enter your relationship to this contact.";
+    }
     if (climb.requiresRegistrationForm && !registrationFormFile) {
-      missing.push("Signed Registration Form upload");
+      errors.registrationForm = "Upload your signed registration form.";
     }
     if (climb.requiresMedicalCert && !medicalCertFile) {
-      missing.push("Medical Certificate upload");
+      errors.medicalCert = "Upload your medical certificate.";
     }
-    if (!waiverAgreed) missing.push("Agree to the Waiver and Release of Liability");
+    if (!waiverAgreed) {
+      errors.waiverAgreed =
+        "You must agree to the Waiver and Release of Liability.";
+    }
     if (!sigName.trim()) {
-      missing.push("Digital Signature");
+      errors.sigName = "Type your full name to sign the waiver.";
     } else if (sigName.trim().length < 3) {
-      missing.push("Digital Signature (enter your complete name)");
+      errors.sigName = "Enter your complete name — at least 3 characters.";
     }
     // Payment is optional at registration time — members can pay later.
     // If they did start filling in payment info, require both parts together.
-    if (paymentFiles.length > 0 && (!amountPaid || isNaN(parsedAmount) || parsedAmount <= 0)) {
-      missing.push("Amount Paid via GCash (to match your uploaded receipt)");
+    if (
+      paymentFiles.length > 0 &&
+      (!amountPaid || isNaN(parsedAmount) || parsedAmount <= 0)
+    ) {
+      errors.amountPaid =
+        "Enter the amount you paid, to match your uploaded receipt.";
     }
-    if (amountPaid && !isNaN(parsedAmount) && parsedAmount > 0 && paymentFiles.length === 0) {
-      missing.push("Proof of Payment upload (to match the amount entered)");
+    if (
+      amountPaid &&
+      !isNaN(parsedAmount) &&
+      parsedAmount > 0 &&
+      paymentFiles.length === 0
+    ) {
+      errors.paymentFiles =
+        "Upload your proof of payment, to match the amount entered.";
     }
 
-    return { missing, parsedAmount };
+    return { errors, parsedAmount };
   }
 
   function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    setMissingFields([]);
+    setFieldErrors({});
 
-    const { missing } = validate();
-    if (missing.length > 0) {
-      setMissingFields(missing);
+    const { errors } = validate();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       setError("Please complete the following before submitting:");
+      // The summary alert sits at the top of a form the user has scrolled to
+      // the bottom of. Without this the page appears to do nothing at all.
+      const firstKey = FIELD_ORDER.find((k) => errors[k]);
+      const node = fieldRefs.current[firstKey];
+      if (typeof node?.scrollIntoView === "function") {
+        node.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      if (typeof node?.focus === "function") {
+        node.focus({ preventScroll: true });
+      }
       return;
     }
 
@@ -316,7 +422,68 @@ export default function Register() {
   }
 
   if (loading) return <LoadingSpinner fullPage />;
-  if (!climb) return null;
+
+  if (!climb) {
+    return (
+      <div className="register-page">
+        <Header />
+        <div className="register-content">
+          <div className="alert alert-error" role="alert">
+            {error || "This climb could not be loaded."}
+          </div>
+          <Link to="/" className="btn btn-primary">
+            Browse Climbs
+          </Link>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (blockedReason) {
+    return (
+      <div className="register-page">
+        <Header />
+        <div className="register-content">
+          <div className="register-form-card">
+            <div className="form-section-title">
+              {blockedReason === "registered"
+                ? "You're Already Registered"
+                : "Registration Is Not Open"}
+            </div>
+            <p style={{ color: "var(--ink-soft)", marginBottom: 20 }}>
+              {blockedReason === "registered" ? (
+                <>
+                  You already have a registration for{" "}
+                  <strong>{climb.title}</strong>.
+                </>
+              ) : (
+                <>
+                  Registration for <strong>{climb.title}</strong> is{" "}
+                  {CLOSED_REASON[climb.status] || "not currently open"}.
+                </>
+              )}
+            </p>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {blockedReason === "registered" ? (
+                <Link to="/my-registrations" className="btn btn-primary">
+                  View My Climbs
+                </Link>
+              ) : (
+                <Link to={`/event/${climbId}`} className="btn btn-primary">
+                  View Climb Details
+                </Link>
+              )}
+              <Link to="/" className="btn btn-outline">
+                Browse Other Climbs
+              </Link>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (successRegId) {
     return (
@@ -390,12 +557,12 @@ export default function Register() {
               justifyContent: "center",
             }}
           >
-            <a href={`/waiver/${successRegId}`} className="btn btn-primary">
+            <Link to={`/waiver/${successRegId}`} className="btn btn-primary">
               Print Waiver
-            </a>
-            <a href="/my-registrations" className="btn btn-outline">
-              View My Registrations
-            </a>
+            </Link>
+            <Link to="/my-registrations" className="btn btn-outline">
+              View My Climbs
+            </Link>
           </div>
         </div>
         <Footer />
@@ -457,13 +624,13 @@ export default function Register() {
         )}
 
         {error && (
-          <div className="alert alert-error">
+          <div className="alert alert-error" role="alert">
             <div>
               <div>{error}</div>
-              {missingFields.length > 0 && (
+              {Object.keys(fieldErrors).length > 0 && (
                 <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
-                  {missingFields.map((field, i) => (
-                    <li key={i}>{field}</li>
+                  {FIELD_ORDER.filter((k) => fieldErrors[k]).map((k) => (
+                    <li key={k}>{fieldErrors[k]}</li>
                   ))}
                 </ul>
               )}
@@ -479,23 +646,29 @@ export default function Register() {
               <label className="form-label required">Full Name</label>
               <input
                 type="text"
-                className="form-input"
+                ref={bindField("fullName")}
+                className={inputClass("fullName")}
                 required
+                aria-invalid={!!fieldErrors.fullName}
                 value={form.fullName}
                 onChange={(e) => setField("fullName", e.target.value)}
               />
+              <FieldError message={fieldErrors.fullName} />
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label required">Mobile Number</label>
                 <input
                   type="tel"
-                  className="form-input"
+                  ref={bindField("mobile")}
+                  className={inputClass("mobile")}
                   required
+                  aria-invalid={!!fieldErrors.mobile}
                   placeholder="+63 9XX XXX XXXX"
                   value={form.mobile}
                   onChange={(e) => setField("mobile", e.target.value)}
                 />
+                <FieldError message={fieldErrors.mobile} />
               </div>
               <div className="form-group">
                 <label className="form-label">Date of Birth</label>
@@ -580,34 +753,43 @@ export default function Register() {
               <label className="form-label required">Contact Name</label>
               <input
                 type="text"
-                className="form-input"
+                ref={bindField("ecName")}
+                className={inputClass("ecName")}
                 required
+                aria-invalid={!!fieldErrors.ecName}
                 value={form.ecName}
                 onChange={(e) => setField("ecName", e.target.value)}
               />
+              <FieldError message={fieldErrors.ecName} />
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label required">Contact Mobile</label>
                 <input
                   type="tel"
-                  className="form-input"
+                  ref={bindField("ecMobile")}
+                  className={inputClass("ecMobile")}
                   required
+                  aria-invalid={!!fieldErrors.ecMobile}
                   placeholder="+63 9XX XXX XXXX"
                   value={form.ecMobile}
                   onChange={(e) => setField("ecMobile", e.target.value)}
                 />
+                <FieldError message={fieldErrors.ecMobile} />
               </div>
               <div className="form-group">
                 <label className="form-label required">Relationship</label>
                 <input
                   type="text"
-                  className="form-input"
+                  ref={bindField("ecRelationship")}
+                  className={inputClass("ecRelationship")}
                   required
+                  aria-invalid={!!fieldErrors.ecRelationship}
                   placeholder="e.g. Parent, Spouse"
                   value={form.ecRelationship}
                   onChange={(e) => setField("ecRelationship", e.target.value)}
                 />
+                <FieldError message={fieldErrors.ecRelationship} />
               </div>
             </div>
           </div>
@@ -658,12 +840,16 @@ export default function Register() {
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx,image/*"
-                    className="form-input"
+                    ref={bindField("registrationForm")}
+                    className={inputClass("registrationForm")}
                     required
-                    onChange={(e) =>
-                      setRegistrationFormFile(e.target.files[0] || null)
-                    }
+                    aria-invalid={!!fieldErrors.registrationForm}
+                    onChange={(e) => {
+                      setRegistrationFormFile(e.target.files[0] || null);
+                      clearFieldError("registrationForm");
+                    }}
                   />
+                  <FieldError message={fieldErrors.registrationForm} />
                   <div className="form-hint">
                     Download the form above, fill it out, then upload your
                     copy here.
@@ -691,12 +877,16 @@ export default function Register() {
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx,image/*"
-                    className="form-input"
+                    ref={bindField("medicalCert")}
+                    className={inputClass("medicalCert")}
                     required
-                    onChange={(e) =>
-                      setMedicalCertFile(e.target.files[0] || null)
-                    }
+                    aria-invalid={!!fieldErrors.medicalCert}
+                    onChange={(e) => {
+                      setMedicalCertFile(e.target.files[0] || null);
+                      clearFieldError("medicalCert");
+                    }}
                   />
+                  <FieldError message={fieldErrors.medicalCert} />
                   <div className="form-hint">
                     Upload your own medical certificate from a licensed
                     physician.
@@ -731,9 +921,14 @@ export default function Register() {
             <label className="waiver-check">
               <input
                 type="checkbox"
+                ref={bindField("waiverAgreed")}
                 required
+                aria-invalid={!!fieldErrors.waiverAgreed}
                 checked={waiverAgreed}
-                onChange={(e) => setWaiverAgreed(e.target.checked)}
+                onChange={(e) => {
+                  setWaiverAgreed(e.target.checked);
+                  clearFieldError("waiverAgreed");
+                }}
               />
               <span className="waiver-check-label">
                 I have read, understood, and voluntarily agree to all terms of
@@ -742,6 +937,7 @@ export default function Register() {
                 complete.
               </span>
             </label>
+            <FieldError message={fieldErrors.waiverAgreed} />
 
             <div className="form-group">
               <label className="form-label required">
@@ -749,12 +945,17 @@ export default function Register() {
               </label>
               <input
                 type="text"
-                className="form-input"
+                ref={bindField("sigName")}
+                className={inputClass("sigName")}
                 required
+                aria-invalid={!!fieldErrors.sigName}
                 placeholder="Type your complete legal name"
                 style={{ fontStyle: "italic", fontSize: "1rem" }}
                 value={sigName}
-                onChange={(e) => setSigName(e.target.value)}
+                onChange={(e) => {
+                  setSigName(e.target.value);
+                  clearFieldError("sigName");
+                }}
               />
               <div className="form-hint">
                 By typing your name above you are signing this waiver
@@ -1044,7 +1245,7 @@ export default function Register() {
               }}
             >
               <strong>You can pay in batches.</strong> Send a downpayment now
-              and the rest later — go to <em>My Registrations</em> anytime and
+              and the rest later — go to <em>My Climbs</em> anytime and
               submit another proof of payment. Each one is recorded separately
               and added to your total. Just make sure everything is fully paid
               before the climb date.
@@ -1224,13 +1425,20 @@ export default function Register() {
                   type="number"
                   min="1"
                   step="any"
-                  className="form-input"
+                  ref={bindField("amountPaid")}
+                  className={inputClass("amountPaid")}
                   placeholder="0.00"
+                  aria-invalid={!!fieldErrors.amountPaid}
                   style={{ paddingLeft: 28, fontWeight: 700, fontSize: "1rem" }}
                   value={amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
+                  onChange={(e) => {
+                    setAmountPaid(e.target.value);
+                    clearFieldError("amountPaid");
+                    clearFieldError("paymentFiles");
+                  }}
                 />
               </div>
+              <FieldError message={fieldErrors.amountPaid} />
               <div className="form-hint">
                 Enter the exact amount you sent via GCash. This must match your
                 receipt.
@@ -1244,12 +1452,16 @@ export default function Register() {
               <input
                 type="file"
                 accept="image/*,application/pdf"
-                className="form-input"
+                ref={bindField("paymentFiles")}
+                className={inputClass("paymentFiles")}
+                aria-invalid={!!fieldErrors.paymentFiles}
                 multiple
                 onChange={(e) => {
                   const files = Array.from(e.target.files);
                   if (files.length === 0) return;
                   setPaymentFiles(files);
+                  clearFieldError("paymentFiles");
+                  clearFieldError("amountPaid");
                   Promise.all(
                     files.map(
                       (file) =>
@@ -1279,6 +1491,7 @@ export default function Register() {
                 You can select multiple files. Accepted formats: images (JPG,
                 PNG) or PDF.
               </div>
+              <FieldError message={fieldErrors.paymentFiles} />
               {paymentPreviews.length > 0 && (
                 <div
                   style={{
@@ -1388,10 +1601,13 @@ export default function Register() {
             </div>
           </div>
 
+          {/* Not gated on waiverAgreed: a dead button with no message was the
+              most common "I filled it out and nothing happened". Let
+              validate() say what's missing and scroll the user to it. */}
           <button
             className="btn btn-primary btn-block btn-lg"
             type="submit"
-            disabled={submitting || !waiverAgreed}
+            disabled={submitting}
           >
             {submitting ? (
               <>

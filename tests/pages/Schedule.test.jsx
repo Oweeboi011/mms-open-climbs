@@ -15,6 +15,7 @@ import Schedule from "@/pages/Schedule";
 import {
   renderWithProviders,
   makeGuestAuth,
+  makeMemberAuth,
   climbFixture,
 } from "@tests/helpers";
 import { makeQuerySnapshot } from "@tests/setup";
@@ -112,5 +113,28 @@ describe("Schedule page", () => {
     await waitFor(() =>
       expect(screen.getByText(/Welcome Participation/i)).toBeInTheDocument(),
     );
+  });
+
+  it("gives a signed-out visitor a CTA in the hero itself", async () => {
+    // The hero was ~500px of wordmark with nothing to click; the only CTA was
+    // a dismissible banner below the fold.
+    const { container } = renderWithProviders(<Schedule />, makeGuestAuth());
+    await waitFor(() =>
+      expect(container.querySelector(".hero-cta")).toBeInTheDocument(),
+    );
+    expect(
+      container.querySelector(".hero-cta a[href='/signup?redirect=/']"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows only Browse Climbs in the hero once signed in", async () => {
+    const { container } = renderWithProviders(<Schedule />, makeMemberAuth());
+    await waitFor(() =>
+      expect(container.querySelector(".hero-cta")).toBeInTheDocument(),
+    );
+    expect(container.querySelector(".hero-cta a")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Browse Climbs/i }),
+    ).toBeInTheDocument();
   });
 });

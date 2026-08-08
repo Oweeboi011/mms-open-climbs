@@ -1656,7 +1656,8 @@ export default function MyRegistrations() {
 
             {regs.length === 0 ? (
               <>
-                <h2 className="myreg-section-title">My Registrations</h2>
+                {/* No section heading here — the page <h1> above already
+                    says "My Climbs", and there is only one section. */}
                 <div
                   className="alert alert-info"
                   style={{
