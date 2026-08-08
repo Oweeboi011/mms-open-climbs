@@ -487,7 +487,7 @@ describe("Admin ClimbDetail", () => {
     });
   });
 
-  it("lets an admin toggle a registrant's transportation selection", async () => {
+  it("lets an admin toggle a registrant's optional-service selection", async () => {
     mockRegistrantSnapshot([
       {
         id: registrationFixture.id,
@@ -504,7 +504,9 @@ describe("Admin ClimbDetail", () => {
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Juan Cruz"));
 
-    await waitFor(() => expect(screen.getByText("Own transport")).toBeInTheDocument());
+    await waitFor(() => expect(
+        screen.getByText("Not availing Transportation Fee"),
+      ).toBeInTheDocument());
     fireEvent.click(screen.getByRole("checkbox"));
 
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());

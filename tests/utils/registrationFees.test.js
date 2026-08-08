@@ -2,7 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   getExpectedTotal,
   getOutstanding,
-  toggleTransportationEntry,
+  toggleOptionalFeeEntry,
+  getOptionalServices,
+  getServicesForRegistrant,
+  getAvailmentCounts,
+  isAvailing,
   describeMemberTypeChange,
 } from "@/utils/registrationFees";
 
@@ -166,19 +170,19 @@ describe("getOutstanding", () => {
   });
 });
 
-describe("toggleTransportationEntry", () => {
+describe("toggleOptionalFeeEntry", () => {
   it("flips an existing transportation entry", () => {
     const reg = {
       feeBreakdown: [
         { label: "Transportation Fee", amount: "300", optional: true, selected: false },
       ],
     };
-    const updated = toggleTransportationEntry(reg, climb);
+    const updated = toggleOptionalFeeEntry(reg, climb, "Transportation Fee");
     expect(updated[0].selected).toBe(true);
   });
 
   it("synthesizes a transportation entry from the climb's fees when missing", () => {
-    const updated = toggleTransportationEntry({ feeBreakdown: [] }, climb);
+    const updated = toggleOptionalFeeEntry({ feeBreakdown: [] }, climb, "Transportation Fee");
     expect(updated).toEqual([
       { label: "Transportation Fee", amount: "300", optional: true, selected: true },
     ]);
@@ -186,7 +190,7 @@ describe("toggleTransportationEntry", () => {
 
   it("returns null when the climb has no transportation fee at all", () => {
     const noTranspoClimb = { fees: [{ label: "Registration Fee", amount: "500" }] };
-    expect(toggleTransportationEntry({}, noTranspoClimb)).toBeNull();
+    expect(toggleOptionalFeeEntry({}, noTranspoClimb, "Transportation Fee")).toBeNull();
   });
 });
 
@@ -234,5 +238,111 @@ describe("describeMemberTypeChange", () => {
     expect(
       describeMemberTypeChange({ memberType: "member" }, { memberType: "member" }),
     ).toBe("");
+  });
+});
+
+describe("optional services", () => {
+  // The point of the generalization: a climb that offers a porter is tracked
+  // exactly like one that offers transportation, with no code change.
+  const porterClimb = {
+    fees: [
+      { label: "Registration Fee", amount: "500", optional: false },
+      { label: "Transportation Fee", amount: "300", optional: true },
+      { label: "Porter", amount: "800", optional: true },
+      { label: "Guest Fee", amount: "450", optional: true, isGuestFee: true },
+    ],
+  };
+
+  it("lists every opt-in service the climb offers", () => {
+    expect(getOptionalServices(porterClimb).map((f) => f.label)).toEqual([
+      "Transportation Fee",
+      "Porter",
+    ]);
+  });
+
+  it("never treats the guest fee as an opt-in service", () => {
+    // It follows member type, not a checkbox — even flagged optional.
+    expect(getOptionalServices(porterClimb).some((f) => f.isGuestFee)).toBe(
+      false,
+    );
+  });
+
+  it("has no services when the climb offers none", () => {
+    expect(getOptionalServices({ fees: [] })).toEqual([]);
+    expect(getOptionalServices(undefined)).toEqual([]);
+  });
+
+  it("toggles a porter independently of transportation", () => {
+    const reg = {
+      feeBreakdown: [
+        { label: "Transportation Fee", amount: "300", optional: true, selected: true },
+      ],
+    };
+    const updated = toggleOptionalFeeEntry(reg, porterClimb, "Porter");
+    expect(isAvailing({ feeBreakdown: updated }, "Porter")).toBe(true);
+    expect(isAvailing({ feeBreakdown: updated }, "Transportation Fee")).toBe(
+      true,
+    );
+  });
+
+  it("counts availment per service, ignoring cancelled registrations", () => {
+    const regs = [
+      {
+        feeBreakdown: [
+          { label: "Porter", amount: "800", optional: true, selected: true },
+        ],
+      },
+      {
+        feeBreakdown: [
+          { label: "Porter", amount: "800", optional: true, selected: false },
+        ],
+      },
+      {
+        // Cancelled: doesn't need a porter booked for them.
+        status: "cancelled",
+        feeBreakdown: [
+          { label: "Porter", amount: "800", optional: true, selected: true },
+        ],
+      },
+    ];
+    const counts = getAvailmentCounts(regs, porterClimb);
+    const porter = counts.find((c) => c.label === "Porter");
+    expect(porter).toMatchObject({
+      availing: 1,
+      notAvailing: 1,
+      total: 2,
+      pct: 50,
+    });
+  });
+
+  it("reports zero rather than dividing by zero with no registrants", () => {
+    expect(getAvailmentCounts([], porterClimb)[0]).toMatchObject({
+      availing: 0,
+      total: 0,
+      pct: 0,
+    });
+  });
+
+  it("still offers a toggle for a service the climb has since dropped", () => {
+    // Otherwise an orphaned availment could never be cleared.
+    const reg = {
+      feeBreakdown: [
+        { label: "Old Service", amount: "100", optional: true, selected: true },
+      ],
+    };
+    expect(
+      getServicesForRegistrant(reg, porterClimb).map((f) => f.label),
+    ).toEqual(["Transportation Fee", "Porter", "Old Service"]);
+  });
+
+  it("does not double-list a service present in both places", () => {
+    const reg = {
+      feeBreakdown: [
+        { label: "Porter", amount: "800", optional: true, selected: true },
+      ],
+    };
+    expect(
+      getServicesForRegistrant(reg, porterClimb).map((f) => f.label),
+    ).toEqual(["Transportation Fee", "Porter"]);
   });
 });

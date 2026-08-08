@@ -4,6 +4,10 @@ import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import PaymentHistory from "./PaymentHistory";
 import { getPaymentEntries, getAllProofs } from "@/utils/payments";
 import {
+  getServicesForRegistrant,
+  isAvailing,
+} from "@/utils/registrationFees";
+import {
   StatusBadge,
   InfoCell,
   ComplianceCheck,
@@ -28,7 +32,7 @@ export default function RegistrantRow({
   changePaymentStatus,
   onEntryStatusChange,
   onRecordPayment,
-  toggleTransportation,
+  toggleOptionalFee,
   onEdit,
   deleteRegistration,
   editNotes,
@@ -387,44 +391,40 @@ export default function RegistrantRow({
                 />
               </div>
 
-              {/* Transportation */}
-              {(() => {
-                const transpoIdx = (reg.feeBreakdown || []).findIndex((f) =>
-                  /transport/i.test(f.label),
-                );
-                const climbHasTranspoFee = (climb?.fees || []).some((f) =>
-                  /transport/i.test(f.label),
-                );
-                if (transpoIdx === -1 && !climbHasTranspoFee) return null;
-                const availing =
-                  transpoIdx !== -1
-                    ? reg.feeBreakdown[transpoIdx].selected
-                    : false;
-                return (
-                  <div style={{ marginBottom: 16 }}>
-                    <SectionLabel>{"\u{1F68C}"} Transportation</SectionLabel>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        cursor: "pointer",
-                        fontSize: "0.85rem",
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!!availing}
-                        onChange={() => toggleTransportation(reg)}
-                      />
-                      {availing
-                        ? "Availing organized transport"
-                        : "Own transport"}
-                    </label>
-                  </div>
-                );
-              })()}
+              {/* Optional services this climb offers — transportation,
+                  porter, anything added later. Driven off the climb's fee
+                  schedule, so a new service needs no change here. */}
+              {getServicesForRegistrant(reg, climb).length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <SectionLabel>Optional Services</SectionLabel>
+                  {getServicesForRegistrant(reg, climb).map((svc) => {
+                    const availing = isAvailing(reg, svc.label);
+                    return (
+                      <label
+                        key={svc.label}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                          fontSize: "0.85rem",
+                          marginBottom: 4,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={availing}
+                          onChange={() => toggleOptionalFee(reg, svc.label)}
+                        />
+                        {availing
+                          ? `Availing ${svc.label}`
+                          : `Not availing ${svc.label}`}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Waiver section */}
               <div

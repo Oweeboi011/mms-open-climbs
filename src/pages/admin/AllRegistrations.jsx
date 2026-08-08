@@ -27,7 +27,9 @@ import {
 } from "@/utils/payments";
 import {
   getOutstanding,
-  toggleTransportationEntry,
+  toggleOptionalFeeEntry,
+  getServicesForRegistrant,
+  isAvailing,
   describeMemberTypeChange,
 } from "@/utils/registrationFees";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
@@ -194,19 +196,17 @@ export default function AllRegistrations() {
     });
   }
 
-  // Toggle a registrant's transportation selection (availing organized
-  // transport vs. arranging their own) directly from the row. Falls back to
+  // Toggle whether a registrant is availing one of the climb's optional
+  // services (transportation, porter, …) directly from the row. Falls back to
   // the climb's fee schedule when the registrant's own feeBreakdown snapshot
-  // doesn't have a transportation line item yet, so the toggle shows for
-  // every registrant on a climb that offers transportation, not just those
-  // whose snapshot happens to include it.
-  async function toggleTransportation(reg) {
+  // doesn't have that line item yet, so the toggle works for everyone on a
+  // climb that offers the service, not just those who registered after it
+  // was added.
+  async function toggleOptionalFee(reg, label) {
     const climb = climbs.find((c) => c.id === reg.climbId);
-    const updated = toggleTransportationEntry(reg, climb);
+    const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
-    const nowSelected = updated.find((f) =>
-      /transport/i.test(f.label),
-    )?.selected;
+    const nowSelected = updated.find((f) => f.label === label)?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -214,11 +214,11 @@ export default function AllRegistrations() {
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
-      action: "transportation_toggled",
+      action: "optional_fee_toggled",
       targetType: "registration",
       targetId: reg.id,
       targetLabel: reg.name || reg.id,
-      details: `Transportation set to ${nowSelected ? "availing" : "own transport"}`,
+      details: `${label} set to ${nowSelected ? "availing" : "not availing"}`,
     });
   }
 
@@ -982,52 +982,49 @@ export default function AllRegistrations() {
                                   />
                                 </div>
 
-                                {/* ── Transportation ── */}
-                                {(() => {
-                                  const transpoIdx = (
-                                    reg.feeBreakdown || []
-                                  ).findIndex((f) =>
-                                    /transport/i.test(f.label),
-                                  );
-                                  const climbHasTranspoFee = (
-                                    climb?.fees || []
-                                  ).some((f) => /transport/i.test(f.label));
-                                  if (transpoIdx === -1 && !climbHasTranspoFee)
-                                    return null;
-                                  const availing =
-                                    transpoIdx !== -1
-                                      ? reg.feeBreakdown[transpoIdx].selected
-                                      : false;
-                                  return (
-                                    <>
-                                      <SectionLabel>
-                                        &#128652; Transportation
-                                      </SectionLabel>
-                                      <div style={{ marginBottom: 16 }}>
-                                        <label
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 8,
-                                            cursor: "pointer",
-                                            fontSize: "0.85rem",
-                                          }}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={!!availing}
-                                            onChange={() =>
-                                              toggleTransportation(reg)
-                                            }
-                                          />
-                                          {availing
-                                            ? "Availing organized transport"
-                                            : "Own transport"}
-                                        </label>
-                                      </div>
-                                    </>
-                                  );
-                                })()}
+                                {/* ── Optional Services ── */}
+                                {getServicesForRegistrant(reg, climb).length > 0 && (
+                                  <>
+                                    <SectionLabel>
+                                      Optional Services
+                                    </SectionLabel>
+                                    <div style={{ marginBottom: 16 }}>
+                                      {getServicesForRegistrant(reg, climb).map((svc) => {
+                                        const availing = isAvailing(
+                                          reg,
+                                          svc.label,
+                                        );
+                                        return (
+                                          <label
+                                            key={svc.label}
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: 8,
+                                              cursor: "pointer",
+                                              fontSize: "0.85rem",
+                                              marginBottom: 4,
+                                            }}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={availing}
+                                              onChange={() =>
+                                                toggleOptionalFee(
+                                                  reg,
+                                                  svc.label,
+                                                )
+                                              }
+                                            />
+                                            {availing
+                                              ? `Availing ${svc.label}`
+                                              : `Not availing ${svc.label}`}
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </>
+                                )}
 
                                 {/* ── Required Documents ── */}
                                 {(climb?.requiresRegistrationForm ||

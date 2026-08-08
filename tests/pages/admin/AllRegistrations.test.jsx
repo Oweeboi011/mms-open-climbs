@@ -98,7 +98,7 @@ describe("Admin AllRegistrations", () => {
     expect(climbOptions).toEqual(["Sooner Climb", "Later Climb"]);
   });
 
-  it("shows a transportation toggle and updates it on click", async () => {
+  it("shows an optional-service toggle and updates it on click", async () => {
     mockLiveSnapshot([
           {
             id: registrationFixture.id,
@@ -115,7 +115,9 @@ describe("Admin AllRegistrations", () => {
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
 
     fireEvent.click(screen.getByText("Juan Cruz"));
-    await waitFor(() => expect(screen.getByText("Own transport")).toBeInTheDocument());
+    await waitFor(() => expect(
+        screen.getByText("Not availing Transportation Fee"),
+      ).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("checkbox"));
 

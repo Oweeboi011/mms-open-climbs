@@ -25,7 +25,7 @@ import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 import { logAuditEvent } from "@/utils/auditLog";
 import {
   getOutstanding as getOutstandingShared,
-  toggleTransportationEntry,
+  toggleOptionalFeeEntry,
   describeMemberTypeChange,
 } from "@/utils/registrationFees";
 import {
@@ -185,18 +185,14 @@ export default function AdminClimbDetail() {
     setRecordingPaymentFor(null);
   }
 
-  // Toggle a registrant's transportation selection (availing organized
-  // transport vs. arranging their own) directly from the registrants table.
-  // Falls back to the climb's fee schedule when the registrant's own
-  // feeBreakdown snapshot doesn't have a transportation line item yet, so
-  // the toggle shows for every registrant, not just those whose snapshot
-  // happens to include it.
-  async function toggleTransportation(reg) {
-    const updated = toggleTransportationEntry(reg, climb);
+  // Toggle whether a registrant is availing one of the climb's optional
+  // services (transportation, porter, …) from the registrants table. Falls
+  // back to the climb's fee schedule when the registrant's own feeBreakdown
+  // snapshot doesn't have that line item yet.
+  async function toggleOptionalFee(reg, label) {
+    const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
-    const nowSelected = updated.find((f) =>
-      /transport/i.test(f.label),
-    )?.selected;
+    const nowSelected = updated.find((f) => f.label === label)?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -204,11 +200,11 @@ export default function AdminClimbDetail() {
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
-      action: "transportation_toggled",
+      action: "optional_fee_toggled",
       targetType: "registration",
       targetId: reg.id,
       targetLabel: reg.name || reg.id,
-      details: `Transportation set to ${nowSelected ? "availing" : "own transport"} for ${climb?.title || "climb"}`,
+      details: `${label} set to ${nowSelected ? "availing" : "not availing"} for ${climb?.title || "climb"}`,
     });
   }
 
@@ -773,7 +769,7 @@ export default function AdminClimbDetail() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         onRecordPayment={setRecordingPaymentFor}
-                        toggleTransportation={toggleTransportation}
+                        toggleOptionalFee={toggleOptionalFee}
                         onEdit={setEditingReg}
                         deleteRegistration={deleteRegistration}
                         editNotes={editNotes}
