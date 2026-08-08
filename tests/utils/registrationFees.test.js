@@ -3,6 +3,7 @@ import {
   getExpectedTotal,
   getOutstanding,
   toggleTransportationEntry,
+  describeMemberTypeChange,
 } from "@/utils/registrationFees";
 
 const climb = {
@@ -186,5 +187,52 @@ describe("toggleTransportationEntry", () => {
   it("returns null when the climb has no transportation fee at all", () => {
     const noTranspoClimb = { fees: [{ label: "Registration Fee", amount: "500" }] };
     expect(toggleTransportationEntry({}, noTranspoClimb)).toBeNull();
+  });
+});
+
+describe("correcting a mis-set participant type", () => {
+  // The registration form defaults to joiner, so a member who skipped the
+  // radio is charged the guest fee. Admins fix it from EditRegistrationModal.
+  const asJoiner = { memberType: "joiner", feeBreakdown: [] };
+  const asMember = { memberType: "member", feeBreakdown: [] };
+
+  it("drops the guest fee once the registrant is marked a member", () => {
+    expect(getExpectedTotal(asJoiner, climb)).toBe(950); // 500 + 450 guest
+    expect(getExpectedTotal(asMember, climb)).toBe(500);
+  });
+
+  it("reduces what they still owe, without going negative", () => {
+    const paid = { ...asJoiner, amountPaid: 500, paymentStatus: "verified" };
+    expect(getOutstanding(paid, climb)).toBe(450);
+    expect(getOutstanding({ ...paid, memberType: "member" }, climb)).toBe(0);
+  });
+
+  it("adds the guest fee when the correction goes the other way", () => {
+    const paid = { ...asMember, amountPaid: 500, paymentStatus: "verified" };
+    expect(getOutstanding(paid, climb)).toBe(0);
+    expect(getOutstanding({ ...paid, memberType: "joiner" }, climb)).toBe(450);
+  });
+});
+
+describe("describeMemberTypeChange", () => {
+  it("names both sides of the change for the audit trail", () => {
+    expect(
+      describeMemberTypeChange({ memberType: "joiner" }, { memberType: "member" }),
+    ).toBe(" — participant type Joiner → MMS Member");
+  });
+
+  it("treats a missing memberType as joiner, matching the form default", () => {
+    expect(describeMemberTypeChange({}, { memberType: "member" })).toBe(
+      " — participant type Joiner → MMS Member",
+    );
+  });
+
+  it("says nothing when the edit left participant type alone", () => {
+    expect(
+      describeMemberTypeChange({ memberType: "member" }, { name: "New Name" }),
+    ).toBe("");
+    expect(
+      describeMemberTypeChange({ memberType: "member" }, { memberType: "member" }),
+    ).toBe("");
   });
 });

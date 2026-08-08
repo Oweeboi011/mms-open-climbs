@@ -28,6 +28,7 @@ import {
 import {
   getOutstanding,
   toggleTransportationEntry,
+  describeMemberTypeChange,
 } from "@/utils/registrationFees";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import {
@@ -234,6 +235,7 @@ export default function AllRegistrations() {
       targetType: "registration",
       targetId: regId,
       targetLabel: reg?.name || regId,
+      details: describeMemberTypeChange(reg, patch).trim(),
     });
     setEditingReg(null);
   }
@@ -1197,6 +1199,7 @@ export default function AllRegistrations() {
       {editingReg && (
         <EditRegistrationModal
           reg={editingReg}
+          climb={climbById[editingReg.climbId]}
           onClose={() => setEditingReg(null)}
           onSave={saveRegistrationEdit}
         />

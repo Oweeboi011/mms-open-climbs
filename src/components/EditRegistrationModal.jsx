@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { getPaymentEntries, getPaymentsTotal } from "@/utils/payments";
+import { getExpectedTotal } from "@/utils/registrationFees";
+import { formatPeso } from "@/utils/feeSummary";
 
-export default function EditRegistrationModal({ reg, onClose, onSave }) {
+export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
   const [form, setForm] = useState({
     name: reg.name || "",
     mobile: reg.mobile || "",
@@ -12,8 +14,22 @@ export default function EditRegistrationModal({ reg, onClose, onSave }) {
     ecRelationship: reg.emergencyContact?.relationship || "",
     medicalConditions: reg.medicalConditions || "",
     amountPaid: reg.amountPaid ?? "",
+    memberType: reg.memberType || "joiner",
   });
   const [saving, setSaving] = useState(false);
+
+  // Participant type drives the guest fee (registrationFees.js), so changing
+  // it changes what this person owes. Show the delta rather than letting the
+  // balance move silently after the modal closes.
+  const memberTypeChanged = form.memberType !== (reg.memberType || "joiner");
+  const currentExpected = climb ? getExpectedTotal(reg, climb) : null;
+  const projectedExpected = climb
+    ? getExpectedTotal({ ...reg, memberType: form.memberType }, climb)
+    : null;
+  const showFeeDelta =
+    memberTypeChanged &&
+    currentExpected !== null &&
+    projectedExpected !== currentExpected;
 
   function set(field, value) {
     setForm((p) => ({ ...p, [field]: value }));
@@ -35,6 +51,7 @@ export default function EditRegistrationModal({ reg, onClose, onSave }) {
         },
         medicalConditions: form.medicalConditions,
         amountPaid: form.amountPaid === "" ? null : Number(form.amountPaid),
+        memberType: form.memberType,
       });
     } finally {
       setSaving(false);
@@ -109,6 +126,34 @@ export default function EditRegistrationModal({ reg, onClose, onSave }) {
                 onChange={(e) => set("dateOfBirth", e.target.value)}
               />
             </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Participant Type</label>
+            <select
+              className="form-select"
+              value={form.memberType}
+              onChange={(e) => set("memberType", e.target.value)}
+            >
+              <option value="member">MMS Member</option>
+              <option value="joiner">Joiner (non-member)</option>
+            </select>
+            {showFeeDelta ? (
+              <div className="alert alert-warning" style={{ marginTop: 8 }}>
+                Expected total changes from{" "}
+                <strong>{formatPeso(currentExpected)}</strong> to{" "}
+                <strong>{formatPeso(projectedExpected)}</strong>
+                {projectedExpected < currentExpected
+                  ? " — the guest fee no longer applies."
+                  : " — the guest fee now applies."}{" "}
+                Their outstanding balance updates on save.
+              </div>
+            ) : (
+              <div className="form-hint">
+                The registration form defaults to Joiner, so a member who
+                skipped it is charged the guest fee. Correcting this here
+                recalculates what they owe.
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label className="form-label">Address</label>
