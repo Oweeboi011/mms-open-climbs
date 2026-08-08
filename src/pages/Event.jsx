@@ -15,6 +15,7 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Icon from "@/components/Icon";
 import { renderMarkdownLite } from "@/utils/markdownLite";
+import EventFeesCard from "@/components/EventFeesCard";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -150,7 +151,9 @@ function LockedCard({ label, onUnlock }) {
         cursor: "pointer",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+      <div
+        style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}
+      >
         <Icon name="lock" size={30} color="var(--ink-soft)" />
       </div>
       <p
@@ -442,64 +445,56 @@ export default function Event() {
     : 0;
   const fillClass = fillPct >= 100 ? "full" : fillPct >= 80 ? "low" : "ok";
 
-  function RegisterButton() {
-    if (!isOpen)
-      return (
-        <div
-          className="alert alert-warning"
-          style={{ marginTop: 20, display: "inline-flex" }}
-        >
-          Registration is currently closed for this climb.
-        </div>
-      );
-    if (alreadyReg)
-      return (
-        <div
-          className="alert alert-success"
-          style={{ marginTop: 20, display: "inline-flex" }}
-        >
-          You are registered &mdash; Status:{" "}
-          <strong style={{ marginLeft: 4 }}>{regStatus}</strong>
-        </div>
-      );
-    if (isFull)
-      return (
-        <div
-          className="alert alert-warning"
-          style={{ marginTop: 20, display: "inline-flex" }}
-        >
-          This climb is full. Waitlist registrations may be accepted.
-        </div>
-      );
-    if (!currentUser)
-      return (
-        <div
-          style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}
-        >
-          <Link
-            to={`/login?redirect=/register/${climbId}`}
-            className="btn btn-gold btn-lg"
-          >
-            Sign In to Register
-          </Link>
-          <Link
-            to={`/signup?redirect=/register/${climbId}`}
-            className="btn btn-outline btn-lg"
-          >
-            Create Account
-          </Link>
-        </div>
-      );
-    return (
+  const registerCta = !isOpen ? (
+    <div
+      className="alert alert-warning"
+      style={{ marginTop: 20, display: "inline-flex" }}
+    >
+      Registration is currently closed for this climb.
+    </div>
+  ) : alreadyReg ? (
+    <div
+      className="alert alert-success"
+      style={{ marginTop: 20, display: "inline-flex" }}
+    >
+      You are registered &mdash; Status:{" "}
+      <strong style={{ marginLeft: 4 }}>{regStatus}</strong>
+    </div>
+  ) : !currentUser ? (
+    // Checked before isFull on purpose: a signed-out visitor looking at a
+    // full climb still needs a way in — slots open up, and an account is
+    // what lets them be there when one does.
+    <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
       <Link
-        to={`/register/${climbId}`}
+        to={`/login?redirect=/register/${climbId}`}
         className="btn btn-gold btn-lg"
-        style={{ marginTop: 20, display: "inline-flex" }}
       >
-        Register Now &#8594;
+        Sign In to Register
       </Link>
-    );
-  }
+      <Link
+        to={`/signup?redirect=/register/${climbId}`}
+        className="btn btn-outline btn-lg"
+      >
+        Create Account
+      </Link>
+    </div>
+  ) : isFull ? (
+    <div
+      className="alert alert-warning"
+      style={{ marginTop: 20, display: "inline-flex" }}
+    >
+      This climb is full. Slots occasionally open up &mdash; check back, or
+      watch the schedule for the next one.
+    </div>
+  ) : (
+    <Link
+      to={`/register/${climbId}`}
+      className="btn btn-gold btn-lg"
+      style={{ marginTop: 20, display: "inline-flex" }}
+    >
+      Register Now &#8594;
+    </Link>
+  );
 
   const mapCoords = getClimbCoords(climb);
 
@@ -594,7 +589,7 @@ export default function Event() {
             </div>
           )}
 
-          <RegisterButton />
+          {registerCta}
 
           {!currentUser && (
             <div className="visitor-event-prompt">
@@ -606,15 +601,18 @@ export default function Event() {
                 map, participant list, fees, and documents are visible to
                 registered members.
               </div>
+              {/* This block sits directly under the register CTA, so it sends
+                  the user the same place. The LockedCard modal further down
+                  the page keeps /event/:id — those unlock this page. */}
               <div className="visitor-event-prompt-actions">
                 <Link
-                  to={`/signup?redirect=/event/${climbId}`}
+                  to={`/signup?redirect=/register/${climbId}`}
                   className="btn btn-gold"
                 >
                   Create Account
                 </Link>
                 <Link
-                  to={`/login?redirect=/event/${climbId}`}
+                  to={`/login?redirect=/register/${climbId}`}
                   className="btn btn-outline"
                 >
                   Sign In
@@ -1090,8 +1088,12 @@ export default function Event() {
                           rel="noopener noreferrer"
                           className="btn btn-outline btn-sm"
                         >
-                          <Icon name="globe" size={14} style={{ marginRight: 4 }} />
-                        View on Google Maps
+                          <Icon
+                            name="globe"
+                            size={14}
+                            style={{ marginRight: 4 }}
+                          />
+                          View on Google Maps
                         </a>
                       </div>
                     </>
@@ -1798,7 +1800,11 @@ export default function Event() {
                 </div>
                 <ul
                   className="info-list"
-                  style={{ margin: 0, fontSize: "0.86rem", color: "var(--ink)" }}
+                  style={{
+                    margin: 0,
+                    fontSize: "0.86rem",
+                    color: "var(--ink)",
+                  }}
                 >
                   {climb.requiresRegistrationForm && (
                     <li>Signed Climb Registration Form</li>
@@ -1812,95 +1818,7 @@ export default function Event() {
           </div>
         )}
 
-        {/* Fees */}
-        <div className="section-card">
-          <div className="section-header">
-            <span className="icon">
-              <Icon name="wallet" size={17} />
-            </span>
-            <h3>Fees</h3>
-          </div>
-          <div className="section-body">
-            {climb.fees?.length > 0 ? (
-              <>
-                {climb.fees.map((fee, i) => (
-                  <div className="expense-row" key={i}>
-                    <div>
-                      <div className="expense-label">{fee.label}</div>
-                      {fee.note && (
-                        <div className="expense-note">{fee.note}</div>
-                      )}
-                    </div>
-                    <div className="expense-amount">{fee.amount || "TBA"}</div>
-                  </div>
-                ))}
-                {(() => {
-                  const memberFees = climb.fees.filter((f) => !f.isGuestFee);
-                  const numericAmounts = memberFees
-                    .map((f) => parseFloat(String(f.amount).replace(/,/g, "")))
-                    .filter((n) => !isNaN(n));
-                  if (numericAmounts.length === 0) return null;
-                  const hasTBA = memberFees.some((f) =>
-                    isNaN(parseFloat(String(f.amount).replace(/,/g, ""))),
-                  );
-                  const guestFee = climb.fees.find((f) => f.isGuestFee);
-                  const total = numericAmounts.reduce((s, n) => s + n, 0);
-                  return (
-                    <>
-                      <div className="expense-total-row">
-                        <div className="expense-total-label">
-                          Member Total
-                          {hasTBA ? (
-                            <span className="expense-total-note">
-                              {" "}
-                              (excl. TBA items)
-                            </span>
-                          ) : (
-                            ""
-                          )}
-                        </div>
-                        <div className="expense-total-amount">
-                          &#8369;{total.toLocaleString()}
-                        </div>
-                      </div>
-                      {guestFee && (
-                        <div
-                          style={{
-                            fontSize: "0.72rem",
-                            color: "var(--ink-soft)",
-                            marginTop: 6,
-                            fontStyle: "italic",
-                          }}
-                        >
-                          + &#8369;{guestFee.amount} Guest Fee for non-members
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </>
-            ) : (
-              <>
-                <div className="expense-row">
-                  <div className="expense-label">Transportation</div>
-                  <div className="expense-amount">TBA</div>
-                </div>
-                <div className="expense-row">
-                  <div className="expense-label">Registration / Guide Fee</div>
-                  <div className="expense-amount">TBA</div>
-                </div>
-                <div className="expense-row">
-                  <div className="expense-label">Accommodation</div>
-                  <div className="expense-amount">TBA</div>
-                </div>
-                <div className="expense-row">
-                  <div className="expense-label">Food &amp; Meals</div>
-                  <div className="expense-amount">TBA</div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <EventFeesCard climb={climb} />
 
         {/* Climb Officers */}
         <div className="section-card">

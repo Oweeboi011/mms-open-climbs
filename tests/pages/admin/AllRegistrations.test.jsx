@@ -1,16 +1,17 @@
 /**
  * Tests for the Admin All Registrations page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderWithProviders,
   makeAdminAuth,
   registrationFixture,
   climbFixture,
+  mockLiveSnapshot,
 } from "@tests/helpers";
 import AllRegistrations from "@/pages/admin/AllRegistrations";
-import { onSnapshot, getDocs, updateDoc } from "firebase/firestore";
+import { getDocs, updateDoc } from "firebase/firestore";
 import { makeQuerySnapshot } from "@tests/setup";
 
 const regDoc = { id: registrationFixture.id, data: { ...registrationFixture } };
@@ -28,10 +29,7 @@ const climbDoc = { id: climbFixture.id, data: { ...climbFixture } };
 describe("Admin AllRegistrations", () => {
   beforeEach(() => {
     getDocs.mockResolvedValue(makeQuerySnapshot([climbDoc]));
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(makeQuerySnapshot([regDoc, regDoc2]));
-      return vi.fn();
-    });
+    mockLiveSnapshot([regDoc, regDoc2]);
   });
 
   it("renders the All Registrations heading", async () => {
@@ -100,10 +98,8 @@ describe("Admin AllRegistrations", () => {
     expect(climbOptions).toEqual(["Sooner Climb", "Later Climb"]);
   });
 
-  it("shows a transportation toggle and updates it on click", async () => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+  it("shows an optional-service toggle and updates it on click", async () => {
+    mockLiveSnapshot([
           {
             id: registrationFixture.id,
             data: {
@@ -113,16 +109,15 @@ describe("Admin AllRegistrations", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
 
     fireEvent.click(screen.getByText("Juan Cruz"));
-    await waitFor(() => expect(screen.getByText("Own transport")).toBeInTheDocument());
+    await waitFor(() => expect(
+        screen.getByText("Not availing Transportation Fee"),
+      ).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("checkbox"));
 
@@ -143,30 +138,26 @@ describe("Admin AllRegistrations", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: registrationFixture.id,
             data: { ...registrationFixture, paymentStatus: "unpaid", amountPaid: null },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
-    await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
-    expect(screen.getByText("₱500")).toBeInTheDocument();
+    // The dedicated "Outstanding" column was folded into "Payment"; the
+    // amount due is now rendered inside that cell.
+    await waitFor(() => expect(screen.getByText("Payment")).toBeInTheDocument());
+    // Now rendered as "₱500 due" inside the Payment cell.
+    expect(screen.getByText(/500 due/)).toBeInTheDocument();
   });
 
   it("shows the fee breakdown for a registrant when expanded", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           {
             id: registrationFixture.id,
             data: {
@@ -176,10 +167,7 @@ describe("Admin AllRegistrations", () => {
               ],
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
@@ -187,7 +175,7 @@ describe("Admin AllRegistrations", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("Fee Breakdown (current fees)"),
+        screen.getByText(/Fee Breakdown/),
       ).toBeInTheDocument(),
     );
     expect(screen.getByText("Registration Fee")).toBeInTheDocument();
@@ -202,10 +190,7 @@ describe("Admin AllRegistrations", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(makeQuerySnapshot([regDoc]));
-      return vi.fn();
-    });
+    mockLiveSnapshot([regDoc]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
@@ -226,9 +211,7 @@ describe("Admin AllRegistrations", () => {
         },
       ]),
     );
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(
-        makeQuerySnapshot([
+    mockLiveSnapshot([
           regDoc,
           {
             id: "reg-3",
@@ -239,10 +222,7 @@ describe("Admin AllRegistrations", () => {
               medicalCertUpload: { url: "https://example.com/cert.pdf" },
             },
           },
-        ]),
-      );
-      return vi.fn();
-    });
+        ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
     await waitFor(() => {
@@ -283,5 +263,37 @@ describe("Admin AllRegistrations", () => {
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
     const patch = updateDoc.mock.calls.find((c) => c[1]?.name)?.[1];
     expect(patch.name).toBe("Juan Dela Cruz");
+  });
+
+  it("lets an admin record a payment received in person", async () => {
+    // This is the only admin page with a search box, so it's where an admin
+    // looking for one person by name actually lands.
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Record Payment/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Record Payment/i }));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('form input[type="number"]'),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.change(document.querySelector('form input[type="number"]'), {
+      target: { value: "300" },
+    });
+    fireEvent.click(document.querySelector('form button[type="submit"]'));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.payments)?.[1];
+    expect(patch.payments[patch.payments.length - 1]).toMatchObject({
+      amount: 300,
+      status: "verified",
+    });
   });
 });

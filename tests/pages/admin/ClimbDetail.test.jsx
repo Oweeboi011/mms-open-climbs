@@ -1,16 +1,17 @@
 /**
  * Tests for the Admin Climb Detail page.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderAtRoute,
   makeAdminAuth,
   climbFixture,
   registrationFixture,
+  mockLiveSnapshot,
 } from "@tests/helpers";
 import ClimbDetail from "@/pages/admin/ClimbDetail";
-import { getDoc, getDocs, addDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { getDoc, getDocs, addDoc, updateDoc } from "firebase/firestore";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 
 const memberDoc = {
@@ -18,19 +19,35 @@ const memberDoc = {
   data: { displayName: "Maria Santos", email: "maria@example.com" },
 };
 
-// The onSnapshot mock is generic (unaware of which collection the query
-// targets), so every test that stubs registrant rows must also stub an
-// empty result for the feedback subscription the page now also opens —
-// otherwise the registrant fixture bleeds into the feedback query too and
-// renders the same name twice.
+// The page opens three subscriptions — the climb doc, its registrations and
+// its feedback. mockLiveSnapshot serves the registrant rows and routes the
+// climb doc to whatever getDoc the test stubbed, so the registrant fixture
+// can't bleed into the other two.
 function mockRegistrantSnapshot(items) {
-  onSnapshot.mockImplementation((q, cb) => {
-    if (q[0]?.path === "feedback") {
-      cb(makeQuerySnapshot([]));
-      return vi.fn();
-    }
-    cb(makeQuerySnapshot(items));
-    return vi.fn();
+  mockLiveSnapshot(items);
+}
+
+// Mobile, emergency contact and medical conditions are required on the Add
+// Participant form — officers rely on them on the trail.
+function fillRequiredParticipantFields() {
+  const form = screen
+    .getByRole("button", { name: /Add to Climb/i })
+    .closest("form");
+  const byLabel = (text) =>
+    Array.from(form.querySelectorAll("label"))
+      .find((l) => l.textContent.trim().startsWith(text))
+      .closest(".form-group")
+      .querySelector("input,textarea");
+  fireEvent.change(byLabel("Mobile"), { target: { value: "+63 917 000 0000" } });
+  fireEvent.change(byLabel("Emergency Contact Name"), {
+    target: { value: "Maria Cruz" },
+  });
+  fireEvent.change(byLabel("Emergency Contact Mobile"), {
+    target: { value: "+63 917 111 1111" },
+  });
+  fireEvent.change(byLabel("Relationship"), { target: { value: "Spouse" } });
+  fireEvent.change(byLabel("Medical Conditions"), {
+    target: { value: "None" },
   });
 }
 
@@ -90,7 +107,7 @@ describe("Admin ClimbDetail", () => {
       expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Add Joiner/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Add Participant/i }));
 
     await waitFor(() =>
       expect(
@@ -103,9 +120,8 @@ describe("Admin ClimbDetail", () => {
     }).closest(".form-group").querySelector("select");
     fireEvent.change(memberSelect, { target: { value: "user-2" } });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /Add Participant/i }),
-    );
+    fillRequiredParticipantFields();
+    fireEvent.click(screen.getByRole("button", { name: /Add to Climb/i }));
 
     await waitFor(() => expect(addDoc).toHaveBeenCalled());
     const payload = addDoc.mock.calls[0][1];
@@ -164,7 +180,7 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Balance")).toBeInTheDocument());
     // Both the aggregate Total Outstanding stat and this registrant's own
     // row cell show ₱500, since they're the only unpaid registrant.
     expect(screen.getAllByText("₱500").length).toBeGreaterThanOrEqual(1);
@@ -186,7 +202,7 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Balance")).toBeInTheDocument());
     // 500 expected - 300 already declared = 200 remaining (shown in both the
     // aggregate Total Outstanding stat and this registrant's own row cell).
     expect(screen.getAllByText("₱200").length).toBeGreaterThanOrEqual(1);
@@ -494,7 +510,7 @@ describe("Admin ClimbDetail", () => {
     });
   });
 
-  it("lets an admin toggle a registrant's transportation selection", async () => {
+  it("lets an admin toggle a registrant's optional-service selection", async () => {
     mockRegistrantSnapshot([
       {
         id: registrationFixture.id,
@@ -511,7 +527,9 @@ describe("Admin ClimbDetail", () => {
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Juan Cruz"));
 
-    await waitFor(() => expect(screen.getByText("Own transport")).toBeInTheDocument());
+    await waitFor(() => expect(
+        screen.getByText("Not availing Transportation Fee"),
+      ).toBeInTheDocument());
     fireEvent.click(screen.getByRole("checkbox"));
 
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
@@ -540,19 +558,15 @@ describe("Admin ClimbDetail", () => {
   });
 
   it("shows submitted feedback with an average rating", async () => {
-    onSnapshot.mockImplementation((q, cb) => {
-      if (q[0]?.path === "feedback") {
-        cb(
-          makeQuerySnapshot([
-            { id: "fb-1", data: { name: "Juan Cruz", rating: 5, comments: "Amazing climb!" } },
-            { id: "fb-2", data: { name: "Maria Santos", rating: 3, comments: "" } },
-          ]),
-        );
-        return vi.fn();
-      }
-      cb(makeQuerySnapshot([{ id: registrationFixture.id, data: registrationFixture }]));
-      return vi.fn();
-    });
+    mockLiveSnapshot(
+      [{ id: registrationFixture.id, data: registrationFixture }],
+      {
+        feedback: [
+          { id: "fb-1", data: { name: "Juan Cruz", rating: 5, comments: "Amazing climb!" } },
+          { id: "fb-2", data: { name: "Maria Santos", rating: 3, comments: "" } },
+        ],
+      },
+    );
 
     render();
     await waitFor(() => {
@@ -569,5 +583,68 @@ describe("Admin ClimbDetail", () => {
       expect(screen.getByText("Mt. Pulag", { selector: ".admin-page-title" })).toBeInTheDocument(),
     );
     expect(screen.queryByText(/Climb Feedback/)).not.toBeInTheDocument();
+  });
+
+  it("will not add a participant without emergency contact and medical info", async () => {
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Add Participant/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Existing Member", { selector: "label" })).toBeInTheDocument(),
+    );
+
+    const form = screen
+      .getByRole("button", { name: /Add to Climb/i })
+      .closest("form");
+    const nameInput = Array.from(form.querySelectorAll("label"))
+      .find((l) => l.textContent.trim().startsWith("Full Name"))
+      .closest(".form-group")
+      .querySelector("input");
+    fireEvent.change(nameInput, { target: { value: "Walk-in Joiner" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Add to Climb/i }));
+
+    // The field label also matches, so assert on the error alert itself.
+    await waitFor(() =>
+      expect(screen.getByText(/Please complete:/i)).toHaveTextContent(
+        /Emergency Contact Name/i,
+      ),
+    );
+    expect(screen.getByText(/Please complete:/i)).toHaveTextContent(
+      /Medical Conditions/i,
+    );
+    expect(addDoc).not.toHaveBeenCalled();
+  });
+
+  it("records the emergency contact and medical info on the registration", async () => {
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Add Participant/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Existing Member", { selector: "label" })).toBeInTheDocument(),
+    );
+
+    const form = screen
+      .getByRole("button", { name: /Add to Climb/i })
+      .closest("form");
+    const nameInput = Array.from(form.querySelectorAll("label"))
+      .find((l) => l.textContent.trim().startsWith("Full Name"))
+      .closest(".form-group")
+      .querySelector("input");
+    fireEvent.change(nameInput, { target: { value: "Walk-in Joiner" } });
+    fillRequiredParticipantFields();
+    fireEvent.click(screen.getByRole("button", { name: /Add to Climb/i }));
+
+    await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    const payload = addDoc.mock.calls[0][1];
+    expect(payload.emergencyContact).toEqual({
+      name: "Maria Cruz",
+      mobile: "+63 917 111 1111",
+      relationship: "Spouse",
+    });
+    expect(payload.medicalConditions).toBe("None");
+    expect(payload.mobile).toBe("+63 917 000 0000");
+    // Signing binds the participant, so an admin never sets it.
+    expect(payload.waiverSigned).toBe(false);
   });
 });

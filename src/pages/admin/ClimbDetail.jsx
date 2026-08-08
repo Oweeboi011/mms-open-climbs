@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   doc,
-  getDoc,
   collection,
   query,
   where,
@@ -24,16 +23,18 @@ import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 import { logAuditEvent } from "@/utils/auditLog";
+import { recordManualPayment } from "@/utils/recordPayment";
 import {
   getOutstanding as getOutstandingShared,
-  toggleTransportationEntry,
+  toggleOptionalFeeEntry,
+  describeMemberTypeChange,
 } from "@/utils/registrationFees";
 import {
   getPaymentEntries,
-  buildPaymentPatch,
   setEntryStatus,
   setAllEntryStatuses,
 } from "@/utils/payments";
+import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
 export default function AdminClimbDetail() {
   const { id } = useParams();
@@ -55,7 +56,10 @@ export default function AdminClimbDetail() {
   const [feedback, setFeedback] = useState([]);
 
   useEffect(() => {
-    getDoc(doc(db, "climbs", id)).then((snap) => {
+    // Live, not a one-shot read: every expected/outstanding figure on this
+    // page comes from the climb's current fee schedule, so a fee edited
+    // elsewhere has to land here without a reload.
+    const unsubClimb = onSnapshot(doc(db, "climbs", id), (snap) => {
       if (snap.exists()) setClimb({ id: snap.id, ...snap.data() });
     });
 
@@ -78,6 +82,7 @@ export default function AdminClimbDetail() {
     });
 
     return () => {
+      unsubClimb();
       unsub();
       unsubFeedback();
     };
@@ -148,49 +153,22 @@ export default function AdminClimbDetail() {
     });
   }
 
-  // Log a payment the admin received outside the app (cash on-site, bank
-  // transfer). It appends to the same history members build up with their
-  // GCash submissions, so `amountPaid` stays the sum of actual payments
-  // rather than a hand-typed figure with no receipt behind it.
-  async function recordPayment(reg, { amount, note, markVerified }) {
-    const payments = [
-      ...getPaymentEntries(reg),
-      {
-        amount,
-        proofs: [],
-        submittedAt: Timestamp.now(),
-        status: markVerified ? "verified" : "submitted",
-        recordedBy:
-          currentUser?.displayName || currentUser?.email || "admin",
-        ...(note ? { note } : {}),
-      },
-    ];
-    await updateDoc(doc(db, "registrations", reg.id), {
-      ...buildPaymentPatch(payments),
-      updatedAt: serverTimestamp(),
-    });
-    logAuditEvent({
-      actorUid: currentUser?.uid,
-      actorName: currentUser?.displayName || currentUser?.email,
-      action: "payment_recorded",
-      targetType: "registration",
-      targetId: reg.id,
-      targetLabel: reg.name || reg.id,
-      details: `Recorded a ₱${amount.toLocaleString("en-PH")} payment for ${climb?.title || "climb"}${note ? ` — ${note}` : ""}`,
+  async function recordPayment(reg, entry) {
+    await recordManualPayment(reg, entry, {
+      currentUser,
+      climbTitle: climb?.title,
     });
     setRecordingPaymentFor(null);
   }
 
-  // Toggle a registrant's transportation selection (availing organized
-  // transport vs. arranging their own) directly from the registrants table.
-  // Falls back to the climb's fee schedule when the registrant's own
-  // feeBreakdown snapshot doesn't have a transportation line item yet, so
-  // the toggle shows for every registrant, not just those whose snapshot
-  // happens to include it.
-  async function toggleTransportation(reg) {
-    const updated = toggleTransportationEntry(reg, climb);
+  // Toggle whether a registrant is availing one of the climb's optional
+  // services (transportation, porter, …) from the registrants table. Falls
+  // back to the climb's fee schedule when the registrant's own feeBreakdown
+  // snapshot doesn't have that line item yet.
+  async function toggleOptionalFee(reg, label) {
+    const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
-    const nowSelected = updated.find((f) => /transport/i.test(f.label))?.selected;
+    const nowSelected = updated.find((f) => f.label === label)?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -198,11 +176,11 @@ export default function AdminClimbDetail() {
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
-      action: "transportation_toggled",
+      action: "optional_fee_toggled",
       targetType: "registration",
       targetId: reg.id,
       targetLabel: reg.name || reg.id,
-      details: `Transportation set to ${nowSelected ? "availing" : "own transport"} for ${climb?.title || "climb"}`,
+      details: `${label} set to ${nowSelected ? "availing" : "not availing"} for ${climb?.title || "climb"}`,
     });
   }
 
@@ -219,7 +197,9 @@ export default function AdminClimbDetail() {
       targetType: "registration",
       targetId: regId,
       targetLabel: reg?.name || regId,
-      details: `Edited registration for ${climb?.title || "climb"}`,
+      details:
+        `Edited registration for ${climb?.title || "climb"}` +
+        describeMemberTypeChange(reg, patch),
     });
     setEditingReg(null);
   }
@@ -479,7 +459,7 @@ export default function AdminClimbDetail() {
               onClick={() => setAddJoinerOpen(true)}
               title="Manually add a participant who wasn't registered through the app — e.g. a walk-in joiner on a completed climb"
             >
-              + Add Joiner
+              + Add Participant
             </button>
             <Link
               to={`/admin/climbs/${id}/edit`}
@@ -725,23 +705,16 @@ export default function AdminClimbDetail() {
             </div>
 
             {/* Table */}
-            <div className="admin-table-wrap">
+            <ResponsiveTable>
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th style={{ width: "1%" }}>#</th>
                     <th>Participant</th>
-                    <th style={{ width: "1%" }}>Mobile</th>
-                    <th style={{ width: "1%" }}>Waiver</th>
-                    {(climb?.requiresRegistrationForm ||
-                      climb?.requiresMedicalCert) && (
-                      <th style={{ width: "1%" }}>Docs</th>
-                    )}
+                    <th style={{ width: "1%" }}>Compliance</th>
                     <th style={{ width: "1%" }}>Payment</th>
-                    <th style={{ width: "1%" }}>Paid</th>
-                    <th style={{ width: "1%" }}>Outstanding</th>
+                    <th style={{ width: "1%" }}>Balance</th>
                     <th style={{ width: "1%" }}>Status</th>
-                    <th style={{ width: "1%" }}>Registered</th>
                     <th style={{ width: "1%" }}>Actions</th>
                   </tr>
                 </thead>
@@ -749,12 +722,7 @@ export default function AdminClimbDetail() {
                   {filtered.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={
-                          climb?.requiresRegistrationForm ||
-                          climb?.requiresMedicalCert
-                            ? 11
-                            : 10
-                        }
+                        colSpan={7}
                         style={{
                           textAlign: "center",
                           color: "var(--ink-soft)",
@@ -777,7 +745,7 @@ export default function AdminClimbDetail() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         onRecordPayment={setRecordingPaymentFor}
-                        toggleTransportation={toggleTransportation}
+                        toggleOptionalFee={toggleOptionalFee}
                         onEdit={setEditingReg}
                         deleteRegistration={deleteRegistration}
                         editNotes={editNotes}
@@ -792,7 +760,7 @@ export default function AdminClimbDetail() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveTable>
           </>
         )}
 
@@ -801,7 +769,13 @@ export default function AdminClimbDetail() {
             <div className="admin-card-title">
               Climb Feedback ({feedback.length})
             </div>
-            <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)", marginBottom: 16 }}>
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ink-soft)",
+                marginBottom: 16,
+              }}
+            >
               Average rating:{" "}
               <strong>
                 {(
@@ -825,7 +799,13 @@ export default function AdminClimbDetail() {
                       <td style={{ width: "1%", whiteSpace: "nowrap" }}>
                         {f.name || "Anonymous"}
                       </td>
-                      <td style={{ width: "1%", whiteSpace: "nowrap", color: "var(--gold)" }}>
+                      <td
+                        style={{
+                          width: "1%",
+                          whiteSpace: "nowrap",
+                          color: "var(--gold)",
+                        }}
+                      >
                         {"★".repeat(f.rating || 0)}
                         {"☆".repeat(5 - (f.rating || 0))}
                       </td>
@@ -855,6 +835,7 @@ export default function AdminClimbDetail() {
       {editingReg && (
         <EditRegistrationModal
           reg={editingReg}
+          climb={climb}
           onClose={() => setEditingReg(null)}
           onSave={saveRegistrationEdit}
         />

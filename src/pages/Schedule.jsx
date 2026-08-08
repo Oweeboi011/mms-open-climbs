@@ -71,6 +71,10 @@ export default function Schedule() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  function scrollToGrid() {
+    gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   useEffect(() => {
     if (!gridRef.current) return;
     const targets = gridRef.current.querySelectorAll(
@@ -148,6 +152,19 @@ export default function Schedule() {
           &#9678; {stats.total} Summits &middot; 6 Months &middot; 1 Community
           &#9678;
         </p>
+        <div className="hero-cta">
+          {!currentUser && (
+            <Link to="/signup?redirect=/" className="btn btn-gold btn-lg">
+              Create Free Account
+            </Link>
+          )}
+          <button
+            className="btn btn-outline-white btn-lg"
+            onClick={scrollToGrid}
+          >
+            Browse Climbs
+          </button>
+        </div>
         <div className="hero-mountains" aria-hidden="true">
           <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
             <path
@@ -283,10 +300,10 @@ export default function Schedule() {
               registrations.
             </div>
             <div className="visitor-banner-actions">
-              <Link to="/signup" className="btn btn-gold">
+              <Link to="/signup?redirect=/" className="btn btn-gold">
                 Create Account
               </Link>
-              <Link to="/login" className="btn btn-outline-white">
+              <Link to="/login?redirect=/" className="btn btn-outline-white">
                 Sign In
               </Link>
             </div>
