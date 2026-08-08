@@ -354,4 +354,46 @@ describe("Admin ManagePayments", () => {
     const patch = updateDoc.mock.calls.find((c) => c[1]?.feeBreakdown)?.[1];
     expect(patch.feeBreakdown[0].selected).toBe(true);
   });
+
+  it("lets an admin record a payment handed over in person", async () => {
+    // The money page could show every peso owed but not take one — Record
+    // Payment was wired on climb detail only.
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
+    );
+    mockLiveSnapshot([paymentReg]);
+
+    renderWithProviders(<ManagePayments />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Mt. Pulag"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Record Payment/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Record Payment/i }));
+
+    // The modal's blurb is split by a <strong>, so key off its amount field.
+    await waitFor(() =>
+      expect(
+        document.querySelector('form input[type="number"]'),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.change(document.querySelector('form input[type="number"]'), {
+      target: { value: "500" },
+    });
+    fireEvent.click(
+      document.querySelector('form button[type="submit"]'),
+    );
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.payments)?.[1];
+    // Appended to the history rather than overwriting amountPaid, so the
+    // total stays the sum of real payments.
+    expect(patch.payments[patch.payments.length - 1]).toMatchObject({
+      amount: 500,
+      status: "verified",
+    });
+  });
 });

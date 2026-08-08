@@ -23,6 +23,7 @@ import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 import { logAuditEvent } from "@/utils/auditLog";
+import { recordManualPayment } from "@/utils/recordPayment";
 import {
   getOutstanding as getOutstandingShared,
   toggleOptionalFeeEntry,
@@ -30,7 +31,6 @@ import {
 } from "@/utils/registrationFees";
 import {
   getPaymentEntries,
-  buildPaymentPatch,
   setEntryStatus,
   setAllEntryStatuses,
 } from "@/utils/payments";
@@ -153,34 +153,10 @@ export default function AdminClimbDetail() {
     });
   }
 
-  // Log a payment the admin received outside the app (cash on-site, bank
-  // transfer). It appends to the same history members build up with their
-  // GCash submissions, so `amountPaid` stays the sum of actual payments
-  // rather than a hand-typed figure with no receipt behind it.
-  async function recordPayment(reg, { amount, note, markVerified }) {
-    const payments = [
-      ...getPaymentEntries(reg),
-      {
-        amount,
-        proofs: [],
-        submittedAt: Timestamp.now(),
-        status: markVerified ? "verified" : "submitted",
-        recordedBy: currentUser?.displayName || currentUser?.email || "admin",
-        ...(note ? { note } : {}),
-      },
-    ];
-    await updateDoc(doc(db, "registrations", reg.id), {
-      ...buildPaymentPatch(payments),
-      updatedAt: serverTimestamp(),
-    });
-    logAuditEvent({
-      actorUid: currentUser?.uid,
-      actorName: currentUser?.displayName || currentUser?.email,
-      action: "payment_recorded",
-      targetType: "registration",
-      targetId: reg.id,
-      targetLabel: reg.name || reg.id,
-      details: `Recorded a ₱${amount.toLocaleString("en-PH")} payment for ${climb?.title || "climb"}${note ? ` — ${note}` : ""}`,
+  async function recordPayment(reg, entry) {
+    await recordManualPayment(reg, entry, {
+      currentUser,
+      climbTitle: climb?.title,
     });
     setRecordingPaymentFor(null);
   }

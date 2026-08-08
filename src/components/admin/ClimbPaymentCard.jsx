@@ -25,6 +25,7 @@ export default function ClimbPaymentCard({
   handleQrUpload,
   changePaymentStatus,
   onEntryStatusChange,
+  onRecordPayment,
   toggleOptionalFee,
   getOutstanding,
   setLightboxUrl,
@@ -866,6 +867,16 @@ export default function ClimbPaymentCard({
                                           Rejected
                                         </option>
                                       </select>
+                                      {onRecordPayment && (
+                                        <button
+                                          className="btn btn-outline btn-sm"
+                                          style={{ marginTop: 6 }}
+                                          title="Log a payment received outside the app (cash on-site, bank transfer) — it's added to this registrant's history and total"
+                                          onClick={() => onRecordPayment(reg)}
+                                        >
+                                          + Record Payment
+                                        </button>
+                                      )}
                                     </td>
                                   </tr>
                                   {expandedRegId === reg.id && (
