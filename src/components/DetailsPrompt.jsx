@@ -11,6 +11,7 @@ export function detailsIncomplete(reg) {
     !reg.mobile?.trim() ||
     !reg.emergencyContact?.name?.trim() ||
     !reg.emergencyContact?.mobile?.trim() ||
+    !reg.emergencyContact?.relationship?.trim() ||
     !reg.medicalConditions?.trim()
   );
 }

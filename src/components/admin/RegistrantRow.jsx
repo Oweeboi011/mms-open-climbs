@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
+import { detailsIncomplete } from "@/components/DetailsPrompt";
 import PaymentHistory from "./PaymentHistory";
 import { getPaymentEntries, getAllProofs } from "@/utils/payments";
 import {
@@ -126,6 +127,9 @@ export default function RegistrantRow({
             }}
           >
             <ComplianceCheck ok={reg.waiverSigned} label="Waiver" />
+            {/* An admin-added participant starts with neither, so the gap has
+                to be visible to whoever chases them for it. */}
+            <ComplianceCheck ok={!detailsIncomplete(reg)} label="Details" />
             {climb?.requiresRegistrationForm && (
               <ComplianceCheck
                 ok={!!reg.registrationFormUpload?.url}
@@ -373,12 +377,14 @@ export default function RegistrantRow({
                   value={
                     reg.emergencyContact?.name
                       ? `${reg.emergencyContact.name} (${reg.emergencyContact.relationship}) — ${reg.emergencyContact.mobile}`
-                      : null
+                      : "Not provided yet"
                   }
                 />
+                {/* Never "None declared" for a blank: nothing was declared
+                    either way, and officers read this on the trail. */}
                 <InfoCell
                   label="Medical"
-                  value={reg.medicalConditions || "None declared"}
+                  value={reg.medicalConditions || "Not provided yet"}
                 />
               </div>
 
