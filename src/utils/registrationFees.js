@@ -63,6 +63,18 @@ export function getOutstanding(reg, climb) {
   return Math.max(getExpectedTotal(reg, climb) - paidCounted, 0);
 }
 
+// Audit-trail note for an edit that switched member/joiner. Participant type
+// is the one editable field that silently changes what someone owes (it
+// drives the guest fee), so "Edited registration" alone hides the money.
+// Returns "" when the edit didn't touch it.
+export function describeMemberTypeChange(reg, patch) {
+  const before = reg?.memberType || "joiner";
+  const after = patch?.memberType;
+  if (!after || after === before) return "";
+  const label = (t) => (t === "member" ? "MMS Member" : "Joiner");
+  return ` — participant type ${label(before)} → ${label(after)}`;
+}
+
 // Returns a new feeBreakdown array with the transportation entry's
 // `selected` flag flipped, synthesizing that entry from the climb's fee
 // schedule if the registrant's own snapshot doesn't have one yet. Returns

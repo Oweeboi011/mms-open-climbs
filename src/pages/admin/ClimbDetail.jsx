@@ -26,6 +26,7 @@ import { logAuditEvent } from "@/utils/auditLog";
 import {
   getOutstanding as getOutstandingShared,
   toggleTransportationEntry,
+  describeMemberTypeChange,
 } from "@/utils/registrationFees";
 import {
   getPaymentEntries,
@@ -224,7 +225,9 @@ export default function AdminClimbDetail() {
       targetType: "registration",
       targetId: regId,
       targetLabel: reg?.name || regId,
-      details: `Edited registration for ${climb?.title || "climb"}`,
+      details:
+        `Edited registration for ${climb?.title || "climb"}` +
+        describeMemberTypeChange(reg, patch),
     });
     setEditingReg(null);
   }
@@ -860,6 +863,7 @@ export default function AdminClimbDetail() {
       {editingReg && (
         <EditRegistrationModal
           reg={editingReg}
+          climb={climb}
           onClose={() => setEditingReg(null)}
           onSave={saveRegistrationEdit}
         />
