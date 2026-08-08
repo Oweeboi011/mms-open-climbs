@@ -41,6 +41,23 @@ const PAYMENT_LABEL = {
   rejected: "Payment Rejected",
 };
 
+// Paying is open to any active registration, whatever the current payment
+// status — the balance of an instalment, or an optional fee availed later.
+// Only the wording changes: nothing on record yet vs. topping up.
+// Registration explicitly promises this ("you can pay in batches … go to My
+// Climbs anytime and submit another proof of payment"), and gating the button
+// on a verdict from an admin would have made that promise false while a
+// payment sat awaiting review.
+function hasPaymentOnRecord(reg) {
+  return (
+    reg.paymentStatus === "submitted" || reg.paymentStatus === "verified"
+  );
+}
+
+function payActionLabel(reg) {
+  return hasPaymentOnRecord(reg) ? "Add Fees / Pay More" : "Submit Payment";
+}
+
 // The fee lines shown in the pay prompt. The climb's current schedule wins so
 // later corrections (a filled-in "TBA", a newly added fee) show up at payment
 // time; only if the climb is gone do we fall back to the snapshot frozen on
@@ -245,7 +262,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
         }}
       >
         <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
-          {reg.paymentStatus === "verified" ? "Add Fees / Pay More" : "Submit Payment"}
+          {payActionLabel(reg)}
         </h3>
         <p
           style={{
@@ -1422,19 +1439,19 @@ function RegCard({ reg, climb, onPay, onViewReceipt, onSubmitDocs, isPast }) {
             Print Waiver
           </Link>
         )}
-        {reg.status !== "cancelled" &&
-          (reg.paymentStatus === "unpaid" || reg.paymentStatus === "rejected") && (
-            <button className="btn btn-accent btn-sm" onClick={onPay}>
-              Submit Payment
-            </button>
-          )}
-        {reg.status !== "cancelled" && reg.paymentStatus === "verified" && (
+        {reg.status !== "cancelled" && (
           <button
-            className="btn btn-outline btn-sm"
+            className={`btn btn-sm ${
+              hasPaymentOnRecord(reg) ? "btn-outline" : "btn-accent"
+            }`}
             onClick={onPay}
-            title="Availing an extra service (e.g. transportation)? Add it here and submit the additional payment."
+            title={
+              hasPaymentOnRecord(reg)
+                ? "Settling the rest of your balance, or availing an extra service (e.g. transportation)? Add it here and submit the additional payment."
+                : undefined
+            }
           >
-            Add Fees / Pay More
+            {payActionLabel(reg)}
           </button>
         )}
         {(reg.paymentStatus === "submitted" ||
