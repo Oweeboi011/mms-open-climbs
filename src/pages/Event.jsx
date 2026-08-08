@@ -460,14 +460,10 @@ export default function Event() {
       You are registered &mdash; Status:{" "}
       <strong style={{ marginLeft: 4 }}>{regStatus}</strong>
     </div>
-  ) : isFull ? (
-    <div
-      className="alert alert-warning"
-      style={{ marginTop: 20, display: "inline-flex" }}
-    >
-      This climb is full. Waitlist registrations may be accepted.
-    </div>
   ) : !currentUser ? (
+    // Checked before isFull on purpose: a signed-out visitor looking at a
+    // full climb still needs a way in — slots open up, and an account is
+    // what lets them be there when one does.
     <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
       <Link
         to={`/login?redirect=/register/${climbId}`}
@@ -481,6 +477,14 @@ export default function Event() {
       >
         Create Account
       </Link>
+    </div>
+  ) : isFull ? (
+    <div
+      className="alert alert-warning"
+      style={{ marginTop: 20, display: "inline-flex" }}
+    >
+      This climb is full. Slots occasionally open up &mdash; check back, or
+      watch the schedule for the next one.
     </div>
   ) : (
     <Link
@@ -597,15 +601,18 @@ export default function Event() {
                 map, participant list, fees, and documents are visible to
                 registered members.
               </div>
+              {/* This block sits directly under the register CTA, so it sends
+                  the user the same place. The LockedCard modal further down
+                  the page keeps /event/:id — those unlock this page. */}
               <div className="visitor-event-prompt-actions">
                 <Link
-                  to={`/signup?redirect=/event/${climbId}`}
+                  to={`/signup?redirect=/register/${climbId}`}
                   className="btn btn-gold"
                 >
                   Create Account
                 </Link>
                 <Link
-                  to={`/login?redirect=/event/${climbId}`}
+                  to={`/login?redirect=/register/${climbId}`}
                   className="btn btn-outline"
                 >
                   Sign In

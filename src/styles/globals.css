@@ -295,6 +295,15 @@ textarea {
   position: relative;
   z-index: 1;
 }
+.hero-cta {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+  position: relative;
+  z-index: 3;
+}
 
 /* ── STATS BAR ─────────────────────────────────────────────────────────────── */
 .stats-bar {

@@ -2,7 +2,7 @@
  * Tests for Header component.
  *
  * Scenarios:
- *  - Guest: shows Sign In and Join links, no admin link
+ *  - Guest: shows Sign In and Create Account links, no admin link
  *  - Member: shows My Climbs and Sign Out, no admin link
  *  - Admin: shows Admin link
  *  - Sign Out button calls logout
@@ -19,13 +19,13 @@ import {
 } from "@tests/helpers";
 
 describe("Header — guest", () => {
-  it("shows Sign In and Join links", () => {
+  it("shows Sign In and Create Account links", () => {
     renderWithProviders(<Header />, makeGuestAuth());
     expect(
       screen.getAllByRole("link", { name: /Sign In/i }).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByRole("link", { name: /Join/i }).length,
+      screen.getAllByRole("link", { name: /Create Account/i }).length,
     ).toBeGreaterThan(0);
   });
 

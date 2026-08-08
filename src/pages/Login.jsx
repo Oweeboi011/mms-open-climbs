@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { resolveRedirect, authLinkWithRedirect } from "@/utils/authRedirect";
 
 function isInAppBrowser() {
   const ua = navigator.userAgent || "";
@@ -19,10 +20,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const inAppBrowser = isInAppBrowser();
-  const from =
-    new URLSearchParams(location.search).get("redirect") ||
-    location.state?.from?.pathname ||
-    "/";
+  const from = resolveRedirect(location);
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -211,7 +209,10 @@ export default function Login() {
           </button>
 
           <div className="auth-footer">
-            Don&rsquo;t have an account? <Link to="/signup">Create one</Link>
+            Don&rsquo;t have an account?{" "}
+            <Link to={authLinkWithRedirect("/signup", from)}>
+              Create Account
+            </Link>
           </div>
         </div>
       </div>

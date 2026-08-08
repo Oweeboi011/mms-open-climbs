@@ -140,6 +140,64 @@ describe("Event page", () => {
     ).toBeInTheDocument();
   });
 
+  it("still offers a guest an account CTA when the climb is full", async () => {
+    // isFull used to be checked before !currentUser, so a signed-out visitor
+    // to a full climb hit a dead-end warning with no way to sign up at all.
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        maxParticipants: 10,
+        registrationCount: 10,
+      }),
+    );
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeGuestAuth(),
+    );
+    await waitFor(() => screen.getByText("Mt. Pulag"));
+    expect(
+      screen.getByRole("link", { name: /Sign In to Register/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not promise a waitlist that does not exist", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        maxParticipants: 10,
+        registrationCount: 10,
+      }),
+    );
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeMemberAuth(),
+    );
+    await waitFor(() => screen.getByText("Mt. Pulag"));
+    expect(screen.queryByText(/waitlist/i)).not.toBeInTheDocument();
+  });
+
+  it("points the guest prompt at the registration form, like the CTA above it", async () => {
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeGuestAuth(),
+    );
+    await waitFor(() => screen.getByText("Mt. Pulag"));
+    const createAccount = screen.getAllByRole("link", {
+      name: /Create Account/i,
+    });
+    expect(
+      createAccount.some(
+        (a) => a.getAttribute("href") === "/signup?redirect=/register/climb-1",
+      ),
+    ).toBe(true);
+  });
+
   it("shows Already Registered when user has a pending registration", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([

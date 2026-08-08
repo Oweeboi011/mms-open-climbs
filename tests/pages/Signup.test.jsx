@@ -4,7 +4,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import Signup from "@/pages/Signup";
-import { renderWithProviders, makeGuestAuth } from "@tests/helpers";
+import {
+  renderWithProviders,
+  renderAtRoute,
+  makeGuestAuth,
+} from "@tests/helpers";
 
 describe("Signup page", () => {
   function setup(authOverrides = {}) {
@@ -108,5 +112,65 @@ describe("Signup page", () => {
     expect(
       screen.getByRole("button", { name: /Continue with Google/i }),
     ).toBeInTheDocument();
+  });
+
+  describe("pending redirect", () => {
+    it("sends the user to ?redirect= after signing up", async () => {
+      const signup = vi.fn(() => Promise.resolve());
+      const { container } = renderAtRoute(
+        <Signup />,
+        "/signup",
+        "/signup?redirect=/register/abc123",
+        makeGuestAuth({ signup }),
+      );
+      fireEvent.change(
+        container.querySelector('input[placeholder="Juan dela Cruz"]'),
+        { target: { value: "Juan Cruz" } },
+      );
+      fireEvent.change(container.querySelector('input[type="email"]'), {
+        target: { value: "new@example.com" },
+      });
+      const pw = container.querySelectorAll('input[type="password"]');
+      fireEvent.change(pw[0], { target: { value: "password123" } });
+      fireEvent.change(pw[1], { target: { value: "password123" } });
+      fireEvent.click(screen.getByRole("button", { name: /Create Account/i }));
+
+      await waitFor(() => expect(signup).toHaveBeenCalled());
+      // MemoryRouter has no /register route, so the page unmounts on navigate.
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("button", { name: /Create Account/i }),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    // The Header renders its own "Sign In" link, so scope to the card footer.
+    const footerLink = (container) =>
+      container.querySelector(".auth-footer a");
+
+    it("carries the redirect over to the Sign in link", () => {
+      const { container } = renderAtRoute(
+        <Signup />,
+        "/signup",
+        "/signup?redirect=/register/abc123",
+        makeGuestAuth(),
+      );
+      expect(footerLink(container)).toHaveAttribute(
+        "href",
+        "/login?redirect=%2Fregister%2Fabc123",
+      );
+    });
+
+    it("leaves the Sign in link bare when there is no pending redirect", () => {
+      const { container } = renderAtRoute(
+        <Signup />,
+        "/signup",
+        "/signup",
+        makeGuestAuth(),
+      );
+      expect(footerLink(container)).toHaveAttribute("href", "/login");
+    });
+    // state.from (what ProtectedRoute pushes) is covered by
+    // tests/utils/authRedirect.test.js — MemoryRouter here can't set it.
   });
 });

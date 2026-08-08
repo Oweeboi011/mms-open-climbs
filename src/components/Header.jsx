@@ -91,7 +91,7 @@ export default function Header() {
                 Sign In
               </Link>
               <Link to="/signup" className="header-btn header-btn-primary">
-                Join
+                Create Account
               </Link>
             </>
           )}
@@ -190,7 +190,7 @@ export default function Header() {
                 Sign In
               </Link>
               <Link to="/signup" className="btn btn-gold btn-block">
-                Join MMS
+                Create Account
               </Link>
             </div>
           )}

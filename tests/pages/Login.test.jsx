@@ -4,7 +4,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import Login from "@/pages/Login";
-import { renderWithProviders, makeGuestAuth } from "@tests/helpers";
+import {
+  renderWithProviders,
+  renderAtRoute,
+  makeGuestAuth,
+} from "@tests/helpers";
 
 describe("Login page", () => {
   function setup(authOverrides = {}) {
@@ -79,5 +83,21 @@ describe("Login page", () => {
     expect(
       screen.getByRole("link", { name: /Forgot password/i }),
     ).toBeInTheDocument();
+  });
+
+  it("carries a pending redirect over to the Create Account link", () => {
+    // Someone who clicks "Sign In to Register", then realises they have no
+    // account, must not lose the climb on the way to /signup.
+    const { container } = renderAtRoute(
+      <Login />,
+      "/login",
+      "/login?redirect=/register/abc123",
+      makeGuestAuth(),
+    );
+    // The Header has its own Create Account link — scope to the card footer.
+    expect(container.querySelector(".auth-footer a")).toHaveAttribute(
+      "href",
+      "/signup?redirect=%2Fregister%2Fabc123",
+    );
   });
 });

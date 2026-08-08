@@ -1,7 +1,7 @@
 /**
  * Tests for the Register page.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderAtRoute, makeMemberAuth, climbFixture } from "@tests/helpers";
 import Register from "@/pages/Register";
@@ -69,9 +69,55 @@ describe("Register page", () => {
           .getByRole("button", { name: /Submit Registration/i })
           .closest("form"),
       );
+      // Once in the summary list, once beneath the checkbox itself.
       await waitFor(() =>
-        expect(screen.getByText(/agree to the waiver/i)).toBeInTheDocument(),
+        expect(
+          screen.getAllByText(/agree to the Waiver and Release of Liability/i)
+            .length,
+        ).toBeGreaterThan(0),
       );
+    });
+
+    it("keeps the submit button enabled when the waiver is unchecked", async () => {
+      render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      // A disabled button gives the user no way to find out what's wrong.
+      expect(
+        screen.getByRole("button", { name: /Submit Registration/i }),
+      ).not.toBeDisabled();
+    });
+
+    it("marks the first invalid field and scrolls it into view", async () => {
+      const scrollIntoView = vi.fn();
+      // jsdom does not implement scrollIntoView.
+      Element.prototype.scrollIntoView = scrollIntoView;
+
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+
+      fireEvent.change(controlByLabel(container, "Full Name"), {
+        target: { value: "" },
+      });
+      fireEvent.submit(
+        screen
+          .getByRole("button", { name: /Submit Registration/i })
+          .closest("form"),
+      );
+
+      await waitFor(() =>
+        expect(controlByLabel(container, "Full Name")).toHaveClass(
+          "input-error",
+        ),
+      );
+      expect(controlByLabel(container, "Full Name")).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(scrollIntoView).toHaveBeenCalled();
     });
 
     it("lists every missing required field at once, not just the first one", async () => {
@@ -95,10 +141,12 @@ describe("Register page", () => {
       const missingItems = screen
         .getAllByRole("listitem")
         .map((li) => li.textContent);
-      expect(missingItems).toContain("Mobile Number");
-      expect(missingItems).toContain("Emergency Contact Name");
-      expect(missingItems).toContain("Emergency Contact Mobile");
-      expect(missingItems).toContain("Digital Signature");
+      expect(missingItems).toContain("Enter your mobile number.");
+      expect(missingItems).toContain("Enter your emergency contact's name.");
+      expect(missingItems).toContain(
+        "Enter your emergency contact's mobile number.",
+      );
+      expect(missingItems).toContain("Type your full name to sign the waiver.");
     });
 
     it("shows a confirmation modal before submitting, and only registers after confirming", async () => {
