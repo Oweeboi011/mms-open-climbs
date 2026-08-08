@@ -75,17 +75,56 @@ export function describeMemberTypeChange(reg, patch) {
   return ` — participant type ${label(before)} → ${label(after)}`;
 }
 
-// Returns a new feeBreakdown array with the transportation entry's
-// `selected` flag flipped, synthesizing that entry from the climb's fee
-// schedule if the registrant's own snapshot doesn't have one yet. Returns
-// null if the climb has no transportation fee at all (nothing to toggle).
-export function toggleTransportationEntry(reg, climb) {
-  const breakdown = reg.feeBreakdown ? [...reg.feeBreakdown] : [];
-  let idx = breakdown.findIndex((f) => /transport/i.test(f.label));
+// ── Optional services ────────────────────────────────────────────────────────
+//
+// The opt-in line items on a climb — transportation, porter, anything the
+// organisers add later. Admins need headcounts for these to book the right
+// number of vans or porters, so every one of them is tracked the same way.
+//
+// This used to be transportation-only, matched with a /transport/i regex in
+// nine places across five files. Adding porter that way would have been a
+// third copy of a pattern this schema already abandoned once: the guest fee
+// was moved off label-text matching onto an explicit `isGuestFee` flag by
+// scripts/rename-expenses-to-fees.mjs. Driving it off the climb's own fee
+// schedule instead means a new service needs no code at all.
+//
+// feeBreakdown entries join to climb fees by `label`, the same key
+// getFeeItems uses. Renaming a fee on the climb therefore orphans existing
+// selections — pre-existing behaviour, unchanged here.
+
+// The guest fee can carry `optional`, but it follows member type rather than
+// a checkbox, so it is never an opt-in service.
+export function getOptionalServices(climb) {
+  return (climb?.fees || []).filter((f) => f.optional && !f.isGuestFee);
+}
+
+export function isAvailing(reg, label) {
+  return !!(reg?.feeBreakdown || []).find((f) => f.label === label)?.selected;
+}
+
+// Which services to show a toggle for on one registrant: everything the climb
+// currently offers, plus anything already in their own snapshot that the climb
+// has since dropped — otherwise an orphaned availment could never be cleared.
+// Headcounts (getAvailmentCounts) deliberately use the climb's list only,
+// since that is what the organisers actually book against.
+export function getServicesForRegistrant(reg, climb) {
+  const offered = getOptionalServices(climb);
+  const orphaned = (reg?.feeBreakdown || []).filter(
+    (f) => f.optional && !offered.some((o) => o.label === f.label),
+  );
+  return [...offered, ...orphaned];
+}
+
+// Returns a new feeBreakdown array with one optional fee's `selected` flag
+// flipped, synthesizing the entry from the climb's fee schedule if the
+// registrant's own snapshot doesn't have it yet — so the toggle works for
+// everyone on a climb that offers the service, not just those who registered
+// after it was added. Returns null when the climb has no such fee.
+export function toggleOptionalFeeEntry(reg, climb, label) {
+  const breakdown = reg?.feeBreakdown ? [...reg.feeBreakdown] : [];
+  let idx = breakdown.findIndex((f) => f.label === label);
   if (idx === -1) {
-    const climbFee = (climb?.fees || []).find((f) =>
-      /transport/i.test(f.label),
-    );
+    const climbFee = getOptionalServices(climb).find((f) => f.label === label);
     if (!climbFee) return null;
     breakdown.push({
       label: climbFee.label,
@@ -95,5 +134,24 @@ export function toggleTransportationEntry(reg, climb) {
     });
     idx = breakdown.length - 1;
   }
-  return breakdown.map((f, i) => (i === idx ? { ...f, selected: !f.selected } : f));
+  return breakdown.map((f, i) =>
+    i === idx ? { ...f, selected: !f.selected } : f,
+  );
+}
+
+// Per-service headcounts for a climb — what the organisers actually book
+// against. Cancelled registrations are excluded: they don't need a seat.
+export function getAvailmentCounts(regs, climb) {
+  const active = (regs || []).filter((r) => r.status !== "cancelled");
+  return getOptionalServices(climb).map((fee) => {
+    const availing = active.filter((r) => isAvailing(r, fee.label)).length;
+    return {
+      label: fee.label,
+      amount: fee.amount,
+      availing,
+      notAvailing: active.length - availing,
+      total: active.length,
+      pct: active.length ? Math.round((availing / active.length) * 100) : 0,
+    };
+  });
 }

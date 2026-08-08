@@ -5,7 +5,11 @@ import ClimbFeeBreakdown from "@/components/ClimbFeeBreakdown";
 import { StatBox } from "@/components/admin/paymentShared";
 import PaymentHistory from "@/components/admin/PaymentHistory";
 import { getPaymentEntries, getAllProofs } from "@/utils/payments";
-import { getExpectedTotal } from "@/utils/registrationFees";
+import {
+  getExpectedTotal,
+  getServicesForRegistrant,
+  isAvailing,
+} from "@/utils/registrationFees";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
 export default function ClimbPaymentCard({
@@ -21,7 +25,7 @@ export default function ClimbPaymentCard({
   handleQrUpload,
   changePaymentStatus,
   onEntryStatusChange,
-  toggleTransportation,
+  toggleOptionalFee,
   getOutstanding,
   setLightboxUrl,
   fmt,
@@ -263,7 +267,7 @@ export default function ClimbPaymentCard({
                         </div>
                       </div>
 
-                      {/* Transportation breakdown */}
+                      {/* Optional service headcounts */}
                       <div>
                         <div
                           style={{
@@ -275,62 +279,78 @@ export default function ClimbPaymentCard({
                             marginBottom: 10,
                           }}
                         >
-                          Transportation
+                          Optional Services
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            flexWrap: "wrap",
-                            marginBottom: 12,
-                          }}
-                        >
-                          <StatBox
-                            label="Availing Transport"
-                            value={cs.transpoAvailed}
-                            sub="selected Transportation Fee"
-                            color="#0070E0"
-                          />
-                          <StatBox
-                            label="Own Transport"
-                            value={cs.transpoOwn}
-                            sub="not availing organized transport"
-                            color="var(--ink-soft)"
-                          />
-                        </div>
-                        {cs.regs.length > 0 && (
-                          <div
+                        {!cs.availment?.length ? (
+                          <p
                             style={{
-                              height: 8,
-                              borderRadius: 99,
-                              background: "var(--surface-alt)",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <div
-                              style={{
-                                height: "100%",
-                                borderRadius: 99,
-                                background: "#0070E0",
-                                width: `${Math.round((cs.transpoAvailed / cs.regs.length) * 100)}%`,
-                                transition: "width 0.3s",
-                              }}
-                            />
-                          </div>
-                        )}
-                        {cs.regs.length > 0 && (
-                          <div
-                            style={{
-                              fontSize: "0.72rem",
+                              fontSize: "0.78rem",
                               color: "var(--ink-soft)",
-                              marginTop: 4,
+                              fontStyle: "italic",
+                              margin: 0,
                             }}
                           >
-                            {Math.round(
-                              (cs.transpoAvailed / cs.regs.length) * 100,
-                            )}
-                            % availing organized transport
-                          </div>
+                            This climb has no optional services. Add one as an
+                            optional fee on the climb and headcounts appear
+                            here.
+                          </p>
+                        ) : (
+                          cs.availment.map((svc) => (
+                            <div key={svc.label} style={{ marginBottom: 14 }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: 8,
+                                  flexWrap: "wrap",
+                                  marginBottom: 8,
+                                }}
+                              >
+                                <StatBox
+                                  label={`Availing ${svc.label}`}
+                                  value={svc.availing}
+                                  sub={`of ${svc.total} registrants`}
+                                  color="#0070E0"
+                                />
+                                <StatBox
+                                  label="Not Availing"
+                                  value={svc.notAvailing}
+                                  sub={`arranging their own ${svc.label.toLowerCase()}`}
+                                  color="var(--ink-soft)"
+                                />
+                              </div>
+                              {svc.total > 0 && (
+                                <>
+                                  <div
+                                    style={{
+                                      height: 8,
+                                      borderRadius: 99,
+                                      background: "var(--surface-alt)",
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        height: "100%",
+                                        borderRadius: 99,
+                                        background: "#0070E0",
+                                        width: `${svc.pct}%`,
+                                        transition: "width 0.3s",
+                                      }}
+                                    />
+                                  </div>
+                                  <div
+                                    style={{
+                                      fontSize: "0.72rem",
+                                      color: "var(--ink-soft)",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    {svc.pct}% availing {svc.label}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))
                         )}
                       </div>
                     </div>
@@ -575,7 +595,7 @@ export default function ClimbPaymentCard({
                                 <th style={{ width: "1%" }}>#</th>
                                 <th>Participant</th>
                                 <th style={{ width: "1%" }}>Type</th>
-                                <th style={{ width: "1%" }}>Transport</th>
+                                <th style={{ width: "1%" }}>Services</th>
                                 <th style={{ width: "1%" }}>Expected</th>
                                 <th style={{ width: "1%" }}>Declared Paid</th>
                                 <th style={{ width: "1%" }}>Outstanding</th>
@@ -585,15 +605,7 @@ export default function ClimbPaymentCard({
                             </thead>
                             <tbody>
                               {cs.regs.map((reg, idx) => {
-                                const transpoItem = (
-                                  reg.feeBreakdown || []
-                                ).find((f) => /transport/i.test(f.label));
-                                const climbHasTranspoFee = (
-                                  climb.fees || []
-                                ).some((f) => /transport/i.test(f.label));
-                                const showTranspoToggle =
-                                  !!transpoItem || climbHasTranspoFee;
-                                const hasTranspo = transpoItem?.selected;
+                                const services = getServicesForRegistrant(reg, climb);
                                 const outstanding = getOutstanding(reg);
                                 const expected = getExpectedTotal(reg, climb);
                                 return (
@@ -642,29 +654,51 @@ export default function ClimbPaymentCard({
                                       style={{ fontSize: "0.82rem" }}
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      {showTranspoToggle ? (
-                                        <label
+                                      {services.length ? (
+                                        <div
                                           style={{
                                             display: "flex",
-                                            alignItems: "center",
-                                            gap: 6,
-                                            cursor: "pointer",
-                                            color: hasTranspo
-                                              ? "#0070E0"
-                                              : "var(--ink-soft)",
-                                            fontWeight: hasTranspo ? 700 : 400,
-                                            whiteSpace: "nowrap",
+                                            flexDirection: "column",
+                                            gap: 4,
                                           }}
                                         >
-                                          <input
-                                            type="checkbox"
-                                            checked={!!hasTranspo}
-                                            onChange={() =>
-                                              toggleTransportation(reg)
-                                            }
-                                          />
-                                          {hasTranspo ? "🚌 Availing" : "Own"}
-                                        </label>
+                                          {services.map((svc) => {
+                                            const availing = isAvailing(
+                                              reg,
+                                              svc.label,
+                                            );
+                                            return (
+                                              <label
+                                                key={svc.label}
+                                                style={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  gap: 6,
+                                                  cursor: "pointer",
+                                                  color: availing
+                                                    ? "#0070E0"
+                                                    : "var(--ink-soft)",
+                                                  fontWeight: availing
+                                                    ? 700
+                                                    : 400,
+                                                  whiteSpace: "nowrap",
+                                                }}
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={availing}
+                                                  onChange={() =>
+                                                    toggleOptionalFee(
+                                                      reg,
+                                                      svc.label,
+                                                    )
+                                                  }
+                                                />
+                                                {svc.label}
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
                                       ) : (
                                         <span
                                           style={{

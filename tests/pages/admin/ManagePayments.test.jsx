@@ -174,7 +174,7 @@ describe("Admin ManagePayments", () => {
     expect(screen.getByText("₱500")).toBeInTheDocument();
   });
 
-  it("shows a transportation toggle even when the registrant's own fee snapshot lacks it, as long as the climb offers it", async () => {
+  it("shows an optional-service toggle even when the registrant's own fee snapshot lacks it, as long as the climb offers it", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([
         {
@@ -203,7 +203,11 @@ describe("Admin ManagePayments", () => {
     await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Mt. Pulag"));
 
-    await waitFor(() => expect(screen.getByText("Own")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("Transportation Fee").length,
+      ).toBeGreaterThan(0),
+    );
     fireEvent.click(screen.getByRole("checkbox"));
 
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
@@ -315,7 +319,7 @@ describe("Admin ManagePayments", () => {
     expect(screen.getByText(/Total across 2 payments/)).toBeInTheDocument();
   });
 
-  it("lets an admin toggle a registrant's transportation selection", async () => {
+  it("lets an admin toggle a registrant's optional-service selection", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([{ id: climbFixture.id, data: climbFixture }]),
     );
@@ -339,7 +343,11 @@ describe("Admin ManagePayments", () => {
 
     fireEvent.click(screen.getByText("Mt. Pulag"));
 
-    await waitFor(() => expect(screen.getByText("Own")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("Transportation Fee").length,
+      ).toBeGreaterThan(0),
+    );
     fireEvent.click(screen.getByRole("checkbox"));
 
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());

@@ -25,7 +25,8 @@ import ClimbPaymentCard from "@/components/admin/ClimbPaymentCard";
 import { StatBox } from "@/components/admin/paymentShared";
 import {
   getOutstanding as getOutstandingShared,
-  toggleTransportationEntry,
+  toggleOptionalFeeEntry,
+  getAvailmentCounts,
 } from "@/utils/registrationFees";
 import { setEntryStatus, setAllEntryStatuses } from "@/utils/payments";
 import { groupClimbsByCompletion } from "@/utils/climbGrouping";
@@ -161,18 +162,17 @@ export default function ManagePayments() {
     return map;
   }, [climbs]);
 
-  // Toggle a registrant's transportation selection (availing organized
-  // transport vs. arranging their own) directly from the payments table.
-  // Falls back to the climb's current fee schedule when the registrant's own
-  // feeBreakdown snapshot doesn't have a transportation line item yet (e.g.
-  // they registered before the climb offered it), so every registrant on a
-  // climb with a transportation fee gets a toggle, not just the ones whose
-  // snapshot happens to include it.
-  async function toggleTransportation(reg) {
+  // Toggle whether a registrant is availing one of the climb's optional
+  // services from the payments table. Falls back to the climb's current fee
+  // schedule when the registrant's own feeBreakdown snapshot doesn't have
+  // that line item yet (e.g. they registered before the climb offered it),
+  // so every registrant gets a toggle, not just the ones whose snapshot
+  // happens to include it.
+  async function toggleOptionalFee(reg, label) {
     const climb = climbById[reg.climbId];
-    const updated = toggleTransportationEntry(reg, climb);
+    const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
-    const nowSelected = updated.find((f) => /transport/i.test(f.label))?.selected;
+    const nowSelected = updated.find((f) => f.label === label)?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -180,11 +180,11 @@ export default function ManagePayments() {
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
-      action: "transportation_toggled",
+      action: "optional_fee_toggled",
       targetType: "registration",
       targetId: reg.id,
       targetLabel: reg.name || reg.id,
-      details: `Transportation set to ${nowSelected ? "availing" : "own transport"}`,
+      details: `${label} set to ${nowSelected ? "availing" : "not availing"}`,
     });
   }
 
@@ -205,8 +205,6 @@ export default function ManagePayments() {
           totalDeclared: 0,
           totalVerified: 0,
           totalOutstanding: 0,
-          transpoAvailed: 0,
-          transpoOwn: 0,
         };
       }
       const s = map[reg.climbId];
@@ -217,18 +215,12 @@ export default function ManagePayments() {
       s.totalDeclared += paid;
       if (reg.paymentStatus === "verified") s.totalVerified += paid;
       s.totalOutstanding += getOutstanding(reg);
-
-      // Transportation breakdown from feeBreakdown
-      const transpoItem = (reg.feeBreakdown || []).find((f) =>
-        /transport/i.test(f.label),
-      );
-      if (transpoItem) {
-        if (transpoItem.selected) s.transpoAvailed++;
-        else s.transpoOwn++;
-      } else {
-        // No transpo item in breakdown — count as own
-        s.transpoOwn++;
-      }
+    }
+    // Headcount per optional service the climb offers — what the organisers
+    // book vans and porters against. Derived from the climb's own fee
+    // schedule, so a newly added service is counted with no code change.
+    for (const [climbId, s] of Object.entries(map)) {
+      s.availment = getAvailmentCounts(s.regs, climbById[climbId]);
     }
     return map;
   }, [regs, climbById]);
@@ -425,8 +417,8 @@ export default function ManagePayments() {
                       regs: [],
                       totalDeclared: 0,
                       totalVerified: 0,
-                      transpoAvailed: 0,
-                      transpoOwn: 0,
+                      totalOutstanding: 0,
+                      availment: [],
                     };
                     return (
                       <ClimbPaymentCard
@@ -443,7 +435,7 @@ export default function ManagePayments() {
                         handleQrUpload={handleQrUpload}
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
-                        toggleTransportation={toggleTransportation}
+                        toggleOptionalFee={toggleOptionalFee}
                         getOutstanding={getOutstanding}
                         setLightboxUrl={setLightboxUrl}
                         fmt={fmt}
