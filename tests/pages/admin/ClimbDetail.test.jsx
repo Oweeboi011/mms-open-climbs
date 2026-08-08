@@ -157,7 +157,7 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Balance")).toBeInTheDocument());
     // Both the aggregate Total Outstanding stat and this registrant's own
     // row cell show ₱500, since they're the only unpaid registrant.
     expect(screen.getAllByText("₱500").length).toBeGreaterThanOrEqual(1);
@@ -179,7 +179,7 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Balance")).toBeInTheDocument());
     // 500 expected - 300 already declared = 200 remaining (shown in both the
     // aggregate Total Outstanding stat and this registrant's own row cell).
     expect(screen.getAllByText("₱200").length).toBeGreaterThanOrEqual(1);
