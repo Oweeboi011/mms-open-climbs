@@ -18,6 +18,7 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EditRegistrationModal from "@/components/EditRegistrationModal";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
+import { detailsIncomplete } from "@/components/DetailsPrompt";
 import PaymentHistory from "@/components/admin/PaymentHistory";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import { logAuditEvent } from "@/utils/auditLog";
@@ -561,7 +562,11 @@ export default function AllRegistrations() {
                       const hasMedCert =
                         !climb?.requiresMedicalCert ||
                         !!reg.medicalCertUpload?.url;
-                      const allCompliant = hasWaiver && hasForm && hasMedCert;
+                      // An admin-added participant starts with no waiver and
+                      // no details, so both gaps have to show here.
+                      const hasDetails = !detailsIncomplete(reg);
+                      const allCompliant =
+                        hasWaiver && hasForm && hasMedCert && hasDetails;
 
                       return (
                         <React.Fragment key={reg.id}>
@@ -698,6 +703,10 @@ export default function AllRegistrations() {
                                 <ComplianceCheck
                                   ok={hasWaiver}
                                   label="Waiver"
+                                />
+                                <ComplianceCheck
+                                  ok={hasDetails}
+                                  label="Details"
                                 />
                                 {climb?.requiresRegistrationForm && (
                                   <ComplianceCheck
@@ -969,13 +978,15 @@ export default function AllRegistrations() {
                                     value={
                                       reg.emergencyContact?.name
                                         ? `${reg.emergencyContact.name} (${reg.emergencyContact.relationship}) \u2014 ${reg.emergencyContact.mobile}`
-                                        : null
+                                        : "Not provided yet"
                                     }
                                   />
+                                  {/* Never "None declared" for a blank:
+                                      nothing was declared either way. */}
                                   <InfoCell
                                     label="Medical"
                                     value={
-                                      reg.medicalConditions || "None declared"
+                                      reg.medicalConditions || "Not provided yet"
                                     }
                                   />
                                 </div>

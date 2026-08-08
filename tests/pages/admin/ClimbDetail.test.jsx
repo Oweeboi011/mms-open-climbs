@@ -585,7 +585,7 @@ describe("Admin ClimbDetail", () => {
     expect(screen.queryByText(/Climb Feedback/)).not.toBeInTheDocument();
   });
 
-  it("will not add a participant without emergency contact and medical info", async () => {
+  it("adds a participant on the name alone — the rest is theirs to complete", async () => {
     render();
     await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /Add Participant/i }));
@@ -604,14 +604,34 @@ describe("Admin ClimbDetail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Add to Climb/i }));
 
+    await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    const payload = addDoc.mock.calls[0][1];
+    expect(payload.name).toBe("Walk-in Joiner");
+    // Blank, never a guess: the participant fills these in from My Climbs.
+    expect(payload.mobile).toBe("");
+    expect(payload.emergencyContact).toEqual({
+      name: "",
+      mobile: "",
+      relationship: "",
+    });
+    expect(payload.medicalConditions).toBe("");
+  });
+
+  it("still refuses a participant with no name", async () => {
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Add Participant/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Existing Member", { selector: "label" })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Add to Climb/i }));
+
     // The field label also matches, so assert on the error alert itself.
     await waitFor(() =>
       expect(screen.getByText(/Please complete:/i)).toHaveTextContent(
-        /Emergency Contact Name/i,
+        /Full Name/i,
       ),
-    );
-    expect(screen.getByText(/Please complete:/i)).toHaveTextContent(
-      /Medical Conditions/i,
     );
     expect(addDoc).not.toHaveBeenCalled();
   });
