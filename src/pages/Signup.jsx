@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { resolveRedirect, authLinkWithRedirect } from '@/utils/authRedirect';
 
 export default function Signup() {
   const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from     = new URLSearchParams(location.search).get('redirect') || '/';
+  const from     = resolveRedirect(location);
 
   const [form,    setForm]    = useState({ displayName: '', email: '', password: '', confirm: '' });
   const [error,   setError]   = useState('');
@@ -69,7 +70,7 @@ export default function Signup() {
             <img src="/MMS.png" alt="MMS Logo" />
           </div>
           <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join MMS Open Climbs 2026</p>
+          <p className="auth-subtitle">MMS Open Climbs 2026</p>
 
           {error && <div className="alert alert-error">{error}</div>}
 
@@ -127,7 +128,8 @@ export default function Signup() {
           </button>
 
           <div className="auth-footer">
-            Already have an account? <Link to="/login">Sign in</Link>
+            Already have an account?{' '}
+            <Link to={authLinkWithRedirect('/login', from)}>Sign in</Link>
           </div>
         </div>
       </div>

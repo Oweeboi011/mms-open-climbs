@@ -5,6 +5,8 @@ dist/
 .firebase/
 functions/node_modules/
 functions/.env
+# Built app shell baked in at deploy time by scripts/stage-app-shell.mjs
+functions/appShell.generated.js
 firebase-debug.log
 firestore-debug.log
 ui-debug.log

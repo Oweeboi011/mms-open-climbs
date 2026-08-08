@@ -6,6 +6,7 @@
  *  - ProtectedRoute renders children for authenticated user
  *  - AdminRoute redirects non-admin to /
  *  - AdminRoute renders children for admin user
+ *  - Both wait for auth to resolve instead of redirecting
  */
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -57,5 +58,26 @@ describe("AdminRoute", () => {
   it("renders protected content when user is admin", () => {
     renderRoutes(makeAdminAuth(), AdminRoute);
     expect(screen.getByText("protected content")).toBeInTheDocument();
+  });
+});
+
+describe("route guards while auth is still resolving", () => {
+  // Refreshing a protected deep link starts with currentUser null. Redirecting
+  // on that ejects a signed-in user and, for /register/:climbId, throws away
+  // the exact intent the ?redirect= plumbing exists to preserve.
+  it("ProtectedRoute waits instead of redirecting to /login", () => {
+    renderRoutes({ ...makeGuestAuth(), loading: true }, ProtectedRoute);
+    expect(screen.queryByText("login page")).not.toBeInTheDocument();
+    expect(screen.queryByText("protected content")).not.toBeInTheDocument();
+  });
+
+  it("AdminRoute waits instead of redirecting to /", () => {
+    // isAdmin is false until the users/ profile read resolves.
+    renderRoutes(
+      { ...makeAdminAuth(), isAdmin: false, loading: true },
+      AdminRoute,
+    );
+    expect(screen.queryByText("home page")).not.toBeInTheDocument();
+    expect(screen.queryByText("protected content")).not.toBeInTheDocument();
   });
 });

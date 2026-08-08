@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   collection,
-  getDocs,
   doc,
   updateDoc,
   onSnapshot,
@@ -19,16 +18,20 @@ import {
 import { db, storage } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAuditEvent } from "@/utils/auditLog";
+import { recordManualPayment } from "@/utils/recordPayment";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ClimbPaymentCard from "@/components/admin/ClimbPaymentCard";
+import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import { StatBox } from "@/components/admin/paymentShared";
 import {
   getOutstanding as getOutstandingShared,
-  toggleTransportationEntry,
+  toggleOptionalFeeEntry,
+  getAvailmentCounts,
 } from "@/utils/registrationFees";
 import { setEntryStatus, setAllEntryStatuses } from "@/utils/payments";
+import { groupClimbsByCompletion } from "@/utils/climbGrouping";
 
 export default function ManagePayments() {
   const { currentUser } = useAuth();
@@ -40,11 +43,15 @@ export default function ManagePayments() {
   const [qrUploading, setQrUploading] = useState(null);
   const [qrError, setQrError] = useState({});
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
   const fileRefs = useRef({});
 
-  // Load climbs (once)
+  // Live climbs — every expected/outstanding figure on this page is computed
+  // from the climb's current fee schedule, so a fee edited elsewhere has to
+  // land here without a reload.
   useEffect(() => {
-    getDocs(query(collection(db, "climbs"), orderBy("startDate", "asc"))).then(
+    const unsub = onSnapshot(
+      query(collection(db, "climbs"), orderBy("startDate", "asc")),
       (snap) => {
         const list = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
@@ -56,6 +63,7 @@ export default function ManagePayments() {
         setClimbs(list);
       },
     );
+    return unsub;
   }, []);
 
   // Live registrations
@@ -157,18 +165,27 @@ export default function ManagePayments() {
     return map;
   }, [climbs]);
 
-  // Toggle a registrant's transportation selection (availing organized
-  // transport vs. arranging their own) directly from the payments table.
-  // Falls back to the climb's current fee schedule when the registrant's own
-  // feeBreakdown snapshot doesn't have a transportation line item yet (e.g.
-  // they registered before the climb offered it), so every registrant on a
-  // climb with a transportation fee gets a toggle, not just the ones whose
-  // snapshot happens to include it.
-  async function toggleTransportation(reg) {
+  // The money page could show every peso owed but not take one. Cash at the
+  // jump-off is the most common way a balance actually gets settled.
+  async function recordPayment(reg, entry) {
+    await recordManualPayment(reg, entry, {
+      currentUser,
+      climbTitle: climbById[reg.climbId]?.title || reg.climbTitle,
+    });
+    setRecordingPaymentFor(null);
+  }
+
+  // Toggle whether a registrant is availing one of the climb's optional
+  // services from the payments table. Falls back to the climb's current fee
+  // schedule when the registrant's own feeBreakdown snapshot doesn't have
+  // that line item yet (e.g. they registered before the climb offered it),
+  // so every registrant gets a toggle, not just the ones whose snapshot
+  // happens to include it.
+  async function toggleOptionalFee(reg, label) {
     const climb = climbById[reg.climbId];
-    const updated = toggleTransportationEntry(reg, climb);
+    const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
-    const nowSelected = updated.find((f) => /transport/i.test(f.label))?.selected;
+    const nowSelected = updated.find((f) => f.label === label)?.selected;
     await updateDoc(doc(db, "registrations", reg.id), {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
@@ -176,17 +193,17 @@ export default function ManagePayments() {
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
-      action: "transportation_toggled",
+      action: "optional_fee_toggled",
       targetType: "registration",
       targetId: reg.id,
       targetLabel: reg.name || reg.id,
-      details: `Transportation set to ${nowSelected ? "availing" : "own transport"}`,
+      details: `${label} set to ${nowSelected ? "availing" : "not availing"}`,
     });
   }
 
-  // Expected total / outstanding for a registration, from its own fee
-  // snapshot if it has one, otherwise falling back to the climb's current
-  // required fees.
+  // Outstanding for a registration, always against its climb's current fee
+  // schedule (the snapshot on the registration only says which optional items
+  // they picked) — see utils/registrationFees.js.
   const getOutstanding = (reg) =>
     getOutstandingShared(reg, climbById[reg.climbId]);
 
@@ -201,8 +218,6 @@ export default function ManagePayments() {
           totalDeclared: 0,
           totalVerified: 0,
           totalOutstanding: 0,
-          transpoAvailed: 0,
-          transpoOwn: 0,
         };
       }
       const s = map[reg.climbId];
@@ -213,18 +228,12 @@ export default function ManagePayments() {
       s.totalDeclared += paid;
       if (reg.paymentStatus === "verified") s.totalVerified += paid;
       s.totalOutstanding += getOutstanding(reg);
-
-      // Transportation breakdown from feeBreakdown
-      const transpoItem = (reg.feeBreakdown || []).find((f) =>
-        /transport/i.test(f.label),
-      );
-      if (transpoItem) {
-        if (transpoItem.selected) s.transpoAvailed++;
-        else s.transpoOwn++;
-      } else {
-        // No transpo item in breakdown — count as own
-        s.transpoOwn++;
-      }
+    }
+    // Headcount per optional service the climb offers — what the organisers
+    // book vans and porters against. Derived from the climb's own fee
+    // schedule, so a newly added service is counted with no code change.
+    for (const [climbId, s] of Object.entries(map)) {
+      s.availment = getAvailmentCounts(s.regs, climbById[climbId]);
     }
     return map;
   }, [regs, climbById]);
@@ -245,6 +254,11 @@ export default function ManagePayments() {
     }
     return { declared, verified, submitted, outstanding };
   }, [regs, climbById]);
+
+  const { upcoming: upcomingClimbs, completed: completedClimbs } = useMemo(
+    () => groupClimbsByCompletion(climbs),
+    [climbs],
+  );
 
   function fmt(n) {
     return (
@@ -362,42 +376,100 @@ export default function ManagePayments() {
           />
         </div>
 
-        {/* Per-climb cards */}
+        {/* Per-climb cards, upcoming first — collecting payments for a climb
+            that hasn't happened yet is the live work; completed climbs are
+            kept below for reconciliation. */}
         {climbs.length === 0 ? (
           <p style={{ color: "var(--ink-soft)" }}>No climbs found.</p>
         ) : (
-          climbs.map((climb) => {
-            const cs = climbStats[climb.id] || {
-              regs: [],
-              totalDeclared: 0,
-              totalVerified: 0,
-              transpoAvailed: 0,
-              transpoOwn: 0,
-            };
-            return (
-              <ClimbPaymentCard
-                key={climb.id}
-                climb={climb}
-                cs={cs}
-                expandedId={expandedId}
-                setExpandedId={setExpandedId}
-                expandedRegId={expandedRegId}
-                setExpandedRegId={setExpandedRegId}
-                qrUploading={qrUploading}
-                qrError={qrError}
-                fileRefs={fileRefs}
-                handleQrUpload={handleQrUpload}
-                changePaymentStatus={changePaymentStatus}
-                onEntryStatusChange={changeEntryStatus}
-                toggleTransportation={toggleTransportation}
-                getOutstanding={getOutstanding}
-                setLightboxUrl={setLightboxUrl}
-                fmt={fmt}
-              />
-            );
-          })
+          <>
+            {[
+              { title: "Upcoming Climbs", list: upcomingClimbs },
+              { title: "Completed Climbs", list: completedClimbs },
+            ].map(({ title, list }) => (
+              <section key={title} style={{ marginBottom: 22 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                    margin: "0 0 10px",
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: "0.72rem",
+                      fontWeight: 800,
+                      letterSpacing: 2,
+                      textTransform: "uppercase",
+                      color: "var(--ink-soft)",
+                      margin: 0,
+                    }}
+                  >
+                    {title}
+                  </h2>
+                  <span
+                    style={{ fontSize: "0.72rem", color: "var(--ink-soft)" }}
+                  >
+                    {list.length}
+                  </span>
+                </div>
+                {list.length === 0 ? (
+                  <p
+                    style={{
+                      color: "var(--ink-soft)",
+                      fontSize: "0.85rem",
+                      margin: "0 0 4px",
+                    }}
+                  >
+                    None.
+                  </p>
+                ) : (
+                  list.map((climb) => {
+                    const cs = climbStats[climb.id] || {
+                      regs: [],
+                      totalDeclared: 0,
+                      totalVerified: 0,
+                      totalOutstanding: 0,
+                      availment: [],
+                    };
+                    return (
+                      <ClimbPaymentCard
+                        key={climb.id}
+                        climb={climb}
+                        cs={cs}
+                        expandedId={expandedId}
+                        setExpandedId={setExpandedId}
+                        expandedRegId={expandedRegId}
+                        setExpandedRegId={setExpandedRegId}
+                        qrUploading={qrUploading}
+                        qrError={qrError}
+                        fileRefs={fileRefs}
+                        handleQrUpload={handleQrUpload}
+                        changePaymentStatus={changePaymentStatus}
+                        onEntryStatusChange={changeEntryStatus}
+                        toggleOptionalFee={toggleOptionalFee}
+                        onRecordPayment={setRecordingPaymentFor}
+                        getOutstanding={getOutstanding}
+                        setLightboxUrl={setLightboxUrl}
+                        fmt={fmt}
+                      />
+                    );
+                  })
+                )}
+              </section>
+            ))}
+          </>
         )}
       </main>
+      {recordingPaymentFor && (
+        <RecordPaymentModal
+          reg={recordingPaymentFor}
+          onClose={() => setRecordingPaymentFor(null)}
+          onSave={recordPayment}
+        />
+      )}
+
       <Footer />
     </div>
   );

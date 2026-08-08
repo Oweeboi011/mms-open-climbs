@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuide } from "@/contexts/GuideContext";
 
 const STORAGE_KEY = (uid) => `oc_welcomed_${uid}`;
+const AUTO_OPEN_PATHS = ["/", "/my-registrations"];
 
 const MEMBER_STEPS = [
   {
@@ -39,9 +40,9 @@ const MEMBER_STEPS = [
   {
     icon: "✅",
     title: "Track Your Registrations",
-    body: "Check My Registrations to see your status. An admin will review and confirm your slot. You'll receive an email once confirmed.",
+    body: "Check My Climbs to see your status. An admin will review and confirm your slot. You'll receive an email once confirmed.",
     bullets: [
-      'Open "My Registrations" from the account menu to see every climb you\'ve signed up for.',
+      'Open "My Climbs" from the account menu to see every climb you\'ve signed up for.',
       "Status moves from Pending → Confirmed once an admin verifies your payment.",
       "You'll get an email notification the moment your status changes.",
     ],
@@ -49,10 +50,10 @@ const MEMBER_STEPS = [
   {
     icon: "📄",
     title: "Waiver & Print",
-    body: "A waiver is included in the registration form. Once confirmed, you can print your waiver from My Registrations for on-site submission.",
+    body: "A waiver is included in the registration form. Once confirmed, you can print your waiver from My Climbs for on-site submission.",
     bullets: [
       "The digital waiver is signed as part of registration — no separate step needed.",
-      "Once confirmed, use the Print Waiver button in My Registrations for a physical copy.",
+      "Once confirmed, use the Print Waiver button in My Climbs for a physical copy.",
       "Bring the printed waiver on climb day; organizers may ask for it at check-in.",
     ],
   },
@@ -92,11 +93,11 @@ const ADMIN_STEPS = [
   {
     icon: "📝",
     title: "Registrations & Users",
-    body: "Admin → Registrations lists every sign-up across all climbs. Admin → Users lets you manage roles and link Add Joiner entries.",
+    body: "Admin → Registrations lists every sign-up across all climbs. Admin → Users lets you manage roles and link manually added participants to accounts.",
     bullets: [
       "Filter registrations by climb or status to help officers plan headcount.",
       "In Admin → Users, promote a member to admin or adjust their profile as needed.",
-      'You can link a manually added "Add Joiner" entry to an existing member account.',
+      "Use Add Participant on a climb to register a member yourself — they only need to sign the waiver.",
     ],
   },
   {
@@ -114,16 +115,21 @@ const ADMIN_STEPS = [
 export default function WelcomeModal() {
   const { currentUser, userProfile, isAdmin } = useAuth();
   const { guideOpen, setGuideOpen } = useGuide();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const STEPS = isAdmin ? [...MEMBER_STEPS, ...ADMIN_STEPS] : MEMBER_STEPS;
 
-  // Auto-show once per user per browser on first login
+  // Auto-show once per user per browser on first login — but only on pages
+  // the user chose to be on. Signing up from a climb lands on /register/:id,
+  // and throwing a 5-step guide over the form they were reaching for is the
+  // worst possible moment. The flag is written by dismiss(), so deferring
+  // here means they still get the guide the first time they hit the schedule.
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !AUTO_OPEN_PATHS.includes(pathname)) return;
     const seen = localStorage.getItem(STORAGE_KEY(currentUser.uid));
     if (!seen) setOpen(true);
-  }, [currentUser]);
+  }, [currentUser, pathname]);
 
   // Externally triggered (from header icon)
   useEffect(() => {
@@ -218,9 +224,9 @@ export default function WelcomeModal() {
               Next
             </button>
           ) : (
-            <Link to="/" className="btn btn-primary" onClick={dismiss}>
+            <button className="btn btn-primary" onClick={dismiss}>
               Get Started
-            </Link>
+            </button>
           )}
         </div>
 

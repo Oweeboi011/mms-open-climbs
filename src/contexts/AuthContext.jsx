@@ -105,20 +105,31 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // Handle redirect result on page load
-    handleRedirectResult();
+    let unsub = null;
+    let cancelled = false;
 
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        const profile = await fetchProfile(user.uid);
-        setUserProfile(profile);
-      } else {
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
-    return unsub;
+    // Settle the Google redirect before subscribing. Fired-and-forgotten, it
+    // races onAuthStateChanged, which can emit null first and bounce a user
+    // who just came back from the Google consent screen.
+    (async () => {
+      await handleRedirectResult();
+      if (cancelled) return;
+      unsub = onAuthStateChanged(auth, async (user) => {
+        setCurrentUser(user);
+        if (user) {
+          const profile = await fetchProfile(user.uid);
+          setUserProfile(profile);
+        } else {
+          setUserProfile(null);
+        }
+        setLoading(false);
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isAdmin = userProfile?.role === "admin";
@@ -137,7 +148,9 @@ export function AuthProvider({ children }) {
         resetPassword,
       }}
     >
-      {!loading && children}
+      {/* Rendered unconditionally: the public schedule and event pages must
+          not wait on a users/ read. The route guards own the loading gate. */}
+      {children}
     </AuthContext.Provider>
   );
 }
