@@ -86,25 +86,30 @@ describe("Admin ClimbsManage", () => {
     );
   });
 
-  it("groups the table into upcoming and completed climbs", async () => {
+  it("groups the table by status, ordered by relevance", async () => {
+    // Grouping is by status (Open → Draft → Closed → Completed → Cancelled),
+    // not by date. Within a group, completed climbs sort most-recent-first
+    // and the rest soonest-first.
     onSnapshot.mockImplementation((_q, cb) => {
       cb(
         makeQuerySnapshot([
           {
-            id: "climb-past",
+            id: "climb-done",
             data: {
               ...climbFixture,
-              id: "climb-past",
-              title: "Mt. Past",
+              id: "climb-done",
+              title: "Mt. Done",
+              status: "completed",
               startDate: { toDate: () => new Date("2020-01-01") },
             },
           },
           {
-            id: "climb-future",
+            id: "climb-open",
             data: {
               ...climbFixture,
-              id: "climb-future",
-              title: "Mt. Future",
+              id: "climb-open",
+              title: "Mt. Open",
+              status: "open",
               startDate: { toDate: () => new Date("2999-01-01") },
             },
           },
@@ -114,22 +119,20 @@ describe("Admin ClimbsManage", () => {
     });
 
     renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
-    await waitFor(() =>
-      expect(screen.getByText("Upcoming Climbs")).toBeInTheDocument(),
-    );
-    expect(screen.getByText("Completed Climbs")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Open")).toBeInTheDocument());
+    expect(screen.getByText("Completed")).toBeInTheDocument();
 
     // Group header rows bracket their climbs in document order.
     const rowText = [...document.querySelectorAll("tbody tr")].map(
       (tr) => tr.textContent,
     );
-    const upcomingAt = rowText.findIndex((t) => t.includes("Upcoming Climbs"));
-    const completedAt = rowText.findIndex((t) => t.includes("Completed Climbs"));
-    const futureAt = rowText.findIndex((t) => t.includes("Mt. Future"));
-    const pastAt = rowText.findIndex((t) => t.includes("Mt. Past"));
-    expect(upcomingAt).toBeLessThan(futureAt);
-    expect(futureAt).toBeLessThan(completedAt);
-    expect(completedAt).toBeLessThan(pastAt);
+    const openAt = rowText.findIndex((t) => t.includes("Open"));
+    const completedAt = rowText.findIndex((t) => t.includes("Completed"));
+    const openClimbAt = rowText.findIndex((t) => t.includes("Mt. Open"));
+    const doneClimbAt = rowText.findIndex((t) => t.includes("Mt. Done"));
+    expect(openAt).toBeLessThan(openClimbAt);
+    expect(openClimbAt).toBeLessThan(completedAt);
+    expect(completedAt).toBeLessThan(doneClimbAt);
   });
 
   it("shows the itemized fee breakdown when a climb row is expanded", async () => {
@@ -145,7 +148,8 @@ describe("Admin ClimbsManage", () => {
       expect(screen.getByText("Transportation Fee")).toBeInTheDocument();
       expect(screen.getByText("Guest Fee")).toBeInTheDocument();
       // Required total — optional and guest fees are listed but not summed in.
-      expect(screen.getByText("₱1,200")).toBeInTheDocument();
+      // Shown both in the row summary and in the expanded table's footer.
+      expect(screen.getAllByText("₱1,200").length).toBeGreaterThan(0);
     });
   });
 
@@ -170,8 +174,10 @@ describe("Admin ClimbsManage", () => {
       expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
     );
 
-    const selects = screen.getAllByRole("combobox");
-    fireEvent.change(selects[0], { target: { value: "closed" } });
+    // The Change Status select moved into the expanded detail panel.
+    fireEvent.click(screen.getAllByLabelText("Expand details")[0]);
+    const select = await screen.findByRole("combobox");
+    fireEvent.change(select, { target: { value: "closed" } });
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
   });
 });

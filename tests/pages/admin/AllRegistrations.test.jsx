@@ -144,8 +144,11 @@ describe("Admin AllRegistrations", () => {
         ]);
 
     renderWithProviders(<AllRegistrations />, makeAdminAuth());
-    await waitFor(() => expect(screen.getByText("Outstanding")).toBeInTheDocument());
-    expect(screen.getByText("₱500")).toBeInTheDocument();
+    // The dedicated "Outstanding" column was folded into "Payment"; the
+    // amount due is now rendered inside that cell.
+    await waitFor(() => expect(screen.getByText("Payment")).toBeInTheDocument());
+    // Now rendered as "₱500 due" inside the Payment cell.
+    expect(screen.getByText(/500 due/)).toBeInTheDocument();
   });
 
   it("shows the fee breakdown for a registrant when expanded", async () => {
@@ -170,7 +173,7 @@ describe("Admin AllRegistrations", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("Fee Breakdown (current fees)"),
+        screen.getByText(/Fee Breakdown/),
       ).toBeInTheDocument(),
     );
     expect(screen.getByText("Registration Fee")).toBeInTheDocument();
