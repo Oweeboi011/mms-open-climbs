@@ -525,16 +525,22 @@ export default function AllRegistrations() {
 
             {/* Table */}
             <ResponsiveTable>
-              <table className="admin-table">
+              <table className="admin-table table-min-900">
                 <thead>
                   <tr>
-                    <th style={{ width: "1%" }}>#</th>
+                    <th style={{ minWidth: 40 }}>#</th>
                     <th>Participant</th>
                     <th>Climb</th>
                     <th>Compliance</th>
-                    <th style={{ whiteSpace: "nowrap" }}>Payment</th>
-                    <th style={{ whiteSpace: "nowrap" }}>Status</th>
-                    <th style={{ width: "1%" }}>Actions</th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Payment
+                    </th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Status
+                    </th>
+                    <th style={{ minWidth: 130, whiteSpace: "nowrap" }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -743,7 +749,7 @@ export default function AllRegistrations() {
                             </td>
 
                             {/* Payment */}
-                            <td style={{ whiteSpace: "nowrap" }}>
+                            <td>
                               <StatusBadge
                                 status={reg.paymentStatus}
                                 styleMap={PAYMENT_STYLE}
@@ -765,7 +771,7 @@ export default function AllRegistrations() {
                             </td>
 
                             {/* Status */}
-                            <td style={{ whiteSpace: "nowrap" }}>
+                            <td>
                               <StatusBadge
                                 status={reg.status}
                                 styleMap={STATUS_STYLE}

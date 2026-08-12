@@ -354,7 +354,7 @@ describe("Event page", () => {
     await waitFor(() =>
       expect(screen.getByText("Class 4")).toBeInTheDocument(),
     );
-    expect(screen.getByText("Trail Class")).toBeInTheDocument();
+    expect(screen.getByText("Easy climbing")).toBeInTheDocument();
   });
 
   it("shows a scheduled forecast message for far future dates", async () => {
