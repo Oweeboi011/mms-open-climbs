@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import JSZip from "jszip";
 import {
@@ -422,7 +422,10 @@ export default function AdminClimbDetail() {
     [regs, search, filterStatus, filterPayment],
   );
 
-  const getOutstanding = (reg) => getOutstandingShared(reg, climb);
+  const getOutstanding = useCallback(
+    (reg) => getOutstandingShared(reg, climb),
+    [climb],
+  );
 
   const stats = useMemo(
     () => ({
@@ -440,7 +443,7 @@ export default function AdminClimbDetail() {
         .filter((r) => r.status !== "cancelled")
         .reduce((s, r) => s + getOutstanding(r), 0),
     }),
-    [regs, climb],
+    [regs, getOutstanding],
   );
 
   return (

@@ -24,7 +24,9 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import DetailsPrompt, { detailsIncomplete } from "@/components/DetailsPrompt";
 import SignWaiverPrompt from "@/components/SignWaiverPrompt";
+import DocumentUploadModal from "@/components/DocumentUploadModal";
 import { logFailedRequest } from "@/utils/logFailedRequest";
+import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
 import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
 import { getFeeItems } from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
@@ -131,17 +133,27 @@ function PayPrompt({ reg, onClose, onSaved }) {
     return unsub;
   }, [reg.climbId]);
 
-  useEffect(() => {
-    if (!climb?.fees?.length) return;
-    const initial = {};
-    // Only genuinely optional items are toggleable; the guest fee is decided
-    // by member type in getPayPromptFees, not here.
-    getClimbFeeModel(climb).optionalFees.forEach((f) => {
-      const stored = reg.feeBreakdown?.find((e) => e.label === f.label);
-      initial[f.label] = !!stored?.selected;
-    });
-    setSelections(initial);
-  }, [climb, reg]);
+  // Re-derive selections whenever climb or reg changes identity (a fresh
+  // snapshot, or a different registration). Adjusted during render rather
+  // than in a useEffect, per https://react.dev/learn/you-might-not-need-an-effect
+  // — this is state derived from props/state, not a sync with an external
+  // system (the onSnapshot subscription above is the actual sync).
+  const [prevClimb, setPrevClimb] = useState(climb);
+  const [prevReg, setPrevReg] = useState(reg);
+  if (climb !== prevClimb || reg !== prevReg) {
+    setPrevClimb(climb);
+    setPrevReg(reg);
+    if (climb?.fees?.length) {
+      const initial = {};
+      // Only genuinely optional items are toggleable; the guest fee is
+      // decided by member type in getPayPromptFees, not here.
+      getClimbFeeModel(climb).optionalFees.forEach((f) => {
+        const stored = reg.feeBreakdown?.find((e) => e.label === f.label);
+        initial[f.label] = !!stored?.selected;
+      });
+      setSelections(initial);
+    }
+  }
 
   function toggleFee(label) {
     setSelections((p) => ({ ...p, [label]: !p[label] }));
@@ -1215,12 +1227,11 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
     setSaving(true);
     try {
       const patch = {};
-      const timestamp = Date.now();
       for (const docType of uploadableDocs) {
         const file = docFiles[docType.key];
         const fileRef = storageRef(
           storage,
-          `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId}/${timestamp}_${file.name}`,
+          `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId}/${makeUploadTimestamp()}_${file.name}`,
         );
         await uploadBytes(fileRef, file);
         const url = await getDownloadURL(fileRef);
@@ -1245,156 +1256,43 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 420,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
-          Submit Required Documents
-        </h3>
-        <p
-          style={{
-            fontSize: "0.82rem",
-            color: "var(--ink-soft)",
-            marginBottom: 16,
-          }}
-        >
+    <DocumentUploadModal
+      title="Submit Required Documents"
+      subtitle={
+        <>
           For <strong>{reg.climbTitle}</strong>
-        </p>
-        {error && <div className="alert alert-error">{error}</div>}
-
-        {submittedDocs.filter((d) => !updatingKeys.has(d.key)).length > 0 && (
-          <ul
-            className="info-list"
-            style={{
-              margin: "0 0 16px",
-              padding: 0,
-              listStyle: "none",
-              fontSize: "0.82rem",
-            }}
-          >
-            {submittedDocs
-              .filter((docType) => !updatingKeys.has(docType.key))
-              .map((docType) => (
-                <li
-                  key={docType.key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    marginBottom: 4,
-                  }}
-                >
-                  <span style={{ color: "var(--green-dark)" }}>
-                    &#10003;{" "}
-                    <a
-                      href={reg[docType.uploadField].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {docType.registerLabel}
-                    </a>{" "}
-                    already submitted
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    style={{ marginLeft: "auto", padding: "1px 8px" }}
-                    onClick={() => toggleUpdating(docType.key)}
-                  >
-                    Update
-                  </button>
-                </li>
-              ))}
-          </ul>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          {uploadableDocs.map((docType) => (
-            <div className="form-group" key={docType.key}>
-              <label className="form-label required">
-                {docType.registerLabel}
-              </label>
-              {submittedDocs.some((d) => d.key === docType.key) && (
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  style={{ float: "right", padding: "1px 8px" }}
-                  onClick={() => toggleUpdating(docType.key)}
-                >
-                  Cancel Update
-                </button>
-              )}
-              {climb?.[docType.sampleUrlField] && (
-                <div style={{ marginBottom: 8 }}>
-                  <a
-                    href={climb[docType.sampleUrlField]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline btn-sm"
-                  >
-                    &#128196; {docType.downloadButtonLabel}
-                  </a>
-                </div>
-              )}
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,image/*"
-                className="form-input"
-                onChange={(e) =>
-                  setDocFiles((p) => ({
-                    ...p,
-                    [docType.key]: e.target.files[0] || null,
-                  }))
-                }
-              />
-              <div className="form-hint">{docType.registerHint}</div>
-            </div>
-          ))}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button
-              type="button"
+        </>
+      }
+      reg={reg}
+      uploadableDocs={uploadableDocs}
+      submittedDocs={submittedDocs}
+      updatingKeys={updatingKeys}
+      toggleUpdating={toggleUpdating}
+      setDocFiles={setDocFiles}
+      error={error}
+      saving={saving}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      getLabel={(docType) => docType.registerLabel}
+      labelRequired
+      getHint={(docType) => docType.registerHint}
+      renderSampleLink={(docType) =>
+        climb?.[docType.sampleUrlField] && (
+          <div style={{ marginBottom: 8 }}>
+            <a
+              href={climb[docType.sampleUrlField]}
+              target="_blank"
+              rel="noopener noreferrer"
               className="btn btn-outline btn-sm"
-              onClick={onClose}
-              disabled={saving}
-              style={{ flex: 1 }}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary btn-sm"
-              disabled={saving}
-              style={{ flex: 1 }}
-            >
-              {saving ? "Submitting…" : "Submit"}
-            </button>
+              &#128196; {docType.downloadButtonLabel}
+            </a>
           </div>
-        </form>
-      </div>
-    </div>
+        )
+      }
+      saveLabel="Submit"
+      savingLabel="Submitting…"
+    />
   );
 }
 

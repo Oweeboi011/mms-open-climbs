@@ -126,10 +126,10 @@ get lowered as files are split.
 | `complexity` | 115 | `Event()` — 112 |
 | `max-params` | 6 | comfortably under |
 | `max-depth` | 5 | comfortably under |
-| duplication (`jscpd`) | 4% | 3.5% |
-| ESLint warnings (`--max-warnings`) | 19 | 19 |
+| duplication (`jscpd`) | 4% | 3.71% |
+| ESLint warnings (`--max-warnings`) | 0 | 0 |
 | frontend coverage (lines/stmts/fns/branches) | 63 / 62 / 56 / 52 | 63.6 / 62.6 / 57 / 52.5 |
-| functions coverage (lines/stmts/fns/branches) | 67 / 67 / 56 / 64 | 67.9 / 67.7 / 56.3 / 64.9 |
+| functions coverage (lines/stmts/fns/branches) | 83 / 83 / 74 / 68 | 83.14 / 83 / 74.19 / 68.22 |
 
 Coverage floors are ratchets too: they were raised from 45/45/35/34 (frontend)
 and 30/30/25/20 (functions) — where they had drifted far below actual — to just
@@ -155,12 +155,12 @@ take to flip each one to a gate.
 | Check | Why advisory | To make it block |
 |---|---|---|
 | Semgrep (`patterns` job) | Broad community rulesets produce noise on first adoption; CodeQL is already the blocking security analysis. | Triage one clean run, pin a ruleset, then drop `continue-on-error`. |
-| `react-hooks` purity/effect rules | 19 existing hits, each needing a behavioural refactor (`set-state-in-effect`, `exhaustive-deps`, `purity`, `immutability`, `globals`, `static-components`). | Fix hits, lower `--max-warnings` toward 0. `rules-of-hooks` is **already** an error. |
+| `react-hooks` purity/effect rules | Fixed to 0 (see ADR 0002 follow-up). Two legitimate cases — a cross-component setState and a mount-time data fetch — keep narrowly-scoped, commented `eslint-disable-next-line`s; everything else was a real behavioural fix. | Done. `rules-of-hooks` is **already** an error; `--max-warnings` is now `0`, so any new hit fails the build immediately. |
 | `no-console` | Warns rather than errors; some admin pages log intentionally. | Route deliberate logging through a helper, then flip to error. |
 | `dependency-cruiser` `no-orphans` | Warns rather than errors — a legitimately-unused module is occasionally staged ahead of the code that uses it. | Clear any standing orphans, then set `severity: "error"`. |
 
-`--max-warnings 19` is itself a ratchet: fixing a warning without lowering the
-number just banks slack for the next one. Lower it.
+`--max-warnings` is itself a ratchet: fixing a warning without lowering the
+number just banks slack for the next one. It's now `0`.
 
 ### Dependency advisories
 

@@ -11,10 +11,14 @@ export default function Header() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Close drawer on navigation
-  useEffect(() => {
+  // Close drawer on navigation. Adjusted during render (rather than in a
+  // useEffect) per https://react.dev/learn/you-might-not-need-an-effect —
+  // this is derived state, not a sync with an external system.
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
+  if (location.pathname !== prevPathname) {
+    setPrevPathname(location.pathname);
     setMenuOpen(false);
-  }, [location.pathname]);
+  }
 
   // Lock body scroll while drawer is open
   useEffect(() => {
