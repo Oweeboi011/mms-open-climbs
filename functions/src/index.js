@@ -18,6 +18,7 @@ const {
   getCountedTotal,
   getPaymentEntries,
 } = require("./paymentMath");
+const { REQUIRED_DOC_TYPES } = require("./requiredDocTypes");
 
 initializeApp();
 
@@ -130,6 +131,45 @@ function tplStatusUpdate({ name, climbTitle, newStatus, reason }) {
       <p style="margin:0;font-weight:700;color:#0d2b12;text-transform:uppercase;">${climbTitle}</p>
     </div>
     <p style="color:#4a4a4a;font-size:13px;">For inquiries, contact your MMS Open Climbs Coordinator.</p>`);
+}
+
+function tplClimbCancellation({
+  name,
+  climbTitle,
+  climbDate,
+  climbLocation,
+  statusLabel,
+  reason,
+}) {
+  const isCancelled = statusLabel === "Cancelled";
+  const color = isCancelled ? "#c62828" : "#e65100";
+  const bg = isCancelled ? "#fdecea" : "#fff3e0";
+  return tplBase(`
+    <h2 style="color:${color};font-size:20px;margin:0 0 16px;">Climb ${statusLabel}</h2>
+    <p style="color:#4a4a4a;font-size:15px;">Hi <strong>${name}</strong>,</p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">The following climb you're registered for has been <strong>${statusLabel.toLowerCase()}</strong>:</p>
+    <div style="background:${bg};border-left:4px solid ${color};padding:16px 20px;border-radius:0 8px 8px 0;margin:20px 0;">
+      <p style="margin:0;font-size:18px;font-weight:700;color:#0d2b12;text-transform:uppercase;letter-spacing:1px;">${climbTitle}</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#4a4a4a;">&#128197; ${climbDate} &nbsp;&bull;&nbsp; &#128205; ${climbLocation}</p>
+    </div>
+    ${reason ? `<p style="color:#4a4a4a;font-size:14px;line-height:1.6;"><strong>Reason:</strong> ${reason}</p>` : ""}
+    <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">For questions, please contact your MMS coordinator.</p>`);
+}
+
+function tplOfficerClimbCancellation({
+  climbTitle,
+  statusLabel,
+  reason,
+  registrantCount,
+  appUrl,
+}) {
+  return tplBase(`
+    <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Climb marked ${statusLabel}</h2>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;"><strong>${climbTitle}</strong> has been marked <strong>${statusLabel.toLowerCase()}</strong> in the admin panel. ${registrantCount} active registrant${registrantCount === 1 ? " has" : "s have"} been emailed and notified.</p>
+    ${reason ? `<p style="color:#4a4a4a;font-size:14px;line-height:1.6;"><strong>Reason:</strong> ${reason}</p>` : ""}
+    <p style="margin:24px 0;">
+      <a href="${appUrl}/admin" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">Open Admin Panel</a>
+    </p>`);
 }
 
 function tplWelcome({ displayName, setupLink }) {
@@ -304,9 +344,9 @@ async function logFailedRequest({
 // currently requires? Used to keep climbs/{id}.docsCompleteCount in sync,
 // which powers the "X/Y Docs Submitted" progress badge on climb cards ──────
 function regDocsComplete(climb, reg) {
-  if (climb?.requiresRegistrationForm && !reg?.registrationFormUpload) return false;
-  if (climb?.requiresMedicalCert && !reg?.medicalCertUpload) return false;
-  return true;
+  return REQUIRED_DOC_TYPES.every(
+    (docType) => !climb?.[docType.requiresField] || !!reg?.[docType.uploadField],
+  );
 }
 
 // ── Trigger: new registration → send confirmation email ───────────────────────
@@ -361,25 +401,18 @@ exports.onRegistrationCreated = onDocumentCreated(
           id: `payment_${event.params.regId}`,
         });
       }
-      if (userId && climb.requiresRegistrationForm && !reg.registrationFormUpload) {
-        await createNotification({
-          userId,
-          type: "document_reminder",
-          title: "Registration form still needed",
-          message: `Please upload your signed registration form for ${climb.title}.`,
-          link: "/my-registrations",
-          id: `regform_${event.params.regId}`,
-        });
-      }
-      if (userId && climb.requiresMedicalCert && !reg.medicalCertUpload) {
-        await createNotification({
-          userId,
-          type: "document_reminder",
-          title: "Medical certificate still needed",
-          message: `Please upload your medical certificate for ${climb.title}.`,
-          link: "/my-registrations",
-          id: `medcert_${event.params.regId}`,
-        });
+      if (userId) {
+        for (const docType of REQUIRED_DOC_TYPES) {
+          if (!climb[docType.requiresField] || reg[docType.uploadField]) continue;
+          await createNotification({
+            userId,
+            type: "document_reminder",
+            title: `${docType.sentenceLabel} still needed`,
+            message: `Please upload your ${docType.label.toLowerCase()} for ${climb.title}.`,
+            link: "/my-registrations",
+            id: `${docType.notificationPrefix}_${event.params.regId}`,
+          });
+        }
       }
 
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
@@ -632,19 +665,14 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
     }
 
     // Required document uploaded → clear the corresponding nag notification.
-    if (!before.registrationFormUpload && after.registrationFormUpload) {
-      await db
-        .collection("notifications")
-        .doc(`regform_${regId}`)
-        .set({ read: true }, { merge: true })
-        .catch(() => {});
-    }
-    if (!before.medicalCertUpload && after.medicalCertUpload) {
-      await db
-        .collection("notifications")
-        .doc(`medcert_${regId}`)
-        .set({ read: true }, { merge: true })
-        .catch(() => {});
+    for (const docType of REQUIRED_DOC_TYPES) {
+      if (!before[docType.uploadField] && after[docType.uploadField]) {
+        await db
+          .collection("notifications")
+          .doc(`${docType.notificationPrefix}_${regId}`)
+          .set({ read: true }, { merge: true })
+          .catch(() => {});
+      }
     }
 
     // Keep registeredUserIds in sync whenever status moves in or out of the
@@ -668,8 +696,10 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
     // snapshots so upload objects are never `===` even when unchanged.
     const docsRelevantChange =
       wasActive !== isActive ||
-      !!before.registrationFormUpload !== !!after.registrationFormUpload ||
-      !!before.medicalCertUpload !== !!after.medicalCertUpload;
+      REQUIRED_DOC_TYPES.some(
+        (docType) =>
+          !!before[docType.uploadField] !== !!after[docType.uploadField],
+      );
     if (docsRelevantChange && after.userId && after.climbId) {
       const climbSnapForDocs = await db.doc(`climbs/${after.climbId}`).get();
       if (climbSnapForDocs.exists) {
@@ -839,17 +869,27 @@ exports.onClimbUpdated = onDocumentUpdated(
 
     // A requirement was switched off → clear any outstanding nag
     // notifications for it instead of leaving them stuck unread forever.
-    const formTurnedOff =
-      before.requiresRegistrationForm && !after.requiresRegistrationForm;
-    const certTurnedOff =
-      before.requiresMedicalCert && !after.requiresMedicalCert;
+    const turnedOffDocTypes = REQUIRED_DOC_TYPES.filter(
+      (docType) =>
+        before[docType.requiresField] && !after[docType.requiresField],
+    );
     // Either requirement flipping in *either* direction changes who counts
     // as "compliant" — docsCompleteCount needs a full recount either way.
-    const requirementsChanged =
-      !!before.requiresRegistrationForm !== !!after.requiresRegistrationForm ||
-      !!before.requiresMedicalCert !== !!after.requiresMedicalCert;
+    const requirementsChanged = REQUIRED_DOC_TYPES.some(
+      (docType) =>
+        !!before[docType.requiresField] !== !!after[docType.requiresField],
+    );
 
-    if (newAnnouncements.length === 0 && !requirementsChanged) {
+    const CANCELLATION_LABELS = { cancelled: "Cancelled", postponed: "Postponed" };
+    const cancellationChanged =
+      (before.cancellationStatus || "") !== (after.cancellationStatus || "") &&
+      !!CANCELLATION_LABELS[after.cancellationStatus];
+
+    if (
+      newAnnouncements.length === 0 &&
+      !requirementsChanged &&
+      !cancellationChanged
+    ) {
       return;
     }
 
@@ -862,20 +902,13 @@ exports.onClimbUpdated = onDocumentUpdated(
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((r) => r.userId && r.status !== "cancelled");
 
-      if (formTurnedOff || certTurnedOff) {
+      if (turnedOffDocTypes.length > 0) {
         await Promise.all(
           activeRegs.map(async (r) => {
-            if (formTurnedOff) {
+            for (const docType of turnedOffDocTypes) {
               await db
                 .collection("notifications")
-                .doc(`regform_${r.id}`)
-                .set({ read: true }, { merge: true })
-                .catch(() => {});
-            }
-            if (certTurnedOff) {
-              await db
-                .collection("notifications")
-                .doc(`medcert_${r.id}`)
+                .doc(`${docType.notificationPrefix}_${r.id}`)
                 .set({ read: true }, { merge: true })
                 .catch(() => {});
             }
@@ -888,6 +921,89 @@ exports.onClimbUpdated = onDocumentUpdated(
           regDocsComplete(after, r),
         ).length;
         await db.doc(`climbs/${climbId}`).update({ docsCompleteCount });
+      }
+
+      if (cancellationChanged) {
+        const statusLabel = CANCELLATION_LABELS[after.cancellationStatus];
+        const reason = after.cancellationReason || "";
+        const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+        const { officerEmails, adminEmails } = await getNotifyLists(after);
+
+        await Promise.all(
+          activeRegs.map(async (r) => {
+            if (r.email) {
+              await sendEmail({
+                to: r.email,
+                toName: r.name || "",
+                subject: `Climb ${statusLabel} — ${after.title || "MMS Open Climbs"}`,
+                html: tplClimbCancellation({
+                  name: r.name || "there",
+                  climbTitle: after.title || "",
+                  climbDate: after.dateLabel || "",
+                  climbLocation: after.location || "",
+                  statusLabel,
+                  reason,
+                }),
+              }).catch((err) =>
+                logger.error("[onClimbUpdated] cancellation email failed", {
+                  err: err.message,
+                  regId: r.id,
+                }),
+              );
+            }
+            if (r.userId) {
+              await createNotification({
+                userId: r.userId,
+                type: "climb_status_change",
+                title: `Climb ${statusLabel} — ${after.title || "your climb"}`,
+                message:
+                  reason || `This climb has been ${statusLabel.toLowerCase()}.`,
+                link: `/event/${climbId}`,
+                id: `climbstatus_${climbId}_${after.cancellationStatus}_${r.id}`,
+              });
+            }
+          }),
+        );
+
+        // Let officers (cc admins) — or admins directly if no officers —
+        // know the climb was marked cancelled/postponed and that
+        // registrants have already been emailed, mirroring the
+        // per-registration status-change notify pattern above.
+        const officerTpl = {
+          climbTitle: after.title || "",
+          statusLabel,
+          reason,
+          registrantCount: activeRegs.length,
+          appUrl,
+        };
+        if (officerEmails.length > 0) {
+          for (const officer of officerEmails) {
+            await sendEmail({
+              to: officer.email,
+              toName: officer.name,
+              subject: `[Climb ${statusLabel}] ${after.title || "MMS Open Climbs"}`,
+              html: tplOfficerClimbCancellation(officerTpl),
+              cc: adminEmails,
+            }).catch((err) =>
+              logger.error("[onClimbUpdated] officer cancellation email failed", {
+                err: err.message,
+              }),
+            );
+          }
+        } else if (adminEmails.length > 0) {
+          const [first, ...rest] = adminEmails;
+          await sendEmail({
+            to: first.email,
+            toName: first.name,
+            subject: `[Climb ${statusLabel}] ${after.title || "MMS Open Climbs"}`,
+            html: tplOfficerClimbCancellation(officerTpl),
+            cc: rest,
+          }).catch((err) =>
+            logger.error("[onClimbUpdated] admin cancellation email failed", {
+              err: err.message,
+            }),
+          );
+        }
       }
 
       if (newAnnouncements.length > 0) {
@@ -989,25 +1105,18 @@ exports.sendReminderNotifications = onSchedule(
       }
 
       // Missing required-document nags — re-surface as unread each run.
-      if (climb?.requiresRegistrationForm && !reg.registrationFormUpload) {
-        await createNotification({
-          userId: reg.userId,
-          type: "document_reminder",
-          title: "Registration form still needed",
-          message: `Please upload your signed registration form for ${reg.climbTitle || climb.title || "your climb"}.`,
-          link: "/my-registrations",
-          id: `regform_${reg.id}`,
-        });
-      }
-      if (climb?.requiresMedicalCert && !reg.medicalCertUpload) {
-        await createNotification({
-          userId: reg.userId,
-          type: "document_reminder",
-          title: "Medical certificate still needed",
-          message: `Please upload your medical certificate for ${reg.climbTitle || climb.title || "your climb"}.`,
-          link: "/my-registrations",
-          id: `medcert_${reg.id}`,
-        });
+      if (climb) {
+        for (const docType of REQUIRED_DOC_TYPES) {
+          if (!climb[docType.requiresField] || reg[docType.uploadField]) continue;
+          await createNotification({
+            userId: reg.userId,
+            type: "document_reminder",
+            title: `${docType.sentenceLabel} still needed`,
+            message: `Please upload your ${docType.label.toLowerCase()} for ${reg.climbTitle || climb.title || "your climb"}.`,
+            link: "/my-registrations",
+            id: `${docType.notificationPrefix}_${reg.id}`,
+          });
+        }
       }
 
       // Upcoming-climb reminders for confirmed participants only.
@@ -1066,10 +1175,10 @@ exports.sendReminderNotifications = onSchedule(
       const unpaidCount = climbRegs.filter(
         (r) => r.paymentStatus === "unpaid" || r.paymentStatus === "rejected",
       ).length;
-      const missingDocsCount = climbRegs.filter(
-        (r) =>
-          (climb.requiresRegistrationForm && !r.registrationFormUpload) ||
-          (climb.requiresMedicalCert && !r.medicalCertUpload),
+      const missingDocsCount = climbRegs.filter((r) =>
+        REQUIRED_DOC_TYPES.some(
+          (docType) => climb[docType.requiresField] && !r[docType.uploadField],
+        ),
       ).length;
       if (unpaidCount === 0 && missingDocsCount === 0) continue;
 

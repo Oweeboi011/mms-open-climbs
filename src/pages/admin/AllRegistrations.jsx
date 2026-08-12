@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   collection,
@@ -21,6 +21,7 @@ import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
 import PaymentHistory from "@/components/admin/PaymentHistory";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
+import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
 import {
@@ -45,18 +46,18 @@ import {
   STATUS_STYLE,
   EXPERIENCE_LABELS,
 } from "@/components/admin/registrantShared";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 
-// A registrant is missing required documents when their climb requires a
-// registration form and/or medical cert and the corresponding upload hasn't
-// been submitted yet.
+// A registrant is missing required documents when their climb requires one
+// of the REQUIRED_DOC_TYPES and the corresponding upload hasn't been
+// submitted yet.
 function hasMissingRequiredDocs(reg, climb) {
   if (!climb) return false;
-  if (climb.requiresRegistrationForm && !reg.registrationFormUpload?.url)
-    return true;
-  if (climb.requiresMedicalCert && !reg.medicalCertUpload?.url) return true;
-  return false;
+  return REQUIRED_DOC_TYPES.some(
+    (docType) => climb[docType.requiresField] && !reg[docType.uploadField]?.url,
+  );
 }
 
 export default function AllRegistrations() {
@@ -80,6 +81,7 @@ export default function AllRegistrations() {
   const [expandedId, setExpandedId] = useState(null);
   const [editingReg, setEditingReg] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
+  const [managingDocsFor, setManagingDocsFor] = useState(null);
 
   const [scope, setScope] = useState("active");
 
@@ -96,8 +98,12 @@ export default function AllRegistrations() {
           status: d.data().status,
           startDate: d.data().startDate,
           fees: d.data().fees || [],
-          requiresRegistrationForm: !!d.data().requiresRegistrationForm,
-          requiresMedicalCert: !!d.data().requiresMedicalCert,
+          ...Object.fromEntries(
+            REQUIRED_DOC_TYPES.map((docType) => [
+              docType.requiresField,
+              !!d.data()[docType.requiresField],
+            ]),
+          ),
         }))
         .sort((a, b) => {
           const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
@@ -259,17 +265,40 @@ export default function AllRegistrations() {
     });
     setRecordingPaymentFor(null);
   }
+
+  // Admin submitting/replacing a required document on a participant's
+  // behalf — a walk-in's physical copy, or a member who can't upload it
+  // themselves right now.
+  async function saveAdminDocs(reg, patch) {
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "documents_submitted_by_admin",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: Object.keys(patch).join(", "),
+    });
+    setManagingDocsFor(null);
+  }
   const climbStatusById = useMemo(() => {
     const map = {};
     for (const c of climbs) map[c.id] = c.status;
     return map;
   }, [climbs]);
 
-  const isPastReg = (r) => climbStatusById[r.climbId] === "completed";
+  const isPastReg = useCallback(
+    (r) => climbStatusById[r.climbId] === "completed",
+    [climbStatusById],
+  );
 
   const scoped = useMemo(
     () => regs.filter((r) => (scope === "past" ? isPastReg(r) : !isPastReg(r))),
-    [regs, climbStatusById, scope],
+    [regs, isPastReg, scope],
   );
 
   const filtered = useMemo(() => {
@@ -318,11 +347,11 @@ export default function AllRegistrations() {
 
   const activeCount = useMemo(
     () => regs.filter((r) => !isPastReg(r)).length,
-    [regs, climbStatusById],
+    [regs, isPastReg],
   );
   const pastCount = useMemo(
     () => regs.filter((r) => isPastReg(r)).length,
-    [regs, climbStatusById],
+    [regs, isPastReg],
   );
 
   function exportCSV() {
@@ -525,16 +554,22 @@ export default function AllRegistrations() {
 
             {/* Table */}
             <ResponsiveTable>
-              <table className="admin-table">
+              <table className="admin-table table-min-900">
                 <thead>
                   <tr>
-                    <th style={{ width: "1%" }}>#</th>
+                    <th style={{ minWidth: 40 }}>#</th>
                     <th>Participant</th>
                     <th>Climb</th>
                     <th>Compliance</th>
-                    <th style={{ whiteSpace: "nowrap" }}>Payment</th>
-                    <th style={{ whiteSpace: "nowrap" }}>Status</th>
-                    <th style={{ width: "1%" }}>Actions</th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Payment
+                    </th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Status
+                    </th>
+                    <th style={{ minWidth: 130, whiteSpace: "nowrap" }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -556,17 +591,12 @@ export default function AllRegistrations() {
                       const climb = climbById[reg.climbId];
                       const outstanding = getOutstanding(reg, climb);
                       const hasWaiver = !!reg.waiverSignedName;
-                      const hasForm =
-                        !climb?.requiresRegistrationForm ||
-                        !!reg.registrationFormUpload?.url;
-                      const hasMedCert =
-                        !climb?.requiresMedicalCert ||
-                        !!reg.medicalCertUpload?.url;
+                      const hasAllDocs = !hasMissingRequiredDocs(reg, climb);
                       // An admin-added participant starts with no waiver and
                       // no details, so both gaps have to show here.
                       const hasDetails = !detailsIncomplete(reg);
                       const allCompliant =
-                        hasWaiver && hasForm && hasMedCert && hasDetails;
+                        hasWaiver && hasAllDocs && hasDetails;
 
                       return (
                         <React.Fragment key={reg.id}>
@@ -708,25 +738,19 @@ export default function AllRegistrations() {
                                   ok={hasDetails}
                                   label="Details"
                                 />
-                                {climb?.requiresRegistrationForm && (
+                                {REQUIRED_DOC_TYPES.filter(
+                                  (docType) => climb?.[docType.requiresField],
+                                ).map((docType) => (
                                   <ComplianceCheck
-                                    ok={!!reg.registrationFormUpload?.url}
-                                    label="Form"
+                                    key={docType.key}
+                                    ok={!!reg[docType.uploadField]?.url}
+                                    label={docType.badgeLabel}
                                     href={
-                                      reg.registrationFormUpload?.url ||
+                                      reg[docType.uploadField]?.url ||
                                       undefined
                                     }
                                   />
-                                )}
-                                {climb?.requiresMedicalCert && (
-                                  <ComplianceCheck
-                                    ok={!!reg.medicalCertUpload?.url}
-                                    label="Med Cert"
-                                    href={
-                                      reg.medicalCertUpload?.url || undefined
-                                    }
-                                  />
-                                )}
+                                ))}
                                 {!allCompliant && (
                                   <span
                                     style={{
@@ -743,7 +767,7 @@ export default function AllRegistrations() {
                             </td>
 
                             {/* Payment */}
-                            <td style={{ whiteSpace: "nowrap" }}>
+                            <td>
                               <StatusBadge
                                 status={reg.paymentStatus}
                                 styleMap={PAYMENT_STYLE}
@@ -765,7 +789,7 @@ export default function AllRegistrations() {
                             </td>
 
                             {/* Status */}
-                            <td style={{ whiteSpace: "nowrap" }}>
+                            <td>
                               <StatusBadge
                                 status={reg.status}
                                 styleMap={STATUS_STYLE}
@@ -1061,8 +1085,9 @@ export default function AllRegistrations() {
                                 )}
 
                                 {/* ── Required Documents ── */}
-                                {(climb?.requiresRegistrationForm ||
-                                  climb?.requiresMedicalCert) && (
+                                {REQUIRED_DOC_TYPES.some(
+                                  (docType) => climb?.[docType.requiresField],
+                                ) && (
                                   <>
                                     <SectionLabel>
                                       &#128196; Required Documents
@@ -1075,35 +1100,36 @@ export default function AllRegistrations() {
                                         marginBottom: 16,
                                       }}
                                     >
-                                      {climb.requiresRegistrationForm && (
+                                      {REQUIRED_DOC_TYPES.filter(
+                                        (docType) =>
+                                          climb[docType.requiresField],
+                                      ).map((docType) => (
                                         <ComplianceCheck
-                                          ok={!!reg.registrationFormUpload?.url}
+                                          key={docType.key}
+                                          ok={!!reg[docType.uploadField]?.url}
                                           label={
-                                            reg.registrationFormUpload?.url
-                                              ? "Reg. Form Uploaded"
-                                              : "Reg. Form Missing"
+                                            reg[docType.uploadField]?.url
+                                              ? `${docType.panelLabel} Uploaded`
+                                              : `${docType.panelLabel} Missing`
                                           }
                                           href={
-                                            reg.registrationFormUpload?.url ||
+                                            reg[docType.uploadField]?.url ||
                                             undefined
                                           }
                                         />
-                                      )}
-                                      {climb.requiresMedicalCert && (
-                                        <ComplianceCheck
-                                          ok={!!reg.medicalCertUpload?.url}
-                                          label={
-                                            reg.medicalCertUpload?.url
-                                              ? "Med. Cert Uploaded"
-                                              : "Med. Cert Missing"
-                                          }
-                                          href={
-                                            reg.medicalCertUpload?.url ||
-                                            undefined
-                                          }
-                                        />
-                                      )}
+                                      ))}
                                     </div>
+                                    <button
+                                      className="btn btn-outline btn-sm"
+                                      style={{ marginBottom: 16 }}
+                                      title="Submit a document on this participant's behalf, or replace one they already uploaded"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setManagingDocsFor(reg);
+                                      }}
+                                    >
+                                      + Manage Documents
+                                    </button>
                                   </>
                                 )}
 
@@ -1241,6 +1267,16 @@ export default function AllRegistrations() {
           reg={recordingPaymentFor}
           onClose={() => setRecordingPaymentFor(null)}
           onSave={recordPayment}
+        />
+      )}
+
+      {managingDocsFor && (
+        <AdminDocumentModal
+          reg={managingDocsFor}
+          climb={climbById[managingDocsFor.climbId]}
+          currentUser={currentUser}
+          onClose={() => setManagingDocsFor(null)}
+          onSave={saveAdminDocs}
         />
       )}
 

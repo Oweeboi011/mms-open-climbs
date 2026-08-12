@@ -55,16 +55,22 @@ export default function AdminReleaseNotesManage() {
           <LoadingSpinner />
         ) : (
           <ResponsiveTable>
-            <table className="admin-table">
+            <table className="admin-table table-min-620">
               <thead>
                 <tr>
                   <th>Title</th>
-                  <th style={{ width: "1%" }}>Status</th>
-                  <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                    Status
+                  </th>
+                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
                     Emailed
                   </th>
-                  <th style={{ width: "1%" }}>Created</th>
-                  <th style={{ width: "1%" }}>Actions</th>
+                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                    Created
+                  </th>
+                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -105,7 +111,7 @@ export default function AdminReleaseNotesManage() {
                           <span style={{ color: "var(--ink-soft)" }}>—</span>
                         )}
                       </td>
-                      <td style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
+                      <td style={{ fontSize: "0.78rem" }}>
                         {note.createdAt?.toDate?.().toLocaleDateString("en-PH") ||
                           "—"}
                       </td>

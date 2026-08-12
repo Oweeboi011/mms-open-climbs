@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import Icon from "@/components/Icon";
+import { getExperienceLevel, TRAIL_CLASS_LABELS } from "@/utils/trailClass";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const BADGE_CLASS = {
   minor: "badge-minor",
@@ -24,18 +26,6 @@ const STATUS_CLASS = {
 function toDate(value) {
   if (!value) return null;
   return value.toDate ? value.toDate() : new Date(value);
-}
-
-function getExperienceLevel(climb) {
-  let n = parseInt(climb.trailClass, 10);
-  if (!n && climb.difficulty) {
-    const m = String(climb.difficulty).match(/(\d+)\s*\/\s*9/);
-    if (m) n = parseInt(m[1], 10);
-  }
-  if (!n) return { label: "Not Yet Rated", color: "#9e9e9e" };
-  if (n <= 3) return { label: "Beginner Friendly", color: "#2e7d32" };
-  if (n <= 5) return { label: "Moderate", color: "#b8860b" };
-  return { label: "Advanced", color: "#c0392b" };
 }
 
 const EXACT_TEAM_LEADER_RE = /^team leader$/i;
@@ -75,10 +65,12 @@ export default function ClimbCard({ climb }) {
   const level = getExperienceLevel(climb);
   const leads = getLeadOfficers(climb.officers);
   const hasAnnouncement = climb.announcements?.length > 0;
-  const docsRequired = [
-    climb.requiresRegistrationForm && "Registration Form",
-    climb.requiresMedicalCert && "Medical Certificate",
-  ].filter(Boolean);
+  const docsRequired = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb[docType.requiresField],
+  ).map((docType) => docType.label);
+  const docsRequiredShort = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb[docType.requiresField],
+  ).map((docType) => docType.badgeLabel);
   const docsComplete = climb.docsCompleteCount ?? 0;
 
   return (
@@ -107,7 +99,10 @@ export default function ClimbCard({ climb }) {
             {level.label}
           </span>
 
-          {(climb.elevation || climb.difficulty || climb.roundTripDistance) && (
+          {(climb.elevation ||
+            climb.difficulty ||
+            climb.trailClass ||
+            climb.roundTripDistance) && (
             <div className="card-stats">
               {climb.elevation && (
                 <span className="card-stat">
@@ -119,6 +114,15 @@ export default function ClimbCard({ climb }) {
                 <span className="card-stat">
                   <Icon name="gauge" size={12} />
                   {climb.difficulty}
+                </span>
+              )}
+              {climb.trailClass && (
+                <span
+                  className="card-stat"
+                  title={TRAIL_CLASS_LABELS[climb.trailClass] || ""}
+                >
+                  <Icon name="activity" size={12} />
+                  Class {climb.trailClass}
                 </span>
               )}
               {climb.roundTripDistance && (
@@ -192,6 +196,18 @@ export default function ClimbCard({ climb }) {
               </span>
             )}
 
+            {climb.cancellationStatus === "cancelled" && (
+              <span className="card-flag-tag card-flag-cancelled">
+                Cancelled
+              </span>
+            )}
+
+            {climb.cancellationStatus === "postponed" && (
+              <span className="card-flag-tag card-flag-postponed">
+                Postponed
+              </span>
+            )}
+
             {hasAnnouncement && (
               <span className="card-flag-tag card-flag-announcement">
                 <Icon name="megaphone" size={11} />
@@ -206,10 +222,8 @@ export default function ClimbCard({ climb }) {
               >
                 <Icon name="fileCheck" size={11} />
                 {registered > 0
-                  ? `${docsComplete}/${registered} Docs Submitted`
-                  : docsRequired.length > 1
-                    ? "Docs Required"
-                    : `${docsRequired[0]} Required`}
+                  ? `${docsComplete}/${registered} Submitted — ${docsRequiredShort.join(", ")}`
+                  : `${docsRequiredShort.join(", ")} Required`}
               </span>
             )}
           </div>

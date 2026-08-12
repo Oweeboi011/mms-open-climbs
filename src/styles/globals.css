@@ -682,6 +682,16 @@ textarea {
   color: #ffb3b3;
   border: 1px solid rgba(255, 90, 90, 0.38);
 }
+.card-flag-cancelled {
+  background: rgba(198, 40, 40, 0.32);
+  color: #ffcdd2;
+  border: 1px solid rgba(198, 40, 40, 0.55);
+}
+.card-flag-postponed {
+  background: rgba(230, 81, 0, 0.28);
+  color: #ffcc80;
+  border: 1px solid rgba(230, 81, 0, 0.48);
+}
 /* Card colour palette */
 .c-slate {
   background: linear-gradient(145deg, #37474f 0%, #1c313a 100%);
@@ -1505,6 +1515,11 @@ textarea {
   color: #b91c1c;
   border: 1px solid #fca5a5;
 }
+.status-docs-missing {
+  background: #fce8e8;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
 .status-waitlisted {
   background: #fff3e0;
   color: #e65100;
@@ -1720,10 +1735,13 @@ textarea {
 /* ── Actions column ──────────────────────────────────────────────────────── */
 .admin-table-actions {
   display: flex;
+  flex-direction: column;
   gap: 6px;
-  align-items: center;
-  flex-wrap: nowrap;
+  align-items: stretch;
   white-space: nowrap;
+}
+.admin-table-actions .btn {
+  text-align: center;
 }
 
 /* ── Wrapping + overflow ─────────────────────────────────────────────────── */
@@ -1820,8 +1838,35 @@ textarea {
   .admin-table td:first-child {
     font-weight: 700;
   }
-  .admin-table-actions {
-    justify-content: flex-end;
+}
+
+/* Column-squeeze guards for wide admin tables — several columns need a real
+   floor so short content (dates, role pills) doesn't get crushed into
+   vertical single-character wrapping under browser auto table-layout.
+   Scoped to above the mobile card breakpoint only: below 860px the table
+   collapses to stacked cards (see above) and a min-width would defeat that
+   by forcing the table wider than the viewport. */
+@media (min-width: 861px) {
+  .table-min-880 {
+    min-width: 880px;
+  }
+  .table-min-980 {
+    min-width: 980px;
+  }
+  .table-min-900 {
+    min-width: 900px;
+  }
+  .table-min-780 {
+    min-width: 780px;
+  }
+  .table-min-720 {
+    min-width: 720px;
+  }
+  .table-min-640 {
+    min-width: 640px;
+  }
+  .table-min-620 {
+    min-width: 620px;
   }
 }
 .admin-search {
@@ -2044,6 +2089,7 @@ textarea {
 }
 .reg-card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 20px;
   background: var(--surface);
@@ -2244,9 +2290,6 @@ textarea {
 
   /* Registration card header wraps */
   .reg-card-header {
-    flex-wrap: wrap;
-  }
-  .reg-card-actions {
     flex-wrap: wrap;
   }
 
@@ -4276,6 +4319,171 @@ details[open] > .myreg-collapsible::before {
 .welcome-skip:hover {
   opacity: 1;
 }
+.guide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.25s ease;
+}
+.guide-modal {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 32px 32px 24px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.guide-title {
+  font-family: var(--font-head);
+  font-size: 1.3rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--green-dark);
+  line-height: 1.2;
+  margin: 0;
+}
+.guide-close {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 2px;
+  font-size: 1.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.guide-close:hover {
+  color: var(--green-dark);
+}
+.guide-intro {
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 6px 0 20px;
+}
+.guide-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px 16px;
+  margin-bottom: 10px;
+}
+.guide-section summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  color: var(--green-dark);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+}
+.guide-section summary::-webkit-details-marker {
+  display: none;
+}
+.guide-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--green-pale);
+  color: var(--green-light);
+  flex-shrink: 0;
+}
+.guide-section-arrow {
+  margin-left: auto;
+  color: var(--ink-soft);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+.guide-section[open] .guide-section-arrow {
+  transform: rotate(90deg);
+}
+.guide-section-critical {
+  border-color: #e6a700;
+  background: #fffaf0;
+}
+.guide-section-critical .guide-section-icon {
+  background: #fff3d6;
+  color: #b45309;
+}
+.guide-section-badge {
+  font-family: var(--font-head);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #7a4a00;
+  background: #ffe4a3;
+  border: 1px solid #e6a700;
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+}
+.guide-section-body {
+  padding: 0 0 16px 40px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  text-align: left;
+}
+.guide-section-body p {
+  margin: 0 0 10px;
+  text-align: left;
+}
+.guide-section-body ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+.guide-section-body li {
+  text-align: left;
+}
+.guide-section-body strong {
+  color: var(--green-dark);
+}
+.guide-section-critical .guide-section-body strong {
+  color: #7a4a00;
+}
+.guide-section-footnote {
+  margin: 0;
+  font-size: 0.78rem;
+  font-style: italic;
+}
+.guide-checklist {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+.guide-checklist li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -4409,5 +4617,71 @@ details[open] > .myreg-collapsible::before {
   }
   .visitor-banner {
     position: relative;
+  }
+}
+
+/* ── RELEASE NOTES TIMELINE ────────────────────────────────────────────────── */
+.rn-timeline {
+  position: relative;
+  padding-left: 44px;
+  margin-top: 8px;
+}
+.rn-timeline::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--gold) 0%,
+    var(--border) 14%,
+    var(--border) 100%
+  );
+}
+.rn-timeline-item {
+  position: relative;
+}
+.rn-timeline-dot {
+  position: absolute;
+  left: -44px;
+  top: 18px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 3px solid var(--green-mid);
+  box-shadow: 0 0 0 4px var(--surface);
+  z-index: 2;
+}
+.rn-timeline-item--latest .rn-timeline-dot {
+  border-color: var(--gold);
+  background: var(--gold-light);
+  box-shadow:
+    0 0 0 4px var(--surface),
+    0 0 0 7px var(--gold-pale);
+}
+.rn-timeline-item .reg-card {
+  margin-bottom: 20px;
+}
+
+@media (max-width: 520px) {
+  .rn-timeline {
+    padding-left: 32px;
+  }
+  .rn-timeline::before {
+    left: 7px;
+  }
+  .rn-timeline-dot {
+    left: -32px;
+    width: 16px;
+    height: 16px;
+    top: 20px;
+  }
+  .rn-timeline-item--latest .rn-timeline-dot {
+    box-shadow:
+      0 0 0 3px var(--surface),
+      0 0 0 6px var(--gold-pale);
   }
 }

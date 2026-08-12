@@ -20,6 +20,16 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { logAuditEvent } from "@/utils/auditLog";
+import CancellationStatusFields from "@/components/admin/CancellationStatusFields";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import {
+  TRAIL_CLASS_LABELS,
+  TRAIL_CLASS_DESCRIPTIONS,
+  TRAIL_CLASS_VALUES,
+  DIFFICULTY_LABELS,
+  DIFFICULTY_DESCRIPTIONS,
+  DIFFICULTY_VALUES,
+} from "@/utils/trailClass";
 
 const OFFICER_ROLES = [
   "Senior Team Leader",
@@ -84,6 +94,8 @@ const EMPTY_FORM = {
   type: "minor",
   color: "c-slate",
   status: "draft",
+  cancellationStatus: "",
+  cancellationReason: "",
   maxParticipants: 30,
   isWide: false,
   itineraryReady: false,
@@ -145,6 +157,12 @@ const EMPTY_FORM = {
   requiresMedicalCert: false,
   medicalCertSampleUrl: "",
   medicalCertSampleFileName: "",
+  requiresPermit: false,
+  permitSampleUrl: "",
+  permitSampleFileName: "",
+  requiresWaiverDoc: false,
+  waiverDocSampleUrl: "",
+  waiverDocSampleFileName: "",
 };
 
 export default function AdminClimbForm() {
@@ -638,6 +656,7 @@ export default function AdminClimbForm() {
                 </select>
               </div>
             </div>
+            <CancellationStatusFields form={form} setForm={setForm} />
             <div className="form-row">
               <label
                 style={{
@@ -690,13 +709,26 @@ export default function AdminClimbForm() {
               </div>
               <div className="form-group">
                 <label className="form-label">Difficulty</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. 3/9"
+                <select
+                  className="form-select"
                   value={form.difficulty}
                   onChange={(e) => set("difficulty", e.target.value)}
-                />
+                >
+                  <option value="">— Not specified —</option>
+                  {DIFFICULTY_VALUES.map((n) => (
+                    <option key={n} value={`${n}/9`}>
+                      {n}/9 — {DIFFICULTY_LABELS[n]}
+                    </option>
+                  ))}
+                </select>
+                {(() => {
+                  const n = parseInt(form.difficulty, 10);
+                  return (
+                    DIFFICULTY_DESCRIPTIONS[n] && (
+                      <p className="form-hint">{DIFFICULTY_DESCRIPTIONS[n]}</p>
+                    )
+                  );
+                })()}
               </div>
               <div className="form-group">
                 <label className="form-label">Trail Class</label>
@@ -706,16 +738,17 @@ export default function AdminClimbForm() {
                   onChange={(e) => set("trailClass", e.target.value)}
                 >
                   <option value="">— Not specified —</option>
-                  <option value="1">Class 1 — Easy day hike</option>
-                  <option value="2">Class 2 — Moderate day hike</option>
-                  <option value="3">Class 3 — Strenuous day hike</option>
-                  <option value="4">Class 4 — Minor climb</option>
-                  <option value="5">Class 5 — Major climb</option>
-                  <option value="6">Class 6 — Technical climb</option>
-                  <option value="7">Class 7 — Very technical</option>
-                  <option value="8">Class 8 — Extreme</option>
-                  <option value="9">Class 9 — Super extreme</option>
+                  {TRAIL_CLASS_VALUES.map((n) => (
+                    <option key={n} value={n}>
+                      Class {n} — {TRAIL_CLASS_LABELS[n]}
+                    </option>
+                  ))}
                 </select>
+                {form.trailClass && TRAIL_CLASS_DESCRIPTIONS[form.trailClass] && (
+                  <p className="form-hint">
+                    {TRAIL_CLASS_DESCRIPTIONS[form.trailClass]}
+                  </p>
+                )}
               </div>
             </div>
             <div className="form-row">
@@ -1954,133 +1987,78 @@ export default function AdminClimbForm() {
               sample, then upload their own copy when they register.
             </p>
 
-            <div className="form-group">
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={form.requiresRegistrationForm}
-                  onChange={(e) =>
-                    set("requiresRegistrationForm", e.target.checked)
-                  }
-                />
-                Require a signed registration form upload
-              </label>
-            </div>
-            {form.requiresRegistrationForm && (
-              <div className="form-group">
-                <label className="form-label">Registration Form Template</label>
-                {form.registrationFormUrl && (
-                  <div style={{ marginBottom: 8 }}>
-                    <a
-                      href={form.registrationFormUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-outline btn-sm"
-                    >
-                      &#128196; {form.registrationFormFileName || "View current template"}
-                    </a>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,image/*"
-                  className="form-input"
-                  onChange={(e) =>
-                    handleDocUpload(
-                      e,
-                      "registrationFormUrl",
-                      "registrationFormFileName",
-                      "registration-form-templates",
-                    )
-                  }
-                  disabled={docUploading.registrationFormUrl}
-                />
-                {docUploading.registrationFormUrl && (
-                  <div className="form-hint">Uploading template…</div>
-                )}
-                {form.registrationFormUrl && !docUploading.registrationFormUrl && (
-                  <div
-                    className="form-hint"
-                    style={{ color: "var(--green-dark)" }}
+            {REQUIRED_DOC_TYPES.map((docType, idx) => (
+              <div key={docType.key}>
+                <div
+                  className="form-group"
+                  style={idx > 0 ? { marginTop: 20 } : undefined}
+                >
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
                   >
-                    Template uploaded. Joiners will see a download link and a
-                    required upload field when they register.
+                    <input
+                      type="checkbox"
+                      checked={form[docType.requiresField]}
+                      onChange={(e) =>
+                        set(docType.requiresField, e.target.checked)
+                      }
+                    />
+                    {docType.checkboxLabel}
+                  </label>
+                </div>
+                {form[docType.requiresField] && (
+                  <div className="form-group">
+                    <label className="form-label">{docType.sampleLabel}</label>
+                    {form[docType.sampleUrlField] && (
+                      <div style={{ marginBottom: 8 }}>
+                        <a
+                          href={form[docType.sampleUrlField]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline btn-sm"
+                        >
+                          &#128196;{" "}
+                          {form[docType.sampleFileNameField] ||
+                            "View current template"}
+                        </a>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,image/*"
+                      className="form-input"
+                      onChange={(e) =>
+                        handleDocUpload(
+                          e,
+                          docType.sampleUrlField,
+                          docType.sampleFileNameField,
+                          docType.storagePrefixTemplate,
+                        )
+                      }
+                      disabled={docUploading[docType.sampleUrlField]}
+                    />
+                    {docUploading[docType.sampleUrlField] && (
+                      <div className="form-hint">Uploading template…</div>
+                    )}
+                    {form[docType.sampleUrlField] &&
+                      !docUploading[docType.sampleUrlField] && (
+                        <div
+                          className="form-hint"
+                          style={{ color: "var(--green-dark)" }}
+                        >
+                          Template uploaded. Joiners will see a download link
+                          and a required upload field when they register.
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
-            )}
-
-            <div className="form-group" style={{ marginTop: 20 }}>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={form.requiresMedicalCert}
-                  onChange={(e) =>
-                    set("requiresMedicalCert", e.target.checked)
-                  }
-                />
-                Require a medical certificate upload
-              </label>
-            </div>
-            {form.requiresMedicalCert && (
-              <div className="form-group">
-                <label className="form-label">
-                  Sample Medical Certificate (for reference)
-                </label>
-                {form.medicalCertSampleUrl && (
-                  <div style={{ marginBottom: 8 }}>
-                    <a
-                      href={form.medicalCertSampleUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-outline btn-sm"
-                    >
-                      &#128196; {form.medicalCertSampleFileName || "View sample"}
-                    </a>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,image/*"
-                  className="form-input"
-                  onChange={(e) =>
-                    handleDocUpload(
-                      e,
-                      "medicalCertSampleUrl",
-                      "medicalCertSampleFileName",
-                      "medical-cert-samples",
-                    )
-                  }
-                  disabled={docUploading.medicalCertSampleUrl}
-                />
-                {docUploading.medicalCertSampleUrl && (
-                  <div className="form-hint">Uploading sample…</div>
-                )}
-                {form.medicalCertSampleUrl && !docUploading.medicalCertSampleUrl && (
-                  <div
-                    className="form-hint"
-                    style={{ color: "var(--green-dark)" }}
-                  >
-                    Sample uploaded. Joiners will see a reference link and a
-                    required upload field when they register.
-                  </div>
-                )}
-              </div>
-            )}
+            ))}
           </div>
 
           {/* Submit */}

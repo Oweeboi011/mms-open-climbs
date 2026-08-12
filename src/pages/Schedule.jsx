@@ -13,6 +13,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ClimbCard from "@/components/ClimbCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import MountaineeringGuideModal from "@/components/MountaineeringGuideModal";
 
 const MONTHS = ["jul", "aug", "sep", "oct", "nov", "dec"];
 const MONTH_LABEL = {
@@ -45,6 +46,7 @@ export default function Schedule() {
   const [bannerDismissed, setBannerDismissed] = useState(
     () => sessionStorage.getItem("oc_visitor_banner") === "1",
   );
+  const [guideOpen, setGuideOpen] = useState(false);
   const gridRef = useRef(null);
 
   function dismissBanner() {
@@ -164,7 +166,17 @@ export default function Schedule() {
           >
             Browse Climbs
           </button>
+          <button
+            className="btn btn-outline-white btn-lg"
+            onClick={() => setGuideOpen(true)}
+          >
+            New to Mountaineering?
+          </button>
         </div>
+
+        {guideOpen && (
+          <MountaineeringGuideModal onClose={() => setGuideOpen(false)} />
+        )}
         <div className="hero-mountains" aria-hidden="true">
           <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
             <path

@@ -18,6 +18,7 @@ import {
   STATUS_STYLE,
   PAYMENT_STYLE,
 } from "./registrantShared";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const statusStyleWithLabel = Object.fromEntries(
   Object.entries(STATUS_STYLE).map(([k, v]) => [k, { ...v, label: k }]),
@@ -33,6 +34,7 @@ export default function RegistrantRow({
   changePaymentStatus,
   onEntryStatusChange,
   onRecordPayment,
+  onManageDocuments,
   toggleOptionalFee,
   onEdit,
   deleteRegistration,
@@ -130,22 +132,17 @@ export default function RegistrantRow({
             {/* An admin-added participant starts with neither, so the gap has
                 to be visible to whoever chases them for it. */}
             <ComplianceCheck ok={!detailsIncomplete(reg)} label="Details" />
-            {climb?.requiresRegistrationForm && (
+            {REQUIRED_DOC_TYPES.filter(
+              (docType) => climb?.[docType.requiresField],
+            ).map((docType) => (
               <ComplianceCheck
-                ok={!!reg.registrationFormUpload?.url}
-                label="Form"
-                href={reg.registrationFormUpload?.url}
+                key={docType.key}
+                ok={!!reg[docType.uploadField]?.url}
+                label={docType.badgeLabel}
+                href={reg[docType.uploadField]?.url}
                 onClick={(e) => e.stopPropagation()}
               />
-            )}
-            {climb?.requiresMedicalCert && (
-              <ComplianceCheck
-                ok={!!reg.medicalCertUpload?.url}
-                label="Med Cert"
-                href={reg.medicalCertUpload?.url}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
+            ))}
           </div>
         </td>
 
@@ -387,6 +384,51 @@ export default function RegistrantRow({
                   value={reg.medicalConditions || "Not provided yet"}
                 />
               </div>
+
+              {/* Required Documents */}
+              {REQUIRED_DOC_TYPES.some(
+                (docType) => climb?.[docType.requiresField],
+              ) && (
+                <>
+                  <SectionLabel>&#128196; Required Documents</SectionLabel>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      marginBottom: 8,
+                    }}
+                  >
+                    {REQUIRED_DOC_TYPES.filter(
+                      (docType) => climb[docType.requiresField],
+                    ).map((docType) => (
+                      <ComplianceCheck
+                        key={docType.key}
+                        ok={!!reg[docType.uploadField]?.url}
+                        label={
+                          reg[docType.uploadField]?.url
+                            ? `${docType.panelLabel} Uploaded`
+                            : `${docType.panelLabel} Missing`
+                        }
+                        href={reg[docType.uploadField]?.url || undefined}
+                      />
+                    ))}
+                  </div>
+                  {onManageDocuments && (
+                    <button
+                      className="btn btn-outline btn-sm"
+                      style={{ marginBottom: 16 }}
+                      title="Submit a document on this participant's behalf, or replace one they already uploaded"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onManageDocuments(reg);
+                      }}
+                    >
+                      + Manage Documents
+                    </button>
+                  )}
+                </>
+              )}
 
               {/* Fee Breakdown */}
               <div style={{ marginBottom: 16 }}>
