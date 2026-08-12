@@ -20,6 +20,15 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { logAuditEvent } from "@/utils/auditLog";
+import CancellationStatusFields from "@/components/admin/CancellationStatusFields";
+import {
+  TRAIL_CLASS_LABELS,
+  TRAIL_CLASS_DESCRIPTIONS,
+  TRAIL_CLASS_VALUES,
+  DIFFICULTY_LABELS,
+  DIFFICULTY_DESCRIPTIONS,
+  DIFFICULTY_VALUES,
+} from "@/utils/trailClass";
 
 const OFFICER_ROLES = [
   "Senior Team Leader",
@@ -84,6 +93,8 @@ const EMPTY_FORM = {
   type: "minor",
   color: "c-slate",
   status: "draft",
+  cancellationStatus: "",
+  cancellationReason: "",
   maxParticipants: 30,
   isWide: false,
   itineraryReady: false,
@@ -638,6 +649,7 @@ export default function AdminClimbForm() {
                 </select>
               </div>
             </div>
+            <CancellationStatusFields form={form} setForm={setForm} />
             <div className="form-row">
               <label
                 style={{
@@ -690,13 +702,26 @@ export default function AdminClimbForm() {
               </div>
               <div className="form-group">
                 <label className="form-label">Difficulty</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. 3/9"
+                <select
+                  className="form-select"
                   value={form.difficulty}
                   onChange={(e) => set("difficulty", e.target.value)}
-                />
+                >
+                  <option value="">— Not specified —</option>
+                  {DIFFICULTY_VALUES.map((n) => (
+                    <option key={n} value={`${n}/9`}>
+                      {n}/9 — {DIFFICULTY_LABELS[n]}
+                    </option>
+                  ))}
+                </select>
+                {(() => {
+                  const n = parseInt(form.difficulty, 10);
+                  return (
+                    DIFFICULTY_DESCRIPTIONS[n] && (
+                      <p className="form-hint">{DIFFICULTY_DESCRIPTIONS[n]}</p>
+                    )
+                  );
+                })()}
               </div>
               <div className="form-group">
                 <label className="form-label">Trail Class</label>
@@ -706,16 +731,17 @@ export default function AdminClimbForm() {
                   onChange={(e) => set("trailClass", e.target.value)}
                 >
                   <option value="">— Not specified —</option>
-                  <option value="1">Class 1 — Easy day hike</option>
-                  <option value="2">Class 2 — Moderate day hike</option>
-                  <option value="3">Class 3 — Strenuous day hike</option>
-                  <option value="4">Class 4 — Minor climb</option>
-                  <option value="5">Class 5 — Major climb</option>
-                  <option value="6">Class 6 — Technical climb</option>
-                  <option value="7">Class 7 — Very technical</option>
-                  <option value="8">Class 8 — Extreme</option>
-                  <option value="9">Class 9 — Super extreme</option>
+                  {TRAIL_CLASS_VALUES.map((n) => (
+                    <option key={n} value={n}>
+                      Class {n} — {TRAIL_CLASS_LABELS[n]}
+                    </option>
+                  ))}
                 </select>
+                {form.trailClass && TRAIL_CLASS_DESCRIPTIONS[form.trailClass] && (
+                  <p className="form-hint">
+                    {TRAIL_CLASS_DESCRIPTIONS[form.trailClass]}
+                  </p>
+                )}
               </div>
             </div>
             <div className="form-row">

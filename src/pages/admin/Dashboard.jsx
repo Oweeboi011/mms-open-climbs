@@ -485,14 +485,16 @@ export default function AdminDashboard() {
               </div>
             </div>
             <ResponsiveTable style={{ marginBottom: 32 }}>
-              <table className="admin-table">
+              <table className="admin-table table-min-720">
                 <thead>
                   <tr>
                     <th>Climb</th>
-                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>Date</th>
+                    <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                      Date
+                    </th>
                     <th
                       style={{
-                        width: "1%",
+                        minWidth: 80,
                         textAlign: "center",
                         whiteSpace: "nowrap",
                       }}
@@ -501,7 +503,7 @@ export default function AdminDashboard() {
                     </th>
                     <th
                       style={{
-                        width: "1%",
+                        minWidth: 130,
                         textAlign: "center",
                         whiteSpace: "nowrap",
                       }}
@@ -509,7 +511,7 @@ export default function AdminDashboard() {
                     >
                       Reg. (C&middot;P&middot;U)
                     </th>
-                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                    <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
                       Actions
                     </th>
                   </tr>
@@ -684,7 +686,7 @@ export default function AdminDashboard() {
                                   </td>
 
                                   {/* Date */}
-                                  <td style={{ whiteSpace: "nowrap" }}>
+                                  <td>
                                     <span
                                       style={{
                                         fontWeight: 500,
@@ -1035,19 +1037,21 @@ export default function AdminDashboard() {
               </Link>
             </div>
             <ResponsiveTable>
-              <table className="admin-table">
+              <table className="admin-table table-min-780">
                 <thead>
                   <tr>
                     <th>Participant</th>
                     <th>Climb</th>
-                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
                       Payment
                     </th>
-                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
                       Status
                     </th>
-                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>Date</th>
-                    <th style={{ width: "1%", whiteSpace: "nowrap" }}>
+                    <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                      Date
+                    </th>
+                    <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
                       Actions
                     </th>
                   </tr>
@@ -1115,19 +1119,19 @@ export default function AdminDashboard() {
                             {reg.climbTitle || "\u2014"}
                           </div>
                         </td>
-                        <td style={{ whiteSpace: "nowrap" }}>
+                        <td>
                           <StatusBadge
                             status={reg.paymentStatus}
                             styleMap={PAYMENT_STYLE}
                           />
                         </td>
-                        <td style={{ whiteSpace: "nowrap" }}>
+                        <td>
                           <StatusBadge
                             status={reg.status}
                             styleMap={STATUS_STYLE}
                           />
                         </td>
-                        <td style={{ whiteSpace: "nowrap" }}>
+                        <td>
                           <span
                             style={{
                               fontSize: "0.78rem",

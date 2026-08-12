@@ -16,12 +16,106 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import Icon from "@/components/Icon";
 import { renderMarkdownLite } from "@/utils/markdownLite";
 import EventFeesCard from "@/components/EventFeesCard";
+import { TRAIL_CLASS_LABELS, TRAIL_CLASS_DESCRIPTIONS } from "@/utils/trailClass";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
   major: "Major Climb",
   special: "Special Climb",
 };
+
+function TrailClassTile({ trailClass }) {
+  return (
+    <div
+      className="stat-tile"
+      title={TRAIL_CLASS_DESCRIPTIONS[trailClass] || ""}
+    >
+      <div className="stat-tile-val">Class {trailClass}</div>
+      <div className="stat-tile-label">
+        {TRAIL_CLASS_LABELS[trailClass] || "Trail Class"}
+      </div>
+    </div>
+  );
+}
+
+function RegisterCta({
+  climb,
+  climbId,
+  isCancelled,
+  isPostponed,
+  isOpen,
+  alreadyReg,
+  regStatus,
+  currentUser,
+  isFull,
+}) {
+  const style = { marginTop: 20, display: "inline-flex" };
+  if (isCancelled) {
+    return (
+      <div className="alert alert-error" style={style}>
+        This climb has been cancelled.
+        {climb.cancellationReason ? ` ${climb.cancellationReason}` : ""}
+      </div>
+    );
+  }
+  if (isPostponed) {
+    return (
+      <div className="alert alert-warning" style={style}>
+        This climb has been postponed.
+        {climb.cancellationReason ? ` ${climb.cancellationReason}` : ""}
+      </div>
+    );
+  }
+  if (!isOpen) {
+    return (
+      <div className="alert alert-warning" style={style}>
+        Registration is currently closed for this climb.
+      </div>
+    );
+  }
+  if (alreadyReg) {
+    return (
+      <div className="alert alert-success" style={style}>
+        You are registered &mdash; Status:{" "}
+        <strong style={{ marginLeft: 4 }}>{regStatus}</strong>
+      </div>
+    );
+  }
+  if (!currentUser) {
+    // Checked before isFull on purpose: a signed-out visitor looking at a
+    // full climb still needs a way in — slots open up, and an account is
+    // what lets them be there when one does.
+    return (
+      <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <Link
+          to={`/login?redirect=/register/${climbId}`}
+          className="btn btn-gold btn-lg"
+        >
+          Sign In to Register
+        </Link>
+        <Link
+          to={`/signup?redirect=/register/${climbId}`}
+          className="btn btn-outline btn-lg"
+        >
+          Create Account
+        </Link>
+      </div>
+    );
+  }
+  if (isFull) {
+    return (
+      <div className="alert alert-warning" style={style}>
+        This climb is full. Slots occasionally open up &mdash; check back, or
+        watch the schedule for the next one.
+      </div>
+    );
+  }
+  return (
+    <Link to={`/register/${climbId}`} className="btn btn-gold btn-lg" style={style}>
+      Register Now &#8594;
+    </Link>
+  );
+}
 
 const WEATHER_CODE_LABELS = {
   0: "Clear skies",
@@ -437,6 +531,8 @@ export default function Event() {
   const seatsLeft = climb.maxParticipants - (climb.registrationCount ?? 0);
   const isFull = seatsLeft <= 0;
   const isOpen = climb.status === "open";
+  const isCancelled = climb.cancellationStatus === "cancelled";
+  const isPostponed = climb.cancellationStatus === "postponed";
   const fillPct = climb.maxParticipants
     ? Math.min(
         100,
@@ -445,55 +541,18 @@ export default function Event() {
     : 0;
   const fillClass = fillPct >= 100 ? "full" : fillPct >= 80 ? "low" : "ok";
 
-  const registerCta = !isOpen ? (
-    <div
-      className="alert alert-warning"
-      style={{ marginTop: 20, display: "inline-flex" }}
-    >
-      Registration is currently closed for this climb.
-    </div>
-  ) : alreadyReg ? (
-    <div
-      className="alert alert-success"
-      style={{ marginTop: 20, display: "inline-flex" }}
-    >
-      You are registered &mdash; Status:{" "}
-      <strong style={{ marginLeft: 4 }}>{regStatus}</strong>
-    </div>
-  ) : !currentUser ? (
-    // Checked before isFull on purpose: a signed-out visitor looking at a
-    // full climb still needs a way in — slots open up, and an account is
-    // what lets them be there when one does.
-    <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
-      <Link
-        to={`/login?redirect=/register/${climbId}`}
-        className="btn btn-gold btn-lg"
-      >
-        Sign In to Register
-      </Link>
-      <Link
-        to={`/signup?redirect=/register/${climbId}`}
-        className="btn btn-outline btn-lg"
-      >
-        Create Account
-      </Link>
-    </div>
-  ) : isFull ? (
-    <div
-      className="alert alert-warning"
-      style={{ marginTop: 20, display: "inline-flex" }}
-    >
-      This climb is full. Slots occasionally open up &mdash; check back, or
-      watch the schedule for the next one.
-    </div>
-  ) : (
-    <Link
-      to={`/register/${climbId}`}
-      className="btn btn-gold btn-lg"
-      style={{ marginTop: 20, display: "inline-flex" }}
-    >
-      Register Now &#8594;
-    </Link>
+  const registerCta = (
+    <RegisterCta
+      climb={climb}
+      climbId={climbId}
+      isCancelled={isCancelled}
+      isPostponed={isPostponed}
+      isOpen={isOpen}
+      alreadyReg={alreadyReg}
+      regStatus={regStatus}
+      currentUser={currentUser}
+      isFull={isFull}
+    />
   );
 
   const mapCoords = getClimbCoords(climb);
@@ -536,6 +595,15 @@ export default function Event() {
           <div className="event-badge">
             {TYPE_LABEL[climb.type] || climb.type}
           </div>
+          {(isCancelled || isPostponed) && (
+            <div
+              className={`alert ${isCancelled ? "alert-error" : "alert-warning"}`}
+              style={{ marginBottom: 16, display: "inline-flex" }}
+            >
+              {isCancelled ? "Cancelled" : "Postponed"}
+              {climb.cancellationReason ? ` — ${climb.cancellationReason}` : ""}
+            </div>
+          )}
           <h2>
             <em>{climb.dateLabel}</em>
             {climb.title}
@@ -656,14 +724,7 @@ export default function Event() {
                       <div className="stat-tile-label">Difficulty</div>
                     </div>
                   )}
-                  {climb.trailClass && (
-                    <div className="stat-tile">
-                      <div className="stat-tile-val">
-                        Class {climb.trailClass}
-                      </div>
-                      <div className="stat-tile-label">Trail Class</div>
-                    </div>
-                  )}
+                  {climb.trailClass && <TrailClassTile trailClass={climb.trailClass} />}
                   {climb.distanceToSummit && (
                     <div className="stat-tile">
                       <div className="stat-tile-val">

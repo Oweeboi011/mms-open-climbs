@@ -41,7 +41,7 @@ describe("Admin ClimbForm", () => {
       screen.getByRole("option", { name: /Class 1/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("option", { name: /Class 9/i }),
+      screen.getByRole("option", { name: /Class 6/i }),
     ).toBeInTheDocument();
   });
 

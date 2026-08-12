@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
+import JSZip from "jszip";
 import {
   doc,
   collection,
@@ -54,6 +55,7 @@ export default function AdminClimbDetail() {
   const [editingReg, setEditingReg] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
+  const [zippingDocs, setZippingDocs] = useState(false);
 
   useEffect(() => {
     // Live, not a one-shot read: every expected/outstanding figure on this
@@ -329,6 +331,59 @@ export default function AdminClimbDetail() {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadAllDocs() {
+    const docs = [];
+    regs.forEach((r, i) => {
+      const safeName =
+        (r.name || `registrant-${i + 1}`).replace(/[\\/:*?"<>|]/g, "_") +
+        (r.id ? ` (${r.id.slice(-6)})` : "");
+      if (r.registrationFormUpload?.url) {
+        docs.push({
+          folder: safeName,
+          url: r.registrationFormUpload.url,
+          fileName: r.registrationFormUpload.fileName || "registration-form",
+        });
+      }
+      if (r.medicalCertUpload?.url) {
+        docs.push({
+          folder: safeName,
+          url: r.medicalCertUpload.url,
+          fileName: r.medicalCertUpload.fileName || "medical-certificate",
+        });
+      }
+    });
+
+    if (!docs.length) {
+      alert("No uploaded requirement documents found for this climb yet.");
+      return;
+    }
+
+    setZippingDocs(true);
+    try {
+      const zip = new JSZip();
+      await Promise.all(
+        docs.map(async (d) => {
+          const res = await fetch(d.url);
+          if (!res.ok) return;
+          const blob = await res.blob();
+          zip.file(`${d.folder}/${d.fileName}`, blob);
+        }),
+      );
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${climb?.title || "climb"}-requirement-docs.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to build requirement docs zip:", err);
+      alert("Failed to download documents. Please try again.");
+    } finally {
+      setZippingDocs(false);
+    }
+  }
+
   const filtered = useMemo(
     () =>
       regs.filter((r) => {
@@ -453,6 +508,14 @@ export default function AdminClimbDetail() {
               title="Download all registrations for this climb as a CSV file"
             >
               &#128229; Export CSV
+            </button>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={downloadAllDocs}
+              disabled={zippingDocs}
+              title="Download every uploaded registration form and medical certificate for this climb as a ZIP file"
+            >
+              {zippingDocs ? "Zipping…" : "📁 Download Docs (ZIP)"}
             </button>
             <button
               className="btn btn-gold btn-sm"
@@ -706,16 +769,26 @@ export default function AdminClimbDetail() {
 
             {/* Table */}
             <ResponsiveTable>
-              <table className="admin-table">
+              <table className="admin-table table-min-980">
                 <thead>
                   <tr>
-                    <th style={{ width: "1%" }}>#</th>
+                    <th style={{ minWidth: 40 }}>#</th>
                     <th>Participant</th>
-                    <th style={{ width: "1%" }}>Compliance</th>
-                    <th style={{ width: "1%" }}>Payment</th>
-                    <th style={{ width: "1%" }}>Balance</th>
-                    <th style={{ width: "1%" }}>Status</th>
-                    <th style={{ width: "1%" }}>Actions</th>
+                    <th style={{ minWidth: 130, whiteSpace: "nowrap" }}>
+                      Compliance
+                    </th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Payment
+                    </th>
+                    <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                      Balance
+                    </th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Status
+                    </th>
+                    <th style={{ minWidth: 150, whiteSpace: "nowrap" }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -796,7 +869,7 @@ export default function AdminClimbDetail() {
                   )
                   .map((f) => (
                     <tr key={f.id}>
-                      <td style={{ width: "1%", whiteSpace: "nowrap" }}>
+                      <td style={{ width: "1%" }}>
                         {f.name || "Anonymous"}
                       </td>
                       <td

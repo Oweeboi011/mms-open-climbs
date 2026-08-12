@@ -99,6 +99,7 @@ function RoleBadge({ role }) {
         fontSize: "0.75rem",
         fontWeight: 700,
         letterSpacing: 0.5,
+        whiteSpace: "nowrap",
         ...s,
       }}
     >
@@ -892,13 +893,17 @@ export default function AdminUsersManage() {
           <LoadingSpinner />
         ) : (
           <ResponsiveTable>
-            <table className="admin-table">
+            <table className="admin-table table-min-640">
               <thead>
                 <tr>
                   <th>User</th>
-                  <th style={{ width: "1%" }}>Role</th>
-                  <th style={{ width: "1%" }}>Added By</th>
-                  <th style={{ width: "1%" }}>Joined</th>
+                  <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>Role</th>
+                  <th style={{ minWidth: 120, whiteSpace: "nowrap" }}>
+                    Added By
+                  </th>
+                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                    Joined
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -950,23 +955,20 @@ export default function AdminUsersManage() {
                             {user.email}
                           </div>
                         </td>
-                        <td style={{ whiteSpace: "nowrap" }}>
+                        <td>
                           <RoleBadge role={user.role} />
                         </td>
                         <td
                           style={{
                             fontSize: "0.78rem",
                             color: "var(--ink-soft)",
-                            whiteSpace: "nowrap",
                           }}
                         >
                           {user.addedBy === "self"
                             ? "Self-registered"
                             : "Admin"}
                         </td>
-                        <td
-                          style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}
-                        >
+                        <td style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>
                           {user.createdAt
                             ?.toDate?.()
                             .toLocaleDateString("en-PH") || "—"}

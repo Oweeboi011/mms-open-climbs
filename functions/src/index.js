@@ -132,6 +132,45 @@ function tplStatusUpdate({ name, climbTitle, newStatus, reason }) {
     <p style="color:#4a4a4a;font-size:13px;">For inquiries, contact your MMS Open Climbs Coordinator.</p>`);
 }
 
+function tplClimbCancellation({
+  name,
+  climbTitle,
+  climbDate,
+  climbLocation,
+  statusLabel,
+  reason,
+}) {
+  const isCancelled = statusLabel === "Cancelled";
+  const color = isCancelled ? "#c62828" : "#e65100";
+  const bg = isCancelled ? "#fdecea" : "#fff3e0";
+  return tplBase(`
+    <h2 style="color:${color};font-size:20px;margin:0 0 16px;">Climb ${statusLabel}</h2>
+    <p style="color:#4a4a4a;font-size:15px;">Hi <strong>${name}</strong>,</p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">The following climb you're registered for has been <strong>${statusLabel.toLowerCase()}</strong>:</p>
+    <div style="background:${bg};border-left:4px solid ${color};padding:16px 20px;border-radius:0 8px 8px 0;margin:20px 0;">
+      <p style="margin:0;font-size:18px;font-weight:700;color:#0d2b12;text-transform:uppercase;letter-spacing:1px;">${climbTitle}</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#4a4a4a;">&#128197; ${climbDate} &nbsp;&bull;&nbsp; &#128205; ${climbLocation}</p>
+    </div>
+    ${reason ? `<p style="color:#4a4a4a;font-size:14px;line-height:1.6;"><strong>Reason:</strong> ${reason}</p>` : ""}
+    <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">For questions, please contact your MMS coordinator.</p>`);
+}
+
+function tplOfficerClimbCancellation({
+  climbTitle,
+  statusLabel,
+  reason,
+  registrantCount,
+  appUrl,
+}) {
+  return tplBase(`
+    <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Climb marked ${statusLabel}</h2>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;"><strong>${climbTitle}</strong> has been marked <strong>${statusLabel.toLowerCase()}</strong> in the admin panel. ${registrantCount} active registrant${registrantCount === 1 ? " has" : "s have"} been emailed and notified.</p>
+    ${reason ? `<p style="color:#4a4a4a;font-size:14px;line-height:1.6;"><strong>Reason:</strong> ${reason}</p>` : ""}
+    <p style="margin:24px 0;">
+      <a href="${appUrl}/admin" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">Open Admin Panel</a>
+    </p>`);
+}
+
 function tplWelcome({ displayName, setupLink }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Welcome, ${displayName}!</h2>
@@ -849,7 +888,16 @@ exports.onClimbUpdated = onDocumentUpdated(
       !!before.requiresRegistrationForm !== !!after.requiresRegistrationForm ||
       !!before.requiresMedicalCert !== !!after.requiresMedicalCert;
 
-    if (newAnnouncements.length === 0 && !requirementsChanged) {
+    const CANCELLATION_LABELS = { cancelled: "Cancelled", postponed: "Postponed" };
+    const cancellationChanged =
+      (before.cancellationStatus || "") !== (after.cancellationStatus || "") &&
+      !!CANCELLATION_LABELS[after.cancellationStatus];
+
+    if (
+      newAnnouncements.length === 0 &&
+      !requirementsChanged &&
+      !cancellationChanged
+    ) {
       return;
     }
 
@@ -888,6 +936,89 @@ exports.onClimbUpdated = onDocumentUpdated(
           regDocsComplete(after, r),
         ).length;
         await db.doc(`climbs/${climbId}`).update({ docsCompleteCount });
+      }
+
+      if (cancellationChanged) {
+        const statusLabel = CANCELLATION_LABELS[after.cancellationStatus];
+        const reason = after.cancellationReason || "";
+        const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+        const { officerEmails, adminEmails } = await getNotifyLists(after);
+
+        await Promise.all(
+          activeRegs.map(async (r) => {
+            if (r.email) {
+              await sendEmail({
+                to: r.email,
+                toName: r.name || "",
+                subject: `Climb ${statusLabel} — ${after.title || "MMS Open Climbs"}`,
+                html: tplClimbCancellation({
+                  name: r.name || "there",
+                  climbTitle: after.title || "",
+                  climbDate: after.dateLabel || "",
+                  climbLocation: after.location || "",
+                  statusLabel,
+                  reason,
+                }),
+              }).catch((err) =>
+                logger.error("[onClimbUpdated] cancellation email failed", {
+                  err: err.message,
+                  regId: r.id,
+                }),
+              );
+            }
+            if (r.userId) {
+              await createNotification({
+                userId: r.userId,
+                type: "climb_status_change",
+                title: `Climb ${statusLabel} — ${after.title || "your climb"}`,
+                message:
+                  reason || `This climb has been ${statusLabel.toLowerCase()}.`,
+                link: `/event/${climbId}`,
+                id: `climbstatus_${climbId}_${after.cancellationStatus}_${r.id}`,
+              });
+            }
+          }),
+        );
+
+        // Let officers (cc admins) — or admins directly if no officers —
+        // know the climb was marked cancelled/postponed and that
+        // registrants have already been emailed, mirroring the
+        // per-registration status-change notify pattern above.
+        const officerTpl = {
+          climbTitle: after.title || "",
+          statusLabel,
+          reason,
+          registrantCount: activeRegs.length,
+          appUrl,
+        };
+        if (officerEmails.length > 0) {
+          for (const officer of officerEmails) {
+            await sendEmail({
+              to: officer.email,
+              toName: officer.name,
+              subject: `[Climb ${statusLabel}] ${after.title || "MMS Open Climbs"}`,
+              html: tplOfficerClimbCancellation(officerTpl),
+              cc: adminEmails,
+            }).catch((err) =>
+              logger.error("[onClimbUpdated] officer cancellation email failed", {
+                err: err.message,
+              }),
+            );
+          }
+        } else if (adminEmails.length > 0) {
+          const [first, ...rest] = adminEmails;
+          await sendEmail({
+            to: first.email,
+            toName: first.name,
+            subject: `[Climb ${statusLabel}] ${after.title || "MMS Open Climbs"}`,
+            html: tplOfficerClimbCancellation(officerTpl),
+            cc: rest,
+          }).catch((err) =>
+            logger.error("[onClimbUpdated] admin cancellation email failed", {
+              err: err.message,
+            }),
+          );
+        }
       }
 
       if (newAnnouncements.length > 0) {
