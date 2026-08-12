@@ -224,6 +224,98 @@ describe("Admin AllRegistrations", () => {
     });
   });
 
+  it("lets an admin submit a required document on a participant's behalf", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: { ...climbFixture, requiresPermit: true },
+        },
+      ]),
+    );
+    mockLiveSnapshot([regDoc]);
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /\+ Manage Documents/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /\+ Manage Documents/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Manage Required Documents")).toBeInTheDocument(),
+    );
+
+    const label = screen.getByText("Mountaineering / Trekking Permit", {
+      selector: "label",
+    });
+    const fileInput = label
+      .closest(".form-group")
+      .querySelector('input[type="file"]');
+    const file = new File(["permit"], "permit.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find(
+      (c) => c[1]?.permitUpload,
+    )?.[1];
+    expect(patch.permitUpload).toMatchObject({ fileName: "permit.pdf" });
+  });
+
+  it("shows an already-submitted document as read-only with an Update toggle in the admin Manage Documents modal", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: { ...climbFixture, requiresRegistrationForm: true },
+        },
+      ]),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          registrationFormUpload: {
+            url: "https://example.com/uploaded-form.pdf",
+            fileName: "uploaded-form.pdf",
+          },
+        },
+      },
+    ]);
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /\+ Manage Documents/i }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/already submitted/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByText("Registration Form", { selector: "label" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    expect(screen.queryByText(/already submitted/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Registration Form", { selector: "label" }),
+    ).toBeInTheDocument();
+  });
+
   it("filters to registrants missing required documents", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([

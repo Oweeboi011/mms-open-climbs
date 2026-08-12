@@ -68,6 +68,9 @@ export default function ClimbCard({ climb }) {
   const docsRequired = REQUIRED_DOC_TYPES.filter(
     (docType) => climb[docType.requiresField],
   ).map((docType) => docType.label);
+  const docsRequiredShort = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb[docType.requiresField],
+  ).map((docType) => docType.badgeLabel);
   const docsComplete = climb.docsCompleteCount ?? 0;
 
   return (
@@ -219,10 +222,8 @@ export default function ClimbCard({ climb }) {
               >
                 <Icon name="fileCheck" size={11} />
                 {registered > 0
-                  ? `${docsComplete}/${registered} Docs Submitted`
-                  : docsRequired.length > 1
-                    ? "Docs Required"
-                    : `${docsRequired[0]} Required`}
+                  ? `${docsComplete}/${registered} Submitted — ${docsRequiredShort.join(", ")}`
+                  : `${docsRequiredShort.join(", ")} Required`}
               </span>
             )}
           </div>

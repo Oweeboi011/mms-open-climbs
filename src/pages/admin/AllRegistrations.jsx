@@ -21,6 +21,7 @@ import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
 import PaymentHistory from "@/components/admin/PaymentHistory";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
+import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
 import {
@@ -80,6 +81,7 @@ export default function AllRegistrations() {
   const [expandedId, setExpandedId] = useState(null);
   const [editingReg, setEditingReg] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
+  const [managingDocsFor, setManagingDocsFor] = useState(null);
 
   const [scope, setScope] = useState("active");
 
@@ -262,6 +264,26 @@ export default function AllRegistrations() {
       climbTitle: climbById[reg.climbId]?.title || reg.climbTitle,
     });
     setRecordingPaymentFor(null);
+  }
+
+  // Admin submitting/replacing a required document on a participant's
+  // behalf — a walk-in's physical copy, or a member who can't upload it
+  // themselves right now.
+  async function saveAdminDocs(reg, patch) {
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "documents_submitted_by_admin",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: Object.keys(patch).join(", "),
+    });
+    setManagingDocsFor(null);
   }
   const climbStatusById = useMemo(() => {
     const map = {};
@@ -1094,6 +1116,17 @@ export default function AllRegistrations() {
                                         />
                                       ))}
                                     </div>
+                                    <button
+                                      className="btn btn-outline btn-sm"
+                                      style={{ marginBottom: 16 }}
+                                      title="Submit a document on this participant's behalf, or replace one they already uploaded"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setManagingDocsFor(reg);
+                                      }}
+                                    >
+                                      + Manage Documents
+                                    </button>
                                   </>
                                 )}
 
@@ -1231,6 +1264,16 @@ export default function AllRegistrations() {
           reg={recordingPaymentFor}
           onClose={() => setRecordingPaymentFor(null)}
           onSave={recordPayment}
+        />
+      )}
+
+      {managingDocsFor && (
+        <AdminDocumentModal
+          reg={managingDocsFor}
+          climb={climbById[managingDocsFor.climbId]}
+          currentUser={currentUser}
+          onClose={() => setManagingDocsFor(null)}
+          onSave={saveAdminDocs}
         />
       )}
 

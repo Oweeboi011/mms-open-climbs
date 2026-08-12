@@ -436,7 +436,7 @@ describe("MyRegistrations page", () => {
     expect(screen.getByText("₱750")).toBeInTheDocument();
   });
 
-  it("shows a Submit Registration Form button with a download link when required and not yet uploaded", async () => {
+  it("shows a Submit Required Documents button with a download link when a registration form is required and not yet uploaded", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, {
         ...climbFixture,
@@ -454,12 +454,12 @@ describe("MyRegistrations page", () => {
     renderWithProviders(<MyRegistrations />, makeMemberAuth());
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /Submit Registration Form/i }),
+        screen.getByRole("button", { name: /Submit Required Documents/i }),
       ).toBeInTheDocument(),
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: /Submit Registration Form/i }),
+      screen.getByRole("button", { name: /Submit Required Documents/i }),
     );
 
     await waitFor(() =>
@@ -469,7 +469,7 @@ describe("MyRegistrations page", () => {
     );
   });
 
-  it("shows a Submit Mountaineering / Trekking Permit button with a download link when required and not yet uploaded", async () => {
+  it("shows a Submit Required Documents button with a download link when a permit is required and not yet uploaded", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, {
         ...climbFixture,
@@ -487,16 +487,12 @@ describe("MyRegistrations page", () => {
     renderWithProviders(<MyRegistrations />, makeMemberAuth());
     await waitFor(() =>
       expect(
-        screen.getByRole("button", {
-          name: /Submit Mountaineering \/ Trekking Permit/i,
-        }),
+        screen.getByRole("button", { name: /Submit Required Documents/i }),
       ).toBeInTheDocument(),
     );
 
     fireEvent.click(
-      screen.getByRole("button", {
-        name: /Submit Mountaineering \/ Trekking Permit/i,
-      }),
+      screen.getByRole("button", { name: /Submit Required Documents/i }),
     );
 
     await waitFor(() =>
@@ -504,6 +500,213 @@ describe("MyRegistrations page", () => {
         screen.getByRole("link", { name: /View Sample Permit/i }),
       ).toBeInTheDocument(),
     );
+  });
+
+  it("shows already-submitted documents alongside the still-missing one in the Submit Required Documents modal", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresRegistrationForm: true,
+        requiresPermit: true,
+      }),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "verified",
+          registrationFormUpload: {
+            url: "https://example.com/uploaded-form.pdf",
+            fileName: "uploaded-form.pdf",
+          },
+        },
+      },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Submit Required Documents/i }),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Submit Required Documents/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/already submitted/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("link", { name: "Signed Registration Form" }),
+    ).toHaveAttribute("href", "https://example.com/uploaded-form.pdf");
+    // The still-missing permit keeps its upload field; the already-submitted
+    // registration form should not show one.
+    expect(
+      screen.getByText("Mountaineering / Trekking Permit", {
+        selector: "label",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Signed Registration Form", { selector: "label" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets a member reveal an upload field to replace an already-submitted document, and cancel out of it", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresRegistrationForm: true,
+      }),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "verified",
+          registrationFormUpload: {
+            url: "https://example.com/uploaded-form.pdf",
+            fileName: "uploaded-form.pdf",
+          },
+        },
+      },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /View Submitted Documents/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /View Submitted Documents/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/already submitted/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByText("Signed Registration Form", { selector: "label" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    expect(screen.queryByText(/already submitted/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Signed Registration Form", { selector: "label" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Update" }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/already submitted/i)).toBeInTheDocument(),
+    );
+  });
+
+  it("bullet-points every required document with its submitted/needed status on the card", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresRegistrationForm: true,
+        requiresPermit: true,
+      }),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "verified",
+          waiverSigned: true,
+          waiverSignedName: "Juan Cruz",
+          registrationFormUpload: {
+            url: "https://example.com/uploaded-form.pdf",
+            fileName: "uploaded-form.pdf",
+          },
+        },
+      },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(screen.getByText(/Waiver signed as/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/Registration Form submitted/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Mountaineering \/ Trekking Permit needed/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a Docs Needed badge naming the doc on the card header when the climb requires an unsubmitted document", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresPermit: true,
+      }),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: { ...registrationFixture, paymentStatus: "verified" },
+      },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(screen.getByText("Permit Needed")).toBeInTheDocument(),
+    );
+  });
+
+  it("names every missing document in the badge when multiple are missing", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresPermit: true,
+        requiresWaiverDoc: true,
+      }),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: { ...registrationFixture, paymentStatus: "verified" },
+      },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(
+        screen.getByText("Permit, Waiver Doc Needed"),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("does not show a Docs Needed badge once all required documents are submitted", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresPermit: true,
+      }),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "verified",
+          permitUpload: { url: "https://example.com/permit.pdf", fileName: "permit.pdf" },
+        },
+      },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Docs? Needed/)).not.toBeInTheDocument();
   });
 
   it("shows officer section when user is an officer on a climb", async () => {

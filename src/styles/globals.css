@@ -1515,6 +1515,11 @@ textarea {
   color: #b91c1c;
   border: 1px solid #fca5a5;
 }
+.status-docs-missing {
+  background: #fce8e8;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
 .status-waitlisted {
   background: #fff3e0;
   color: #e65100;
@@ -2084,6 +2089,7 @@ textarea {
 }
 .reg-card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 20px;
   background: var(--surface);
@@ -2284,9 +2290,6 @@ textarea {
 
   /* Registration card header wraps */
   .reg-card-header {
-    flex-wrap: wrap;
-  }
-  .reg-card-actions {
     flex-wrap: wrap;
   }
 

@@ -175,24 +175,22 @@ describe("ClimbCard", () => {
     expect(screen.queryByText("Announcement")).not.toBeInTheDocument();
   });
 
-  it("shows a single required-document flag when only one is required and no one has registered yet", () => {
+  it("shows a single required-document flag naming the doc when only one is required and no one has registered yet", () => {
     render({
       requiresRegistrationForm: true,
       requiresMedicalCert: false,
       registrationCount: 0,
     });
-    expect(
-      screen.getByText("Registration Form Required"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Form Required")).toBeInTheDocument();
   });
 
-  it("shows a combined 'Docs Required' flag when both are required and no one has registered yet", () => {
+  it("names both documents in the flag when more than one is required and no one has registered yet", () => {
     render({
       requiresRegistrationForm: true,
       requiresMedicalCert: true,
       registrationCount: 0,
     });
-    expect(screen.getByText("Docs Required")).toBeInTheDocument();
+    expect(screen.getByText("Form, Med Cert Required")).toBeInTheDocument();
   });
 
   it("shows a single required-document flag for the permit when only it is required", () => {
@@ -200,41 +198,40 @@ describe("ClimbCard", () => {
       requiresPermit: true,
       registrationCount: 0,
     });
-    expect(
-      screen.getByText("Mountaineering / Trekking Permit Required"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Permit Required")).toBeInTheDocument();
   });
 
-  it("shows a combined 'Docs Required' flag when the permit and waiver doc are both required", () => {
+  it("names the permit and waiver doc in the flag when both are required", () => {
     render({
       requiresPermit: true,
       requiresWaiverDoc: true,
       registrationCount: 0,
     });
-    expect(screen.getByText("Docs Required")).toBeInTheDocument();
+    expect(
+      screen.getByText("Permit, Waiver Doc Required"),
+    ).toBeInTheDocument();
   });
 
   it("does not show a document flag when none are required", () => {
     render({ requiresRegistrationForm: false, requiresMedicalCert: false });
-    expect(screen.queryByText(/Docs Required/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Required$/)).not.toBeInTheDocument();
   });
 
-  it("shows a docs-submitted progress count once climbers have registered", () => {
+  it("shows a docs-submitted progress count naming the doc once climbers have registered", () => {
     render({
       requiresRegistrationForm: true,
       registrationCount: 8,
       docsCompleteCount: 3,
     });
-    expect(screen.getByText("3/8 Docs Submitted")).toBeInTheDocument();
+    expect(screen.getByText("3/8 Submitted — Form")).toBeInTheDocument();
   });
 
-  it("shows 0/N when no registrants have submitted the required doc yet", () => {
+  it("shows 0/N naming the doc when no registrants have submitted the required doc yet", () => {
     render({
       requiresMedicalCert: true,
       registrationCount: 5,
       docsCompleteCount: 0,
     });
-    expect(screen.getByText("0/5 Docs Submitted")).toBeInTheDocument();
+    expect(screen.getByText("0/5 Submitted — Med Cert")).toBeInTheDocument();
   });
 });
