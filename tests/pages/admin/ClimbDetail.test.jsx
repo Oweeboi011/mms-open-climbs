@@ -557,6 +557,48 @@ describe("Admin ClimbDetail", () => {
     expect(patch.name).toBe("Juan Dela Cruz");
   });
 
+  it("lets an admin submit a required document on a participant's behalf", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresPermit: true,
+      }),
+    );
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /\+ Manage Documents/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /\+ Manage Documents/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Manage Required Documents")).toBeInTheDocument(),
+    );
+
+    const label = screen.getByText("Mountaineering / Trekking Permit", {
+      selector: "label",
+    });
+    const fileInput = label
+      .closest(".form-group")
+      .querySelector('input[type="file"]');
+    const file = new File(["permit"], "permit.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.permitUpload)?.[1];
+    expect(patch.permitUpload).toMatchObject({ fileName: "permit.pdf" });
+  });
+
   it("shows submitted feedback with an average rating", async () => {
     mockLiveSnapshot(
       [{ id: registrationFixture.id, data: registrationFixture }],

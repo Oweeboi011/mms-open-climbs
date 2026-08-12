@@ -22,6 +22,7 @@ import EditRegistrationModal from "@/components/EditRegistrationModal";
 import RegistrantRow from "@/components/admin/RegistrantRow";
 import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
+import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
@@ -54,6 +55,7 @@ export default function AdminClimbDetail() {
   const [addJoinerOpen, setAddJoinerOpen] = useState(false);
   const [editingReg, setEditingReg] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
+  const [managingDocsFor, setManagingDocsFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
   const [zippingDocs, setZippingDocs] = useState(false);
 
@@ -161,6 +163,23 @@ export default function AdminClimbDetail() {
       climbTitle: climb?.title,
     });
     setRecordingPaymentFor(null);
+  }
+
+  async function saveAdminDocs(reg, patch) {
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "documents_submitted_by_admin",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: Object.keys(patch).join(", "),
+    });
+    setManagingDocsFor(null);
   }
 
   // Toggle whether a registrant is availing one of the climb's optional
@@ -818,6 +837,7 @@ export default function AdminClimbDetail() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         onRecordPayment={setRecordingPaymentFor}
+                        onManageDocuments={setManagingDocsFor}
                         toggleOptionalFee={toggleOptionalFee}
                         onEdit={setEditingReg}
                         deleteRegistration={deleteRegistration}
@@ -902,6 +922,16 @@ export default function AdminClimbDetail() {
           reg={recordingPaymentFor}
           onClose={() => setRecordingPaymentFor(null)}
           onSave={recordPayment}
+        />
+      )}
+
+      {managingDocsFor && (
+        <AdminDocumentModal
+          reg={managingDocsFor}
+          climb={climb}
+          currentUser={currentUser}
+          onClose={() => setManagingDocsFor(null)}
+          onSave={saveAdminDocs}
         />
       )}
 

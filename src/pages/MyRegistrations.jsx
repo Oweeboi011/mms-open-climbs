@@ -1170,15 +1170,42 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
   const missingDocs = REQUIRED_DOC_TYPES.filter(
     (docType) => climb?.[docType.requiresField] && !reg[docType.uploadField],
   );
+  const submittedDocs = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb?.[docType.requiresField] && reg[docType.uploadField],
+  );
 
   const [docFiles, setDocFiles] = useState({});
+  const [updatingKeys, setUpdatingKeys] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Missing docs always need a fresh upload; already-submitted ones only
+  // need one if the member chose to replace it.
+  const uploadableDocs = [
+    ...missingDocs,
+    ...submittedDocs.filter((docType) => updatingKeys.has(docType.key)),
+  ];
+
+  function toggleUpdating(key) {
+    setUpdatingKeys((p) => {
+      const next = new Set(p);
+      if (next.has(key)) {
+        next.delete(key);
+        setDocFiles((f) => {
+          const { [key]: _removed, ...rest } = f;
+          return rest;
+        });
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    for (const docType of missingDocs) {
+    for (const docType of uploadableDocs) {
       if (!docFiles[docType.key]) {
         setError(docType.validationMessage);
         return;
@@ -1189,7 +1216,7 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
     try {
       const patch = {};
       const timestamp = Date.now();
-      for (const docType of missingDocs) {
+      for (const docType of uploadableDocs) {
         const file = docFiles[docType.key];
         const fileRef = storageRef(
           storage,
@@ -1257,12 +1284,68 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
         </p>
         {error && <div className="alert alert-error">{error}</div>}
 
+        {submittedDocs.filter((d) => !updatingKeys.has(d.key)).length > 0 && (
+          <ul
+            className="info-list"
+            style={{
+              margin: "0 0 16px",
+              padding: 0,
+              listStyle: "none",
+              fontSize: "0.82rem",
+            }}
+          >
+            {submittedDocs
+              .filter((docType) => !updatingKeys.has(docType.key))
+              .map((docType) => (
+                <li
+                  key={docType.key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginBottom: 4,
+                  }}
+                >
+                  <span style={{ color: "var(--green-dark)" }}>
+                    &#10003;{" "}
+                    <a
+                      href={reg[docType.uploadField].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {docType.registerLabel}
+                    </a>{" "}
+                    already submitted
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    style={{ marginLeft: "auto", padding: "1px 8px" }}
+                    onClick={() => toggleUpdating(docType.key)}
+                  >
+                    Update
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
+
         <form onSubmit={handleSubmit}>
-          {missingDocs.map((docType) => (
+          {uploadableDocs.map((docType) => (
             <div className="form-group" key={docType.key}>
               <label className="form-label required">
                 {docType.registerLabel}
               </label>
+              {submittedDocs.some((d) => d.key === docType.key) && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ float: "right", padding: "1px 8px" }}
+                  onClick={() => toggleUpdating(docType.key)}
+                >
+                  Cancel Update
+                </button>
+              )}
               {climb?.[docType.sampleUrlField] && (
                 <div style={{ marginBottom: 8 }}>
                   <a
@@ -1368,6 +1451,9 @@ function RegCard({
   const missingDocs = REQUIRED_DOC_TYPES.filter(
     (docType) => climb?.[docType.requiresField] && !reg[docType.uploadField],
   );
+  const requiredDocs = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb?.[docType.requiresField],
+  );
   return (
     <div className="reg-card" data-status={reg.status}>
       <div className="reg-card-header">
@@ -1394,6 +1480,14 @@ function RegCard({
               className={`status-badge status-payment-${reg.paymentStatus}`}
             >
               {PAYMENT_LABEL[reg.paymentStatus]}
+            </span>
+          )}
+          {reg.status !== "cancelled" && missingDocs.length > 0 && (
+            <span
+              className="status-badge status-docs-missing"
+              title={`Needed: ${missingDocs.map((d) => d.label).join(", ")}`}
+            >
+              {missingDocs.map((d) => d.badgeLabel).join(", ")} Needed
             </span>
           )}
         </div>
@@ -1433,6 +1527,36 @@ function RegCard({
               required before climb day — sign it below.
             </div>
           )
+        )}
+        {requiredDocs.length > 0 && (
+          <ul
+            className="info-list"
+            style={{
+              margin: "8px 0 0",
+              padding: 0,
+              listStyle: "none",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+            }}
+          >
+            {requiredDocs.map((docType) => {
+              const submitted = !!reg[docType.uploadField];
+              return (
+                <li
+                  key={docType.key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    color: submitted ? "var(--green-mid)" : "#b91c1c",
+                  }}
+                >
+                  {submitted ? <>&#10003;</> : <>&#10007;</>} {docType.label}
+                  {submitted ? " submitted" : " needed"}
+                </li>
+              );
+            })}
+          </ul>
         )}
         {reg.status !== "cancelled" && detailsIncomplete(reg) && (
           <div className="alert alert-warning" style={{ marginTop: 12 }}>
@@ -1494,11 +1618,16 @@ function RegCard({
         )}
         {reg.status !== "cancelled" && missingDocs.length > 0 && (
           <button className="btn btn-accent btn-sm" onClick={onSubmitDocs}>
-            {missingDocs.length > 1
-              ? "Submit Required Documents"
-              : `Submit ${missingDocs[0].label}`}
+            Submit Required Documents
           </button>
         )}
+        {reg.status !== "cancelled" &&
+          missingDocs.length === 0 &&
+          requiredDocs.length > 0 && (
+            <button className="btn btn-outline btn-sm" onClick={onSubmitDocs}>
+              View Submitted Documents
+            </button>
+          )}
         {isPast && reg.status === "confirmed" && (
           <Link to={`/feedback/${reg.climbId}`} className="btn btn-gold btn-sm">
             Leave Feedback

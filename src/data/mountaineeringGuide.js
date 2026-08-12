@@ -36,7 +36,7 @@ export const MOUNTAINEERING_GUIDE_SECTIONS = [
       "**6/9 — Fairly Difficult** (Advanced): requires good physical fitness — longer trails with significant elevation gain.",
       "**7/9 — Difficult** (Advanced): long distances combined with steep, sustained ascents; only for experienced hikers.",
       "**8/9 — Very Difficult** (Advanced): extremely technical or remote terrain requiring advanced skill and endurance.",
-      "**9/9 — Most Difficult** (Advanced): expedition-level climbs under extreme conditions; only for veteran mountaineers.",
+      "**9/9 — Most Dasddasasaasdifficult** (Advanced): expedition-level climbs under extreme conditions; only for veteran mountaineers.",
     ],
     footnote:
       "The Beginner Friendly / Moderate / Advanced tag next to each score is the same badge shown on climb cards (1-3 Beginner Friendly, 4-5 Moderate, 6-9 Advanced). A climb's Trail Class (below) is a separate 1-6 scale for technical terrain — check both before you register.",
