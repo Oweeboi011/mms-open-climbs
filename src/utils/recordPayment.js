@@ -1,7 +1,13 @@
 import { doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
+import { db, storage } from "@/firebase/config";
 import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
 import { logAuditEvent } from "@/utils/auditLog";
+import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
 
 /**
  * Log a payment the club received outside the app — cash at the jump-off, a
@@ -20,14 +26,26 @@ import { logAuditEvent } from "@/utils/auditLog";
  */
 export async function recordManualPayment(
   reg,
-  { amount, note, markVerified },
+  { amount, note, markVerified, files = [] },
   { currentUser, climbTitle } = {},
 ) {
+  const proofs = await Promise.all(
+    files.map(async (file) => {
+      const fileRef = storageRef(
+        storage,
+        `payment-proofs/${reg.climbId}/${reg.userId}/${makeUploadTimestamp()}_${file.name}`,
+      );
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      return { url, fileName: file.name };
+    }),
+  );
+
   const payments = [
     ...getPaymentEntries(reg),
     {
       amount,
-      proofs: [],
+      proofs,
       submittedAt: Timestamp.now(),
       status: markVerified ? "verified" : "submitted",
       recordedBy: currentUser?.displayName || currentUser?.email || "admin",
