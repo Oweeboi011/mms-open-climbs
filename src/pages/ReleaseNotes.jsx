@@ -51,65 +51,75 @@ export default function ReleaseNotes() {
         ) : notes.length === 0 ? (
           <p className="tbd-note">No release notes yet.</p>
         ) : (
-          notes.map((note) => {
-            const isExpanded = note.id === expandedId;
-            return (
-              <div className="reg-card" key={note.id}>
-                <button
-                  type="button"
-                  className="reg-card-header rn-header"
-                  aria-expanded={isExpanded}
-                  onClick={() =>
-                    setExpandedId((prev) =>
-                      prev === note.id ? null : note.id,
-                    )
-                  }
+          <div className="rn-timeline">
+            {notes.map((note, index) => {
+              const isExpanded = note.id === expandedId;
+              return (
+                <div
+                  className={`rn-timeline-item ${index === 0 ? "rn-timeline-item--latest" : ""}`}
+                  key={note.id}
                 >
-                  <div>
-                    <div className="reg-card-title">{note.title}</div>
-                    <div className="reg-card-date">
-                      {note.publishedAt
-                        ?.toDate?.()
-                        .toLocaleDateString("en-PH", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        }) || ""}
-                    </div>
-                  </div>
-                  <span className={`rn-chevron ${isExpanded ? "rn-chevron--open" : ""}`}>
-                    ▾
-                  </span>
-                </button>
-                {isExpanded && (
-                  <div className="reg-card-body rn-body">
-                    {parseReleaseNoteBody(note.body).map((block, i) =>
-                      block.type === "list" ? (
-                        <div className="rn-section" key={i}>
-                          {block.heading && (
-                            <div
-                              className={`rn-section-title rn-section-title--${releaseNoteSectionStyle(block.heading)}`}
-                            >
-                              {block.heading}
-                            </div>
-                          )}
-                          <ul className="rn-list">
-                            {block.items.map((item, j) => (
-                              <li key={j}>{item}</li>
-                            ))}
-                          </ul>
+                  <span className="rn-timeline-dot" aria-hidden="true" />
+                  <div className="reg-card">
+                    <button
+                      type="button"
+                      className="reg-card-header rn-header"
+                      aria-expanded={isExpanded}
+                      onClick={() =>
+                        setExpandedId((prev) =>
+                          prev === note.id ? null : note.id,
+                        )
+                      }
+                    >
+                      <div>
+                        <div className="reg-card-title">{note.title}</div>
+                        <div className="reg-card-date">
+                          {note.publishedAt
+                            ?.toDate?.()
+                            .toLocaleDateString("en-PH", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            }) || ""}
                         </div>
-                      ) : (
-                        <p className="rn-paragraph" key={i}>
-                          {block.text}
-                        </p>
-                      ),
+                      </div>
+                      <span
+                        className={`rn-chevron ${isExpanded ? "rn-chevron--open" : ""}`}
+                      >
+                        ▾
+                      </span>
+                    </button>
+                    {isExpanded && (
+                      <div className="reg-card-body rn-body">
+                        {parseReleaseNoteBody(note.body).map((block, i) =>
+                          block.type === "list" ? (
+                            <div className="rn-section" key={i}>
+                              {block.heading && (
+                                <div
+                                  className={`rn-section-title rn-section-title--${releaseNoteSectionStyle(block.heading)}`}
+                                >
+                                  {block.heading}
+                                </div>
+                              )}
+                              <ul className="rn-list">
+                                {block.items.map((item, j) => (
+                                  <li key={j}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : (
+                            <p className="rn-paragraph" key={i}>
+                              {block.text}
+                            </p>
+                          ),
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })
+                </div>
+              );
+            })}
+          </div>
         )}
       </main>
       <Footer />

@@ -4619,3 +4619,69 @@ details[open] > .myreg-collapsible::before {
     position: relative;
   }
 }
+
+/* ── RELEASE NOTES TIMELINE ────────────────────────────────────────────────── */
+.rn-timeline {
+  position: relative;
+  padding-left: 44px;
+  margin-top: 8px;
+}
+.rn-timeline::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--gold) 0%,
+    var(--border) 14%,
+    var(--border) 100%
+  );
+}
+.rn-timeline-item {
+  position: relative;
+}
+.rn-timeline-dot {
+  position: absolute;
+  left: -44px;
+  top: 18px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 3px solid var(--green-mid);
+  box-shadow: 0 0 0 4px var(--surface);
+  z-index: 2;
+}
+.rn-timeline-item--latest .rn-timeline-dot {
+  border-color: var(--gold);
+  background: var(--gold-light);
+  box-shadow:
+    0 0 0 4px var(--surface),
+    0 0 0 7px var(--gold-pale);
+}
+.rn-timeline-item .reg-card {
+  margin-bottom: 20px;
+}
+
+@media (max-width: 520px) {
+  .rn-timeline {
+    padding-left: 32px;
+  }
+  .rn-timeline::before {
+    left: 7px;
+  }
+  .rn-timeline-dot {
+    left: -32px;
+    width: 16px;
+    height: 16px;
+    top: 20px;
+  }
+  .rn-timeline-item--latest .rn-timeline-dot {
+    box-shadow:
+      0 0 0 3px var(--surface),
+      0 0 0 6px var(--gold-pale);
+  }
+}
