@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { updateDoc } from "firebase/firestore";
+import { uploadBytes, getDownloadURL } from "firebase/storage";
 import { recordManualPayment } from "@/utils/recordPayment";
 import { logAuditEvent } from "@/utils/auditLog";
 
@@ -61,6 +62,20 @@ describe("recordManualPayment", () => {
       { currentUser: admin },
     );
     expect(patchFrom().payments.at(-1).proofs).toEqual([]);
+  });
+
+  it("uploads any attached proof and stores its download URL", async () => {
+    getDownloadURL.mockResolvedValueOnce("https://example.com/receipt.jpg");
+    const file = new File(["x"], "receipt.jpg", { type: "image/jpeg" });
+    await recordManualPayment(
+      { id: "reg-1", climbId: "climb-1", userId: "user-1" },
+      { amount: 500, markVerified: true, files: [file] },
+      { currentUser: admin },
+    );
+    expect(uploadBytes).toHaveBeenCalled();
+    expect(patchFrom().payments.at(-1).proofs).toEqual([
+      { url: "https://example.com/receipt.jpg", fileName: "receipt.jpg" },
+    ]);
   });
 
   it("omits an empty note rather than storing a blank", async () => {
