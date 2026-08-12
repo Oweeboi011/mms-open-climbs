@@ -73,6 +73,7 @@ describe("RecordPaymentModal", () => {
       amount: 300,
       note: "cash at the jump-off",
       markVerified: true,
+      files: [],
     });
   });
 
@@ -110,5 +111,18 @@ describe("RecordPaymentModal", () => {
     setup({ reg: { id: "reg-2", name: "Maria Santos" } });
     expect(screen.getByText(/Already recorded: ₱0/)).toBeInTheDocument();
     expect(screen.getByText(/payment 1/i)).toBeInTheDocument();
+  });
+
+  it("attaches selected proof files to the saved entry", async () => {
+    const { onSave } = setup();
+    fireEvent.change(amountInput(), { target: { value: "300" } });
+    const file = new File(["x"], "receipt.jpg", { type: "image/jpeg" });
+    const fileInput = document.querySelector('input[type="file"]');
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    expect(screen.getByText(/1 file selected/i)).toBeInTheDocument();
+    submit();
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][1].files).toEqual([file]);
   });
 });

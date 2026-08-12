@@ -10,6 +10,7 @@ export default function RecordPaymentModal({ reg, onClose, onSave }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [markVerified, setMarkVerified] = useState(true);
+  const [files, setFiles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,6 +31,7 @@ export default function RecordPaymentModal({ reg, onClose, onSave }) {
         amount: parsed,
         note: note.trim(),
         markVerified,
+        files,
       });
     } catch {
       setError("Failed to record the payment. Please try again.");
@@ -114,6 +116,31 @@ export default function RecordPaymentModal({ reg, onClose, onSave }) {
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Proof of Payment (Optional)</label>
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            className="form-input"
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files))}
+          />
+          <div className="form-hint">
+            A receipt, bank transfer screenshot, or photo — if you have one.
+          </div>
+          {files.length > 0 && (
+            <div
+              style={{
+                fontSize: "0.78rem",
+                color: "var(--green-dark)",
+                marginTop: 6,
+              }}
+            >
+              &#10003; {files.length} file{files.length > 1 ? "s" : ""} selected
+            </div>
+          )}
         </div>
 
         <label
