@@ -21,7 +21,8 @@ export default function ClimbPaymentCard({
   setExpandedRegId,
   qrUploading,
   qrError,
-  fileRefs,
+  setFileInputRef,
+  clickFileInput,
   handleQrUpload,
   changePaymentStatus,
   onEntryStatusChange,
@@ -470,9 +471,7 @@ export default function ClimbPaymentCard({
                             <input
                               type="file"
                               accept="image/*"
-                              ref={(el) => {
-                                fileRefs.current[climb.id] = el;
-                              }}
+                              ref={(el) => setFileInputRef(climb.id, el)}
                               style={{ display: "none" }}
                               onChange={(e) =>
                                 handleQrUpload(climb.id, e.target.files[0])
@@ -482,9 +481,7 @@ export default function ClimbPaymentCard({
                               className="btn btn-outline btn-sm"
                               disabled={qrUploading === climb.id}
                               title="Upload a GCash QR code image for this climb"
-                              onClick={() =>
-                                fileRefs.current[climb.id]?.click()
-                              }
+                              onClick={() => clickFileInput(climb.id)}
                             >
                               {qrUploading === climb.id
                                 ? "Uploading…"

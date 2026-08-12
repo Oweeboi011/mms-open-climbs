@@ -12,6 +12,7 @@
  *  - resetPassword() calls sendPasswordResetEmail
  */
 import { describe, it, expect, vi } from "vitest";
+import { createRef, useEffect } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import {
@@ -122,10 +123,12 @@ describe("AuthContext — signup()", () => {
     });
 
     // Access signup via Consumer that calls it
-    let signupFn;
+    const signupRef = createRef();
     function SignupConsumer() {
       const { signup } = useAuth();
-      signupFn = signup;
+      useEffect(() => {
+        signupRef.current = signup;
+      });
       return null;
     }
     render(
@@ -136,7 +139,7 @@ describe("AuthContext — signup()", () => {
       </BrowserRouter>,
     );
 
-    await signupFn("n@n.com", "pass1234", "New User");
+    await signupRef.current("n@n.com", "pass1234", "New User");
     expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
       expect.anything(),
       "n@n.com",
@@ -153,10 +156,12 @@ describe("AuthContext — login()", () => {
       cb(null);
       return vi.fn();
     });
-    let loginFn;
+    const loginRef = createRef();
     function LoginConsumer() {
       const { login } = useAuth();
-      loginFn = login;
+      useEffect(() => {
+        loginRef.current = login;
+      });
       return null;
     }
     render(
@@ -166,7 +171,7 @@ describe("AuthContext — login()", () => {
         </AuthProvider>
       </BrowserRouter>,
     );
-    await loginFn("e@e.com", "pw");
+    await loginRef.current("e@e.com", "pw");
     expect(signInWithEmailAndPassword).toHaveBeenCalledWith(
       expect.anything(),
       "e@e.com",
@@ -181,10 +186,12 @@ describe("AuthContext — logout()", () => {
       cb(null);
       return vi.fn();
     });
-    let logoutFn;
+    const logoutRef = createRef();
     function LogoutConsumer() {
       const { logout } = useAuth();
-      logoutFn = logout;
+      useEffect(() => {
+        logoutRef.current = logout;
+      });
       return null;
     }
     render(
@@ -194,7 +201,7 @@ describe("AuthContext — logout()", () => {
         </AuthProvider>
       </BrowserRouter>,
     );
-    await logoutFn();
+    await logoutRef.current();
     expect(signOut).toHaveBeenCalled();
   });
 });
@@ -205,10 +212,12 @@ describe("AuthContext — resetPassword()", () => {
       cb(null);
       return vi.fn();
     });
-    let resetFn;
+    const resetRef = createRef();
     function ResetConsumer() {
       const { resetPassword } = useAuth();
-      resetFn = resetPassword;
+      useEffect(() => {
+        resetRef.current = resetPassword;
+      });
       return null;
     }
     render(
@@ -218,7 +227,7 @@ describe("AuthContext — resetPassword()", () => {
         </AuthProvider>
       </BrowserRouter>,
     );
-    await resetFn("user@example.com");
+    await resetRef.current("user@example.com");
     expect(sendPasswordResetEmail).toHaveBeenCalledWith(
       expect.anything(),
       "user@example.com",

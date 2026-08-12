@@ -77,6 +77,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `description` | string | No | Mountain description for the event page |
 | `elevation` | string | No | Summit elevation in MASL |
 | `difficulty` | string | No | Difficulty rating, e.g. "Moderate", "Difficult" |
+| `trailClass` | string | No | `"1"`–`"6"`, YDS-style technical difficulty scale (1 = easy walking, 6 = requires artificial climbing gear) — see `src/utils/trailClass.js` for the label/description per class; drives the "Beginner/Moderate/Advanced" badge on `ClimbCard` |
 | `jumpOff` | string | No | Jump-off point name |
 | `jumpOffElevation` | string | No | Jump-off elevation in meters |
 | `elevationGain` | string | No | Total elevation gain |
@@ -104,7 +105,15 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `requiresMedicalCert` | boolean | No | When `true`, registrants must upload their own medical certificate to register |
 | `medicalCertSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded sample medical certificate (for reference only) |
 | `medicalCertSampleFileName` | string | No | Original filename of the uploaded sample |
+| `requiresPermit` | boolean | No | When `true`, registrants must upload their own mountaineering / trekking permit to register |
+| `permitSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded sample permit (for reference only) |
+| `permitSampleFileName` | string | No | Original filename of the uploaded sample |
+| `requiresWaiverDoc` | boolean | No | When `true`, registrants must download `waiverDocSampleUrl`, sign it, and upload their own copy of the Waiver of Responsibility to register (distinct from the `waiverSigned` e-signature on the registration doc) |
+| `waiverDocSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded Waiver of Responsibility template |
+| `waiverDocSampleFileName` | string | No | Original filename of the uploaded template |
 | `thankYouSentAt` | timestamp | No | Set by `sendReminderNotifications` once the one-time post-climb thank-you email (`tplThankYou`) has been sent to all confirmed registrants; gates the email so it only sends once per climb — see [API.md — sendReminderNotifications](API.md#sendremindernotifications) |
+| `cancellationStatus` | string | No | `cancelled` / `postponed`, or unset/`""` for a climb that's proceeding as scheduled. Independent of `status` (registration-open lifecycle) — a climb can be `status: closed` and `cancellationStatus: cancelled` at once. Changing this triggers `onClimbUpdated`, which emails and notifies every active registrant plus officers/admins |
+| `cancellationReason` | string | No | Admin-entered reason shown to participants when `cancellationStatus` is set |
 
 #### Climb status lifecycle
 
@@ -155,6 +164,8 @@ Each document represents a single member's registration for a single climb.
 | `feeBreakdown` | object[] | No | `[{ label, amount, optional, selected }]` |
 | `registrationFormUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresRegistrationForm` is `true` |
 | `medicalCertUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresMedicalCert` is `true` |
+| `permitUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresPermit` is `true` |
+| `waiverDocUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresWaiverDoc` is `true` |
 | `adminNotes` | string | No | Admin-only internal notes |
 | `cancellationReason` | string | No | Reason provided when `status = cancelled` |
 | `confirmedAt` | timestamp | No | Set when status changes to `confirmed` |
@@ -262,7 +273,7 @@ Each document is one in-app reminder shown in the notification bell. Written onl
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `userId` | string | Yes | Firebase Auth UID of the recipient |
-| `type` | string | Yes | `payment_reminder` / `payment_verified` / `payment_submitted` / `document_reminder` / `climb_announcement` / `status_update` / `upcoming_climb` |
+| `type` | string | Yes | `payment_reminder` / `payment_verified` / `payment_submitted` / `document_reminder` / `climb_announcement` / `status_update` / `upcoming_climb` / `climb_status_change` |
 | `title` | string | Yes | Short headline shown in the bell dropdown |
 | `message` | string | No | Supporting detail text |
 | `link` | string | No | In-app path to navigate to on click (e.g. `/my-registrations`) |

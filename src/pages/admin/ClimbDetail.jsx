@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
+import JSZip from "jszip";
 import {
   doc,
   collection,
@@ -21,6 +22,7 @@ import EditRegistrationModal from "@/components/EditRegistrationModal";
 import RegistrantRow from "@/components/admin/RegistrantRow";
 import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
+import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
@@ -53,7 +55,9 @@ export default function AdminClimbDetail() {
   const [addJoinerOpen, setAddJoinerOpen] = useState(false);
   const [editingReg, setEditingReg] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
+  const [managingDocsFor, setManagingDocsFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
+  const [zippingDocs, setZippingDocs] = useState(false);
 
   useEffect(() => {
     // Live, not a one-shot read: every expected/outstanding figure on this
@@ -159,6 +163,23 @@ export default function AdminClimbDetail() {
       climbTitle: climb?.title,
     });
     setRecordingPaymentFor(null);
+  }
+
+  async function saveAdminDocs(reg, patch) {
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "documents_submitted_by_admin",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: Object.keys(patch).join(", "),
+    });
+    setManagingDocsFor(null);
   }
 
   // Toggle whether a registrant is availing one of the climb's optional
@@ -329,6 +350,59 @@ export default function AdminClimbDetail() {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadAllDocs() {
+    const docs = [];
+    regs.forEach((r, i) => {
+      const safeName =
+        (r.name || `registrant-${i + 1}`).replace(/[\\/:*?"<>|]/g, "_") +
+        (r.id ? ` (${r.id.slice(-6)})` : "");
+      if (r.registrationFormUpload?.url) {
+        docs.push({
+          folder: safeName,
+          url: r.registrationFormUpload.url,
+          fileName: r.registrationFormUpload.fileName || "registration-form",
+        });
+      }
+      if (r.medicalCertUpload?.url) {
+        docs.push({
+          folder: safeName,
+          url: r.medicalCertUpload.url,
+          fileName: r.medicalCertUpload.fileName || "medical-certificate",
+        });
+      }
+    });
+
+    if (!docs.length) {
+      alert("No uploaded requirement documents found for this climb yet.");
+      return;
+    }
+
+    setZippingDocs(true);
+    try {
+      const zip = new JSZip();
+      await Promise.all(
+        docs.map(async (d) => {
+          const res = await fetch(d.url);
+          if (!res.ok) return;
+          const blob = await res.blob();
+          zip.file(`${d.folder}/${d.fileName}`, blob);
+        }),
+      );
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${climb?.title || "climb"}-requirement-docs.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to build requirement docs zip:", err);
+      alert("Failed to download documents. Please try again.");
+    } finally {
+      setZippingDocs(false);
+    }
+  }
+
   const filtered = useMemo(
     () =>
       regs.filter((r) => {
@@ -348,7 +422,10 @@ export default function AdminClimbDetail() {
     [regs, search, filterStatus, filterPayment],
   );
 
-  const getOutstanding = (reg) => getOutstandingShared(reg, climb);
+  const getOutstanding = useCallback(
+    (reg) => getOutstandingShared(reg, climb),
+    [climb],
+  );
 
   const stats = useMemo(
     () => ({
@@ -366,7 +443,7 @@ export default function AdminClimbDetail() {
         .filter((r) => r.status !== "cancelled")
         .reduce((s, r) => s + getOutstanding(r), 0),
     }),
-    [regs, climb],
+    [regs, getOutstanding],
   );
 
   return (
@@ -453,6 +530,14 @@ export default function AdminClimbDetail() {
               title="Download all registrations for this climb as a CSV file"
             >
               &#128229; Export CSV
+            </button>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={downloadAllDocs}
+              disabled={zippingDocs}
+              title="Download every uploaded registration form and medical certificate for this climb as a ZIP file"
+            >
+              {zippingDocs ? "Zipping…" : "📁 Download Docs (ZIP)"}
             </button>
             <button
               className="btn btn-gold btn-sm"
@@ -706,16 +791,26 @@ export default function AdminClimbDetail() {
 
             {/* Table */}
             <ResponsiveTable>
-              <table className="admin-table">
+              <table className="admin-table table-min-980">
                 <thead>
                   <tr>
-                    <th style={{ width: "1%" }}>#</th>
+                    <th style={{ minWidth: 40 }}>#</th>
                     <th>Participant</th>
-                    <th style={{ width: "1%" }}>Compliance</th>
-                    <th style={{ width: "1%" }}>Payment</th>
-                    <th style={{ width: "1%" }}>Balance</th>
-                    <th style={{ width: "1%" }}>Status</th>
-                    <th style={{ width: "1%" }}>Actions</th>
+                    <th style={{ minWidth: 130, whiteSpace: "nowrap" }}>
+                      Compliance
+                    </th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Payment
+                    </th>
+                    <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                      Balance
+                    </th>
+                    <th style={{ minWidth: 110, whiteSpace: "nowrap" }}>
+                      Status
+                    </th>
+                    <th style={{ minWidth: 150, whiteSpace: "nowrap" }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -745,6 +840,7 @@ export default function AdminClimbDetail() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         onRecordPayment={setRecordingPaymentFor}
+                        onManageDocuments={setManagingDocsFor}
                         toggleOptionalFee={toggleOptionalFee}
                         onEdit={setEditingReg}
                         deleteRegistration={deleteRegistration}
@@ -796,7 +892,7 @@ export default function AdminClimbDetail() {
                   )
                   .map((f) => (
                     <tr key={f.id}>
-                      <td style={{ width: "1%", whiteSpace: "nowrap" }}>
+                      <td style={{ width: "1%" }}>
                         {f.name || "Anonymous"}
                       </td>
                       <td
@@ -829,6 +925,16 @@ export default function AdminClimbDetail() {
           reg={recordingPaymentFor}
           onClose={() => setRecordingPaymentFor(null)}
           onSave={recordPayment}
+        />
+      )}
+
+      {managingDocsFor && (
+        <AdminDocumentModal
+          reg={managingDocsFor}
+          climb={climb}
+          currentUser={currentUser}
+          onClose={() => setManagingDocsFor(null)}
+          onSave={saveAdminDocs}
         />
       )}
 

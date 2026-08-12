@@ -21,19 +21,11 @@ import {
   formatPeso,
 } from "@/utils/feeSummary";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import ClimbRatingCells from "@/components/admin/ClimbRatingCells";
+import { TRAIL_CLASS_LABELS } from "@/utils/trailClass";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const STATUS_OPTIONS = ["draft", "open", "closed", "completed"];
-const TRAIL_CLASS_LABELS = {
-  1: "Easy day hike",
-  2: "Moderate day hike",
-  3: "Strenuous day hike",
-  4: "Minor climb",
-  5: "Major climb",
-  6: "Technical climb",
-  7: "Very technical",
-  8: "Extreme",
-  9: "Super extreme",
-};
 
 export default function AdminClimbsManage() {
   const [climbs, setClimbs] = useState([]);
@@ -156,22 +148,25 @@ export default function AdminClimbsManage() {
           <LoadingSpinner />
         ) : (
           <ResponsiveTable>
-            <table className="admin-table">
+            <table className="admin-table table-min-880">
               <thead>
                 <tr>
-                  <th style={{ width: "30%" }}>Climb</th>
-                  <th>Date</th>
-                  <th>Slots</th>
-                  <th style={{ whiteSpace: "nowrap" }}>Status</th>
-                  <th>Officers</th>
-                  <th>Actions</th>
+                  <th style={{ minWidth: 170 }}>Climb</th>
+                  <th style={{ minWidth: 85 }}>Date</th>
+                  <th style={{ minWidth: 150 }}>Rating</th>
+                  <th style={{ minWidth: 75 }}>Slots</th>
+                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                    Status
+                  </th>
+                  <th style={{ minWidth: 130 }}>Officers</th>
+                  <th style={{ minWidth: 120 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{ textAlign: "center", color: "var(--ink-soft)" }}
                     >
                       No climbs found.
@@ -190,7 +185,7 @@ export default function AdminClimbsManage() {
                     return [
                       <tr key={`group-${title}`}>
                         <td
-                          colSpan={6}
+                          colSpan={7}
                           style={{
                             background: "var(--surface-alt)",
                             fontSize: "0.66rem",
@@ -209,7 +204,7 @@ export default function AdminClimbsManage() {
                         ? [
                             <tr key={`empty-${title}`}>
                               <td
-                                colSpan={6}
+                                colSpan={7}
                                 style={{ color: "var(--ink-soft)" }}
                               >
                                 None.
@@ -263,8 +258,8 @@ export default function AdminClimbsManage() {
                                           style={{
                                             display: "flex",
                                             alignItems: "center",
+                                            flexWrap: "wrap",
                                             gap: 6,
-                                            whiteSpace: "nowrap",
                                           }}
                                         >
                                           <span style={{ fontWeight: 600 }}>
@@ -292,8 +287,10 @@ export default function AdminClimbsManage() {
                                             </span>
                                           )}
                                         </div>
-                                        {(climb.requiresRegistrationForm ||
-                                          climb.requiresMedicalCert) && (
+                                        {REQUIRED_DOC_TYPES.some(
+                                          (docType) =>
+                                            climb[docType.requiresField],
+                                        ) && (
                                           <div
                                             style={{
                                               display: "flex",
@@ -302,8 +299,12 @@ export default function AdminClimbsManage() {
                                               flexWrap: "wrap",
                                             }}
                                           >
-                                            {climb.requiresRegistrationForm && (
+                                            {REQUIRED_DOC_TYPES.filter(
+                                              (docType) =>
+                                                climb[docType.requiresField],
+                                            ).map((docType) => (
                                               <span
+                                                key={docType.key}
                                                 style={{
                                                   display: "inline-flex",
                                                   alignItems: "center",
@@ -312,34 +313,16 @@ export default function AdminClimbsManage() {
                                                   fontWeight: 700,
                                                   padding: "1px 7px",
                                                   borderRadius: 6,
-                                                  background: "#e3f2fd",
-                                                  color: "#1565c0",
-                                                  border: "1px solid #90caf9",
+                                                  background: docType.pillBg,
+                                                  color: docType.pillColor,
+                                                  border: `1px solid ${docType.pillBorder}`,
                                                   whiteSpace: "nowrap",
                                                 }}
                                               >
-                                                &#128196; Form Required
+                                                {docType.pillIcon}{" "}
+                                                {docType.pillLabel}
                                               </span>
-                                            )}
-                                            {climb.requiresMedicalCert && (
-                                              <span
-                                                style={{
-                                                  display: "inline-flex",
-                                                  alignItems: "center",
-                                                  gap: 3,
-                                                  fontSize: "0.58rem",
-                                                  fontWeight: 700,
-                                                  padding: "1px 7px",
-                                                  borderRadius: 6,
-                                                  background: "#fce4ec",
-                                                  color: "#c62828",
-                                                  border: "1px solid #ef9a9a",
-                                                  whiteSpace: "nowrap",
-                                                }}
-                                              >
-                                                &#9764; Med Cert Required
-                                              </span>
-                                            )}
+                                            ))}
                                           </div>
                                         )}
                                       </div>
@@ -409,6 +392,7 @@ export default function AdminClimbsManage() {
                                       );
                                     })()}
                                   </td>
+                                  <ClimbRatingCells climb={climb} />
                                   <td>
                                     <div
                                       style={{
@@ -479,7 +463,7 @@ export default function AdminClimbsManage() {
                                         </span>
                                       )}
                                   </td>
-                                  <td style={{ whiteSpace: "nowrap" }}>
+                                  <td>
                                     {(() => {
                                       const statusStyle = {
                                         open: {
@@ -544,16 +528,14 @@ export default function AdminClimbsManage() {
                                         {climb.officers.map((o, i) => (
                                           <div
                                             key={i}
-                                            style={{
-                                              display: "flex",
-                                              alignItems: "baseline",
-                                              gap: 5,
-                                            }}
+                                            style={{ lineHeight: 1.25 }}
+                                            title={o.role || ""}
                                           >
                                             <span
                                               style={{
                                                 fontWeight: 700,
-                                                fontSize: "0.82rem",
+                                                fontSize: "0.78rem",
+                                                whiteSpace: "nowrap",
                                               }}
                                             >
                                               {o.name}
@@ -561,8 +543,10 @@ export default function AdminClimbsManage() {
                                             {o.role && (
                                               <span
                                                 style={{
-                                                  fontSize: "0.68rem",
+                                                  display: "block",
+                                                  fontSize: "0.64rem",
                                                   color: "var(--ink-soft)",
+                                                  whiteSpace: "nowrap",
                                                 }}
                                               >
                                                 {o.role}
@@ -619,7 +603,7 @@ export default function AdminClimbsManage() {
                                 {isOpen && (
                                   <tr>
                                     <td
-                                      colSpan={6}
+                                      colSpan={7}
                                       style={{
                                         background: "var(--green-pale)",
                                         padding: "12px 16px",

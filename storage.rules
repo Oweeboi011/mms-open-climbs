@@ -37,8 +37,9 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
 
-    // Registration form / medical certificate templates and samples,
-    // uploaded by admins for a climb (admin check enforced in the UI).
+    // Required-document templates/samples, uploaded by admins for a climb
+    // (admin check enforced in the UI): registration form, medical
+    // certificate, mountaineering/trekking permit, waiver of responsibility.
     match /registration-form-templates/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null;
@@ -47,18 +48,38 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null;
     }
+    match /permit-templates/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /waiver-doc-templates/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
 
-    // Registration form / medical certificate copies uploaded by members
-    // when they register — same ownership rule as payment proofs.
+    // Required-document copies uploaded when a member registers. Usually the
+    // member uploading their own file, but an admin can also submit one on a
+    // participant's behalf (e.g. a walk-in's physical copy) — same
+    // "authenticated write, admin check in UI" pattern as the templates
+    // above, since the resulting Firestore field write is still gated to the
+    // registration's owner or an admin by firestore.rules.
     match /registration-form-uploads/{climbId}/{userId}/{fileName} {
       allow write: if request.auth != null
-                   && request.auth.uid == userId
                    && request.resource.size < 10 * 1024 * 1024;
       allow read: if request.auth != null;
     }
     match /medical-cert-uploads/{climbId}/{userId}/{fileName} {
       allow write: if request.auth != null
-                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024;
+      allow read: if request.auth != null;
+    }
+    match /permit-uploads/{climbId}/{userId}/{fileName} {
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024;
+      allow read: if request.auth != null;
+    }
+    match /waiver-doc-uploads/{climbId}/{userId}/{fileName} {
+      allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024;
       allow read: if request.auth != null;
     }

@@ -41,7 +41,7 @@ describe("Admin ClimbForm", () => {
       screen.getByRole("option", { name: /Class 1/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("option", { name: /Class 9/i }),
+      screen.getByRole("option", { name: /Class 6/i }),
     ).toBeInTheDocument();
   });
 
@@ -245,6 +245,22 @@ describe("Admin ClimbForm", () => {
 
     expect(screen.getByText("Registration Form Template")).toBeInTheDocument();
 
+    expect(screen.queryByText("Sample Permit (for reference)")).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByLabelText(/Require a mountaineering \/ trekking permit upload/i),
+    );
+    expect(screen.getByText("Sample Permit (for reference)")).toBeInTheDocument();
+
+    expect(
+      screen.queryByText("Waiver of Responsibility Template"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByLabelText(/Require a waiver of responsibility upload/i),
+    );
+    expect(
+      screen.getByText("Waiver of Responsibility Template"),
+    ).toBeInTheDocument();
+
     fireEvent.change(controlByLabel("Climb Title"), { target: { value: "Mt. Sample" } });
     fireEvent.change(controlByLabel("Date Label"), { target: { value: "Jul 1-2" } });
     fireEvent.change(controlByLabel("Start Date"), { target: { value: "2026-07-01" } });
@@ -256,5 +272,7 @@ describe("Admin ClimbForm", () => {
     await waitFor(() => expect(addDoc).toHaveBeenCalled());
     const payload = addDoc.mock.calls[0][1];
     expect(payload.requiresRegistrationForm).toBe(true);
+    expect(payload.requiresPermit).toBe(true);
+    expect(payload.requiresWaiverDoc).toBe(true);
   });
 });
