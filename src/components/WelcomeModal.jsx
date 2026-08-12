@@ -125,15 +125,28 @@ export default function WelcomeModal() {
   // and throwing a 5-step guide over the form they were reaching for is the
   // worst possible moment. The flag is written by dismiss(), so deferring
   // here means they still get the guide the first time they hit the schedule.
-  useEffect(() => {
-    if (!currentUser || !AUTO_OPEN_PATHS.includes(pathname)) return;
+  // Adjusted during render (rather than in a useEffect) since this only ever
+  // touches this component's own `open` state — see
+  // https://react.dev/learn/you-might-not-need-an-effect.
+  const [prevAutoOpenKey, setPrevAutoOpenKey] = useState(null);
+  const autoOpenKey =
+    currentUser && AUTO_OPEN_PATHS.includes(pathname)
+      ? `${currentUser.uid}:${pathname}`
+      : null;
+  if (autoOpenKey && autoOpenKey !== prevAutoOpenKey) {
+    setPrevAutoOpenKey(autoOpenKey);
     const seen = localStorage.getItem(STORAGE_KEY(currentUser.uid));
     if (!seen) setOpen(true);
-  }, [currentUser, pathname]);
+  }
 
-  // Externally triggered (from header icon)
+  // Externally triggered (from header icon). Kept as an effect rather than
+  // adjusted during render: setGuideOpen belongs to GuideContext, not this
+  // component, and calling another component's setter mid-render is the
+  // real anti-pattern the purity rule exists to catch — unlike the
+  // same-component state above, this one can't be safely moved.
   useEffect(() => {
     if (guideOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep(0);
       setOpen(true);
       setGuideOpen(false);

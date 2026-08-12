@@ -13,7 +13,7 @@
     "test:ui": "vitest --ui",
     "test:all": "npm test && npm --prefix functions test",
     "test:strict": "npm run test:coverage && npm --prefix functions run test:coverage",
-    "lint": "eslint . --max-warnings 19 --cache",
+    "lint": "eslint . --max-warnings 0 --cache",
     "lint:fix": "eslint . --fix",
     "arch": "depcruise src --config .dependency-cruiser.cjs",
     "arch:graph": "depcruise src --config .dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   collection,
@@ -45,6 +45,12 @@ export default function ManagePayments() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
   const fileRefs = useRef({});
+  function setFileInputRef(climbId, el) {
+    fileRefs.current[climbId] = el;
+  }
+  function clickFileInput(climbId) {
+    fileRefs.current[climbId]?.click();
+  }
 
   // Live climbs — every expected/outstanding figure on this page is computed
   // from the climb's current fee schedule, so a fee edited elsewhere has to
@@ -204,8 +210,10 @@ export default function ManagePayments() {
   // Outstanding for a registration, always against its climb's current fee
   // schedule (the snapshot on the registration only says which optional items
   // they picked) — see utils/registrationFees.js.
-  const getOutstanding = (reg) =>
-    getOutstandingShared(reg, climbById[reg.climbId]);
+  const getOutstanding = useCallback(
+    (reg) => getOutstandingShared(reg, climbById[reg.climbId]),
+    [climbById],
+  );
 
   // Per-climb stats derived from regs
   const climbStats = useMemo(() => {
@@ -236,7 +244,7 @@ export default function ManagePayments() {
       s.availment = getAvailmentCounts(s.regs, climbById[climbId]);
     }
     return map;
-  }, [regs, climbById]);
+  }, [regs, climbById, getOutstanding]);
 
   const totalStats = useMemo(() => {
     let declared = 0,
@@ -253,7 +261,7 @@ export default function ManagePayments() {
       if (reg.paymentStatus === "submitted") submitted++;
     }
     return { declared, verified, submitted, outstanding };
-  }, [regs, climbById]);
+  }, [regs, getOutstanding]);
 
   const { upcoming: upcomingClimbs, completed: completedClimbs } = useMemo(
     () => groupClimbsByCompletion(climbs),
@@ -444,7 +452,8 @@ export default function ManagePayments() {
                         setExpandedRegId={setExpandedRegId}
                         qrUploading={qrUploading}
                         qrError={qrError}
-                        fileRefs={fileRefs}
+                        setFileInputRef={setFileInputRef}
+                        clickFileInput={clickFileInput}
                         handleQrUpload={handleQrUpload}
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}

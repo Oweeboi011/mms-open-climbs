@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   collection,
@@ -291,11 +291,14 @@ export default function AllRegistrations() {
     return map;
   }, [climbs]);
 
-  const isPastReg = (r) => climbStatusById[r.climbId] === "completed";
+  const isPastReg = useCallback(
+    (r) => climbStatusById[r.climbId] === "completed",
+    [climbStatusById],
+  );
 
   const scoped = useMemo(
     () => regs.filter((r) => (scope === "past" ? isPastReg(r) : !isPastReg(r))),
-    [regs, climbStatusById, scope],
+    [regs, isPastReg, scope],
   );
 
   const filtered = useMemo(() => {
@@ -344,11 +347,11 @@ export default function AllRegistrations() {
 
   const activeCount = useMemo(
     () => regs.filter((r) => !isPastReg(r)).length,
-    [regs, climbStatusById],
+    [regs, isPastReg],
   );
   const pastCount = useMemo(
     () => regs.filter((r) => isPastReg(r)).length,
-    [regs, climbStatusById],
+    [regs, isPastReg],
   );
 
   function exportCSV() {

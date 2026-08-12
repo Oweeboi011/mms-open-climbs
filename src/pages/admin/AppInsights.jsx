@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { nowMs } from "@/utils/now";
 
 function toDate(value) {
   if (!value) return null;
@@ -201,6 +202,9 @@ export default function AppInsights() {
   // always shows a complete picture up front; the buttons still work as a
   // manual "Refresh".
   useEffect(() => {
+    // Mount-time data fetching — the documented use case for effects
+    // (https://react.dev/learn/you-might-not-need-an-effect#fetching-data).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadEmailStats();
     loadStorageStats();
     loadFunctionHealth();
@@ -269,7 +273,7 @@ export default function AppInsights() {
   }, [notifications]);
 
   const overdueUnpaid = useMemo(() => {
-    const now = Date.now();
+    const now = nowMs();
     return activeRegs
       .filter((r) => r.paymentStatus === "unpaid" || r.paymentStatus === "rejected")
       .map((r) => ({
@@ -314,7 +318,7 @@ export default function AppInsights() {
   }, [failedRequests]);
 
   const staleDrafts = useMemo(() => {
-    const now = Date.now();
+    const now = nowMs();
     return climbs
       .filter((c) => c.status === "draft")
       .map((c) => ({
