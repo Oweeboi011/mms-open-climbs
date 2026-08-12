@@ -23,10 +23,19 @@ if (!getApps().length) {
 const db = getFirestore();
 db.settings({ databaseId: "openclimbs" });
 
+// Mirrors functions/src/requiredDocTypes.js — kept as its own copy since
+// this script runs standalone via node, outside either deployable package.
+const REQUIRED_DOC_TYPES = [
+  { requiresField: "requiresRegistrationForm", uploadField: "registrationFormUpload" },
+  { requiresField: "requiresMedicalCert", uploadField: "medicalCertUpload" },
+  { requiresField: "requiresPermit", uploadField: "permitUpload" },
+  { requiresField: "requiresWaiverDoc", uploadField: "waiverDocUpload" },
+];
+
 function regDocsComplete(climb, reg) {
-  if (climb?.requiresRegistrationForm && !reg?.registrationFormUpload) return false;
-  if (climb?.requiresMedicalCert && !reg?.medicalCertUpload) return false;
-  return true;
+  return REQUIRED_DOC_TYPES.every(
+    (docType) => !climb?.[docType.requiresField] || !!reg?.[docType.uploadField],
+  );
 }
 
 console.log(`Backfilling climb denormalized fields on project: ${projectId}`);

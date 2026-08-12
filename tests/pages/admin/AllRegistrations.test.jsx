@@ -202,6 +202,28 @@ describe("Admin AllRegistrations", () => {
     );
   });
 
+  it("shows missing permit and waiver-of-responsibility documents for the registrant's climb", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: { ...climbFixture, requiresPermit: true, requiresWaiverDoc: true },
+        },
+      ]),
+    );
+    mockLiveSnapshot([regDoc]);
+
+    renderWithProviders(<AllRegistrations />, makeAdminAuth());
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Permit Missing/i)).toBeInTheDocument();
+      expect(screen.getByText(/Waiver Doc Missing/i)).toBeInTheDocument();
+    });
+  });
+
   it("filters to registrants missing required documents", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([

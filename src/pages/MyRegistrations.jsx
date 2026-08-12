@@ -28,6 +28,7 @@ import { logFailedRequest } from "@/utils/logFailedRequest";
 import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
 import { getFeeItems } from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -1166,48 +1167,37 @@ function ReceiptModal({ reg, climb, onClose }) {
 }
 
 function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
-  const needsForm =
-    climb?.requiresRegistrationForm && !reg.registrationFormUpload;
-  const needsCert = climb?.requiresMedicalCert && !reg.medicalCertUpload;
+  const missingDocs = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb?.[docType.requiresField] && !reg[docType.uploadField],
+  );
 
-  const [formFile, setFormFile] = useState(null);
-  const [certFile, setCertFile] = useState(null);
+  const [docFiles, setDocFiles] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (needsForm && !formFile) {
-      setError("Please upload your filled-out registration form.");
-      return;
-    }
-    if (needsCert && !certFile) {
-      setError("Please upload your medical certificate.");
-      return;
+    for (const docType of missingDocs) {
+      if (!docFiles[docType.key]) {
+        setError(docType.validationMessage);
+        return;
+      }
     }
 
     setSaving(true);
     try {
       const patch = {};
       const timestamp = Date.now();
-      if (needsForm) {
+      for (const docType of missingDocs) {
+        const file = docFiles[docType.key];
         const fileRef = storageRef(
           storage,
-          `registration-form-uploads/${reg.climbId}/${reg.userId}/${timestamp}_${formFile.name}`,
+          `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId}/${timestamp}_${file.name}`,
         );
-        await uploadBytes(fileRef, formFile);
+        await uploadBytes(fileRef, file);
         const url = await getDownloadURL(fileRef);
-        patch.registrationFormUpload = { url, fileName: formFile.name };
-      }
-      if (needsCert) {
-        const fileRef = storageRef(
-          storage,
-          `medical-cert-uploads/${reg.climbId}/${reg.userId}/${timestamp}_${certFile.name}`,
-        );
-        await uploadBytes(fileRef, certFile);
-        const url = await getDownloadURL(fileRef);
-        patch.medicalCertUpload = { url, fileName: certFile.name };
+        patch[docType.uploadField] = { url, fileName: file.name };
       }
       await updateDoc(doc(db, "registrations", reg.id), patch);
       onSaved();
@@ -1268,20 +1258,20 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
         {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
-          {needsForm && (
-            <div className="form-group">
+          {missingDocs.map((docType) => (
+            <div className="form-group" key={docType.key}>
               <label className="form-label required">
-                Signed Registration Form
+                {docType.registerLabel}
               </label>
-              {climb?.registrationFormUrl && (
+              {climb?.[docType.sampleUrlField] && (
                 <div style={{ marginBottom: 8 }}>
                   <a
-                    href={climb.registrationFormUrl}
+                    href={climb[docType.sampleUrlField]}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-outline btn-sm"
                   >
-                    &#128196; Download Registration Form
+                    &#128196; {docType.downloadButtonLabel}
                   </a>
                 </div>
               )}
@@ -1289,41 +1279,16 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
                 type="file"
                 accept=".pdf,.doc,.docx,image/*"
                 className="form-input"
-                onChange={(e) => setFormFile(e.target.files[0] || null)}
+                onChange={(e) =>
+                  setDocFiles((p) => ({
+                    ...p,
+                    [docType.key]: e.target.files[0] || null,
+                  }))
+                }
               />
-              <div className="form-hint">
-                Download the form above, fill it out, then upload your copy
-                here.
-              </div>
+              <div className="form-hint">{docType.registerHint}</div>
             </div>
-          )}
-
-          {needsCert && (
-            <div className="form-group">
-              <label className="form-label required">Medical Certificate</label>
-              {climb?.medicalCertSampleUrl && (
-                <div style={{ marginBottom: 8 }}>
-                  <a
-                    href={climb.medicalCertSampleUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline btn-sm"
-                  >
-                    &#128196; View Sample Medical Certificate
-                  </a>
-                </div>
-              )}
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,image/*"
-                className="form-input"
-                onChange={(e) => setCertFile(e.target.files[0] || null)}
-              />
-              <div className="form-hint">
-                Upload your own medical certificate from a licensed physician.
-              </div>
-            </div>
-          )}
+          ))}
 
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button
@@ -1400,9 +1365,9 @@ function RegCard({
   onEditDetails,
   isPast,
 }) {
-  const needsForm =
-    climb?.requiresRegistrationForm && !reg.registrationFormUpload;
-  const needsCert = climb?.requiresMedicalCert && !reg.medicalCertUpload;
+  const missingDocs = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb?.[docType.requiresField] && !reg[docType.uploadField],
+  );
   return (
     <div className="reg-card" data-status={reg.status}>
       <div className="reg-card-header">
@@ -1527,13 +1492,11 @@ function RegCard({
             View OR
           </button>
         )}
-        {reg.status !== "cancelled" && (needsForm || needsCert) && (
+        {reg.status !== "cancelled" && missingDocs.length > 0 && (
           <button className="btn btn-accent btn-sm" onClick={onSubmitDocs}>
-            {needsForm && needsCert
+            {missingDocs.length > 1
               ? "Submit Required Documents"
-              : needsForm
-                ? "Submit Registration Form"
-                : "Submit Medical Certificate"}
+              : `Submit ${missingDocs[0].label}`}
           </button>
         )}
         {isPast && reg.status === "confirmed" && (

@@ -109,6 +109,57 @@ describe("Event page", () => {
     );
   });
 
+  it("shows a download link for an uploaded permit sample in the Requirements section", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        requiresPermit: true,
+        permitSampleUrl: "https://example.com/permit-sample.pdf",
+      }),
+    );
+
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeGuestAuth(),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: /View Sample Permit/i }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("link", { name: /View Sample Permit/i }),
+    ).toHaveAttribute("href", "https://example.com/permit-sample.pdf");
+  });
+
+  it("does not show a download link when no sample has been uploaded for a required document", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        requiresPermit: true,
+      }),
+    );
+
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeGuestAuth(),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Mountaineering / Trekking Permit"),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("link", { name: /View Sample Permit/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows Register button for authenticated members on open climb", async () => {
     renderAtRoute(
       <Event />,

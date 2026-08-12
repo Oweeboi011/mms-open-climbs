@@ -469,6 +469,43 @@ describe("MyRegistrations page", () => {
     );
   });
 
+  it("shows a Submit Mountaineering / Trekking Permit button with a download link when required and not yet uploaded", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        requiresPermit: true,
+        permitSampleUrl: "https://example.com/permit.pdf",
+      }),
+    );
+    mockLiveSnapshot([
+          {
+            id: registrationFixture.id,
+            data: { ...registrationFixture, paymentStatus: "verified" },
+          },
+        ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: /Submit Mountaineering \/ Trekking Permit/i,
+        }),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Submit Mountaineering \/ Trekking Permit/i,
+      }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: /View Sample Permit/i }),
+      ).toBeInTheDocument(),
+    );
+  });
+
   it("shows officer section when user is an officer on a climb", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([

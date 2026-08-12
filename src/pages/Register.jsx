@@ -24,6 +24,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import WaiverText from "@/components/WaiverText";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { computeExpectedTotal, getClimbFeeModel } from "@/utils/feeSummary";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 // Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
@@ -45,6 +46,8 @@ const FIELD_ORDER = [
   "ecRelationship",
   "registrationForm",
   "medicalCert",
+  "permit",
+  "waiverDoc",
   "waiverAgreed",
   "sigName",
   "amountPaid",
@@ -100,8 +103,7 @@ export default function Register() {
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [registrationFormFile, setRegistrationFormFile] = useState(null);
-  const [medicalCertFile, setMedicalCertFile] = useState(null);
+  const [docFiles, setDocFiles] = useState({});
   const [showConfirm, setShowConfirm] = useState(false);
 
   const fieldRefs = useRef({});
@@ -199,11 +201,10 @@ export default function Register() {
     if (!form.ecRelationship.trim()) {
       errors.ecRelationship = "Enter your relationship to this contact.";
     }
-    if (climb.requiresRegistrationForm && !registrationFormFile) {
-      errors.registrationForm = "Upload your signed registration form.";
-    }
-    if (climb.requiresMedicalCert && !medicalCertFile) {
-      errors.medicalCert = "Upload your medical certificate.";
+    for (const docType of REQUIRED_DOC_TYPES) {
+      if (climb[docType.requiresField] && !docFiles[docType.key]) {
+        errors[docType.key] = docType.validationMessage;
+      }
     }
     if (!waiverAgreed) {
       errors.waiverAgreed =
@@ -268,8 +269,7 @@ export default function Register() {
     const { parsedAmount } = validate();
     setSubmitting(true);
     let paymentProofs = [];
-    let registrationFormUpload = null;
-    let medicalCertUpload = null;
+    const docUploads = {};
     try {
       if (paymentFiles.length > 0) {
         setPaymentUploading(true);
@@ -287,25 +287,17 @@ export default function Register() {
         );
         setPaymentUploading(false);
       }
-      if (registrationFormFile) {
+      for (const docType of REQUIRED_DOC_TYPES) {
+        const file = docFiles[docType.key];
+        if (!file) continue;
         const timestamp = Date.now();
         const fileRef = storageRef(
           storage,
-          `registration-form-uploads/${climbId}/${currentUser.uid}/${timestamp}_${registrationFormFile.name}`,
+          `${docType.storagePrefixUpload}/${climbId}/${currentUser.uid}/${timestamp}_${file.name}`,
         );
-        await uploadBytes(fileRef, registrationFormFile);
+        await uploadBytes(fileRef, file);
         const url = await getDownloadURL(fileRef);
-        registrationFormUpload = { url, fileName: registrationFormFile.name };
-      }
-      if (medicalCertFile) {
-        const timestamp = Date.now();
-        const fileRef = storageRef(
-          storage,
-          `medical-cert-uploads/${climbId}/${currentUser.uid}/${timestamp}_${medicalCertFile.name}`,
-        );
-        await uploadBytes(fileRef, medicalCertFile);
-        const url = await getDownloadURL(fileRef);
-        medicalCertUpload = { url, fileName: medicalCertFile.name };
+        docUploads[docType.uploadField] = { url, fileName: file.name };
       }
     } catch (uploadErr) {
       setPaymentUploading(false);
@@ -370,8 +362,12 @@ export default function Register() {
         paymentSubmittedAt:
           paymentProofs.length > 0 ? serverTimestamp() : null,
         // Required documents
-        registrationFormUpload,
-        medicalCertUpload,
+        ...Object.fromEntries(
+          REQUIRED_DOC_TYPES.map((docType) => [
+            docType.uploadField,
+            docUploads[docType.uploadField] || null,
+          ]),
+        ),
         feeBreakdown: (climb.fees || []).map((exp) => {
           const isGuestFee = !!exp.isGuestFee;
           if (!exp.optional)
@@ -816,83 +812,48 @@ export default function Register() {
           </div>
 
           {/* Required Documents */}
-          {(climb.requiresRegistrationForm || climb.requiresMedicalCert) && (
+          {REQUIRED_DOC_TYPES.some((docType) => climb[docType.requiresField]) && (
             <div className="register-form-card">
               <div className="form-section-title">Required Documents</div>
 
-              {climb.requiresRegistrationForm && (
-                <div className="form-group">
+              {REQUIRED_DOC_TYPES.filter(
+                (docType) => climb[docType.requiresField],
+              ).map((docType) => (
+                <div className="form-group" key={docType.key}>
                   <label className="form-label required">
-                    Signed Registration Form
+                    {docType.registerLabel}
                   </label>
-                  {climb.registrationFormUrl && (
+                  {climb[docType.sampleUrlField] && (
                     <div style={{ marginBottom: 8 }}>
                       <a
-                        href={climb.registrationFormUrl}
+                        href={climb[docType.sampleUrlField]}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-outline btn-sm"
                       >
-                        &#128196; Download Registration Form
+                        &#128196; {docType.downloadButtonLabel}
                       </a>
                     </div>
                   )}
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx,image/*"
-                    ref={bindField("registrationForm")}
-                    className={inputClass("registrationForm")}
+                    ref={bindField(docType.key)}
+                    className={inputClass(docType.key)}
                     required
-                    aria-invalid={!!fieldErrors.registrationForm}
+                    aria-invalid={!!fieldErrors[docType.key]}
                     onChange={(e) => {
-                      setRegistrationFormFile(e.target.files[0] || null);
-                      clearFieldError("registrationForm");
+                      setDocFiles((p) => ({
+                        ...p,
+                        [docType.key]: e.target.files[0] || null,
+                      }));
+                      clearFieldError(docType.key);
                     }}
                   />
-                  <FieldError message={fieldErrors.registrationForm} />
-                  <div className="form-hint">
-                    Download the form above, fill it out, then upload your
-                    copy here.
-                  </div>
+                  <FieldError message={fieldErrors[docType.key]} />
+                  <div className="form-hint">{docType.registerHint}</div>
                 </div>
-              )}
-
-              {climb.requiresMedicalCert && (
-                <div className="form-group">
-                  <label className="form-label required">
-                    Medical Certificate
-                  </label>
-                  {climb.medicalCertSampleUrl && (
-                    <div style={{ marginBottom: 8 }}>
-                      <a
-                        href={climb.medicalCertSampleUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-outline btn-sm"
-                      >
-                        &#128196; View Sample Medical Certificate
-                      </a>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,image/*"
-                    ref={bindField("medicalCert")}
-                    className={inputClass("medicalCert")}
-                    required
-                    aria-invalid={!!fieldErrors.medicalCert}
-                    onChange={(e) => {
-                      setMedicalCertFile(e.target.files[0] || null);
-                      clearFieldError("medicalCert");
-                    }}
-                  />
-                  <FieldError message={fieldErrors.medicalCert} />
-                  <div className="form-hint">
-                    Upload your own medical certificate from a licensed
-                    physician.
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
           )}
 

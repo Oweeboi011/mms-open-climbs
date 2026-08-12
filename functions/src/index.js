@@ -18,6 +18,7 @@ const {
   getCountedTotal,
   getPaymentEntries,
 } = require("./paymentMath");
+const { REQUIRED_DOC_TYPES } = require("./requiredDocTypes");
 
 initializeApp();
 
@@ -343,9 +344,9 @@ async function logFailedRequest({
 // currently requires? Used to keep climbs/{id}.docsCompleteCount in sync,
 // which powers the "X/Y Docs Submitted" progress badge on climb cards ──────
 function regDocsComplete(climb, reg) {
-  if (climb?.requiresRegistrationForm && !reg?.registrationFormUpload) return false;
-  if (climb?.requiresMedicalCert && !reg?.medicalCertUpload) return false;
-  return true;
+  return REQUIRED_DOC_TYPES.every(
+    (docType) => !climb?.[docType.requiresField] || !!reg?.[docType.uploadField],
+  );
 }
 
 // ── Trigger: new registration → send confirmation email ───────────────────────
@@ -400,25 +401,18 @@ exports.onRegistrationCreated = onDocumentCreated(
           id: `payment_${event.params.regId}`,
         });
       }
-      if (userId && climb.requiresRegistrationForm && !reg.registrationFormUpload) {
-        await createNotification({
-          userId,
-          type: "document_reminder",
-          title: "Registration form still needed",
-          message: `Please upload your signed registration form for ${climb.title}.`,
-          link: "/my-registrations",
-          id: `regform_${event.params.regId}`,
-        });
-      }
-      if (userId && climb.requiresMedicalCert && !reg.medicalCertUpload) {
-        await createNotification({
-          userId,
-          type: "document_reminder",
-          title: "Medical certificate still needed",
-          message: `Please upload your medical certificate for ${climb.title}.`,
-          link: "/my-registrations",
-          id: `medcert_${event.params.regId}`,
-        });
+      if (userId) {
+        for (const docType of REQUIRED_DOC_TYPES) {
+          if (!climb[docType.requiresField] || reg[docType.uploadField]) continue;
+          await createNotification({
+            userId,
+            type: "document_reminder",
+            title: `${docType.sentenceLabel} still needed`,
+            message: `Please upload your ${docType.label.toLowerCase()} for ${climb.title}.`,
+            link: "/my-registrations",
+            id: `${docType.notificationPrefix}_${event.params.regId}`,
+          });
+        }
       }
 
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
@@ -671,19 +665,14 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
     }
 
     // Required document uploaded → clear the corresponding nag notification.
-    if (!before.registrationFormUpload && after.registrationFormUpload) {
-      await db
-        .collection("notifications")
-        .doc(`regform_${regId}`)
-        .set({ read: true }, { merge: true })
-        .catch(() => {});
-    }
-    if (!before.medicalCertUpload && after.medicalCertUpload) {
-      await db
-        .collection("notifications")
-        .doc(`medcert_${regId}`)
-        .set({ read: true }, { merge: true })
-        .catch(() => {});
+    for (const docType of REQUIRED_DOC_TYPES) {
+      if (!before[docType.uploadField] && after[docType.uploadField]) {
+        await db
+          .collection("notifications")
+          .doc(`${docType.notificationPrefix}_${regId}`)
+          .set({ read: true }, { merge: true })
+          .catch(() => {});
+      }
     }
 
     // Keep registeredUserIds in sync whenever status moves in or out of the
@@ -707,8 +696,10 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
     // snapshots so upload objects are never `===` even when unchanged.
     const docsRelevantChange =
       wasActive !== isActive ||
-      !!before.registrationFormUpload !== !!after.registrationFormUpload ||
-      !!before.medicalCertUpload !== !!after.medicalCertUpload;
+      REQUIRED_DOC_TYPES.some(
+        (docType) =>
+          !!before[docType.uploadField] !== !!after[docType.uploadField],
+      );
     if (docsRelevantChange && after.userId && after.climbId) {
       const climbSnapForDocs = await db.doc(`climbs/${after.climbId}`).get();
       if (climbSnapForDocs.exists) {
@@ -878,15 +869,16 @@ exports.onClimbUpdated = onDocumentUpdated(
 
     // A requirement was switched off → clear any outstanding nag
     // notifications for it instead of leaving them stuck unread forever.
-    const formTurnedOff =
-      before.requiresRegistrationForm && !after.requiresRegistrationForm;
-    const certTurnedOff =
-      before.requiresMedicalCert && !after.requiresMedicalCert;
+    const turnedOffDocTypes = REQUIRED_DOC_TYPES.filter(
+      (docType) =>
+        before[docType.requiresField] && !after[docType.requiresField],
+    );
     // Either requirement flipping in *either* direction changes who counts
     // as "compliant" — docsCompleteCount needs a full recount either way.
-    const requirementsChanged =
-      !!before.requiresRegistrationForm !== !!after.requiresRegistrationForm ||
-      !!before.requiresMedicalCert !== !!after.requiresMedicalCert;
+    const requirementsChanged = REQUIRED_DOC_TYPES.some(
+      (docType) =>
+        !!before[docType.requiresField] !== !!after[docType.requiresField],
+    );
 
     const CANCELLATION_LABELS = { cancelled: "Cancelled", postponed: "Postponed" };
     const cancellationChanged =
@@ -910,20 +902,13 @@ exports.onClimbUpdated = onDocumentUpdated(
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((r) => r.userId && r.status !== "cancelled");
 
-      if (formTurnedOff || certTurnedOff) {
+      if (turnedOffDocTypes.length > 0) {
         await Promise.all(
           activeRegs.map(async (r) => {
-            if (formTurnedOff) {
+            for (const docType of turnedOffDocTypes) {
               await db
                 .collection("notifications")
-                .doc(`regform_${r.id}`)
-                .set({ read: true }, { merge: true })
-                .catch(() => {});
-            }
-            if (certTurnedOff) {
-              await db
-                .collection("notifications")
-                .doc(`medcert_${r.id}`)
+                .doc(`${docType.notificationPrefix}_${r.id}`)
                 .set({ read: true }, { merge: true })
                 .catch(() => {});
             }
@@ -1120,25 +1105,18 @@ exports.sendReminderNotifications = onSchedule(
       }
 
       // Missing required-document nags — re-surface as unread each run.
-      if (climb?.requiresRegistrationForm && !reg.registrationFormUpload) {
-        await createNotification({
-          userId: reg.userId,
-          type: "document_reminder",
-          title: "Registration form still needed",
-          message: `Please upload your signed registration form for ${reg.climbTitle || climb.title || "your climb"}.`,
-          link: "/my-registrations",
-          id: `regform_${reg.id}`,
-        });
-      }
-      if (climb?.requiresMedicalCert && !reg.medicalCertUpload) {
-        await createNotification({
-          userId: reg.userId,
-          type: "document_reminder",
-          title: "Medical certificate still needed",
-          message: `Please upload your medical certificate for ${reg.climbTitle || climb.title || "your climb"}.`,
-          link: "/my-registrations",
-          id: `medcert_${reg.id}`,
-        });
+      if (climb) {
+        for (const docType of REQUIRED_DOC_TYPES) {
+          if (!climb[docType.requiresField] || reg[docType.uploadField]) continue;
+          await createNotification({
+            userId: reg.userId,
+            type: "document_reminder",
+            title: `${docType.sentenceLabel} still needed`,
+            message: `Please upload your ${docType.label.toLowerCase()} for ${reg.climbTitle || climb.title || "your climb"}.`,
+            link: "/my-registrations",
+            id: `${docType.notificationPrefix}_${reg.id}`,
+          });
+        }
       }
 
       // Upcoming-climb reminders for confirmed participants only.
@@ -1197,10 +1175,10 @@ exports.sendReminderNotifications = onSchedule(
       const unpaidCount = climbRegs.filter(
         (r) => r.paymentStatus === "unpaid" || r.paymentStatus === "rejected",
       ).length;
-      const missingDocsCount = climbRegs.filter(
-        (r) =>
-          (climb.requiresRegistrationForm && !r.registrationFormUpload) ||
-          (climb.requiresMedicalCert && !r.medicalCertUpload),
+      const missingDocsCount = climbRegs.filter((r) =>
+        REQUIRED_DOC_TYPES.some(
+          (docType) => climb[docType.requiresField] && !r[docType.uploadField],
+        ),
       ).length;
       if (unpaidCount === 0 && missingDocsCount === 0) continue;
 

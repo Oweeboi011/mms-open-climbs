@@ -195,6 +195,25 @@ describe("ClimbCard", () => {
     expect(screen.getByText("Docs Required")).toBeInTheDocument();
   });
 
+  it("shows a single required-document flag for the permit when only it is required", () => {
+    render({
+      requiresPermit: true,
+      registrationCount: 0,
+    });
+    expect(
+      screen.getByText("Mountaineering / Trekking Permit Required"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a combined 'Docs Required' flag when the permit and waiver doc are both required", () => {
+    render({
+      requiresPermit: true,
+      requiresWaiverDoc: true,
+      registrationCount: 0,
+    });
+    expect(screen.getByText("Docs Required")).toBeInTheDocument();
+  });
+
   it("does not show a document flag when none are required", () => {
     render({ requiresRegistrationForm: false, requiresMedicalCert: false });
     expect(screen.queryByText(/Docs Required/)).not.toBeInTheDocument();

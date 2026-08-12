@@ -17,6 +17,7 @@ import Icon from "@/components/Icon";
 import { renderMarkdownLite } from "@/utils/markdownLite";
 import EventFeesCard from "@/components/EventFeesCard";
 import { TRAIL_CLASS_LABELS, TRAIL_CLASS_DESCRIPTIONS } from "@/utils/trailClass";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -1825,7 +1826,7 @@ export default function Event() {
         </div>
 
         {/* Requirements */}
-        {(climb.requiresMedicalCert || climb.requiresRegistrationForm) && (
+        {REQUIRED_DOC_TYPES.some((docType) => climb[docType.requiresField]) && (
           <div className="section-card">
             <div className="section-header">
               <span className="icon">
@@ -1867,12 +1868,25 @@ export default function Event() {
                     color: "var(--ink)",
                   }}
                 >
-                  {climb.requiresRegistrationForm && (
-                    <li>Signed Climb Registration Form</li>
-                  )}
-                  {climb.requiresMedicalCert && (
-                    <li>Valid Medical Certificate</li>
-                  )}
+                  {REQUIRED_DOC_TYPES.filter(
+                    (docType) => climb[docType.requiresField],
+                  ).map((docType) => (
+                    <li key={docType.key}>
+                      {docType.requirementLabel}
+                      {climb[docType.sampleUrlField] && (
+                        <>
+                          {" — "}
+                          <a
+                            href={climb[docType.sampleUrlField]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            &#128196; {docType.downloadButtonLabel}
+                          </a>
+                        </>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>

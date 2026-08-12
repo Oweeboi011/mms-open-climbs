@@ -23,6 +23,7 @@ import {
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import ClimbRatingCells from "@/components/admin/ClimbRatingCells";
 import { TRAIL_CLASS_LABELS } from "@/utils/trailClass";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const STATUS_OPTIONS = ["draft", "open", "closed", "completed"];
 
@@ -286,8 +287,10 @@ export default function AdminClimbsManage() {
                                             </span>
                                           )}
                                         </div>
-                                        {(climb.requiresRegistrationForm ||
-                                          climb.requiresMedicalCert) && (
+                                        {REQUIRED_DOC_TYPES.some(
+                                          (docType) =>
+                                            climb[docType.requiresField],
+                                        ) && (
                                           <div
                                             style={{
                                               display: "flex",
@@ -296,8 +299,12 @@ export default function AdminClimbsManage() {
                                               flexWrap: "wrap",
                                             }}
                                           >
-                                            {climb.requiresRegistrationForm && (
+                                            {REQUIRED_DOC_TYPES.filter(
+                                              (docType) =>
+                                                climb[docType.requiresField],
+                                            ).map((docType) => (
                                               <span
+                                                key={docType.key}
                                                 style={{
                                                   display: "inline-flex",
                                                   alignItems: "center",
@@ -306,34 +313,16 @@ export default function AdminClimbsManage() {
                                                   fontWeight: 700,
                                                   padding: "1px 7px",
                                                   borderRadius: 6,
-                                                  background: "#e3f2fd",
-                                                  color: "#1565c0",
-                                                  border: "1px solid #90caf9",
+                                                  background: docType.pillBg,
+                                                  color: docType.pillColor,
+                                                  border: `1px solid ${docType.pillBorder}`,
                                                   whiteSpace: "nowrap",
                                                 }}
                                               >
-                                                &#128196; Form Required
+                                                {docType.pillIcon}{" "}
+                                                {docType.pillLabel}
                                               </span>
-                                            )}
-                                            {climb.requiresMedicalCert && (
-                                              <span
-                                                style={{
-                                                  display: "inline-flex",
-                                                  alignItems: "center",
-                                                  gap: 3,
-                                                  fontSize: "0.58rem",
-                                                  fontWeight: 700,
-                                                  padding: "1px 7px",
-                                                  borderRadius: 6,
-                                                  background: "#fce4ec",
-                                                  color: "#c62828",
-                                                  border: "1px solid #ef9a9a",
-                                                  whiteSpace: "nowrap",
-                                                }}
-                                              >
-                                                &#9764; Med Cert Required
-                                              </span>
-                                            )}
+                                            ))}
                                           </div>
                                         )}
                                       </div>
