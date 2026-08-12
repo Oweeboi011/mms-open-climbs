@@ -268,12 +268,39 @@ describe("onRegistrationCreated", () => {
     ).toBe(false);
   });
 
+  it("increments docsCompleteCount when the permit and waiver doc are both satisfied", async () => {
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      officers: [],
+      requiresPermit: true,
+      requiresWaiverDoc: true,
+    };
+    await createdHandler({
+      data: {
+        data: () => ({
+          climbId: "climb-1",
+          userId: "user-1",
+          status: "pending",
+          permitUpload: { url: "https://x/permit.pdf" },
+          waiverDocUpload: { url: "https://x/waiver.pdf" },
+        }),
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { docsCompleteCount: { __increment: 1 } },
+    });
+  });
+
   it("notifies about missing required documents on creation", async () => {
     climbStore["climb-1"] = {
       title: "Mt. Pulag",
       officers: [],
       requiresRegistrationForm: true,
       requiresMedicalCert: true,
+      requiresPermit: true,
+      requiresWaiverDoc: true,
     };
     userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
 
@@ -299,6 +326,16 @@ describe("onRegistrationCreated", () => {
       userId: "user-1",
       type: "document_reminder",
       title: "Medical certificate still needed",
+    });
+    expect(notifStore["permit_reg-1"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Mountaineering / trekking permit still needed",
+    });
+    expect(notifStore["waiverdoc_reg-1"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Waiver of responsibility still needed",
     });
   });
 
@@ -1012,6 +1049,37 @@ describe("onClimbUpdated", () => {
     expect(notifStore["regform_reg-2"].read).toBe(false);
   });
 
+  it("clears the permit and waiver-doc reminders when both requirements are turned off", async () => {
+    regStore["reg-1"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+    notifStore["permit_reg-1"] = { read: false, type: "document_reminder" };
+    notifStore["waiverdoc_reg-1"] = { read: false, type: "document_reminder" };
+
+    await climbUpdatedHandler({
+      data: {
+        before: {
+          data: () => ({
+            title: "Mt. Pulag",
+            requiresPermit: true,
+            requiresWaiverDoc: true,
+            announcements: [],
+          }),
+        },
+        after: {
+          data: () => ({
+            title: "Mt. Pulag",
+            requiresPermit: false,
+            requiresWaiverDoc: false,
+            announcements: [],
+          }),
+        },
+      },
+      params: { climbId: "climb-1" },
+    });
+
+    expect(notifStore["permit_reg-1"].read).toBe(true);
+    expect(notifStore["waiverdoc_reg-1"].read).toBe(true);
+  });
+
   it("does nothing when announcements are unchanged", async () => {
     await climbUpdatedHandler({
       data: {
@@ -1063,6 +1131,21 @@ describe("onClimbUpdated", () => {
 });
 
 describe("sendReminderNotifications", () => {
+  it("skips the document nag when the registrant's climb no longer exists", async () => {
+    regStore["reg-orphan"] = {
+      status: "pending",
+      paymentStatus: "unpaid",
+      userId: "user-1",
+      climbId: "climb-deleted",
+      climbTitle: "Deleted Climb",
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["regform_reg-orphan"]).toBeUndefined();
+    expect(notifStore["permit_reg-orphan"]).toBeUndefined();
+  });
+
   it("chases an outstanding balance even when the payment reads as verified", async () => {
     // Paid ₱500 of ₱800 and verified — the old status-only check let this
     // member sail through unreminded, which is exactly the flow the
@@ -1221,6 +1304,45 @@ describe("sendReminderNotifications", () => {
     });
     expect(notifStore["regform_reg-has-docs"]).toBeUndefined();
     expect(notifStore["medcert_reg-has-docs"]).toBeUndefined();
+  });
+
+  it("nags registrants missing a required permit or waiver of responsibility, but not those who already uploaded", async () => {
+    regStore["reg-permit-missing"] = {
+      status: "pending",
+      paymentStatus: "verified",
+      userId: "user-1",
+      climbId: "climb-2",
+      climbTitle: "Mt. Apo",
+    };
+    regStore["reg-permit-has-docs"] = {
+      status: "confirmed",
+      paymentStatus: "verified",
+      userId: "user-2",
+      climbId: "climb-2",
+      climbTitle: "Mt. Apo",
+      permitUpload: { url: "https://x/permit.pdf" },
+      waiverDocUpload: { url: "https://x/waiver.pdf" },
+    };
+    climbStore["climb-2"] = {
+      title: "Mt. Apo",
+      requiresPermit: true,
+      requiresWaiverDoc: true,
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["permit_reg-permit-missing"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Mountaineering / trekking permit still needed",
+    });
+    expect(notifStore["waiverdoc_reg-permit-missing"]).toMatchObject({
+      userId: "user-1",
+      type: "document_reminder",
+      title: "Waiver of responsibility still needed",
+    });
+    expect(notifStore["permit_reg-permit-has-docs"]).toBeUndefined();
+    expect(notifStore["waiverdoc_reg-permit-has-docs"]).toBeUndefined();
   });
 
   it("reminds confirmed climbers 7 days out, flagging unpaid registrants but not paid ones", async () => {

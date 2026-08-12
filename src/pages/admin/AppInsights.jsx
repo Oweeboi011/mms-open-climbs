@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 function toDate(value) {
   if (!value) return null;
@@ -228,23 +229,21 @@ export default function AppInsights() {
 
   const docCompliance = useMemo(() => {
     const climbMap = Object.fromEntries(climbs.map((c) => [c.id, c]));
-    let formRequired = 0,
-      formDone = 0,
-      certRequired = 0,
-      certDone = 0;
+    const stats = REQUIRED_DOC_TYPES.map((docType) => ({
+      docType,
+      required: 0,
+      done: 0,
+    }));
     for (const r of activeRegs) {
       const climb = climbMap[r.climbId];
       if (!climb) continue;
-      if (climb.requiresRegistrationForm) {
-        formRequired++;
-        if (r.registrationFormUpload?.url) formDone++;
-      }
-      if (climb.requiresMedicalCert) {
-        certRequired++;
-        if (r.medicalCertUpload?.url) certDone++;
+      for (const stat of stats) {
+        if (!climb[stat.docType.requiresField]) continue;
+        stat.required++;
+        if (r[stat.docType.uploadField]?.url) stat.done++;
       }
     }
-    return { formRequired, formDone, certRequired, certDone };
+    return stats;
   }, [activeRegs, climbs]);
 
   const paymentTurnaround = useMemo(() => {
@@ -412,26 +411,22 @@ export default function AppInsights() {
           </Card>
 
           <Card title="Required Document Compliance">
-            {docCompliance.formRequired === 0 && docCompliance.certRequired === 0 ? (
+            {docCompliance.every((stat) => stat.required === 0) ? (
               <p style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
-                No climbs currently require a registration form or medical certificate.
+                No climbs currently require any documents.
               </p>
             ) : (
               <>
-                {docCompliance.formRequired > 0 && (
-                  <BarRow
-                    label="Registration Form Uploaded"
-                    count={docCompliance.formDone}
-                    max={docCompliance.formRequired}
-                  />
-                )}
-                {docCompliance.certRequired > 0 && (
-                  <BarRow
-                    label="Medical Certificate Uploaded"
-                    count={docCompliance.certDone}
-                    max={docCompliance.certRequired}
-                  />
-                )}
+                {docCompliance
+                  .filter((stat) => stat.required > 0)
+                  .map((stat) => (
+                    <BarRow
+                      key={stat.docType.key}
+                      label={`${stat.docType.label} Uploaded`}
+                      count={stat.done}
+                      max={stat.required}
+                    />
+                  ))}
               </>
             )}
           </Card>

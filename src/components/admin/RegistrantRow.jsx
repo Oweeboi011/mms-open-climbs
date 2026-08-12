@@ -18,6 +18,7 @@ import {
   STATUS_STYLE,
   PAYMENT_STYLE,
 } from "./registrantShared";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const statusStyleWithLabel = Object.fromEntries(
   Object.entries(STATUS_STYLE).map(([k, v]) => [k, { ...v, label: k }]),
@@ -130,22 +131,17 @@ export default function RegistrantRow({
             {/* An admin-added participant starts with neither, so the gap has
                 to be visible to whoever chases them for it. */}
             <ComplianceCheck ok={!detailsIncomplete(reg)} label="Details" />
-            {climb?.requiresRegistrationForm && (
+            {REQUIRED_DOC_TYPES.filter(
+              (docType) => climb?.[docType.requiresField],
+            ).map((docType) => (
               <ComplianceCheck
-                ok={!!reg.registrationFormUpload?.url}
-                label="Form"
-                href={reg.registrationFormUpload?.url}
+                key={docType.key}
+                ok={!!reg[docType.uploadField]?.url}
+                label={docType.badgeLabel}
+                href={reg[docType.uploadField]?.url}
                 onClick={(e) => e.stopPropagation()}
               />
-            )}
-            {climb?.requiresMedicalCert && (
-              <ComplianceCheck
-                ok={!!reg.medicalCertUpload?.url}
-                label="Med Cert"
-                href={reg.medicalCertUpload?.url}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
+            ))}
           </div>
         </td>
 

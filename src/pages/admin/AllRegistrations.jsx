@@ -45,18 +45,18 @@ import {
   STATUS_STYLE,
   EXPERIENCE_LABELS,
 } from "@/components/admin/registrantShared";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 
-// A registrant is missing required documents when their climb requires a
-// registration form and/or medical cert and the corresponding upload hasn't
-// been submitted yet.
+// A registrant is missing required documents when their climb requires one
+// of the REQUIRED_DOC_TYPES and the corresponding upload hasn't been
+// submitted yet.
 function hasMissingRequiredDocs(reg, climb) {
   if (!climb) return false;
-  if (climb.requiresRegistrationForm && !reg.registrationFormUpload?.url)
-    return true;
-  if (climb.requiresMedicalCert && !reg.medicalCertUpload?.url) return true;
-  return false;
+  return REQUIRED_DOC_TYPES.some(
+    (docType) => climb[docType.requiresField] && !reg[docType.uploadField]?.url,
+  );
 }
 
 export default function AllRegistrations() {
@@ -96,8 +96,12 @@ export default function AllRegistrations() {
           status: d.data().status,
           startDate: d.data().startDate,
           fees: d.data().fees || [],
-          requiresRegistrationForm: !!d.data().requiresRegistrationForm,
-          requiresMedicalCert: !!d.data().requiresMedicalCert,
+          ...Object.fromEntries(
+            REQUIRED_DOC_TYPES.map((docType) => [
+              docType.requiresField,
+              !!d.data()[docType.requiresField],
+            ]),
+          ),
         }))
         .sort((a, b) => {
           const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
@@ -562,17 +566,12 @@ export default function AllRegistrations() {
                       const climb = climbById[reg.climbId];
                       const outstanding = getOutstanding(reg, climb);
                       const hasWaiver = !!reg.waiverSignedName;
-                      const hasForm =
-                        !climb?.requiresRegistrationForm ||
-                        !!reg.registrationFormUpload?.url;
-                      const hasMedCert =
-                        !climb?.requiresMedicalCert ||
-                        !!reg.medicalCertUpload?.url;
+                      const hasAllDocs = !hasMissingRequiredDocs(reg, climb);
                       // An admin-added participant starts with no waiver and
                       // no details, so both gaps have to show here.
                       const hasDetails = !detailsIncomplete(reg);
                       const allCompliant =
-                        hasWaiver && hasForm && hasMedCert && hasDetails;
+                        hasWaiver && hasAllDocs && hasDetails;
 
                       return (
                         <React.Fragment key={reg.id}>
@@ -714,25 +713,19 @@ export default function AllRegistrations() {
                                   ok={hasDetails}
                                   label="Details"
                                 />
-                                {climb?.requiresRegistrationForm && (
+                                {REQUIRED_DOC_TYPES.filter(
+                                  (docType) => climb?.[docType.requiresField],
+                                ).map((docType) => (
                                   <ComplianceCheck
-                                    ok={!!reg.registrationFormUpload?.url}
-                                    label="Form"
+                                    key={docType.key}
+                                    ok={!!reg[docType.uploadField]?.url}
+                                    label={docType.badgeLabel}
                                     href={
-                                      reg.registrationFormUpload?.url ||
+                                      reg[docType.uploadField]?.url ||
                                       undefined
                                     }
                                   />
-                                )}
-                                {climb?.requiresMedicalCert && (
-                                  <ComplianceCheck
-                                    ok={!!reg.medicalCertUpload?.url}
-                                    label="Med Cert"
-                                    href={
-                                      reg.medicalCertUpload?.url || undefined
-                                    }
-                                  />
-                                )}
+                                ))}
                                 {!allCompliant && (
                                   <span
                                     style={{
@@ -1067,8 +1060,9 @@ export default function AllRegistrations() {
                                 )}
 
                                 {/* ── Required Documents ── */}
-                                {(climb?.requiresRegistrationForm ||
-                                  climb?.requiresMedicalCert) && (
+                                {REQUIRED_DOC_TYPES.some(
+                                  (docType) => climb?.[docType.requiresField],
+                                ) && (
                                   <>
                                     <SectionLabel>
                                       &#128196; Required Documents
@@ -1081,34 +1075,24 @@ export default function AllRegistrations() {
                                         marginBottom: 16,
                                       }}
                                     >
-                                      {climb.requiresRegistrationForm && (
+                                      {REQUIRED_DOC_TYPES.filter(
+                                        (docType) =>
+                                          climb[docType.requiresField],
+                                      ).map((docType) => (
                                         <ComplianceCheck
-                                          ok={!!reg.registrationFormUpload?.url}
+                                          key={docType.key}
+                                          ok={!!reg[docType.uploadField]?.url}
                                           label={
-                                            reg.registrationFormUpload?.url
-                                              ? "Reg. Form Uploaded"
-                                              : "Reg. Form Missing"
+                                            reg[docType.uploadField]?.url
+                                              ? `${docType.panelLabel} Uploaded`
+                                              : `${docType.panelLabel} Missing`
                                           }
                                           href={
-                                            reg.registrationFormUpload?.url ||
+                                            reg[docType.uploadField]?.url ||
                                             undefined
                                           }
                                         />
-                                      )}
-                                      {climb.requiresMedicalCert && (
-                                        <ComplianceCheck
-                                          ok={!!reg.medicalCertUpload?.url}
-                                          label={
-                                            reg.medicalCertUpload?.url
-                                              ? "Med. Cert Uploaded"
-                                              : "Med. Cert Missing"
-                                          }
-                                          href={
-                                            reg.medicalCertUpload?.url ||
-                                            undefined
-                                          }
-                                        />
-                                      )}
+                                      ))}
                                     </div>
                                   </>
                                 )}

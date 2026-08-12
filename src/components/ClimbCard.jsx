@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Icon from "@/components/Icon";
 import { getExperienceLevel, TRAIL_CLASS_LABELS } from "@/utils/trailClass";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
 const BADGE_CLASS = {
   minor: "badge-minor",
@@ -64,10 +65,9 @@ export default function ClimbCard({ climb }) {
   const level = getExperienceLevel(climb);
   const leads = getLeadOfficers(climb.officers);
   const hasAnnouncement = climb.announcements?.length > 0;
-  const docsRequired = [
-    climb.requiresRegistrationForm && "Registration Form",
-    climb.requiresMedicalCert && "Medical Certificate",
-  ].filter(Boolean);
+  const docsRequired = REQUIRED_DOC_TYPES.filter(
+    (docType) => climb[docType.requiresField],
+  ).map((docType) => docType.label);
   const docsComplete = climb.docsCompleteCount ?? 0;
 
   return (

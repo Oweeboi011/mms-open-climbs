@@ -105,6 +105,12 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `requiresMedicalCert` | boolean | No | When `true`, registrants must upload their own medical certificate to register |
 | `medicalCertSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded sample medical certificate (for reference only) |
 | `medicalCertSampleFileName` | string | No | Original filename of the uploaded sample |
+| `requiresPermit` | boolean | No | When `true`, registrants must upload their own mountaineering / trekking permit to register |
+| `permitSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded sample permit (for reference only) |
+| `permitSampleFileName` | string | No | Original filename of the uploaded sample |
+| `requiresWaiverDoc` | boolean | No | When `true`, registrants must download `waiverDocSampleUrl`, sign it, and upload their own copy of the Waiver of Responsibility to register (distinct from the `waiverSigned` e-signature on the registration doc) |
+| `waiverDocSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded Waiver of Responsibility template |
+| `waiverDocSampleFileName` | string | No | Original filename of the uploaded template |
 | `thankYouSentAt` | timestamp | No | Set by `sendReminderNotifications` once the one-time post-climb thank-you email (`tplThankYou`) has been sent to all confirmed registrants; gates the email so it only sends once per climb — see [API.md — sendReminderNotifications](API.md#sendremindernotifications) |
 | `cancellationStatus` | string | No | `cancelled` / `postponed`, or unset/`""` for a climb that's proceeding as scheduled. Independent of `status` (registration-open lifecycle) — a climb can be `status: closed` and `cancellationStatus: cancelled` at once. Changing this triggers `onClimbUpdated`, which emails and notifies every active registrant plus officers/admins |
 | `cancellationReason` | string | No | Admin-entered reason shown to participants when `cancellationStatus` is set |
@@ -158,6 +164,8 @@ Each document represents a single member's registration for a single climb.
 | `feeBreakdown` | object[] | No | `[{ label, amount, optional, selected }]` |
 | `registrationFormUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresRegistrationForm` is `true` |
 | `medicalCertUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresMedicalCert` is `true` |
+| `permitUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresPermit` is `true` |
+| `waiverDocUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresWaiverDoc` is `true` |
 | `adminNotes` | string | No | Admin-only internal notes |
 | `cancellationReason` | string | No | Reason provided when `status = cancelled` |
 | `confirmedAt` | timestamp | No | Set when status changes to `confirmed` |
