@@ -24,6 +24,7 @@ import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
+import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
 import {
@@ -351,25 +352,28 @@ export default function AdminClimbDetail() {
   }
 
   async function downloadAllDocs() {
+    // Every doc type in REQUIRED_DOC_TYPES, not a hardcoded pair — a climb
+    // that requires a permit or waiver doc has to come out of here too. An
+    // upload is collected whenever it exists, even if the climb's requires
+    // toggle was since turned off, so nothing already handed in is dropped.
     const docs = [];
     regs.forEach((r, i) => {
       const safeName =
         (r.name || `registrant-${i + 1}`).replace(/[\\/:*?"<>|]/g, "_") +
         (r.id ? ` (${r.id.slice(-6)})` : "");
-      if (r.registrationFormUpload?.url) {
+      REQUIRED_DOC_TYPES.forEach((docType) => {
+        const upload = r[docType.uploadField];
+        if (!upload?.url) return;
         docs.push({
           folder: safeName,
-          url: r.registrationFormUpload.url,
-          fileName: r.registrationFormUpload.fileName || "registration-form",
+          url: upload.url,
+          // Prefixed so the four docs of one registrant stay distinguishable
+          // inside their folder even when the source files share a name.
+          fileName: `${docType.badgeLabel} - ${
+            upload.fileName || docType.key
+          }`.replace(/[\\/:*?"<>|]/g, "_"),
         });
-      }
-      if (r.medicalCertUpload?.url) {
-        docs.push({
-          folder: safeName,
-          url: r.medicalCertUpload.url,
-          fileName: r.medicalCertUpload.fileName || "medical-certificate",
-        });
-      }
+      });
     });
 
     if (!docs.length) {
@@ -380,14 +384,23 @@ export default function AdminClimbDetail() {
     setZippingDocs(true);
     try {
       const zip = new JSZip();
+      let failed = 0;
       await Promise.all(
         docs.map(async (d) => {
-          const res = await fetch(d.url);
-          if (!res.ok) return;
-          const blob = await res.blob();
-          zip.file(`${d.folder}/${d.fileName}`, blob);
+          try {
+            const res = await fetch(d.url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            zip.file(`${d.folder}/${d.fileName}`, await res.blob());
+          } catch (err) {
+            failed += 1;
+            console.error(`Failed to fetch ${d.folder}/${d.fileName}:`, err);
+          }
         }),
       );
+      if (failed === docs.length) {
+        alert("Failed to download documents. Please try again.");
+        return;
+      }
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
@@ -395,6 +408,11 @@ export default function AdminClimbDetail() {
       a.download = `${climb?.title || "climb"}-requirement-docs.zip`;
       a.click();
       URL.revokeObjectURL(url);
+      if (failed) {
+        alert(
+          `${failed} of ${docs.length} document${failed === 1 ? "" : "s"} could not be downloaded and ${failed === 1 ? "is" : "are"} missing from the ZIP.`,
+        );
+      }
     } catch (err) {
       console.error("Failed to build requirement docs zip:", err);
       alert("Failed to download documents. Please try again.");
@@ -535,7 +553,7 @@ export default function AdminClimbDetail() {
               className="btn btn-outline btn-sm"
               onClick={downloadAllDocs}
               disabled={zippingDocs}
-              title="Download every uploaded registration form and medical certificate for this climb as a ZIP file"
+              title="Download every uploaded requirement document for this climb — registration forms, medical certificates, permits and waivers — as a ZIP file, one folder per registrant"
             >
               {zippingDocs ? "Zipping…" : "📁 Download Docs (ZIP)"}
             </button>
