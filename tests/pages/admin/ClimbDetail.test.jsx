@@ -771,6 +771,29 @@ describe("Admin ClimbDetail", () => {
       );
     });
 
+    it("names the archive from the climb title plus today's date", async () => {
+      // Real clock — fake timers would stall waitFor. The exact stamp format
+      // is pinned in the downloadFileName util tests.
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const downloads = [];
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+        function () {
+          downloads.push(this.download);
+        },
+      );
+      mockRegistrantSnapshot([
+        { id: registrationFixture.id, data: { ...registrationFixture, ...uploads } },
+      ]);
+      await clickDownload();
+
+      await waitFor(() => expect(downloads).toHaveLength(1));
+      expect(downloads[0]).toBe(
+        `Mt-Pulag-requirement-docs-${today}.zip`,
+      );
+    });
+
     it("warns and builds nothing when no documents were uploaded", async () => {
       await clickDownload();
       await waitFor(() =>
