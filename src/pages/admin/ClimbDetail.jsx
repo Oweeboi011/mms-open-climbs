@@ -25,6 +25,10 @@ import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import {
+  sanitizeFileNamePart,
+  makeDatedDownloadName,
+} from "@/utils/downloadFileName";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
 import {
@@ -359,7 +363,7 @@ export default function AdminClimbDetail() {
     const docs = [];
     regs.forEach((r, i) => {
       const safeName =
-        (r.name || `registrant-${i + 1}`).replace(/[\\/:*?"<>|]/g, "_") +
+        sanitizeFileNamePart(r.name, `registrant-${i + 1}`) +
         (r.id ? ` (${r.id.slice(-6)})` : "");
       REQUIRED_DOC_TYPES.forEach((docType) => {
         const upload = r[docType.uploadField];
@@ -369,9 +373,10 @@ export default function AdminClimbDetail() {
           url: upload.url,
           // Prefixed so the four docs of one registrant stay distinguishable
           // inside their folder even when the source files share a name.
-          fileName: `${docType.badgeLabel} - ${
-            upload.fileName || docType.key
-          }`.replace(/[\\/:*?"<>|]/g, "_"),
+          fileName: sanitizeFileNamePart(
+            `${docType.badgeLabel} - ${upload.fileName || docType.key}`,
+            docType.key,
+          ),
         });
       });
     });
@@ -405,7 +410,11 @@ export default function AdminClimbDetail() {
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${climb?.title || "climb"}-requirement-docs.zip`;
+      a.download = makeDatedDownloadName(
+        climb?.title || "climb",
+        "requirement-docs",
+        "zip",
+      );
       a.click();
       URL.revokeObjectURL(url);
       if (failed) {
