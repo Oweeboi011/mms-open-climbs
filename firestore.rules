@@ -115,7 +115,8 @@ service cloud.firestore {
           affected().hasOnly([
             'paymentProofs', 'payments', 'amountPaid', 'paymentStatus',
             'paymentSubmittedAt', 'verifiedAt', 'verifiedBy', 'feeBreakdown',
-            'registrationFormUpload', 'medicalCertUpload', 'updatedAt'
+            'registrationFormUpload', 'medicalCertUpload', 'permitUpload',
+            'waiverDocUpload', 'updatedAt'
           ]) &&
           memberPaymentClaimIsHonest()) ||
         (isOwner(resource.data.userId) && memberIsSigningOwnWaiver()) ||
