@@ -15,6 +15,8 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 const DAYS_WINDOW = 30;
 const MAX_VIEWS = 5000;
 const MAX_FAILURES = 1000;
+const VISITORS_PER_PAGE = 50;
+const ACTIVITY_PER_PAGE = 50;
 
 const FAILURE_TYPE_LABEL = {
   email: "Email",
@@ -88,6 +90,8 @@ export default function Analytics() {
   const [climbTitles, setClimbTitles] = useState({});
   const [userNames, setUserNames] = useState({});
   const [loading, setLoading] = useState(true);
+  const [visitorPage, setVisitorPage] = useState(0);
+  const [activityPage, setActivityPage] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -201,6 +205,25 @@ export default function Analytics() {
       role,
       name: userNames[uid] || uid,
     }));
+  const visitorPageCount = Math.max(
+    1,
+    Math.ceil(uniqueUserList.length / VISITORS_PER_PAGE),
+  );
+  const visitorPageClamped = Math.min(visitorPage, visitorPageCount - 1);
+  const pagedVisitorList = uniqueUserList.slice(
+    visitorPageClamped * VISITORS_PER_PAGE,
+    (visitorPageClamped + 1) * VISITORS_PER_PAGE,
+  );
+
+  const activityPageCount = Math.max(
+    1,
+    Math.ceil(views.length / ACTIVITY_PER_PAGE),
+  );
+  const activityPageClamped = Math.min(activityPage, activityPageCount - 1);
+  const pagedViews = views.slice(
+    activityPageClamped * ACTIVITY_PER_PAGE,
+    (activityPageClamped + 1) * ACTIVITY_PER_PAGE,
+  );
 
   // Top 5 event pages
   const eventViewMap = {};
@@ -344,142 +367,6 @@ export default function Analytics() {
             />
           </div>
         </section>
-
-        {/* Unique Members / Admins List */}
-        {uniqueUserList.length > 0 && (
-          <section style={{ marginBottom: 28 }}>
-            <div
-              style={{
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                letterSpacing: 2,
-                textTransform: "uppercase",
-                color: "var(--ink-soft)",
-                marginBottom: 12,
-              }}
-            >
-              Logged-in Visitors
-            </div>
-            <div
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                overflow: "hidden",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-              }}
-            >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "0.82rem",
-                }}
-              >
-                <thead>
-                  <tr
-                    style={{
-                      borderBottom: "1px solid var(--border)",
-                      background: "var(--surface-alt, #f8f5ee)",
-                    }}
-                  >
-                    <th
-                      style={{
-                        padding: "9px 16px",
-                        textAlign: "left",
-                        fontWeight: 700,
-                        color: "var(--ink-soft)",
-                        fontSize: "0.68rem",
-                        textTransform: "uppercase",
-                        letterSpacing: 1,
-                      }}
-                    >
-                      Name
-                    </th>
-                    <th
-                      style={{
-                        padding: "9px 16px",
-                        textAlign: "left",
-                        fontWeight: 700,
-                        color: "var(--ink-soft)",
-                        fontSize: "0.68rem",
-                        textTransform: "uppercase",
-                        letterSpacing: 1,
-                      }}
-                    >
-                      Role
-                    </th>
-                    <th
-                      style={{
-                        padding: "9px 16px",
-                        textAlign: "right",
-                        fontWeight: 700,
-                        color: "var(--ink-soft)",
-                        fontSize: "0.68rem",
-                        textTransform: "uppercase",
-                        letterSpacing: 1,
-                      }}
-                    >
-                      Views
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {uniqueUserList.map(({ uid, name, role, count }, i) => {
-                    const roleColor = role === "admin" ? "#7b2d8b" : "#0070E0";
-                    return (
-                      <tr
-                        key={uid}
-                        style={{
-                          borderBottom:
-                            i < uniqueUserList.length - 1
-                              ? "1px solid var(--border)"
-                              : "none",
-                          background:
-                            i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.015)",
-                        }}
-                      >
-                        <td
-                          style={{
-                            padding: "8px 16px",
-                            fontWeight: 600,
-                            color: "var(--ink)",
-                          }}
-                        >
-                          {name}
-                        </td>
-                        <td style={{ padding: "8px 16px" }}>
-                          <span
-                            style={{
-                              fontSize: "0.7rem",
-                              fontWeight: 700,
-                              padding: "2px 8px",
-                              borderRadius: 99,
-                              background: `${roleColor}18`,
-                              color: roleColor,
-                            }}
-                          >
-                            {role}
-                          </span>
-                        </td>
-                        <td
-                          style={{
-                            padding: "8px 16px",
-                            textAlign: "right",
-                            fontWeight: 700,
-                            color: "var(--ink)",
-                          }}
-                        >
-                          {count.toLocaleString()}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
 
         {/* Visitor Type */}
         <section style={{ marginBottom: 28 }}>
@@ -958,15 +845,56 @@ export default function Analytics() {
         <section style={{ marginBottom: 28 }}>
           <div
             style={{
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              letterSpacing: 2,
-              textTransform: "uppercase",
-              color: "var(--ink-soft)",
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
               marginBottom: 12,
             }}
           >
-            Recent Activity — Last 200 Views
+            <div
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                letterSpacing: 2,
+                textTransform: "uppercase",
+                color: "var(--ink-soft)",
+              }}
+            >
+              Recent Activity
+            </div>
+            {activityPageCount > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setActivityPage((p) => Math.max(0, p - 1))}
+                  disabled={activityPageClamped === 0}
+                >
+                  Prev
+                </button>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-soft)" }}>
+                  Page {activityPageClamped + 1} of {activityPageCount}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() =>
+                    setActivityPage((p) =>
+                      Math.min(activityPageCount - 1, p + 1),
+                    )
+                  }
+                  disabled={activityPageClamped === activityPageCount - 1}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
           <div
             style={{
@@ -1059,7 +987,7 @@ export default function Analytics() {
                 </tr>
               </thead>
               <tbody>
-                {views.slice(0, 200).map((v, i) => {
+                {pagedViews.map((v, i) => {
                   const t = ts(v);
                   const timeStr =
                     t.getFullYear() > 1970
@@ -1081,7 +1009,9 @@ export default function Analytics() {
                       key={v.id}
                       style={{
                         borderBottom:
-                          i < 49 ? "1px solid var(--border)" : "none",
+                          i < pagedViews.length - 1
+                            ? "1px solid var(--border)"
+                            : "none",
                         background:
                           i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.015)",
                       }}
@@ -1162,6 +1092,185 @@ export default function Analytics() {
             )}
           </div>
         </section>
+
+        {/* Unique Members / Admins List */}
+        {uniqueUserList.length > 0 && (
+          <section style={{ marginBottom: 28 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  letterSpacing: 2,
+                  textTransform: "uppercase",
+                  color: "var(--ink-soft)",
+                }}
+              >
+                Logged-in Visitors
+              </div>
+              {visitorPageCount > 1 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setVisitorPage((p) => Math.max(0, p - 1))}
+                    disabled={visitorPageClamped === 0}
+                  >
+                    Prev
+                  </button>
+                  <span
+                    style={{ fontSize: "0.78rem", color: "var(--ink-soft)" }}
+                  >
+                    Page {visitorPageClamped + 1} of {visitorPageCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() =>
+                      setVisitorPage((p) =>
+                        Math.min(visitorPageCount - 1, p + 1),
+                      )
+                    }
+                    disabled={visitorPageClamped === visitorPageCount - 1}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+            <div
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                overflow: "hidden",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "0.82rem",
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      background: "var(--surface-alt, #f8f5ee)",
+                    }}
+                  >
+                    <th
+                      style={{
+                        padding: "9px 16px",
+                        textAlign: "left",
+                        fontWeight: 700,
+                        color: "var(--ink-soft)",
+                        fontSize: "0.68rem",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
+                      }}
+                    >
+                      Name
+                    </th>
+                    <th
+                      style={{
+                        padding: "9px 16px",
+                        textAlign: "left",
+                        fontWeight: 700,
+                        color: "var(--ink-soft)",
+                        fontSize: "0.68rem",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
+                      }}
+                    >
+                      Role
+                    </th>
+                    <th
+                      style={{
+                        padding: "9px 16px",
+                        textAlign: "right",
+                        fontWeight: 700,
+                        color: "var(--ink-soft)",
+                        fontSize: "0.68rem",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
+                      }}
+                    >
+                      Views
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedVisitorList.map(({ uid, name, role, count }, i) => {
+                    const roleColor = role === "admin" ? "#7b2d8b" : "#0070E0";
+                    return (
+                      <tr
+                        key={uid}
+                        style={{
+                          borderBottom:
+                            i < pagedVisitorList.length - 1
+                              ? "1px solid var(--border)"
+                              : "none",
+                          background:
+                            i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.015)",
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "8px 16px",
+                            fontWeight: 600,
+                            color: "var(--ink)",
+                          }}
+                        >
+                          {name}
+                        </td>
+                        <td style={{ padding: "8px 16px" }}>
+                          <span
+                            style={{
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: 99,
+                              background: `${roleColor}18`,
+                              color: roleColor,
+                            }}
+                          >
+                            {role}
+                          </span>
+                        </td>
+                        <td
+                          style={{
+                            padding: "8px 16px",
+                            textAlign: "right",
+                            fontWeight: 700,
+                            color: "var(--ink)",
+                          }}
+                        >
+                          {count.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Failed Requests */}
         <section style={{ marginBottom: 28 }}>
