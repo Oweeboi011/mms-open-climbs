@@ -1,7 +1,7 @@
 /**
  * Tests for the Admin Climb Detail page.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderAtRoute,
@@ -13,6 +13,16 @@ import {
 import ClimbDetail from "@/pages/admin/ClimbDetail";
 import { getDoc, getDocs, addDoc, updateDoc } from "firebase/firestore";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
+
+// Captures what the page puts into the ZIP so the docs test can assert on
+// the entry paths without unpacking a real archive.
+const zipFile = vi.fn();
+vi.mock("jszip", () => ({
+  default: class {
+    file = zipFile;
+    generateAsync = () => Promise.resolve(new Blob(["zip"]));
+  },
+}));
 
 const memberDoc = {
   id: "user-2",
@@ -708,5 +718,87 @@ describe("Admin ClimbDetail", () => {
     expect(payload.mobile).toBe("+63 917 000 0000");
     // Signing binds the participant, so an admin never sets it.
     expect(payload.waiverSigned).toBe(false);
+  });
+
+  describe("Download Docs (ZIP)", () => {
+    const uploads = {
+      registrationFormUpload: { url: "u/form", fileName: "form.pdf" },
+      medicalCertUpload: { url: "u/med", fileName: "med.pdf" },
+      permitUpload: { url: "u/permit", fileName: "permit.pdf" },
+      waiverDocUpload: { url: "u/waiver", fileName: "waiver.pdf" },
+    };
+
+    beforeEach(() => {
+      zipFile.mockClear();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(["x"]) }),
+      );
+      vi.stubGlobal("alert", vi.fn());
+      URL.createObjectURL = vi.fn(() => "blob:zip");
+      URL.revokeObjectURL = vi.fn();
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    async function clickDownload() {
+      render();
+      await waitFor(() =>
+        expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Download Docs/i }));
+    }
+
+    it("includes every required doc type, not just form and med cert", async () => {
+      mockRegistrantSnapshot([
+        { id: registrationFixture.id, data: { ...registrationFixture, ...uploads } },
+      ]);
+      await clickDownload();
+
+      await waitFor(() => expect(zipFile).toHaveBeenCalledTimes(4));
+      const paths = zipFile.mock.calls.map(([path]) => path);
+      expect(paths).toEqual(
+        expect.arrayContaining([
+          "Juan Cruz (reg-1)/Form - form.pdf",
+          "Juan Cruz (reg-1)/Med Cert - med.pdf",
+          "Juan Cruz (reg-1)/Permit - permit.pdf",
+          "Juan Cruz (reg-1)/Waiver Doc - waiver.pdf",
+        ]),
+      );
+    });
+
+    it("warns and builds nothing when no documents were uploaded", async () => {
+      await clickDownload();
+      await waitFor(() =>
+        expect(window.alert).toHaveBeenCalledWith(
+          expect.stringMatching(/No uploaded requirement documents/i),
+        ),
+      );
+      expect(zipFile).not.toHaveBeenCalled();
+    });
+
+    it("still delivers the ZIP when one document fails to fetch", async () => {
+      mockRegistrantSnapshot([
+        { id: registrationFixture.id, data: { ...registrationFixture, ...uploads } },
+      ]);
+      fetch.mockImplementation((url) =>
+        url === "u/permit"
+          ? Promise.resolve({ ok: false, status: 404 })
+          : Promise.resolve({ ok: true, blob: async () => new Blob(["x"]) }),
+      );
+      await clickDownload();
+
+      await waitFor(() => expect(zipFile).toHaveBeenCalledTimes(3));
+      expect(URL.createObjectURL).toHaveBeenCalled();
+      await waitFor(() =>
+        expect(window.alert).toHaveBeenCalledWith(
+          expect.stringMatching(/1 of 4 document could not be downloaded/i),
+        ),
+      );
+    });
   });
 });
