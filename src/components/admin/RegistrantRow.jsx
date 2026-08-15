@@ -34,6 +34,7 @@ export default function RegistrantRow({
   changePaymentStatus,
   onEntryStatusChange,
   onRecordPayment,
+  onViewReceipt,
   onManageDocuments,
   toggleOptionalFee,
   onEdit,
@@ -605,6 +606,18 @@ export default function RegistrantRow({
                       }}
                     >
                       + Record Payment
+                    </button>
+                  )}
+                  {onViewReceipt && (
+                    <button
+                      className="btn btn-outline btn-sm"
+                      title="Open the Official Receipt this participant sees — fees owed, amount paid, balance, and the full payment log"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewReceipt(reg);
+                      }}
+                    >
+                      &#129534; View Receipt
                     </button>
                   )}
                   {getPaymentEntries(reg).length > 0 && (
