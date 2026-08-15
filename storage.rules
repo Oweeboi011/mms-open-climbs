@@ -2,14 +2,19 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Payment proof uploads: authenticated users can upload/read their own files.
+    // Payment proof uploads. Usually the member uploading their own GCash
+    // receipt, but an admin recording a payment on someone's behalf writes a
+    // receipt into that member's folder too — so this can't be pinned to
+    // `request.auth.uid == userId`, the same "authenticated write, admin check
+    // in UI" pattern the required-document uploads below use. The resulting
+    // Firestore write is still gated to the registration's owner or an admin
+    // by firestore.rules.
     // Any authenticated user can read (admin access is enforced in the UI/Firestore).
     // PDFs are allowed alongside images: both payment forms accept
     // `image/*,application/pdf` and GCash receipts are often shared as PDFs,
     // so an image-only rule silently failed those uploads.
     match /payment-proofs/{climbId}/{userId}/{fileName} {
       allow write: if request.auth != null
-                   && request.auth.uid == userId
                    && request.resource.size < 10 * 1024 * 1024  // 10 MB limit
                    && (request.resource.contentType.matches('image/.*')
                        || request.resource.contentType == 'application/pdf');

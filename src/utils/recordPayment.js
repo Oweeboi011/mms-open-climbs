@@ -33,7 +33,10 @@ export async function recordManualPayment(
     files.map(async (file) => {
       const fileRef = storageRef(
         storage,
-        `payment-proofs/${reg.climbId}/${reg.userId}/${makeUploadTimestamp()}_${file.name}`,
+        // A walk-in added by an admin has no userId, so the registration id
+        // stands in — otherwise every such participant's receipts pile into
+        // one shared `null/` folder.
+        `payment-proofs/${reg.climbId}/${reg.userId || reg.id}/${makeUploadTimestamp()}_${file.name}`,
       );
       await uploadBytes(fileRef, file);
       const url = await getDownloadURL(fileRef);
