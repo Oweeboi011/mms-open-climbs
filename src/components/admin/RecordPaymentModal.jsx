@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getPaymentEntries, getPaymentsTotal } from "@/utils/payments";
+import { logFailedRequest } from "@/utils/logFailedRequest";
 
 // Logs a payment that never went through the app — cash handed over at the
 // jump-off, a bank transfer, a friend settling someone's balance. It appends
@@ -33,8 +34,24 @@ export default function RecordPaymentModal({ reg, onClose, onSave }) {
         markVerified,
         files,
       });
-    } catch {
-      setError("Failed to record the payment. Please try again.");
+    } catch (err) {
+      // The underlying message matters here — a denied storage upload and a
+      // denied Firestore write look identical behind a generic notice, and
+      // the admin is the only one who can report which one they hit.
+      setError(
+        `Failed to record the payment. Please try again.${
+          err?.message ? ` (${err.message})` : ""
+        }`,
+      );
+      logFailedRequest({
+        type: "payment",
+        source: "RecordPaymentModal.jsx",
+        message: err?.message,
+        path: window.location.pathname,
+        userRole: "admin",
+        climbId: reg.climbId,
+        registrationId: reg.id,
+      });
     } finally {
       setSaving(false);
     }
