@@ -291,6 +291,61 @@ describe("Admin ClimbDetail", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens the participant's Official Receipt with its payment log", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "submitted",
+          amountPaid: 500,
+          feeBreakdown: [
+            {
+              label: "Registration Fee",
+              amount: "800",
+              optional: false,
+              selected: true,
+            },
+          ],
+          payments: [
+            {
+              amount: 500,
+              proofs: [],
+              submittedAt: null,
+              note: "downpayment, balance on Friday",
+            },
+          ],
+        },
+      },
+    ]);
+
+    render();
+    await waitFor(() =>
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("Juan Cruz"));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /View Receipt/i }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /View Receipt/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Official Receipt")).toBeInTheDocument(),
+    );
+    // The receipt is the same document the member sees: fees owed, what was
+    // accepted, the balance, and the comment left on the instalment.
+    expect(screen.getByText("Payment Log")).toBeInTheDocument();
+    // "Balance" is also the registrants table's column header.
+    expect(screen.getAllByText("Balance").length).toBeGreaterThan(1);
+    expect(screen.getAllByText("₱300").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/downpayment, balance on Friday/).length,
+    ).toBeGreaterThan(0);
+  });
+
   it("still shows a pre-`payments` registration's receipts as one payment", async () => {
     mockRegistrantSnapshot([
       {
