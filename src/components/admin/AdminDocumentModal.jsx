@@ -74,7 +74,9 @@ export default function AdminDocumentModal({
         const file = docFiles[docType.key];
         const fileRef = storageRef(
           storage,
-          `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId}/${makeUploadTimestamp()}_${file.name}`,
+          // Registration id stands in for a walk-in with no userId, so their
+          // documents don't share one `null/` folder with every other walk-in.
+          `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId || reg.id}/${makeUploadTimestamp()}_${file.name}`,
         );
         await uploadBytes(fileRef, file);
         const url = await getDownloadURL(fileRef);

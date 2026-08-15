@@ -29,6 +29,7 @@ import {
   sanitizeFileNamePart,
   makeDatedDownloadName,
 } from "@/utils/downloadFileName";
+import { getDocCompliance } from "@/utils/docCompliance";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
 import {
@@ -473,6 +474,8 @@ export default function AdminClimbDetail() {
     [regs, getOutstanding],
   );
 
+  const docs = useMemo(() => getDocCompliance(climb, regs), [climb, regs]);
+
   return (
     <div className="admin-layout">
       <Header />
@@ -642,7 +645,111 @@ export default function AdminClimbDetail() {
                   <div className="admin-stat-label">Open Slots</div>
                 </div>
               )}
+              {docs.expected > 0 && (
+                <div
+                  className={`admin-stat-card ${docs.complete ? "" : "gold"}`}
+                  title={`${docs.submitted} of ${docs.expected} expected requirement documents have been submitted across ${docs.types.length} required document type${docs.types.length === 1 ? "" : "s"}. Cancelled registrants are excluded.`}
+                >
+                  <div className="admin-stat-num">
+                    {docs.submitted}
+                    <span style={{ fontSize: "1.2rem", opacity: 0.55 }}>
+                      /{docs.expected}
+                    </span>
+                  </div>
+                  <div className="admin-stat-label">Required Docs In</div>
+                </div>
+              )}
             </div>
+
+            {/* Required documents progress — how much of the paperwork this
+                climb asked for has actually come in, per document type, so an
+                officer can see which requirement is lagging without reading
+                down the compliance column of every row. */}
+            {docs.expected > 0 && (
+              <div className="admin-card" style={{ marginBottom: 28 }}>
+                <div className="admin-card-title">
+                  Required Documents — {docs.submitted}/{docs.expected}{" "}
+                  submitted
+                </div>
+                <p
+                  style={{
+                    fontSize: "0.82rem",
+                    color: "var(--ink-soft)",
+                    margin: "0 0 16px",
+                  }}
+                >
+                  {docs.complete ? (
+                    <>&#10003; Every expected document is in.</>
+                  ) : (
+                    <>
+                      {docs.missing} document{docs.missing === 1 ? "" : "s"}{" "}
+                      still outstanding from {docs.registrantsMissing}{" "}
+                      participant
+                      {docs.registrantsMissing === 1 ? "" : "s"}. Cancelled
+                      registrants are not counted.
+                    </>
+                  )}
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: 16,
+                  }}
+                >
+                  {docs.types.map((t) => {
+                    const pct = t.expected
+                      ? Math.round((t.submitted / t.expected) * 100)
+                      : 0;
+                    return (
+                      <div key={t.key}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "baseline",
+                            gap: 8,
+                            fontSize: "0.8rem",
+                            fontWeight: 700,
+                          }}
+                        >
+                          <span>
+                            {t.pillIcon} {t.badgeLabel}
+                          </span>
+                          <span
+                            style={{
+                              color: t.missing
+                                ? "#b45309"
+                                : "var(--green-dark)",
+                            }}
+                          >
+                            {t.submitted}/{t.expected}
+                          </span>
+                        </div>
+                        <span className="slot-bar">
+                          <span
+                            className={`slot-bar-fill ${t.missing ? "low" : "ok"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </span>
+                        <div
+                          style={{
+                            fontSize: "0.72rem",
+                            color: "var(--ink-soft)",
+                            marginTop: 4,
+                          }}
+                        >
+                          {t.missing
+                            ? `${t.missing} missing`
+                            : "All submitted"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Officers */}
             <div style={{ marginBottom: 20 }}>
