@@ -297,11 +297,14 @@ describe("MyRegistrations page", () => {
     await waitFor(() =>
       expect(screen.getByText("Fee Breakdown")).toBeInTheDocument(),
     );
-    expect(screen.getByText("₱500")).toBeInTheDocument();
+    // ₱500 is both the fee line and the payment log's recorded amount.
+    expect(screen.getAllByText("₱500").length).toBeGreaterThan(0);
 
-    expect(screen.getByText(/Already Paid: ₱500/i)).toBeInTheDocument();
-    expect(screen.getByText(/Verified: /i)).toBeInTheDocument();
-    expect(screen.getByText("Previously submitted:")).toBeInTheDocument();
+    // A pre-`payments` registration normalizes into a one-entry log, so the
+    // amount, the verdict and the receipt all still surface.
+    expect(screen.getByText(/Already paid: ₱500/i)).toBeInTheDocument();
+    expect(screen.getByText("Payment Log")).toBeInTheDocument();
+    expect(screen.getByText("Payment 1")).toBeInTheDocument();
     expect(screen.getByText("gcash1.png")).toHaveAttribute(
       "href",
       "https://x/gcash1.png",

@@ -25,10 +25,16 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import DetailsPrompt, { detailsIncomplete } from "@/components/DetailsPrompt";
 import SignWaiverPrompt from "@/components/SignWaiverPrompt";
 import DocumentUploadModal from "@/components/DocumentUploadModal";
+import PaymentLog from "@/components/PaymentLog";
+import ReceiptModal from "@/components/ReceiptModal";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
-import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
-import { getFeeItems } from "@/utils/registrationFees";
+import {
+  getPaymentEntries,
+  buildPaymentPatch,
+  getCountedTotal,
+} from "@/utils/payments";
+import { getOutstanding } from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
@@ -38,6 +44,8 @@ const STATUS_LABEL = {
   cancelled: "Cancelled",
   waitlisted: "Waitlisted",
 };
+
+const peso = (n) => `₱${Number(n || 0).toLocaleString("en-PH")}`;
 
 const PAYMENT_LABEL = {
   unpaid: "Unpaid",
@@ -306,68 +314,47 @@ function PayPrompt({ reg, onClose, onSaved }) {
         </p>
         {error && <div className="alert alert-error">{error}</div>}
 
-        {reg.amountPaid > 0 && (
-          <div
-            style={{
-              background: "var(--surface-alt)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "10px 14px",
-              marginBottom: 16,
-              fontSize: "0.82rem",
-            }}
-          >
+        {/* What's already on record, before adding to it — each instalment
+            with its verdict and comment, so someone topping up can see which
+            payment an officer bounced and why rather than one merged total. */}
+        {getPaymentEntries(reg).length > 0 && (
+          <div style={{ marginBottom: 16 }}>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: 4,
+                gap: 8,
+                marginBottom: 6,
               }}
             >
-              <strong>
-                Already Paid: ₱{Number(reg.amountPaid).toLocaleString("en-PH")}
-              </strong>
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                  color: "var(--ink-soft)",
+                }}
+              >
+                Payment Log
+              </span>
               <span
                 className={`status-badge status-payment-${reg.paymentStatus}`}
               >
                 {PAYMENT_LABEL[reg.paymentStatus] || reg.paymentStatus}
               </span>
             </div>
-            {reg.paymentSubmittedAt && (
-              <div style={{ color: "var(--ink-soft)" }}>
-                Submitted: {formatDateTime(reg.paymentSubmittedAt)}
-              </div>
-            )}
-            {reg.paymentStatus === "verified" && reg.verifiedAt && (
-              <div style={{ color: "var(--ink-soft)" }}>
-                Verified: {formatDateTime(reg.verifiedAt)}
-                {reg.verifiedBy?.name ? ` by ${reg.verifiedBy.name}` : ""}
-              </div>
-            )}
-            {reg.paymentProofs?.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ color: "var(--ink-soft)", marginBottom: 4 }}>
-                  Previously submitted:
-                </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {reg.paymentProofs.map((proof, i) => (
-                    <a
-                      key={i}
-                      href={proof.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "var(--green-dark)",
-                        textDecoration: "underline",
-                      }}
-                    >
-                      {proof.fileName || `Receipt ${i + 1}`}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div style={{ fontSize: "0.82rem", marginBottom: 8 }}>
+              <strong>Already paid: {peso(getCountedTotal(reg))}</strong>
+              {getOutstanding(reg, climb) > 0 && (
+                <span style={{ color: "#b45309" }}>
+                  {" "}
+                  · Balance {peso(getOutstanding(reg, climb))}
+                </span>
+              )}
+            </div>
+            <PaymentLog reg={reg} />
           </div>
         )}
 
@@ -954,229 +941,6 @@ function PayPrompt({ reg, onClose, onSaved }) {
   );
 }
 
-const RECEIPT_STATUS_LABEL = {
-  submitted: "Awaiting Review",
-  verified: "Verified",
-  rejected: "Rejected",
-};
-
-function formatDateTime(value) {
-  const d = value?.toDate?.() ?? (value ? new Date(value) : null);
-  if (!d || isNaN(d.getTime())) return "—";
-  return d.toLocaleString("en-PH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function ReceiptModal({ reg, climb, onClose }) {
-  // Read the climb's current fee schedule, not the snapshot frozen at
-  // registration — an officer who corrects a "TBA" amount or adds a fee
-  // afterwards should see the receipt follow, the same way the admin views
-  // and the outstanding math do.
-  const items = getFeeItems(reg, climb);
-  const { total, hasTba } = sumFeeAmounts(items);
-  const totalDisplay = hasTba
-    ? `₱${total.toLocaleString("en-PH")} + TBA`
-    : `₱${total.toLocaleString("en-PH")}`;
-  const orNumber = `OR-${reg.id.slice(-8).toUpperCase()}`;
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 420,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 4,
-          }}
-        >
-          <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Official Receipt</h3>
-          <span className={`status-badge status-payment-${reg.paymentStatus}`}>
-            {RECEIPT_STATUS_LABEL[reg.paymentStatus] || reg.paymentStatus}
-          </span>
-        </div>
-        <p
-          style={{
-            fontSize: "0.78rem",
-            color: "var(--ink-soft)",
-            marginBottom: 16,
-          }}
-        >
-          {orNumber}
-        </p>
-
-        <div className="reg-detail-grid" style={{ marginBottom: 16 }}>
-          <div className="reg-detail-item">
-            <span className="reg-detail-label">Climb</span>
-            <strong>{reg.climbTitle}</strong>
-          </div>
-          <div className="reg-detail-item">
-            <span className="reg-detail-label">Participant</span>
-            <strong>{reg.name}</strong>
-          </div>
-        </div>
-
-        {items.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                letterSpacing: 1.5,
-                textTransform: "uppercase",
-                color: "var(--ink-soft)",
-                marginBottom: 6,
-              }}
-            >
-              Fee Breakdown
-            </div>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.85rem",
-              }}
-            >
-              <tbody>
-                {items.map((e, i) => (
-                  <tr
-                    key={i}
-                    style={{ borderBottom: "1px solid var(--border)" }}
-                  >
-                    <td style={{ padding: "6px 0" }}>{e.label}</td>
-                    <td
-                      style={{
-                        padding: "6px 0",
-                        textAlign: "right",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {e.amount || "TBA"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: "2px solid var(--border)" }}>
-                  <td style={{ padding: "8px 0", fontWeight: 800 }}>Total</td>
-                  <td
-                    style={{
-                      padding: "8px 0",
-                      textAlign: "right",
-                      fontWeight: 900,
-                      color: "var(--green-dark)",
-                    }}
-                  >
-                    {totalDisplay}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
-        <div className="reg-detail-grid" style={{ marginBottom: 16 }}>
-          <div className="reg-detail-item">
-            <span className="reg-detail-label">Amount Paid</span>
-            <strong>
-              {reg.amountPaid
-                ? `₱${Number(reg.amountPaid).toLocaleString("en-PH")}`
-                : "—"}
-            </strong>
-          </div>
-          <div className="reg-detail-item">
-            <span className="reg-detail-label">Paid On</span>
-            <strong>{formatDateTime(reg.paymentSubmittedAt)}</strong>
-          </div>
-          <div className="reg-detail-item">
-            <span className="reg-detail-label">Confirmed On</span>
-            <strong>
-              {reg.paymentStatus === "verified"
-                ? formatDateTime(reg.verifiedAt)
-                : "—"}
-            </strong>
-          </div>
-          <div className="reg-detail-item">
-            <span className="reg-detail-label">Confirmed By</span>
-            <strong>
-              {reg.paymentStatus === "verified"
-                ? reg.verifiedBy?.name || "—"
-                : "—"}
-            </strong>
-          </div>
-        </div>
-
-        {reg.paymentProofs?.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                letterSpacing: 1.5,
-                textTransform: "uppercase",
-                color: "var(--ink-soft)",
-                marginBottom: 6,
-              }}
-            >
-              Proof of Payment
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {reg.paymentProofs.map((proof, i) => (
-                <a
-                  key={i}
-                  href={proof.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontSize: "0.78rem",
-                    color: "var(--green-dark)",
-                    textDecoration: "underline",
-                  }}
-                >
-                  {proof.fileName || `Receipt ${i + 1}`}
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <button
-          className="btn btn-outline btn-sm"
-          onClick={onClose}
-          style={{ width: "100%" }}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
   const missingDocs = REQUIRED_DOC_TYPES.filter(
@@ -1855,6 +1619,7 @@ export default function MyRegistrations() {
           reg={receiptReg}
           climb={climbsMap[receiptReg.climbId]}
           onClose={() => setReceiptReg(null)}
+          emptyLogText="No payment recorded yet. Submit your proof of payment from My Climbs."
         />
       )}
 

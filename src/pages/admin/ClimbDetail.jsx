@@ -23,6 +23,7 @@ import RegistrantRow from "@/components/admin/RegistrantRow";
 import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
+import ReceiptModal from "@/components/ReceiptModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import {
@@ -61,6 +62,7 @@ export default function AdminClimbDetail() {
   const [addJoinerOpen, setAddJoinerOpen] = useState(false);
   const [editingReg, setEditingReg] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
+  const [viewingReceiptFor, setViewingReceiptFor] = useState(null);
   const [managingDocsFor, setManagingDocsFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
   const [zippingDocs, setZippingDocs] = useState(false);
@@ -974,6 +976,7 @@ export default function AdminClimbDetail() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         onRecordPayment={setRecordingPaymentFor}
+                        onViewReceipt={setViewingReceiptFor}
                         onManageDocuments={setManagingDocsFor}
                         toggleOptionalFee={toggleOptionalFee}
                         onEdit={setEditingReg}
@@ -1059,6 +1062,15 @@ export default function AdminClimbDetail() {
           reg={recordingPaymentFor}
           onClose={() => setRecordingPaymentFor(null)}
           onSave={recordPayment}
+        />
+      )}
+
+      {viewingReceiptFor && (
+        <ReceiptModal
+          reg={viewingReceiptFor}
+          climb={climb}
+          onClose={() => setViewingReceiptFor(null)}
+          emptyLogText="No payment recorded yet for this participant."
         />
       )}
 
