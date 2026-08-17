@@ -20,6 +20,7 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EditRegistrationModal from "@/components/EditRegistrationModal";
 import RegistrantRow from "@/components/admin/RegistrantRow";
+import { detailsIncomplete } from "@/components/DetailsPrompt";
 import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
@@ -45,6 +46,23 @@ import {
 } from "@/utils/payments";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
+// What the Compliance column of the registrants table shows, as a list of the
+// gaps rather than ticks — the waiver, the participant's own details, and each
+// document this climb switched on. Filtering reads off the same source as the
+// column so a chosen filter can never disagree with the ✕ an admin is looking
+// at.
+function missingCompliance(reg, climb) {
+  const missing = [];
+  if (!reg.waiverSigned) missing.push("waiver");
+  if (detailsIncomplete(reg)) missing.push("details");
+  REQUIRED_DOC_TYPES.forEach((docType) => {
+    if (climb?.[docType.requiresField] && !reg[docType.uploadField]?.url) {
+      missing.push(`doc:${docType.key}`);
+    }
+  });
+  return missing;
+}
+
 export default function AdminClimbDetail() {
   const { id } = useParams();
   const { currentUser } = useAuth();
@@ -55,6 +73,7 @@ export default function AdminClimbDetail() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPayment, setFilterPayment] = useState("all");
+  const [filterCompliance, setFilterCompliance] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
   const [editNotes, setEditNotes] = useState({});
   const [savingNote, setSavingNote] = useState(null);
@@ -447,9 +466,19 @@ export default function AdminClimbDetail() {
           (filterPayment === "outstanding"
             ? r.status !== "cancelled" && r.paymentStatus !== "verified"
             : r.paymentStatus === filterPayment);
-        return matchSearch && matchStatus && matchPayment;
+        let matchCompliance = true;
+        if (filterCompliance !== "all") {
+          const missing = missingCompliance(r, climb);
+          matchCompliance =
+            filterCompliance === "complete"
+              ? missing.length === 0
+              : filterCompliance === "incomplete"
+                ? missing.length > 0
+                : missing.includes(filterCompliance);
+        }
+        return matchSearch && matchStatus && matchPayment && matchCompliance;
       }),
-    [regs, search, filterStatus, filterPayment],
+    [regs, search, filterStatus, filterPayment, filterCompliance, climb],
   );
 
   const getOutstanding = useCallback(
@@ -912,6 +941,26 @@ export default function AdminClimbDetail() {
                 <option value="submitted">Payment Submitted</option>
                 <option value="verified">Payment Verified</option>
                 <option value="rejected">Payment Rejected</option>
+              </select>
+              <select
+                className="form-select"
+                value={filterCompliance}
+                onChange={(e) => setFilterCompliance(e.target.value)}
+                style={{ width: "auto" }}
+                title="Narrow the list to who still owes a waiver, their details, or one of this climb's required documents"
+              >
+                <option value="all">All Compliance</option>
+                <option value="complete">Fully Compliant</option>
+                <option value="incomplete">Missing Anything</option>
+                <option value="waiver">Missing Waiver</option>
+                <option value="details">Missing Details</option>
+                {REQUIRED_DOC_TYPES.filter(
+                  (docType) => climb?.[docType.requiresField],
+                ).map((docType) => (
+                  <option key={docType.key} value={`doc:${docType.key}`}>
+                    Missing {docType.badgeLabel}
+                  </option>
+                ))}
               </select>
             </div>
 
