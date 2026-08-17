@@ -575,6 +575,120 @@ describe("Admin ClimbDetail", () => {
     });
   });
 
+  // Everything the Compliance column ticks off, so a fixture built from this
+  // shows no ✕ at all.
+  const compliant = {
+    waiverSigned: true,
+    emergencyContact: {
+      name: "Maria Cruz",
+      mobile: "+63 917 111 1111",
+      relationship: "Spouse",
+    },
+    medicalConditions: "None",
+  };
+
+  it("filters to registrants still missing a required document", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, { ...climbFixture, requiresPermit: true }),
+    );
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          permitUpload: { url: "u/permit", fileName: "permit.pdf" },
+        },
+      },
+      { id: "reg-2", data: { ...registrationFixture, name: "Maria Santos" } },
+    ]);
+
+    render();
+    await waitFor(() =>
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
+    );
+
+    fireEvent.change(screen.getByDisplayValue("All Compliance"), {
+      target: { value: "doc:permit" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Maria Santos")).toBeInTheDocument();
+      expect(screen.queryByText("Juan Cruz")).not.toBeInTheDocument();
+    });
+  });
+
+  it("filters to registrants with nothing outstanding on compliance", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: { ...registrationFixture, ...compliant },
+      },
+      { id: "reg-2", data: { ...registrationFixture, name: "Maria Santos" } },
+    ]);
+
+    render();
+    await waitFor(() =>
+      expect(screen.getByText("Maria Santos")).toBeInTheDocument(),
+    );
+
+    const complianceFilter = screen.getByDisplayValue("All Compliance");
+    fireEvent.change(complianceFilter, { target: { value: "complete" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument();
+      expect(screen.queryByText("Maria Santos")).not.toBeInTheDocument();
+    });
+
+    // …and the inverse selection is exactly the complement.
+    fireEvent.change(complianceFilter, { target: { value: "incomplete" } });
+    await waitFor(() => {
+      expect(screen.getByText("Maria Santos")).toBeInTheDocument();
+      expect(screen.queryByText("Juan Cruz")).not.toBeInTheDocument();
+    });
+  });
+
+  it("filters to registrants who have not signed the waiver", async () => {
+    mockRegistrantSnapshot([
+      {
+        id: registrationFixture.id,
+        data: { ...registrationFixture, ...compliant },
+      },
+      { id: "reg-2", data: { ...registrationFixture, name: "Maria Santos" } },
+    ]);
+
+    render();
+    await waitFor(() =>
+      expect(screen.getByText("Maria Santos")).toBeInTheDocument(),
+    );
+
+    fireEvent.change(screen.getByDisplayValue("All Compliance"), {
+      target: { value: "waiver" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Maria Santos")).toBeInTheDocument();
+      expect(screen.queryByText("Juan Cruz")).not.toBeInTheDocument();
+    });
+  });
+
+  it("only offers doc filters for the documents this climb requires", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, { ...climbFixture, requiresPermit: true }),
+    );
+
+    render();
+    await waitFor(() =>
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
+    );
+
+    expect(
+      screen.getByRole("option", { name: "Missing Permit" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Missing Med Cert" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("lets an admin toggle a registrant's optional-service selection", async () => {
     mockRegistrantSnapshot([
       {
