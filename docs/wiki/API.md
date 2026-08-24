@@ -7,6 +7,8 @@
 - [Firestore Document Triggers](#firestore-document-triggers)
   - [onRegistrationCreated](#onregistrationcreated)
   - [onRegistrationUpdated](#onregistrationupdated)
+  - [onRegistrationDeleted](#onregistrationdeleted)
+  - [onClimbUpdated](#onclimbupdated)
 - [Scheduled Functions](#scheduled-functions)
   - [sendReminderNotifications](#sendremindernotifications)
 - [HTTPS Callable Functions](#https-callable-functions)
@@ -16,6 +18,12 @@
   - [sendReleaseNoteEmail](#sendreleasenoteemail)
   - [getReleaseNoteCommitOptions](#getreleasenotecommitoptions)
   - [generateReleaseNoteDraft](#generatereleasenotedraft)
+  - [getEmailStats](#getemailstats)
+  - [getStorageUsage](#getstorageusage)
+  - [getFunctionHealth](#getfunctionhealth)
+  - [getBillingCost](#getbillingcost)
+- [HTTP Request Functions](#http-request-functions)
+  - [ogPrerender](#ogprerender)
 - [Environment Variables and Secrets](#environment-variables-and-secrets)
 - [Error Codes Reference](#error-codes-reference)
 - [Email Templates](#email-templates)
@@ -26,10 +34,12 @@
 
 MMS Open Climbs exposes all backend logic through Firebase Cloud Functions v2. There are no REST endpoints — the frontend communicates with Firebase services directly via the Firebase SDK. The Cloud Functions layer handles:
 
-1. **Firestore document triggers** — automated reactions to database changes (seat counting, email dispatch)
-2. **HTTPS callable functions** — admin-initiated operations (user creation)
+1. **Firestore document triggers** — automated reactions to database changes (seat counting, email dispatch, compliance counts)
+2. **Scheduled functions** — a daily pass that re-surfaces reminders and sends post-climb email
+3. **HTTPS callable functions** — admin-initiated operations (user management, release notes, App Insights dashboards)
+4. **HTTP request functions** — `ogPrerender`, reached through a Firebase Hosting rewrite rather than the SDK
 
-All functions are deployed to the `asia-east1` region.
+No function declares a `region`, so every function except `ogPrerender` deploys to the Firebase default region (**`us-central1`**). `ogPrerender` pins `us-central1` explicitly, because the hosting rewrite in `firebase.json` names that region.
 
 ---
 
@@ -38,7 +48,10 @@ All functions are deployed to the `asia-east1` region.
 ```mermaid
 graph TD
     subgraph Client["Client (React SPA)"]
-        UI["Admin UI\nor Member Action"]
+        UI["Admin UI
+or Member Action"]
+        SC["Social crawler
+(Messenger / Facebook)"]
     end
 
     subgraph Firestore["Cloud Firestore (openclimbs)"]
@@ -46,56 +59,87 @@ graph TD
         FS_C["climbs collection"]
         FS_U["users collection"]
         FS_RN["releaseNotes collection"]
+        FS_N["notifications collection"]
     end
 
-    subgraph Functions["Cloud Functions v2 (asia-east1)"]
-        T1["onRegistrationCreated\nFirestore trigger"]
-        T2["onRegistrationUpdated\nFirestore trigger"]
-        C1["createUser\nHTTPS Callable"]
-        C2["sendReleaseNoteEmail\nHTTPS Callable"]
-        C3["getReleaseNoteCommitOptions\nHTTPS Callable"]
-        C4["generateReleaseNoteDraft\nHTTPS Callable"]
+    subgraph Triggers["Firestore Triggers"]
+        T1["onRegistrationCreated"]
+        T2["onRegistrationUpdated"]
+        T3["onRegistrationDeleted"]
+        T4["onClimbUpdated"]
+    end
+
+    subgraph Sched["Scheduled"]
+        S1["sendReminderNotifications
+daily 09:00 Asia/Manila"]
+    end
+
+    subgraph Callables["HTTPS Callables (admin only)"]
+        C1["createUser"]
+        C1b["updateUserProfile"]
+        C1c["deleteUserAccount"]
+        C2["sendReleaseNoteEmail"]
+        C3["getReleaseNoteCommitOptions"]
+        C4["generateReleaseNoteDraft"]
+        C5["getEmailStats"]
+        C6["getStorageUsage"]
+        C7["getFunctionHealth"]
+        C8["getBillingCost"]
+    end
+
+    subgraph HttpFn["HTTP Request"]
+        H1["ogPrerender
+via hosting rewrite /event/**"]
     end
 
     subgraph External["External Services"]
         FA["Firebase Auth"]
-        EM["Brevo SMTP API"]
+        EM["Brevo API"]
+        GH["GitHub REST API"]
+        ST["Firebase Storage"]
+        MON["Cloud Monitoring"]
+        BQ["BigQuery billing export"]
     end
 
     UI -->|write doc| FS_R
-    UI -->|httpsCallable| C1
-    UI -->|httpsCallable| C2
+    UI -->|httpsCallable| Callables
+    SC -->|GET /event/:id| H1
 
     FS_R -->|onCreate| T1
     FS_R -->|onUpdate| T2
+    FS_R -->|onDelete| T3
+    FS_C -->|onUpdate| T4
 
-    T1 -->|increment count| FS_C
+    T1 -->|increment counts| FS_C
     T1 -->|send email| EM
-
-    T2 -->|decrement count| FS_C
+    T1 --> FS_N
+    T2 -->|decrement counts| FS_C
     T2 -->|send email| EM
+    T2 --> FS_N
+    T3 -->|arrayRemove + docsCompleteCount| FS_C
+    T4 -->|recount docsCompleteCount| FS_C
+    T4 -->|cancellation email| EM
+    T4 -->|announcements| FS_N
 
-    C1 -->|verify caller role| FS_U
-    C1 -->|create account| FA
-    C1 -->|write profile| FS_U
-    C1 -->|send welcome email| EM
+    S1 --> FS_N
+    S1 -->|officer summary + thank-you| EM
+    S1 -->|stamp thankYouSentAt| FS_C
 
-    C2 -->|verify caller role| FS_U
-    C2 -->|read note| FS_RN
-    C2 -->|read all recipient emails| FS_U
-    C2 -->|send email per recipient| EM
-    C2 -->|write emailSentAt/Count| FS_RN
+    C1 --> FA
+    C1 --> FS_U
+    C1 -->|welcome email| EM
+    C1b --> FA
+    C1c --> FA
+    C2 --> FS_RN
+    C2 -->|blast| EM
+    C3 --> GH
+    C4 --> GH
+    C5 -->|aggregated report| EM
+    C6 --> ST
+    C7 --> MON
+    C8 --> BQ
 
-    UI -->|httpsCallable| C3
-    UI -->|httpsCallable| C4
-    C3 -->|verify caller role| FS_U
-    C3 -->|list commits since last checkpoint| GH
-    C4 -->|verify caller role| FS_U
-    C4 -->|read commits, build draft| GH
-
-    subgraph External2["External Services"]
-        GH["GitHub REST API"]
-    end
+    H1 -->|read climb| FS_C
 ```
 
 ---
@@ -146,7 +190,7 @@ flowchart TD
 
 **Type:** Firestore document trigger
 **Collection path:** `registrations/{regId}`
-**Event:** `onDocumentUpdated`
+**Event:** `onDocumentUpdatedWithAuthContext` — the auth-context variant, so the handler can tell an admin-initiated edit from a member's own edit
 **Database:** `openclimbs`
 **Secrets required:** `BREVO_API_KEY`, `BREVO_FROM_EMAIL`
 
@@ -199,6 +243,122 @@ Both triggers also write to the `notifications` collection for the in-app bell (
 
 ---
 
+### onRegistrationDeleted
+
+**Type:** Firestore document trigger
+**Collection path:** `registrations/{regId}`
+**Event:** `onDocumentDeleted`
+**Database:** `openclimbs`
+**Secrets required:** None (no email is sent)
+
+Keeps the denormalized counters on the climb honest when a registration is hard-deleted rather than cancelled. Cancellation goes through `onRegistrationUpdated`; this covers an admin removing the document outright.
+
+#### What it does
+
+```mermaid
+flowchart TD
+    A["registrations/{regId} document deleted"]
+    B{"Has userId and climbId?"}
+    C["No-op - return early\n(walk-in joiner with no account)"]
+    D{"status was pending or confirmed?"}
+    E["No-op - return early\n(already cancelled/waitlisted:\ncounters were settled then)"]
+    F["arrayRemove userId from climb.registeredUserIds"]
+    G{"Was this registration document-compliant?"}
+    H["Decrement climb.docsCompleteCount by 1"]
+    I["Done"]
+
+    A --> B
+    B -- "No" --> C
+    B -- "Yes" --> D
+    D -- "No" --> E
+    D -- "Yes" --> F --> G
+    G -- "Yes" --> H --> I
+    G -- "No" --> I
+```
+
+#### Side effects
+
+| Effect | Condition | Details |
+| --- | --- | --- |
+| Remove from `registeredUserIds` | `status` was `pending`/`confirmed` and `userId` is set | `FieldValue.arrayRemove(userId)` on `climbs/{climbId}` |
+| Decrement `docsCompleteCount` | The deleted registration satisfied every required doc type for that climb (`regDocsComplete`) | `FieldValue.increment(-1)` |
+
+Compliance is evaluated against `REQUIRED_DOC_TYPES` (`functions/src/requiredDocTypes.js`) - for each doc type the climb has switched on via its `requiresField`, the registration must carry the matching `uploadField`.
+
+Failures are logged (`[onRegistrationDeleted] Failed to sync registeredUserIds`) and swallowed - a delete is never blocked by a counter write.
+
+---
+
+### onClimbUpdated
+
+**Type:** Firestore document trigger
+**Collection path:** `climbs/{climbId}`
+**Event:** `onDocumentUpdated`
+**Database:** `openclimbs`
+**Secrets required:** `BREVO_API_KEY`, `BREVO_FROM_EMAIL`
+
+Handles three unrelated climb edits in one trigger, because they all need the same "load every active registration for this climb" query. It returns early unless at least one of them applies.
+
+#### What it does
+
+```mermaid
+flowchart TD
+    A["climbs/{climbId} document updated"]
+    B{"New announcement,\nrequirement flip,\nor cancellationStatus change?"}
+    C["No-op - return early"]
+    D["Load registrations for this climb,\nkeep those with a userId and status != cancelled"]
+    E{"A doc requirement\nwas switched OFF?"}
+    F["Mark that requirement's outstanding\nnag notifications read"]
+    G{"Any requirement\nflipped either way?"}
+    H["Recount and write climb.docsCompleteCount"]
+    I{"cancellationStatus changed to\ncancelled or postponed?"}
+    J["Email + notify every active registrant\nEmail officers, CC admins"]
+    K{"New announcements?"}
+    L["Write a climb_announcement notification\nper announcement per registrant"]
+    M["Done"]
+
+    A --> B
+    B -- "No" --> C
+    B -- "Yes" --> D --> E
+    E -- "Yes" --> F --> G
+    E -- "No" --> G
+    G -- "Yes" --> H --> I
+    G -- "No" --> I
+    I -- "Yes" --> J --> K
+    I -- "No" --> K
+    K -- "Yes" --> L --> M
+    K -- "No" --> M
+```
+
+#### Trigger conditions
+
+| Change detected | How it is detected |
+| --- | --- |
+| New announcement | An entry in `after.announcements` whose `createdAt` is absent from `before.announcements` |
+| Requirement flipped | Any `REQUIRED_DOC_TYPES[].requiresField` differs in truthiness between before and after |
+| Climb cancelled/postponed | `cancellationStatus` changed **and** the new value is `cancelled` or `postponed` (any other value, including clearing it, is ignored) |
+
+#### Side effects
+
+| Effect | Condition | Details |
+| --- | --- | --- |
+| Clear stale nags | A requirement switched **off** | Sets `read: true` (merge) on `notifications/{prefix}_{regId}` for each active registration, so a no-longer-required document does not sit unread forever |
+| Recount `docsCompleteCount` | A requirement flipped in **either** direction | Full recount over active registrations - a flip changes who counts as compliant either way, so an increment/decrement would not be enough |
+| Registrant cancellation email | `cancellationStatus` becomes `cancelled`/`postponed` | `tplClimbCancellation`, subject `Climb {Cancelled or Postponed} - {title}`; sent per registration that has an `email` |
+| Registrant bell notification | Same | Type `climb_status_change`, id `climbstatus_{climbId}_{status}_{regId}`, links to `/event/{climbId}` |
+| Officer/admin cancellation email | Same | `tplOfficerClimbCancellation`, subject `[Climb {Cancelled or Postponed}] {title}`, includes the count of registrants already notified. Sent to each officer with all admins CC'd; if the climb has no officers, sent to the first admin with the rest CC'd |
+| Announcement notifications | New announcement entries | Type `climb_announcement`, id `announcement_{climbId}_{createdAt}_{userId}`. A `pinned` announcement is titled "New reminder - ...", otherwise "New announcement - ..." |
+
+Announcements are **bell-only** - no email is sent for them.
+
+#### Known limitations (onClimbUpdated)
+
+- Per-registrant email and notification writes are issued without concurrency limiting; a very large climb makes one long invocation.
+
+Errors are caught, logged as `[onClimbUpdated] Failed`, and recorded via `logFailedRequest({ type: "firestore", source: "onClimbUpdated" })`.
+
+---
+
 ## Scheduled Functions
 
 ### sendReminderNotifications
@@ -206,26 +366,54 @@ Both triggers also write to the `notifications` collection for the in-app bell (
 **Type:** Scheduled (Firebase Functions v2 `onSchedule`)
 **Schedule:** Daily at 09:00, `Asia/Manila`
 **Access:** N/A (runs on Cloud Scheduler, not user-invoked)
+**Secrets required:** `BREVO_API_KEY`, `BREVO_FROM_EMAIL`
 
-Re-surfaces reminders in the notification bell for active (`pending`/`confirmed`) registrations:
+One daily pass over every `pending`/`confirmed` registration that does four things: member reminders, an officer summary, post-climb thank-you email, and post-climb feedback requests.
+
+#### Member reminders (bell only)
 
 | Condition | Action |
 | --- | --- |
 | `paymentStatus` is `unpaid` or `rejected` | Upserts `payment_{regId}` notification as unread (re-nags on every run while still unpaid) |
-| `status = confirmed` and climb starts in exactly 3 days | Creates `upcoming3_{regId}` notification (once) |
-| `status = confirmed` and climb starts in exactly 1 day | Creates `upcoming1_{regId}` notification (once) |
+| `status = confirmed` and the climb starts in exactly 7, 5, 3, or 1 days | Creates `upcoming{days}_{regId}` notification (once per threshold). Titled "Your climb is tomorrow!" at 1 day, "Your climb is in N days" otherwise |
+
+The thresholds come from `UPCOMING_REMINDER_DAYS` (`functions/src/index.js:1042`) and match on an *exact* whole-day distance, so a climb only ever produces one notification per threshold it passes through.
 
 Registrations with no `userId` (e.g. walk-in participants added manually by an admin — see `AddJoinerModal` in `ClimbDetail.jsx`) are skipped, since there's no account to notify.
 
-#### Thank-you email (post-climb, one-time)
+#### Officer outstanding-items summary
+
+For each climb in the batch that has `officers`, the run counts registrations that still need chasing and, if either count is non-zero, nudges every officer:
+
+| Counted as outstanding | Rule |
+| --- | --- |
+| Unpaid | `paymentStatus` is `unpaid` or `rejected` |
+| Missing documents | The climb requires a doc type (`REQUIRED_DOC_TYPES[].requiresField`) that the registration's matching `uploadField` doesn't have |
+
+| Channel | Detail |
+| --- | --- |
+| Bell | Type `officer_outstanding_summary`, id `officer_outstanding_{climbId}_{officerUserId}`, links to `/admin/climbs/{climbId}` — sent only to officers that carry a `userId` |
+| Email | `tplOfficerOutstandingSummary`, subject `[Action Needed] {title} — Outstanding Registrant Items` — sent to officers that carry an `email` |
+
+This re-sends daily, per climb, until nothing is outstanding. Admins are **not** CC'd here, unlike the registration triggers.
+
+#### Post-climb thank-you and feedback (one-time per climb)
 
 In the same run, the function also looks for climbs whose `endDate` has already passed and that haven't been thanked yet:
 
 | Condition | Action |
 | --- | --- |
-| `climb.endDate` is in the past **and** `climb.thankYouSentAt` is unset | Sends the `tplThankYou` email to every `confirmed` registrant with an email address, then stamps `climbs/{climbId}.thankYouSentAt` with `FieldValue.serverTimestamp()` |
+| `climb.endDate` is in the past **and** `climb.thankYouSentAt` is unset | For every `confirmed` registrant: sends the `tplThankYou` email (to those with an email address) and creates a `feedback_request` notification (for those with a `userId`), then stamps `climbs/{climbId}.thankYouSentAt` with `FieldValue.serverTimestamp()` |
 
-The `thankYouSentAt` stamp is what makes this one-time per climb — once set, the climb is skipped on every subsequent daily run regardless of how many more days pass. A failed send to an individual registrant is logged (`err.message`) and does not stop the loop or prevent the `thankYouSentAt` stamp from being written. See [DATA.md — climbs](DATA.md#climbs) for the field and [ARCHITECTURE.md — Email Notification Architecture](ARCHITECTURE.md#email-notification-architecture) for how this fits alongside the other email flows.
+The thank-you email carries two buttons: **Share Your Feedback**, pointing at `{APP_URL}/feedback/{climbId}`, and **See Upcoming Climbs**. The matching bell notification uses id `feedback_{climbId}_{userId}` and the same `/feedback/{climbId}` link.
+
+The `thankYouSentAt` stamp is what makes this one-time per climb — once set, the climb is skipped on every subsequent daily run regardless of how many more days pass. A failed send to an individual registrant is logged (`err.message`) and does not stop the loop or prevent the `thankYouSentAt` stamp from being written.
+
+#### Run summary
+
+Each invocation logs `[sendReminderNotifications] Done` with `totalRegs`, `paymentReminders`, `upcomingReminders`, `thankYouEmails`, `feedbackNotifications`, and `officerSummariesSent` — the quickest way to confirm a nightly run did what you expect.
+
+See [DATA.md — climbs](DATA.md#climbs) for the `thankYouSentAt` field, and [ARCHITECTURE.md — Email Notification Architecture](ARCHITECTURE.md#email-notification-architecture) for how these flows sit alongside the trigger-driven email.
 
 ---
 
@@ -497,6 +685,242 @@ Builds a draft title and body for a release note from the commits between the la
 | `invalid-argument` | `until` missing |
 | `internal` | GitHub API error, or `GITHUB_TOKEN` not configured |
 
+### getEmailStats
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'getEmailStats')`
+**Access:** Admin users only
+**Secrets required:** `BREVO_API_KEY`
+
+Backs the email panel of the App Insights admin dashboard. Proxies Brevo's aggregated transactional-email report for a trailing window, so the key never reaches the browser.
+
+#### Request payload
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `days` | number | No | Trailing window in days. Defaults to `30`. The window is `[today - days, today]`, formatted as `YYYY-MM-DD` |
+
+#### Response
+
+```json
+{
+  "requests": 812,
+  "delivered": 795,
+  "hardBounces": 4,
+  "softBounces": 6,
+  "blocked": 1,
+  "opens": 540,
+  "uniqueOpens": 310,
+  "clicks": 96,
+  "spamReports": 0,
+  "rangeDays": 30
+}
+```
+
+Every counter defaults to `0` when Brevo omits it, so the dashboard never has to null-check.
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+| `failed-precondition` | `BREVO_API_KEY` is not configured |
+| `internal` | Brevo returned a non-2xx response, or the request threw |
+
+---
+
+### getStorageUsage
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'getStorageUsage')`
+**Access:** Admin users only
+**Secrets required:** None (uses the Admin SDK service account)
+
+Reports Firebase Storage consumption per known folder, for the App Insights dashboard. Only the folders the app actually writes to are listed — `STORAGE_FOLDERS` in `functions/src/index.js`:
+
+`payment-proofs`, `registration-form-uploads`, `medical-cert-uploads`, `registration-form-templates`, `medical-cert-samples`, `gcash-qr`, `trail-images`
+
+#### Request payload
+
+None.
+
+#### Response
+
+```json
+{
+  "folders": [
+    { "folder": "payment-proofs", "fileCount": 340, "bytes": 128472913 }
+  ],
+  "totalBytes": 214880011,
+  "totalFiles": 512
+}
+```
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+| `internal` | Storage listing failed |
+
+#### Known limitations
+
+Each folder is listed in full (`bucket.getFiles({ prefix })`) and summed in memory on every call — no pagination cap and no caching. Cost and latency grow linearly with the number of stored files.
+
+---
+
+### getFunctionHealth
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'getFunctionHealth')`
+**Access:** Admin users only
+**Secrets required:** None
+**Extra IAM required:** the runtime service account needs **Monitoring Viewer** (`roles/monitoring.viewer`)
+
+Best-effort Cloud Functions health for the last 24 hours, read from Cloud Monitoring time series.
+
+#### Request payload
+
+None.
+
+#### Response
+
+```json
+{ "configured": true, "windowHours": 24, "executionCount": 1284, "errorCount": 0 }
+```
+
+When Cloud Monitoring isn't reachable, it does **not** throw — it returns a shaped "not configured" result so one missing IAM role doesn't break the whole insights page:
+
+```json
+{
+  "configured": false,
+  "reason": "Cloud Monitoring is not accessible from this function yet. Grant the runtime service account the \"Monitoring Viewer\" role in IAM, then retry."
+}
+```
+
+Callers must branch on `configured` rather than assuming the counters exist.
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+
+Any other failure is caught, logged as `[getFunctionHealth] Not available`, and returned as `configured: false`.
+
+#### Known limitations
+
+`errorCount` is currently derived from the `function/user_memory_bytes` metric, not an error metric, so the number it reports is not a count of failed executions. Treat `executionCount` as the only trustworthy field until this is pointed at a real error metric.
+
+---
+
+### getBillingCost
+
+**Type:** HTTPS Callable (Firebase Functions v2)
+**SDK invocation:** `httpsCallable(functions, 'getBillingCost')`
+**Access:** Admin users only
+**Env required:** `BILLING_EXPORT_TABLE`
+**Extra IAM required:** the runtime service account needs **BigQuery Data Viewer** and **BigQuery Job User**
+
+Reports month-to-date GCP spend, grouped by service. Google has no general "current spend" REST API — the supported path is exporting detailed billing data to BigQuery, which this function then queries.
+
+#### One-time setup (project/billing admin only — the function cannot do this itself)
+
+1. Cloud Billing Console → **Billing → Billing export → Detailed usage cost**, exporting into a dataset in this project.
+2. Set `BILLING_EXPORT_TABLE` in `functions/.env` to the fully-qualified table, e.g. `project.dataset.gcp_billing_export_v1_XXXXXX_XXXXXX_XXXXXX`.
+3. Grant the runtime service account **BigQuery Data Viewer** + **BigQuery Job User**.
+
+#### Request payload
+
+None.
+
+#### Response
+
+```json
+{
+  "configured": true,
+  "currency": "USD",
+  "month": "August 2026",
+  "totalCost": 12.47,
+  "byService": [{ "service": "Cloud Functions", "cost": 7.21 }]
+}
+```
+
+Costs are net of credits (`SUM(cost) + SUM(credits.amount)`), filtered to the current invoice month, and only services with a positive net cost are returned. Like `getFunctionHealth`, misconfiguration returns `{ "configured": false, "reason": "..." }` rather than throwing.
+
+#### Error codes
+
+| Code | Trigger |
+| --- | --- |
+| `unauthenticated` | Caller is not signed in |
+| `permission-denied` | Caller is not an admin |
+
+A missing `BILLING_EXPORT_TABLE` or a failed query is returned as `configured: false` with a `reason`, logged as `[getBillingCost] Not available`.
+
+---
+
+## HTTP Request Functions
+
+### ogPrerender
+
+**Type:** HTTPS request (Firebase Functions v2 `onRequest`)
+**Source:** `functions/src/ogPrerender.js`
+**Region:** `us-central1` (pinned — must match the hosting rewrite)
+**Access:** `invoker: "public"` — unauthenticated by design; social crawlers can't sign in
+**Runtime options:** `memory: 256MiB`, `maxInstances: 10`, `concurrency: 80`
+
+Serves the built SPA shell with per-climb Open Graph tags injected, so a `/event/:climbId` link shared to Messenger or Facebook renders a real card instead of a bare URL. Reached through a Firebase Hosting rewrite, not the Firebase SDK:
+
+```json
+{
+  "source": "/event/**",
+  "function": { "functionId": "ogPrerender", "region": "us-central1" }
+}
+```
+
+#### Request flow
+
+```mermaid
+flowchart TD
+    A["GET /event/:climbId via hosting rewrite"]
+    B{"App shell was staged at build time?"}
+    C["Serve unmodified shell\nCache-Control: max-age=60"]
+    D{"Path matches /event/{firestore-id}?"}
+    E{"climbs/{id} exists?"}
+    F["Build meta block, splice it into
+the marked og region of the shell"]
+    G["200 with per-climb OG tags\nmax-age=300, s-maxage=3600,\nstale-while-revalidate=86400"]
+
+    A --> B
+    B -- "No" --> C
+    B -- "Yes" --> D
+    D -- "No" --> C
+    D -- "Yes" --> E
+    E -- "No" --> C
+    E -- "Yes" --> F --> G
+```
+
+#### Injected tags
+
+`<title>`, `description`, `canonical`, `og:type`, `og:site_name`, `og:title`, `og:description`, `og:url`, `og:image`, and the `twitter:*` equivalents. The title reads `{title} — {dateLabel} | MMS Open Climbs 2026`; the description is built from the climb and capped at 200 characters. A climb with a trail photo gets that photo plus `twitter:card = summary_large_image`; without one it falls back to `/MMS.png` and `summary`, because a square logo letterboxes badly in a large card.
+
+#### Design constraints worth knowing
+
+| Constraint | Why |
+| --- | --- |
+| The app shell is `require`d inside a `try/catch` at module load | A throw at module load would take down **every** function in the deployment, including the email triggers |
+| The shell is staged by a predeploy hook | `firebase.json` runs `node scripts/stage-app-shell.mjs` before deploy to produce `functions/appShell.generated` |
+| Paths are matched against `/^\/event\/([A-Za-z0-9_-]{1,64})\/?$/` | Only the Firestore auto-id shape is accepted; anything else falls through to the plain shell instead of becoming a document path |
+| Title/description values are attribute-escaped | Climb titles are admin-entered free text — an unescaped quote closes `content="…"` early and an unescaped `<` injects markup |
+| The `<!--og-->` / `<!--/og-->` markers are matched by index, not regex | A shell without the markers fails visibly (generic card) instead of producing half-replaced duplicate tags |
+| Never `Vary` on `User-Agent` | It would destroy CDN cacheability |
+| Missing climbs return **200**, not 404 | Messenger renders nothing at all on a 404, and the SPA already handles a missing climb client-side |
+
+Every failure path degrades to the plain shell. `makeMetaBlock` and `buildHtml` are exported separately for unit tests — the interesting logic is pure.
+
 ---
 
 ## Environment Variables and Secrets
@@ -509,6 +933,14 @@ Builds a draft title and body for a release note from the commits between the la
 | `BREVO_FROM_EMAIL` | Secret | Yes | Verified sender email address in Brevo |
 | `APP_URL` | Secret | Yes | Base URL for generating waiver links in emails |
 | `GITHUB_TOKEN` | Secret | Yes (for `getReleaseNoteCommitOptions`/`generateReleaseNoteDraft`) | GitHub personal access token with read access to the repo, used to list/compare commits for release note draft generation |
+| `BILLING_EXPORT_TABLE` | Plain env var (`functions/.env`) | No | Fully-qualified BigQuery billing export table for `getBillingCost`. Unset — the default — makes that function return `configured: false` instead of failing |
+
+Two App Insights callables also need IAM grants on the Cloud Functions runtime service account, which cannot be set through `.env` or Firebase secrets:
+
+| Function | Required role |
+| --- | --- |
+| `getFunctionHealth` | Monitoring Viewer (`roles/monitoring.viewer`) |
+| `getBillingCost` | BigQuery Data Viewer + BigQuery Job User |
 
 ### Frontend (`VITE_*` in `.env`)
 
@@ -571,6 +1003,9 @@ graph TD
         T5["tplWelcome\nSent to new user created by admin"]
         T6["tplReleaseNote\nSent to all members on admin-triggered blast"]
         T7["tplThankYou\nSent once per climb after it ends"]
+        T8["tplClimbCancellation\nSent to registrants when a climb is\ncancelled or postponed"]
+        T9["tplOfficerClimbCancellation\nSent to officers on the same change"]
+        T10["tplOfficerOutstandingSummary\nDaily officer nag for unpaid /\nmissing-document registrants"]
     end
 
     subgraph Trigger["Triggered by"]
@@ -579,6 +1014,7 @@ graph TD
         TR3["createUser callable"]
         TR4["sendReleaseNoteEmail callable"]
         TR5["sendReminderNotifications (scheduled)"]
+        TR6["onClimbUpdated"]
     end
 
     TR1 --> T1
@@ -588,7 +1024,12 @@ graph TD
     TR3 --> T5
     TR4 --> T6
     TR5 --> T7
+    TR5 --> T10
+    TR6 --> T8
+    TR6 --> T9
 ```
+
+All templates wrap their body in the shared `tplBase` chrome.
 
 | Template | Recipient | Trigger | Key content |
 | --- | --- | --- | --- |
@@ -598,4 +1039,7 @@ graph TD
 | `tplOfficerStatusUpdate` | Climb officers | `onRegistrationUpdated` | Registrant name, new status, reason, link to admin |
 | `tplWelcome` | New user | `createUser` | Welcome message, account setup link (password reset URL) |
 | `tplReleaseNote` | Every user in `users` | `sendReleaseNoteEmail` | Release note title and body, link to `/release-notes` |
-| `tplThankYou` | Confirmed registrants | `sendReminderNotifications` (once per climb, gated by `climb.thankYouSentAt`) | Thanks the member for completing the climb, links to the schedule to see upcoming climbs |
+| `tplThankYou` | Confirmed registrants | `sendReminderNotifications` (once per climb, gated by `climb.thankYouSentAt`) | Thanks the member for completing the climb; "Share Your Feedback" button to `/feedback/{climbId}` plus a link to upcoming climbs |
+| `tplClimbCancellation` | Active registrants | `onClimbUpdated` when `cancellationStatus` becomes `cancelled`/`postponed` | Climb title, date, location and the reason; red styling for cancelled, orange for postponed |
+| `tplOfficerClimbCancellation` | Climb officers (CC admins; admins directly if no officers) | Same change | Which climb was cancelled/postponed, the reason, how many registrants were already notified, and an "Open Admin Panel" button |
+| `tplOfficerOutstandingSummary` | Climb officers | `sendReminderNotifications` (daily, per climb, while anything is outstanding) | Counts of unpaid/rejected and missing-document registrants, with a "Review Registrants" button to `/admin/climbs/{climbId}` |
