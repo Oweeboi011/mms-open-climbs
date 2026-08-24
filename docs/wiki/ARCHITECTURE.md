@@ -55,7 +55,7 @@ graph TB
         FA["Firebase Auth\n(JWT identity)"]
         FS["Cloud Firestore\n(openclimbs database)"]
         ST["Firebase Storage\n(trail photos, GCash proofs)"]
-        CF["Cloud Functions v2\n(Node 22 — asia-east1)"]
+        CF["Cloud Functions v2\n(Node 22 — us-central1)"]
     end
 
     subgraph External["External Services"]
@@ -171,13 +171,15 @@ The admin `Dashboard.jsx` climb rows are expand/collapse-able (with an "expand/c
 
 ### Cloud Functions Overview
 
-All backend logic runs in Cloud Functions v2 deployed to the `asia-east1` region. There are two Firestore document-level event triggers, one scheduled function, and six HTTPS callable functions.
+All backend logic runs in Cloud Functions v2. No function declares a `region`, so they deploy to the Firebase default, `us-central1`; `ogPrerender` pins that region explicitly to match its hosting rewrite. There are four Firestore document-level event triggers, one scheduled function, ten HTTPS callable functions, and one HTTP request function. See [API.md](API.md) for per-function detail.
 
 ```mermaid
 graph LR
     subgraph Triggers["Firestore Document Triggers"]
         T1["onRegistrationCreated\nregistrations/{regId}\nonDocumentCreated"]
-        T2["onRegistrationUpdated\nregistrations/{regId}\nonDocumentUpdated"]
+        T2["onRegistrationUpdated\nregistrations/{regId}\nonDocumentUpdatedWithAuthContext"]
+        T3["onRegistrationDeleted\nregistrations/{regId}\nonDocumentDeleted"]
+        T4["onClimbUpdated\nclimbs/{climbId}\nonDocumentUpdated"]
     end
 
     subgraph Scheduled["Scheduled"]
@@ -191,6 +193,14 @@ graph LR
         C4["sendReleaseNoteEmail\nAdmin only"]
         C5["getReleaseNoteCommitOptions\nAdmin only"]
         C6["generateReleaseNoteDraft\nAdmin only"]
+        C7["getEmailStats\nAdmin only"]
+        C8["getStorageUsage\nAdmin only"]
+        C9["getFunctionHealth\nAdmin only"]
+        C10["getBillingCost\nAdmin only"]
+    end
+
+    subgraph HttpFn["HTTP Request"]
+        H1["ogPrerender\nhosting rewrite /event/**\npublic"]
     end
 
     subgraph Outputs["Side Effects"]
@@ -204,8 +214,12 @@ graph LR
     T1 --> EM
     T2 --> FS
     T2 --> EM
+    T3 --> FS
+    T4 --> FS
+    T4 --> EM
     S1 --> FS
     S1 --> EM
+    H1 --> FS
     C1 --> FS
     C1 --> EM
     C1 --> AU

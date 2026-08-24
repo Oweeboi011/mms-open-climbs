@@ -43,7 +43,7 @@ graph TB
         FH["Firebase Hosting\nCDN — global edge"]
         FS["Cloud Firestore\nopenclimbs database"]
         ST["Firebase Storage"]
-        CF["Cloud Functions v2\nNode 22 — asia-east1"]
+        CF["Cloud Functions v2\nNode 22 — us-central1"]
         FA["Firebase Auth"]
         SEC["Firebase Secrets Manager\nBREVO_API_KEY\nBREVO_FROM_EMAIL\nAPP_URL"]
     end
