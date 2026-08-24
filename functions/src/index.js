@@ -855,6 +855,7 @@ exports.onClimbUpdated = onDocumentUpdated(
   {
     document: "climbs/{climbId}",
     database: "openclimbs",
+    secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"],
   },
   async (event) => {
     const before = event.data.before.data();
