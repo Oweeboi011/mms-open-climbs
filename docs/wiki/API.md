@@ -24,6 +24,14 @@
   - [getBillingCost](#getbillingcost)
 - [HTTP Request Functions](#http-request-functions)
   - [ogPrerender](#ogprerender)
+- [Shared Helpers](#shared-helpers)
+  - [requireAdmin](#requireadmin)
+  - [getNotifyLists](#getnotifylists)
+  - [sendEmail](#sendemail)
+  - [createNotification](#createnotification)
+  - [REQUIRED_DOC_TYPES and regDocsComplete](#required_doc_types-and-regdocscomplete)
+  - [paymentMath](#paymentmath)
+- [Failed Request Logging](#failed-request-logging)
 - [Environment Variables and Secrets](#environment-variables-and-secrets)
 - [Error Codes Reference](#error-codes-reference)
 - [Email Templates](#email-templates)
@@ -173,16 +181,22 @@ flowchart TD
 
 #### Side effects
 
-| Effect | Target | Details |
+| Effect | Condition | Details |
 | --- | --- | --- |
-| Increment `registrationCount` | `climbs/{climbId}` | Uses `FieldValue.increment(1)` — atomic, race-condition-safe |
-| Send confirmation email | Registrant | Includes climb title, date, location, and waiver print link |
-| Send new-registration notification | Climb officers | CC all admin account email addresses |
+| Increment `registrationCount` | Always | `FieldValue.increment(1)` on `climbs/{climbId}` — atomic, race-condition-safe |
+| Add to `registeredUserIds` | `userId` set and `status != cancelled` | `FieldValue.arrayUnion(userId)`. This denormalized array exists because Firestore rules cannot query `registrations` by `climbId` + `userId`; it is what gates member access to the climb's private briefing and resource links |
+| Increment `docsCompleteCount` | Registration already satisfies every required doc type (`regDocsComplete`) | Feeds the compliance progress badge on the climb card |
+| `payment_reminder` notification | `paymentStatus == "unpaid"` and `userId` set | Id `payment_{regId}`, links to `/my-registrations` |
+| `document_reminder` notification | Per `REQUIRED_DOC_TYPES` entry the climb requires and the registration lacks | Id `{docType.notificationPrefix}_{regId}`, one per missing document |
+| Send confirmation email | Registrant has an `email` | Climb title, date, location, and the waiver print link |
+| Send new-registration notification | Always | Each officer, CC all admins; admins directly when no officers are configured |
 
 #### Confirmation email content
 
 - Climb title, date, location
 - Link to printable waiver: `{APP_URL}/waiver/{regId}`
+
+Note the asymmetry between the two denormalized counters: `registrationCount` is incremented unconditionally, while `registeredUserIds` and `docsCompleteCount` are skipped for walk-in registrations with no `userId`.
 
 ---
 
@@ -199,21 +213,34 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["registrations/{regId} document updated"]
-    B{"Did status field change?"}
-    C["No-op — return early"]
+    S1{"Stage 1: non-admin writer forged\na payments[] entry status?"}
+    S1a["Clamp payments[] back,\nrewrite doc, RETURN\n(corrective write re-runs this trigger)"]
+    S2{"Stage 2: rolled-up\npaymentStatus changed?"}
+    S2a["Member notification\n+ admin review notifications"]
+    S3{"Stage 3: an instalment newly\nrejected without changing\npaymentStatus?"}
+    S3a["Notify member which\namount was rejected"]
+    S4["Stage 4: clear document nags,\nsync registeredUserIds,\nsync docsCompleteCount"]
+    B{"Stage 5: did status change?"}
+    C["Return"]
     D{"New status is confirmed,\ncancelled, or waitlisted?"}
-    E["No-op — return early"]
     F{"New status is cancelled?"}
     G["Decrement climb.registrationCount by 1"]
-    H["Send status update email to registrant"]
+    H["Email registrant + status_update notification"]
     I{"Climb has officers?"}
-    J["Send status notification to each officer\nCC all admin accounts"]
-    K["Send status notification to admin accounts directly"]
+    J["Notify each officer\nCC all admin accounts"]
+    K["Notify admin accounts directly"]
 
-    A --> B
+    A --> S1
+    S1 -- "Yes" --> S1a
+    S1 -- "No" --> S2
+    S2 -- "Yes" --> S2a --> S3
+    S2 -- "No" --> S3
+    S3 -- "Yes" --> S3a --> S4
+    S3 -- "No" --> S4
+    S4 --> B
     B -- "No" --> C
     B -- "Yes" --> D
-    D -- "No" --> E
+    D -- "No" --> C
     D -- "Yes" --> F
     F -- "Yes" --> G --> H
     F -- "No" --> H
@@ -222,13 +249,57 @@ flowchart TD
     I -- "No" --> K
 ```
 
-#### Side effects
+This handler runs top to bottom on **every** registration write, not only status changes. The status-email flow above is the last stage; four earlier stages run first and have their own conditions.
+
+#### Stage 1 — forged payment status guard (security)
+
+Firestore rules cannot iterate arrays, so they cannot stop a crafted client write from marking an individual entry inside `payments[]` as `verified`. This trigger is the enforcement point instead.
+
+| Step | Behavior |
+| --- | --- |
+| Identify the writer | `event.authId` — the reason this trigger uses `onDocumentUpdatedWithAuthContext`; the plain variant does not populate it |
+| Skip when unknown | An absent `authId` means an Admin SDK or backfill write, never a client — left alone |
+| Check the writer's role | `users/{writerUid}.role == "admin"` |
+| Clamp for non-admins | Any entry whose `status` is neither `submitted` nor its own prior value is reverted to the prior value (or `submitted`) |
+| Rewrite and stop | On tampering, logs `Clamped forged payment status`, writes the clamped array back, and **returns** — the corrective write re-runs this trigger against clean data |
+
+A member can therefore submit a payment, but only an admin can move one to `verified` or `rejected`. See [SECURITY.md](SECURITY.md) for how this pairs with the rules layer.
+
+#### Stage 2 — payment status notifications
+
+When the rolled-up `paymentStatus` changes and `userId` is set:
+
+| New `paymentStatus` | Notifications |
+| --- | --- |
+| `verified` | Marks `payment_{regId}` read, clears every admin's `submitted_{regId}_{adminId}`, creates a `payment_verified` notification |
+| `rejected` | Clears the admin submitted-notifications, re-opens `payment_{regId}` with the rejection reason from `adminNotes` |
+| `unpaid` | Same as rejected, worded as an admin reset of a previously submitted/verified payment |
+| `submitted` | Marks `payment_{regId}` read, then notifies **every admin** (`payment_submitted`, id `submitted_{regId}_{adminId}`, linking to `/admin/payments`) |
+
+The admin notification names **the instalment that just arrived**, not the running total — computed by slicing `getPaymentEntries(after)` past the previous `payments.length`, so ₱300 on top of ₱500 reads as ₱300, not ₱800.
+
+#### Stage 3 — single rejected instalment
+
+A member paying in instalments can have one entry rejected while the rolled-up `paymentStatus` stays unchanged — the downpayment stands but the balance receipt was unreadable. Stage 2 stays silent in that case, so a separate check looks for entries newly flipped to `rejected` and raises a `payment_reminder` naming the rejected amounts, making clear the other payments still stand.
+
+#### Stage 4 — counter and nag maintenance
+
+| Effect | Condition |
+| --- | --- |
+| Mark `{prefix}_{regId}` read | A required document went from absent to present — clears the nag |
+| `registeredUserIds` arrayUnion/arrayRemove | `status` moved into or out of the active set (`pending`/`confirmed`). Runs even for transitions that send no email, e.g. `waitlisted` → `pending` |
+| `docsCompleteCount` increment/decrement | Active-set membership or any required-document field changed, **and** the registration's computed compliance actually flipped. Compared by presence, not reference — before/after come from separate snapshots, so upload objects are never `===` even when unchanged |
+
+#### Stage 5 — status change email
+
+Everything below this point is skipped unless `before.status !== after.status` **and** the new status is `confirmed`, `cancelled`, or `waitlisted`.
 
 | Effect | Condition | Details |
 | --- | --- | --- |
-| Decrement `registrationCount` | `status` changed to `cancelled` | Uses `FieldValue.increment(-1)` — atomic |
-| Send status update email | `status` changed to `confirmed`, `cancelled`, or `waitlisted` | Email includes cancellation reason when `cancellationReason` is set |
-| Send officer notification | Same status conditions | CC all admin accounts |
+| Decrement `registrationCount` | `status` changed to `cancelled` | `FieldValue.increment(-1)` — atomic |
+| Send status update email | Registration has an `email` | Includes the cancellation reason when `cancellationReason` is set; walk-ins with no email on file are skipped |
+| `status_update` notification | `userId` set | Titled "You're confirmed!", "Registration cancelled", or "Added to waitlist" |
+| Send officer notification | Always at this point | CC all admin accounts |
 
 #### Watched status transitions
 
@@ -239,7 +310,19 @@ flowchart TD
 | `waitlisted` | Yes | No |
 | `pending` | No | No |
 
-Both triggers also write to the `notifications` collection for the in-app bell (see `docs/DATA.md`): a payment reminder is created/re-opened whenever `paymentStatus` becomes `unpaid` or `rejected`, cleared when it becomes `verified`/`submitted`, and a `status_update` notification is written whenever `status` changes.
+A `pending` transition still runs stages 1–4 — it just sends no email. `registeredUserIds` and `docsCompleteCount` are kept in sync for it.
+
+#### Notification types written by these triggers
+
+Both registration triggers write to the `notifications` collection backing the in-app bell (see [DATA.md — notifications](DATA.md#notifications)). Deterministic ids are what make a notification re-openable and clearable rather than duplicated:
+
+| Type | Id | Written by |
+| --- | --- | --- |
+| `payment_reminder` | `payment_{regId}` | Created on unpaid registration; re-opened on rejection, reset, or a rejected instalment; marked read on verify/submit |
+| `payment_verified` | auto | `paymentStatus` → `verified` |
+| `payment_submitted` | `submitted_{regId}_{adminId}` | One per admin when a proof arrives; cleared once reviewed |
+| `document_reminder` | `{docType.notificationPrefix}_{regId}` | One per missing required document; cleared on upload or when the requirement is switched off |
+| `status_update` | auto | Any watched status change |
 
 ---
 
@@ -374,10 +457,13 @@ One daily pass over every `pending`/`confirmed` registration that does four thin
 
 | Condition | Action |
 | --- | --- |
-| `paymentStatus` is `unpaid` or `rejected` | Upserts `payment_{regId}` notification as unread (re-nags on every run while still unpaid) |
-| `status = confirmed` and the climb starts in exactly 7, 5, 3, or 1 days | Creates `upcoming{days}_{regId}` notification (once per threshold). Titled "Your climb is tomorrow!" at 1 day, "Your climb is in N days" otherwise |
+| `paymentStatus` is `unpaid` or `rejected`, **or** `getOutstanding(reg, climb) > 0` | Upserts `payment_{regId}` as unread — re-nags every run until settled |
+| The climb requires a document the registration lacks | Upserts `{docType.notificationPrefix}_{regId}` as unread, one per missing document — also re-nags every run |
+| `status = confirmed` and the climb starts in exactly 7, 5, 3, or 1 days | Creates `upcoming{days}_{regId}` (once per threshold). Titled "Your climb is tomorrow!" at 1 day, "Your climb is in N days" otherwise |
 
-The thresholds come from `UPCOMING_REMINDER_DAYS` (`functions/src/index.js:1042`) and match on an *exact* whole-day distance, so a climb only ever produces one notification per threshold it passes through.
+**The payment rule is a balance check, not a status check.** Members are told they can settle in instalments, so someone who paid ₱500 of ₱800 rolls up as `submitted` or even `verified` while still owing ₱300. Chasing the status alone would let them go silent, so the outstanding amount is what drives the nag — see [`paymentMath`](#paymentmath) for how the balance is computed. The wording follows suit: a partial payer gets "Balance still outstanding" naming both figures, while someone who has paid nothing gets "Payment still pending".
+
+The upcoming-climb thresholds come from `UPCOMING_REMINDER_DAYS` (`functions/src/index.js:1042`) and match on an *exact* whole-day distance, so a climb only ever produces one notification per threshold it passes through. That message is assembled from more than the climb: it appends the **next** pre-climb meeting from the climb's `climbPrivate` document (future meetings only, earliest first) when one exists, and a "you haven't submitted payment yet" line when the registration is `unpaid`/`rejected`.
 
 Registrations with no `userId` (e.g. walk-in participants added manually by an admin — see `AddJoinerModal` in `ClimbDetail.jsx`) are skipped, since there's no account to notify.
 
@@ -627,6 +713,8 @@ sequenceDiagram
 **Access:** Admin users only
 **Secrets required:** `GITHUB_TOKEN`
 
+Both this and `generateReleaseNoteDraft` reach GitHub through the shared `githubApi` helper (`functions/src/index.js:1628`), which is what raises `failed-precondition` on a missing token and `internal` on a non-2xx response.
+
 Powers the "Generate from commits" picker in `ReleaseNoteForm.jsx`. Calls the GitHub REST API to list the most recent 30 commits on the default branch, and reports the last commit that was already turned into a release note (its "checkpoint"), so the admin can pick a range instead of re-summarizing history that's already been announced.
 
 #### Request payload
@@ -645,7 +733,8 @@ None.
 | --- | --- |
 | `unauthenticated` | Caller is not signed in |
 | `permission-denied` | Caller is not an admin |
-| `internal` | GitHub API error, or `GITHUB_TOKEN` not configured |
+| `failed-precondition` | `GITHUB_TOKEN` is not configured |
+| `internal` | GitHub returned a non-2xx response |
 
 ---
 
@@ -683,7 +772,8 @@ Builds a draft title and body for a release note from the commits between the la
 | `unauthenticated` | Caller is not signed in |
 | `permission-denied` | Caller is not an admin |
 | `invalid-argument` | `until` missing |
-| `internal` | GitHub API error, or `GITHUB_TOKEN` not configured |
+| `failed-precondition` | `GITHUB_TOKEN` is not configured |
+| `internal` | GitHub returned a non-2xx response |
 
 ### getEmailStats
 
@@ -923,6 +1013,157 @@ Every failure path degrades to the plain shell. `makeMetaBlock` and `buildHtml` 
 
 ---
 
+## Shared Helpers
+
+These helpers in `functions/src/index.js` account for behavior the per-function sections above assume. Read them before adding a function — several fail quietly rather than loudly when misused.
+
+### requireAdmin
+
+`functions/src/index.js:1437`
+
+```js
+async function requireAdmin(callerUid) {
+  if (!callerUid) throw new HttpsError("unauthenticated", "You must be signed in.");
+  const callerSnap = await db.doc(`users/${callerUid}`).get();
+  if (!callerSnap.exists || callerSnap.data().role !== "admin") {
+    throw new HttpsError("permission-denied", "Only admins can do this.");
+  }
+}
+```
+
+The single gate behind every `unauthenticated` / `permission-denied` row in the tables above. Authorization is the Firestore `users/{callerUid}.role` field — **not** a custom auth claim — so a role change takes effect on the next call with no token refresh.
+
+Every callable starts with `await requireAdmin(request.auth?.uid)`, except `createUser` (`functions/src/index.js:1310`), which inlines the same two checks so it can wrap everything after them in its own try/catch. Behaviorally identical; a cleanup opportunity, not a bug.
+
+### getNotifyLists
+
+`functions/src/index.js:279`
+
+```js
+const { officerEmails, adminEmails } = await getNotifyLists(climb);
+```
+
+Resolves the two audiences behind the recurring "email officers, CC all admins" pattern:
+
+| List | Source | Filter |
+| --- | --- | --- |
+| `officerEmails` | `climb.officers[]` on the climb document itself | Entry has an `email` containing `@` |
+| `adminEmails` | Query of `users` where `role == "admin"` | Document has an `email` |
+
+Both come back as `{ email, name }` objects, ready to hand to `sendEmail`. Officer addresses are denormalized onto the climb, so an officer needs no user account to be notified — but their address also won't follow an edit to their `users` document.
+
+The consuming pattern is the same everywhere: send to each officer with `adminEmails` as CC; when the climb has no officers, send to the first admin with the rest as CC, so a climb with no officers configured still reaches someone.
+
+### sendEmail
+
+`functions/src/index.js:29`
+
+Thin wrapper over Brevo's `POST /v3/smtp/email`. Two behaviors matter to callers:
+
+| Situation | Behavior |
+| --- | --- |
+| `BREVO_API_KEY` or `BREVO_FROM_EMAIL` missing from the environment | **Logs and returns `undefined` — does not throw.** Nothing is sent and the caller proceeds as though it succeeded |
+| Brevo responds non-2xx | Throws `Brevo API error {status}: {body}` |
+
+That first row is a real trap: a function that sends email but forgets `secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"]` in its trigger options deploys cleanly, runs cleanly, logs `Brevo credentials not configured`, and silently sends nothing. `onClimbUpdated` shipped with exactly that defect. **Any new email-sending function must declare both secrets**, and the emulator needs them in `functions/.env`.
+
+Note that the secrets are declared per function, not globally — there is no `setGlobalOptions` call in this codebase.
+
+### createNotification
+
+`functions/src/index.js:297`
+
+```js
+await createNotification({ userId, type, title, message, link, id });
+```
+
+Writes one document to `notifications`. The optional `id` is the whole design:
+
+| `id` | Write | Consequence |
+| --- | --- | --- |
+| Provided | `.doc(id).set(payload, { merge: true })` | **Upsert.** The payload always carries `read: false`, so re-issuing an existing notification re-opens it as unread and refreshes `createdAt` |
+| Omitted | `.add(payload)` | A new document every call — can duplicate |
+
+That upsert is the entire re-nag mechanism. `sendReminderNotifications` re-issuing `payment_{regId}` daily doesn't pile up four hundred rows; it keeps flipping one row back to unread until the payment lands. It is also why the deterministic ids in the tables above matter: a notification is only clearable (`set({ read: true }, { merge: true })`) by something that can reconstruct its id.
+
+Ids that embed a recipient — `submitted_{regId}_{adminId}`, `announcement_{climbId}_{createdAt}_{userId}` — do so because the same event fans out to many people and each recipient needs their own row.
+
+### REQUIRED_DOC_TYPES and regDocsComplete
+
+`functions/src/requiredDocTypes.js`, and `regDocsComplete` at `functions/src/index.js:346`
+
+The single source of truth for per-climb document compliance. Each entry pairs a flag on the climb with an upload field on the registration:
+
+| `key` | `requiresField` (climb) | `uploadField` (registration) | `notificationPrefix` |
+| --- | --- | --- | --- |
+| `registrationForm` | `requiresRegistrationForm` | `registrationFormUpload` | `regform` |
+| `medicalCert` | `requiresMedicalCert` | `medicalCertUpload` | `medcert` |
+| `permit` | `requiresPermit` | `permitUpload` | `permit` |
+| `waiverDoc` | `requiresWaiverDoc` | `waiverDocUpload` | `waiverdoc` |
+
+```js
+function regDocsComplete(climb, reg) {
+  return REQUIRED_DOC_TYPES.every(
+    (docType) => !climb?.[docType.requiresField] || !!reg?.[docType.uploadField],
+  );
+}
+```
+
+A registration is compliant when, for every doc type the climb switched on, the matching upload is present — so a climb requiring nothing makes every registration trivially compliant. This predicate drives `docsCompleteCount` in all four registration/climb triggers, and the admin compliance filter.
+
+**This file is a deliberate duplicate of `src/data/requiredDocTypes.js`**, because `functions/` is a separately-deployed package and cannot import from `src/`. Adding a document type means editing both copies; they can silently drift, and only the backend copy affects counters and notifications. The frontend copy carries extra presentation fields (sample-file URLs and names); the four `key` values must stay identical.
+
+### paymentMath
+
+`functions/src/paymentMath.js`
+
+Fee and balance math for the backend. Three of its exports are used by `functions/src/index.js`:
+
+| Export | Used by | Purpose |
+| --- | --- | --- |
+| `getPaymentEntries(reg)` | `onRegistrationUpdated` | Normalizes `payments[]` into `{ amount, status }` entries. Falls back to a single synthetic entry from `amountPaid` + `paymentStatus` for registrations predating instalments |
+| `getCountedTotal(reg)` | `sendReminderNotifications` | Sum of entries **excluding** `rejected` ones — what actually counts toward the balance |
+| `getOutstanding(reg, climb)` | `sendReminderNotifications` | `getExpectedTotal - getCountedTotal`, floored at zero |
+
+Two behaviors are worth knowing before relying on them:
+
+- **Fees are priced at the climb's *current* amounts.** `getFeeItems` reads `climb.fees`, falling back to the registration's `feeBreakdown` snapshot only when the climb carries no fee schedule. Required fees always count; optional ones count only when the registrant selected them, with the guest fee auto-applying to `memberType === "joiner"`.
+- **An unknowable balance is reported as zero, not as unpaid.** When `getExpectedTotal` is `0` — no fee schedule and no snapshot — `getOutstanding` returns `0` so the daily reminder stays quiet rather than chasing a number it cannot compute.
+
+**This is the third deliberate duplicate in the codebase**, mirroring `src/utils/payments.js` and `src/utils/registrationFees.js`. The frontend is ESM built by Vite and Functions is CommonJS on Node, so they cannot share a module. Keep them in step: a registrant's balance must mean the same thing in the admin table and in the reminder that chases them for it.
+
+| Backend copy | Frontend original |
+| --- | --- |
+| `functions/src/requiredDocTypes.js` | `src/data/requiredDocTypes.js` |
+| `functions/src/paymentMath.js` | `src/utils/payments.js`, `src/utils/registrationFees.js` |
+
+---
+
+## Failed Request Logging
+
+`logFailedRequest` (`functions/src/index.js:316`) appends a document to the `failedRequests` collection so admins can see backend failures in-app rather than in Cloud Logging. See [DATA.md — failedRequests](DATA.md#failedrequests) for the schema and [SECURITY.md](SECURITY.md) for who can read it.
+
+| Field | Value written |
+| --- | --- |
+| `type` | `"firestore"` for triggers, `"callable"` for callables |
+| `source` | The function name |
+| `message` | Error message, truncated to 500 characters |
+| `userId` / `climbId` / `registrationId` | Whichever the caller had in hand, else `null` |
+| `path` / `userRole` | Always `null` from this path — populated only by the client-side logger |
+| `createdAt` | `FieldValue.serverTimestamp()` |
+
+The write is wrapped in its own try/catch: a logging failure never escalates into a function failure.
+
+### Which functions log there
+
+| Logs to `failedRequests` | Does not |
+| --- | --- |
+| `onRegistrationCreated`, `onRegistrationUpdated`, `onClimbUpdated`, `createUser`, `sendReleaseNoteEmail` | `onRegistrationDeleted`, `sendReminderNotifications`, `updateUserProfile`, `deleteUserAccount`, `getReleaseNoteCommitOptions`, `generateReleaseNoteDraft`, `getEmailStats`, `getStorageUsage`, `getFunctionHealth`, `getBillingCost`, `ogPrerender` |
+
+The split is historical rather than principled — the right-hand column logs to Cloud Logging only, so failures there are invisible in the admin UI. The scheduled `sendReminderNotifications` is the most consequential omission: it runs unattended at 09:00 with nobody watching, and a per-registrant email failure only ever surfaces as a `logger.error` line.
+
+---
+
 ## Environment Variables and Secrets
 
 ### Cloud Functions (`functions/.env` for emulator, Firebase secrets for production)
@@ -979,13 +1220,40 @@ flowchart LR
     CF --> SDK --> UI
 ```
 
-| Error Code | Client receives | Typical cause |
+| Error Code | Client receives | Typical cause | Thrown by |
+| --- | --- | --- | --- |
+| `unauthenticated` | `functions/unauthenticated` | Calling a protected function without being signed in | `requireAdmin`, and the inline check in `createUser` |
+| `permission-denied` | `functions/permission-denied` | Signed in but not an admin | `requireAdmin`, and the inline check in `createUser` |
+| `invalid-argument` | `functions/invalid-argument` | Missing or empty required payload fields | `createUser`, `updateUserProfile`, `deleteUserAccount`, `sendReleaseNoteEmail`, `generateReleaseNoteDraft` |
+| `already-exists` | `functions/already-exists` | Email already has a Firebase Auth account | `createUser`, `updateUserProfile` |
+| `not-found` | `functions/not-found` | The target document or Auth account does not exist | `sendReleaseNoteEmail` (no such release note), `updateUserProfile` (Auth account gone) |
+| `failed-precondition` | `functions/failed-precondition` | The request is well-formed but the system is in the wrong state for it | `sendReleaseNoteEmail` (note not `published`), `deleteUserAccount` (caller targeting themselves), `getEmailStats` (no Brevo key), `getReleaseNoteCommitOptions` / `generateReleaseNoteDraft` (no `GITHUB_TOKEN`) |
+| `internal` | `functions/internal` | Unhandled exception, or an upstream API (Brevo, GitHub, BigQuery) returned an error | Any function |
+
+A missing credential is consistently `failed-precondition`, not `internal` — `getEmailStats` for Brevo, both release-note callables for GitHub. The exception is `getBillingCost`, which returns `configured: false` instead of throwing.
+
+#### Codes translated from Firebase Auth
+
+`already-exists` and `not-found` are never thrown directly — they are mapped from Firebase Auth error codes so the client sees a stable `HttpsError` instead of a raw SDK code:
+
+| Firebase Auth code | Becomes | Where |
 | --- | --- | --- |
-| `unauthenticated` | `functions/unauthenticated` | Calling a protected function without being signed in |
-| `permission-denied` | `functions/permission-denied` | Signed in but not an admin |
-| `invalid-argument` | `functions/invalid-argument` | Missing required payload fields |
-| `already-exists` | `functions/already-exists` | Attempting to create a user whose email already exists |
-| `internal` | `functions/internal` | Unhandled exception in the function |
+| `auth/email-already-exists` | `already-exists` | `functions/src/index.js:1341`, `:1466` |
+| `auth/user-not-found` | `not-found` | `functions/src/index.js:1472` |
+
+#### A note on non-HttpsError exceptions
+
+`onCall` discards the message of any non-`HttpsError` it catches, leaving the client with a bare, undiagnosable `internal`. `createUser` guards against this by wrapping its whole body in a try/catch that re-throws as a typed `HttpsError` (see the comment at `functions/src/index.js:1314`). Any new callable that touches Firestore or Auth should do the same.
+
+#### Functions that report failure without throwing
+
+Three functions deliberately return a shaped result instead of raising, so one missing IAM role or unset variable cannot break a whole dashboard. Clients must branch on the flag rather than relying on a catch block:
+
+| Function | Success shape | Failure shape |
+| --- | --- | --- |
+| `getFunctionHealth` | `{ configured: true, ... }` | `{ configured: false, reason }` |
+| `getBillingCost` | `{ configured: true, ... }` | `{ configured: false, reason }` |
+| `sendReleaseNoteEmail` | `{ sent, total }` | Partial success — `sent < total` means individual sends failed |
 
 ---
 
