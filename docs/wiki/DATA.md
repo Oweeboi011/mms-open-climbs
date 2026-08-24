@@ -6,11 +6,14 @@
 - [Firestore Database](#firestore-database)
 - [Collections Reference](#collections-reference)
   - [climbs](#climbs)
+  - [climbPrivate](#climbprivate)
   - [registrations](#registrations)
+  - [feedback](#feedback)
   - [users](#users)
   - [pageViews](#pageviews)
   - [failedRequests](#failedrequests)
   - [notifications](#notifications)
+  - [auditLog](#auditlog)
   - [releaseNotes](#releasenotes)
 - [Data Relationships](#data-relationships)
 - [Status Enumerations](#status-enumerations)
@@ -24,7 +27,7 @@
 
 ## Overview
 
-MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under top-level collections including `climbs`, `registrations`, `users`, `pageViews`, and `failedRequests`.
+MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under ten top-level collections: `climbs`, `climbPrivate`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, and `releaseNotes`.
 
 There is no SQL schema. Documents in the same collection can have varying fields, though the application follows a consistent structure as documented here.
 
@@ -37,18 +40,30 @@ graph TD
     DB["Firestore Database\n'openclimbs'"]
 
     subgraph Collections["Collections"]
-        C1["climbs\nOne document per climb event"]
+        C1["climbs\nOne document per climb event\npublicly readable"]
+        C1b["climbPrivate\nRegistrant-only detail for a climb\nsame doc ID as climbs"]
         C2["registrations\nOne document per member registration"]
+        C2b["feedback\nOne post-climb review\nper member per climb"]
         C3["users\nOne document per user account"]
         C4["pageViews\nOne document per page visit"]
         C5["failedRequests\nOne document per logged failure"]
+        C6["notifications\nOne document per bell item"]
+        C7["auditLog\nOne document per admin action"]
+        C8["releaseNotes\nOne document per announcement"]
     end
 
     DB --> C1
+    DB --> C1b
     DB --> C2
+    DB --> C2b
     DB --> C3
     DB --> C4
     DB --> C5
+    DB --> C6
+    DB --> C7
+    DB --> C8
+
+    C1 -. "same document ID" .-> C1b
 ```
 
 ---
@@ -130,6 +145,39 @@ stateDiagram-v2
 
 ---
 
+### climbPrivate
+
+Registrant-only detail for a climb. **The document ID is the climb ID** — `climbPrivate/{climbId}` pairs 1:1 with `climbs/{climbId}`.
+
+This collection exists purely as a security boundary. `climbs` is publicly readable so that unauthenticated visitors can browse the schedule, which means anything that must *not* be public cannot live on the climb document. Pre-climb meeting details and resource links are restricted to admins and actual registrants, so they live here instead.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preClimbMeetings` | array | Meeting entries, each `{ date, time, location, notes, link, recordingLink }`. `date` is a `YYYY-MM-DD` string, not a Timestamp |
+| `resources` | array | Registrant-only resource links |
+
+#### Access
+
+| Operation | Who |
+| --- | --- |
+| read | Admins, and members whose `userId` appears in the parent climb's `registeredUserIds` (`isRegisteredFor(climbId)`) |
+| write | Admins only |
+
+The `registeredUserIds` array on the climb is what the rule checks, which is why the registration triggers keep it in sync — see [API.md](API.md#onregistrationcreated).
+
+#### Written and read by
+
+| Where | What |
+| --- | --- |
+| `src/pages/admin/ClimbForm.jsx` | `setDoc(..., { merge: true })` alongside every climb create/edit |
+| `sendReminderNotifications` | Reads `preClimbMeetings` to name the next upcoming meeting in the 7/5/3/1-day reminder |
+
+#### Legacy fields
+
+Pre-climb meeting details were once a single object on the climb, then a single object here, before becoming the `preClimbMeetings` list. Both writers explicitly null out `preClimbMeetingDate`, `preClimbMeetingTime`, `preClimbMeetingLocation`, `preClimbMeetingNotes`, `preClimbMeetingLink`, and `preClimbMeetingRecordingLink` so the old shape can't linger beside the new list. Expect to see these as `null` on older documents.
+
+---
+
 ### registrations
 
 Each document represents a single member's registration for a single climb.
@@ -198,6 +246,41 @@ stateDiagram-v2
     rejected --> submitted : Member re-uploads proof
     verified --> [*]
 ```
+
+---
+
+### feedback
+
+One post-climb review per member per climb. **The document ID is deterministic: `{climbId}_{userId}`.**
+
+That id is the whole enforcement mechanism for "one entry per member per climb". Rules allow `create` but deny `update` and `delete` outright, so a second submission targets the same document ID, is evaluated as an update, and is refused — no query or transaction needed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `climbId` | string | Climb being reviewed; must be a string per rules |
+| `climbTitle` | string | Denormalized title at submission time |
+| `userId` | string | Author's UID; must equal the caller's own UID |
+| `name` | string | Author's display name at submission time |
+| `rating` | number | Integer 1–5, range-enforced in rules |
+| `comments` | string | Free text, trimmed client-side; may be empty |
+| `createdAt` | Timestamp | `serverTimestamp()` |
+
+#### Access
+
+| Operation | Who |
+| --- | --- |
+| create | Signed-in member writing their own `userId`, with an integer `rating` between 1 and 5 |
+| read | Admins, or the author |
+| update, delete | **Nobody** — immutable once written |
+
+#### Written and read by
+
+| Where | What |
+| --- | --- |
+| `src/pages/ClimbFeedback.jsx` | The `/feedback/{climbId}` page; also reads the existing doc first so a returning member sees what they already submitted |
+| `src/pages/admin/ClimbDetail.jsx` | Live `onSnapshot` query by `climbId` for the admin view |
+
+Members reach this page from the thank-you email and the `feedback_request` bell notification, both sent by `sendReminderNotifications` once a climb ends — see [API.md](API.md#sendremindernotifications).
 
 ---
 
