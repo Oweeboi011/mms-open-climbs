@@ -243,7 +243,21 @@ allow update: if (isOwner(resource.data.userId) &&
   isAdmin();
 ```
 
-**Known limitation.** Security rules cannot iterate arrays, so the per-payment `status` values inside `payments[]` are not validated server-side — a crafted client write could mark an individual payment `verified`. The rolled-up `paymentStatus`, which drives the review queue and the balance math, *is* enforced. Closing this properly means moving payment writes behind a callable Cloud Function.
+**Rules gap, closed by a trigger.** Security rules cannot iterate arrays, so the per-payment `status` values inside `payments[]` cannot be validated at the rules layer — nothing there stops a crafted client write from marking an individual entry `verified`. The rolled-up `paymentStatus`, which drives the review queue and the balance math, *is* enforced by rules.
+
+The array case is enforced one layer down instead, in the `onRegistrationUpdated` trigger (`functions/src/index.js:531`):
+
+| Step | Behavior |
+| --- | --- |
+| Identify the writer | `event.authId`, which is why this trigger uses `onDocumentUpdatedWithAuthContext` rather than the plain variant |
+| Skip unknown writers | No `authId` means an Admin SDK or backfill write, never a client |
+| Check the role | `users/{writerUid}.role == "admin"` |
+| Clamp non-admins | Any entry whose `status` is neither `submitted` nor its own prior value is reverted to that prior value (or `submitted`) |
+| Rewrite and stop | Logs `Clamped forged payment status`, writes the corrected array back, and returns — the corrective write re-runs the trigger against clean data |
+
+So a member can submit a payment, but only an admin can move one to `verified` or `rejected`. See [API.md — onRegistrationUpdated](API.md#onregistrationupdated) for the full handler.
+
+Two caveats worth keeping in view. The enforcement is **corrective, not preventive**: the forged value does land in Firestore and is visible to anything reading between the write and the trigger firing, typically well under a second but not zero. And it is clamped **positionally** — entry *i* after is compared against entry *i* before — so a write that reorders or splices `payments[]` is compared against the wrong prior entries. Moving payment writes behind a callable Cloud Function remains the way to close both.
 
 **`isAdmin()` is `exists()`-guarded**
 

@@ -84,7 +84,7 @@ node scripts/purge-admin-pageviews.mjs     # Maintenance: clean admin page views
 
 ### Firestore collections
 
-`climbs`, `registrations`, `users`, `pageViews`. See `docs/DATA.md` for full schema.
+`climbs`, `climbPrivate`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, `releaseNotes`. See `docs/wiki/DATA.md` for full schema.
 
 ### Email flow
 
@@ -127,12 +127,15 @@ Copy `.env.example` and `functions/.env.example` to get started.
 
 ## Docs
 
-Detailed references live in `docs/`:
+Detailed references live in `docs/wiki/`:
 - `ARCHITECTURE.md` — system design and component diagrams
 - `DATA.md` — Firestore schema
-- `API.md` — Cloud Functions API signatures
+- `API.md` — Cloud Functions reference (every trigger, callable, and shared helper)
 - `TESTING.md` — test patterns and coverage guide
 - `DEPLOYMENT.md` — production deployment checklist
 - `SECURITY.md` — Firestore rules and security model
 - `CONTRIBUTING.md` — git workflow, coding standards, PR process
 - `TROUBLESHOOTING.md` — common issues and fixes
+- `USER_MANUAL.md`, `SETUP.md`, `WORKFLOW.md`, `CODE-QUALITY.md`, `AI.md`, `RELEASE_NOTES_FEATURE.md`
+
+`docs/adr/` holds architecture decision records; `docs/solution-plans/` holds design write-ups.
