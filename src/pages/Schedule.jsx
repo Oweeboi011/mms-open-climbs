@@ -24,6 +24,15 @@ const MONTH_LABEL = {
   nov: "November 2026",
   dec: "December 2026",
 };
+// The stats bar doubles as a filter: each tile selects the same key as
+// its counterpart in FILTERS below, so the two controls stay in step.
+const STAT_FILTERS = [
+  { key: "all", stat: "total", label: "Total Climbs" },
+  { key: "major", stat: "major", label: "Major" },
+  { key: "minor", stat: "minor", label: "Minor" },
+  { key: "special", stat: "special", label: "Special" },
+];
+
 const FILTERS = [
   { key: "all", label: "All" },
   { key: "minor", label: "Minor" },
@@ -42,6 +51,8 @@ export default function Schedule() {
   const [climbs, setClimbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
+  const filtersRef = useRef(null);
+  const filtersWrapRef = useRef(null);
   const [showTop, setShowTop] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(
     () => sessionStorage.getItem("oc_visitor_banner") === "1",
@@ -57,7 +68,7 @@ export default function Schedule() {
   useEffect(() => {
     const q = query(
       collection(db, "climbs"),
-      where("status", "in", ["open", "closed", "completed"]),
+      where("status", "in", ["open", "closed", "completed", "cancelled"]),
       orderBy("startDate", "asc"),
     );
     const unsub = onSnapshot(q, (snap) => {
@@ -65,6 +76,27 @@ export default function Schedule() {
       setLoading(false);
     });
     return unsub;
+  }, []);
+
+  // The month buttons scroll off the right on mobile. Keep the fade
+  // affordance in sync with the scroll position so it disappears once
+  // there is genuinely nothing more to reveal.
+  useEffect(() => {
+    const strip = filtersRef.current;
+    const wrap = filtersWrapRef.current;
+    if (!strip || !wrap) return;
+    const sync = () => {
+      const atEnd =
+        strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+      wrap.classList.toggle("scrolled-end", atEnd);
+    };
+    sync();
+    strip.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    return () => {
+      strip.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+    };
   }, []);
 
   useEffect(() => {
@@ -178,128 +210,30 @@ export default function Schedule() {
           <MountaineeringGuideModal onClose={() => setGuideOpen(false)} />
         )}
         <div className="hero-mountains" aria-hidden="true">
-          <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+          {/* Layered ridgelines: a light back range, the main peaks, a
+              dark jagged foreground and a conifer treeline standing on
+              the ground line where the page surface begins. */}
+          <svg viewBox="0 0 1200 160" preserveAspectRatio="none">
+            {/* Back range — palest, sits furthest away */}
             <path
-              d="M0,120 L0,95 L60,80 L120,90 L180,65 L240,75 L300,50 L360,60 L420,35 L480,55 L540,30 L600,20 L660,35 L720,25 L780,40 L840,30 L900,50 L960,38 L1020,55 L1080,45 L1140,60 L1200,50 L1200,120 Z"
-              fill="rgba(26,77,35,0.5)"
+              d="M0,140 L0,104 L120,78 L230,96 L350,62 L470,90 L600,44 L730,86 L850,60 L970,88 L1090,74 L1200,92 L1200,140 Z"
+              fill="rgba(150,190,120,0.32)"
             />
+            {/* Main range — the dominant central peak */}
             <path
-              d="M0,120 L0,100 L80,92 L160,85 L240,95 L320,75 L400,82 L480,60 L560,72 L640,50 L720,65 L800,45 L880,58 L960,48 L1040,62 L1120,55 L1200,65 L1200,120 Z"
-              fill="rgba(13,43,18,0.6)"
+              d="M0,140 L0,120 L110,104 L210,116 L300,84 L360,68 L430,96 L520,72 L600,26 L680,74 L760,100 L830,66 L900,52 L980,88 L1080,102 L1160,92 L1200,104 L1200,140 Z"
+              fill="rgba(74,124,58,0.72)"
             />
+            {/* Foreground range — darkest, closest */}
             <path
-              d="M0,120 L0,108 L100,102 L200,110 L300,98 L400,105 L500,92 L600,100 L700,88 L800,96 L900,85 L1000,95 L1100,90 L1200,100 L1200,120 Z"
-              fill="var(--surface)"
+              d="M0,140 L0,128 L90,118 L180,126 L280,110 L380,124 L470,108 L560,120 L650,104 L740,118 L830,106 L920,120 L1010,110 L1100,122 L1200,114 L1200,140 Z"
+              fill="#13331a"
             />
+            {/* Conifer treeline */}
+            <path d="M21.0,140.0 L24.0,132.0 L22.0,132.0 L25.0,124.0 L23.0,124.0 L28.0,112.0 L33.0,124.0 L31.0,124.0 L34.0,132.0 L32.0,132.0 L35.0,140.0 Z M52.4,140.0 L54.8,133.6 L53.2,133.6 L55.6,127.2 L54.0,127.2 L58.0,117.6 L62.0,127.2 L60.4,127.2 L62.8,133.6 L61.2,133.6 L63.6,140.0 Z M78.0,140.0 L81.4,130.8 L79.1,130.8 L82.5,121.6 L80.2,121.6 L86.0,107.8 L91.8,121.6 L89.5,121.6 L92.9,130.8 L90.6,130.8 L94.0,140.0 Z M109.8,140.0 L112.0,134.0 L110.5,134.0 L112.8,128.0 L111.2,128.0 L115.0,119.0 L118.8,128.0 L117.2,128.0 L119.5,134.0 L118.0,134.0 L120.2,140.0 Z M1079.4,140.0 L1081.8,133.6 L1080.2,133.6 L1082.6,127.2 L1081.0,127.2 L1085.0,117.6 L1089.0,127.2 L1087.4,127.2 L1089.8,133.6 L1088.2,133.6 L1090.6,140.0 Z M1104.3,140.0 L1107.6,131.2 L1105.4,131.2 L1108.7,122.4 L1106.5,122.4 L1112.0,109.2 L1117.5,122.4 L1115.3,122.4 L1118.6,131.2 L1116.4,131.2 L1119.7,140.0 Z M1136.8,140.0 L1139.0,134.0 L1137.5,134.0 L1139.8,128.0 L1138.2,128.0 L1142.0,119.0 L1145.8,128.0 L1144.2,128.0 L1146.5,134.0 L1145.0,134.0 L1147.2,140.0 Z M1163.0,140.0 L1166.0,132.0 L1164.0,132.0 L1167.0,124.0 L1165.0,124.0 L1170.0,112.0 L1175.0,124.0 L1173.0,124.0 L1176.0,132.0 L1174.0,132.0 L1177.0,140.0 Z M425.1,140.0 L427.2,134.4 L425.8,134.4 L427.9,128.8 L426.5,128.8 L430.0,120.4 L433.5,128.8 L432.1,128.8 L434.2,134.4 L432.8,134.4 L434.9,140.0 Z M448.7,140.0 L451.4,132.8 L449.6,132.8 L452.3,125.6 L450.5,125.6 L455.0,114.8 L459.5,125.6 L457.7,125.6 L460.4,132.8 L458.6,132.8 L461.3,140.0 Z M739.0,140.0 L741.6,133.2 L739.9,133.2 L742.5,126.4 L740.8,126.4 L745.0,116.2 L749.2,126.4 L747.5,126.4 L750.1,133.2 L748.4,133.2 L751.0,140.0 Z M767.1,140.0 L769.2,134.4 L767.8,134.4 L769.9,128.8 L768.5,128.8 L772.0,120.4 L775.5,128.8 L774.1,128.8 L776.2,134.4 L774.8,134.4 L776.9,140.0 Z" fill="#13331a" />
+            {/* Ground — the page surface the hero hands off to */}
+            <rect x="0" y="139" width="1200" height="21" fill="var(--surface)" />
           </svg>
-          {/* Animated hikers walking along the ridge */}
-          <div className="hero-hikers">
-            {/* Hiker 1 — leading, gold pack */}
-            <svg
-              className="hiker hiker-1"
-              viewBox="0 0 20 34"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="9" cy="3.5" r="2.8" fill="rgba(255,255,255,0.88)" />
-              <path
-                d="M6.2,6.2 L6.8,16.5 L11.2,16.5 L11.8,6.2 Q9,5 6.2,6.2Z"
-                fill="rgba(255,255,255,0.88)"
-              />
-              <rect
-                x="11.2"
-                y="7.5"
-                width="4"
-                height="5.5"
-                rx="1"
-                fill="rgba(200,160,0,0.85)"
-              />
-              <path
-                d="M7.5,16.5 L4.2,28.5 L6.5,29 L9,17.5Z"
-                fill="rgba(255,255,255,0.88)"
-              />
-              <path
-                d="M10.5,16.5 L12.5,28.5 L14.8,28 L12.5,17.5Z"
-                fill="rgba(255,255,255,0.88)"
-              />
-              <path
-                d="M14,9 L17.5,29"
-                stroke="rgba(255,255,255,0.55)"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </svg>
-            {/* Hiker 2 — mid-size, green pack */}
-            <svg
-              className="hiker hiker-2"
-              viewBox="0 0 20 34"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="9" cy="3.5" r="2.4" fill="rgba(255,255,255,0.72)" />
-              <path
-                d="M6.5,5.8 L7,16 L11,16 L11.5,5.8 Q9,4.8 6.5,5.8Z"
-                fill="rgba(255,255,255,0.72)"
-              />
-              <rect
-                x="10.8"
-                y="7"
-                width="3.5"
-                height="5"
-                rx="1"
-                fill="rgba(46,125,50,0.85)"
-              />
-              <path
-                d="M8,16 L5,27 L7.2,27.5 L9.5,17Z"
-                fill="rgba(255,255,255,0.72)"
-              />
-              <path
-                d="M10,16 L11.8,27 L14,26.5 L11.8,17Z"
-                fill="rgba(255,255,255,0.72)"
-              />
-              <path
-                d="M13.5,8.5 L16.5,27"
-                stroke="rgba(255,255,255,0.42)"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </svg>
-            {/* Hiker 3 — smallest, trailing */}
-            <svg
-              className="hiker hiker-3"
-              viewBox="0 0 20 34"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="9" cy="3.5" r="2" fill="rgba(255,255,255,0.58)" />
-              <path
-                d="M7,5.5 L7.5,14.5 L10.5,14.5 L11,5.5 Q9,4.6 7,5.5Z"
-                fill="rgba(255,255,255,0.58)"
-              />
-              <rect
-                x="10.2"
-                y="6.5"
-                width="3"
-                height="4.5"
-                rx="1"
-                fill="rgba(200,160,0,0.62)"
-              />
-              <path
-                d="M8,14.5 L5.5,25 L7.5,25.5 L9.5,15.5Z"
-                fill="rgba(255,255,255,0.58)"
-              />
-              <path
-                d="M9.5,14.5 L11,25 L13,24.5 L11.2,15.5Z"
-                fill="rgba(255,255,255,0.58)"
-              />
-              <path
-                d="M12.5,7.5 L15.5,25"
-                stroke="rgba(255,255,255,0.35)"
-                strokeWidth="1.1"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </svg>
-          </div>
         </div>
       </section>
 
@@ -331,31 +265,36 @@ export default function Schedule() {
       )}
 
       <div className="stats-bar">
-        <div className="stat">
-          <div className="stat-num">{stats.total}</div>
-          <div className="stat-label">Total Climbs</div>
-        </div>
-        <div className="stat">
-          <div className="stat-num">{stats.major}</div>
-          <div className="stat-label">Major</div>
-        </div>
-        <div className="stat">
-          <div className="stat-num">{stats.minor}</div>
-          <div className="stat-label">Minor</div>
-        </div>
-        <div className="stat">
-          <div className="stat-num">{stats.special}</div>
-          <div className="stat-label">Special</div>
-        </div>
+        {STAT_FILTERS.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            className={`stat${activeFilter === s.key ? " active" : ""}`}
+            aria-pressed={activeFilter === s.key}
+            onClick={() => setActiveFilter(s.key)}
+          >
+            <div className="stat-num">{stats[s.stat]}</div>
+            <div className="stat-label">{s.label}</div>
+          </button>
+        ))}
       </div>
 
-      <div className="filters-wrap">
-        <div className="filters">
+      <div className="filters-wrap" ref={filtersWrapRef}>
+        <div className="filters" ref={filtersRef}>
           {FILTERS.map((f) => (
             <button
               key={f.key}
               className={`filter-btn${activeFilter === f.key ? " active" : ""}`}
-              onClick={() => setActiveFilter(f.key)}
+              onClick={(e) => {
+                setActiveFilter(f.key);
+                // inline/nearest so tapping a month never yanks the
+                // page up or down, only the strip sideways.
+                e.currentTarget.scrollIntoView?.({
+                  behavior: "smooth",
+                  block: "nearest",
+                  inline: "center",
+                });
+              }}
             >
               {f.label}
             </button>

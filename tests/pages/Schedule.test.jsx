@@ -5,6 +5,7 @@
  *  - Shows loading spinner while Firestore data is pending
  *  - Renders climb cards once onSnapshot resolves
  *  - Filter buttons change the visible cards
+ *  - Stats bar tiles filter too
  *  - Shows stats bar with correct counts
  *  - Empty state when no climbs match the filter
  */
@@ -72,6 +73,24 @@ describe("Schedule page", () => {
 
     expect(screen.getByText("Mt. Pulag")).toBeInTheDocument();
     expect(screen.queryByText("Mt. Manalmon")).not.toBeInTheDocument();
+  });
+
+  it("filters from the stats bar tiles as well as the filter buttons", async () => {
+    renderWithProviders(<Schedule />, makeGuestAuth());
+    await waitFor(() => screen.getByText("Mt. Pulag"));
+
+    // The stat tile's accessible name carries its count, which is what
+    // distinguishes it from the like-named filter button.
+    const majorStat = screen
+      .getAllByRole("button")
+      .find((b) => /\d+\s*Major/i.test(b.textContent));
+    expect(majorStat).toBeDefined();
+
+    fireEvent.click(majorStat);
+
+    expect(screen.getByText("Mt. Pulag")).toBeInTheDocument();
+    expect(screen.queryByText("Mt. Manalmon")).not.toBeInTheDocument();
+    expect(majorStat).toHaveAttribute("aria-pressed", "true");
   });
 
   it("filters to show only minor climbs when Minor filter is clicked", async () => {

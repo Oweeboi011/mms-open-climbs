@@ -899,9 +899,15 @@ exports.onClimbUpdated = onDocumentUpdated(
         .collection("registrations")
         .where("climbId", "==", climbId)
         .get();
+      // Every registrant who hasn't withdrawn — including joiners an admin
+      // added by hand, who have no `userId` because they never signed up for
+      // an account. They still count toward `registrationCount`, so they must
+      // still be told when the climb they paid for is cancelled. Anything
+      // that genuinely needs an account (in-app notifications) guards on
+      // `userId` at its own call site.
       const activeRegs = regsSnap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((r) => r.userId && r.status !== "cancelled");
+        .filter((r) => r.status !== "cancelled");
 
       if (turnedOffDocTypes.length > 0) {
         await Promise.all(
@@ -1008,7 +1014,9 @@ exports.onClimbUpdated = onDocumentUpdated(
       }
 
       if (newAnnouncements.length > 0) {
-        const recipientIds = [...new Set(activeRegs.map((r) => r.userId))];
+        const recipientIds = [
+          ...new Set(activeRegs.map((r) => r.userId).filter(Boolean)),
+        ];
         for (const note of newAnnouncements) {
           const title = note.pinned
             ? `New reminder — ${after.title || "your climb"}`
@@ -1042,6 +1050,16 @@ exports.onClimbUpdated = onDocumentUpdated(
 // ── Scheduled: daily reminders for unpaid registrations & upcoming climbs ─────
 const UPCOMING_REMINDER_DAYS = new Set([7, 5, 3, 1]);
 
+// A cancelled climb is over as far as its registrants are concerned — chasing
+// them for payment, nagging for documents, counting down to the trek, or
+// thanking them for a climb that never happened are all wrong. A postponed
+// one is still going ahead, so payment and document reminders stand; only the
+// date-driven messages are suppressed, since the old dates no longer mean
+// anything.
+const isClimbCancelled = (climb) =>
+  climb?.status === "cancelled" || climb?.cancellationStatus === "cancelled";
+const isClimbPostponed = (climb) => climb?.cancellationStatus === "postponed";
+
 exports.sendReminderNotifications = onSchedule(
   {
     schedule: "every day 09:00",
@@ -1074,6 +1092,7 @@ exports.sendReminderNotifications = onSchedule(
     for (const reg of regs) {
       if (!reg.userId) continue;
       const climb = climbs[reg.climbId];
+      if (isClimbCancelled(climb)) continue;
 
       // Payment nag — re-surfaces as unread each run.
       //
@@ -1121,7 +1140,11 @@ exports.sendReminderNotifications = onSchedule(
       }
 
       // Upcoming-climb reminders for confirmed participants only.
-      if (reg.status === "confirmed" && climb?.startDate?.toDate) {
+      if (
+        reg.status === "confirmed" &&
+        !isClimbPostponed(climb) &&
+        climb?.startDate?.toDate
+      ) {
         const daysUntil = Math.ceil(
           (climb.startDate.toDate().getTime() - now) / 86400000,
         );
@@ -1170,7 +1193,7 @@ exports.sendReminderNotifications = onSchedule(
 
     for (const climbId of climbIds) {
       const climb = climbs[climbId];
-      if (!climb?.officers?.length) continue;
+      if (!climb?.officers?.length || isClimbCancelled(climb)) continue;
 
       const climbRegs = regs.filter((r) => r.climbId === climbId);
       const unpaidCount = climbRegs.filter(
@@ -1243,6 +1266,7 @@ exports.sendReminderNotifications = onSchedule(
     for (const climbId of climbIds) {
       const climb = climbs[climbId];
       if (!climb || climb.thankYouSentAt || !climb.endDate?.toDate) continue;
+      if (isClimbCancelled(climb) || isClimbPostponed(climb)) continue;
       if (climb.endDate.toDate().getTime() > now) continue;
 
       const confirmedRegs = regs.filter(

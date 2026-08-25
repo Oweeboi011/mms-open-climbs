@@ -234,4 +234,57 @@ describe("ClimbCard", () => {
     });
     expect(screen.getByText("0/5 Submitted — Med Cert")).toBeInTheDocument();
   });
+  it("shows Cancelled exactly once, in the corner tab", () => {
+    const { container } = render({ status: "cancelled" });
+    expect(screen.getAllByText(/cancelled/i)).toHaveLength(1);
+    expect(
+      container.querySelector(".card-corner-cancelled"),
+    ).toBeInTheDocument();
+    // The corner owns the state — no competing footer status tag.
+    expect(container.querySelector(".card-status-tag")).toBeNull();
+    expect(screen.queryByText("Open")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["completed", "Completed"],
+    ["closed", "Closed"],
+  ])("puts %s in the corner tab, not the footer", (status, label) => {
+    const { container } = render({ status });
+    expect(screen.getAllByText(label)).toHaveLength(1);
+    expect(
+      container.querySelector(`.card-corner-${status}`),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".card-status-tag")).toBeNull();
+  });
+
+  it("shows a Postponed corner tab", () => {
+    const { container } = render({
+      status: "open",
+      cancellationStatus: "postponed",
+    });
+    expect(screen.getAllByText(/postponed/i)).toHaveLength(1);
+    expect(
+      container.querySelector(".card-corner-postponed"),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves an open climb its footer status tag and no corner", () => {
+    const { container } = render({ status: "open" });
+    expect(container.querySelector(".card-corner")).toBeNull();
+    expect(screen.getByText("Open")).toBeInTheDocument();
+  });
+
+  it("treats a climb cancelled the legacy way the same", () => {
+    const { container } = render({
+      status: "closed",
+      cancellationStatus: "cancelled",
+    });
+    expect(screen.getAllByText(/cancelled/i)).toHaveLength(1);
+    // Cancelled outranks the underlying "closed" lifecycle status.
+    expect(
+      container.querySelector(".card-corner-cancelled"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Closed")).not.toBeInTheDocument();
+  });
+
 });
