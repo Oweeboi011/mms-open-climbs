@@ -949,6 +949,63 @@ describe("onRegistrationDeleted", () => {
   });
 });
 
+describe("sendReminderNotifications — cancelled climbs", () => {
+  it("stops nagging and never sends a thank-you for a cancelled climb", async () => {
+    regStore["reg-1"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+      paymentStatus: "unpaid",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      status: "cancelled",
+      cancellationStatus: "cancelled",
+      requiresMedicalCert: true,
+      officers: [{ name: "Ana", email: "ana@x.com", userId: "officer-1" }],
+      startDate: { toDate: () => new Date(Date.now() + 3 * 86400000) },
+      endDate: { toDate: () => new Date(Date.now() - 86400000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["payment_reg-1"]).toBeUndefined();
+    expect(notifStore["medcert_reg-1"]).toBeUndefined();
+    expect(notifStore["upcoming3_reg-1"]).toBeUndefined();
+    expect(notifStore["feedback_climb-1_user-1"]).toBeUndefined();
+    // No thank-you email, and no officer outstanding-items summary either.
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("still chases payment for a postponed climb but drops the date countdown", async () => {
+    regStore["reg-1"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+      paymentStatus: "unpaid",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      status: "open",
+      cancellationStatus: "postponed",
+      startDate: { toDate: () => new Date(Date.now() + 3 * 86400000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["payment_reg-1"]).toMatchObject({
+      type: "payment_reminder",
+    });
+    expect(notifStore["upcoming3_reg-1"]).toBeUndefined();
+  });
+});
+
 describe("onClimbUpdated", () => {
   it("notifies every active registrant when a new announcement is added", async () => {
     regStore["reg-1"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
@@ -980,6 +1037,67 @@ describe("onClimbUpdated", () => {
       userId: "user-2",
     });
     expect(notifStore["announcement_climb-1_1000_user-3"]).toBeUndefined();
+  });
+
+  it("emails joiners with no account when a climb is cancelled", async () => {
+    regStore["reg-member"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+    };
+    // Admin-added joiner: counted in registrationCount, but never signed up
+    // for an account, so the registration carries no userId.
+    regStore["reg-joiner"] = {
+      climbId: "climb-1",
+      userId: null,
+      status: "confirmed",
+      name: "Ana Reyes",
+      email: "ana@x.com",
+      memberType: "joiner",
+    };
+    regStore["reg-withdrawn"] = {
+      climbId: "climb-1",
+      userId: "user-9",
+      status: "cancelled",
+      email: "gone@x.com",
+    };
+
+    await climbUpdatedHandler({
+      data: {
+        before: {
+          data: () => ({ title: "Mt. Pulag", announcements: [] }),
+        },
+        after: {
+          data: () => ({
+            title: "Mt. Pulag",
+            announcements: [],
+            cancellationStatus: "cancelled",
+            cancellationReason: "Typhoon signal no. 2",
+          }),
+        },
+      },
+      params: { climbId: "climb-1" },
+    });
+
+    const recipients = global.fetch.mock.calls
+      .map(([, opts]) => JSON.parse(opts.body).to?.[0]?.email)
+      .filter(Boolean);
+    expect(recipients).toContain("juan@x.com");
+    expect(recipients).toContain("ana@x.com");
+    expect(recipients).not.toContain("gone@x.com");
+
+    // The account-less joiner still gets no in-app notification — there's no
+    // user to attach one to — but the member does.
+    expect(notifStore["climbstatus_climb-1_cancelled_reg-member"]).toMatchObject({
+      userId: "user-1",
+      type: "climb_status_change",
+      message: "Typhoon signal no. 2",
+    });
+    expect(
+      notifStore["climbstatus_climb-1_cancelled_reg-joiner"],
+    ).toBeUndefined();
   });
 
   it("labels pinned announcements as reminders and skips ones already notified", async () => {

@@ -448,6 +448,18 @@ export default function AdminClimbForm() {
       payload.preClimbMeetingTime = null;
       payload.preClimbMeetingLocation = null;
       payload.preClimbMeetingNotes = null;
+      // A cancelled climb is now expressed by `status`; `cancellationStatus`
+      // is derived from it so the onClimbUpdated email trigger and the
+      // public Cancelled banners keep reading the one field they always have.
+      payload.cancellationStatus =
+        form.status === "cancelled"
+          ? "cancelled"
+          : form.cancellationStatus === "postponed"
+            ? "postponed"
+            : "";
+      payload.cancellationReason = payload.cancellationStatus
+        ? form.cancellationReason || ""
+        : "";
       if (isEdit) {
         await updateDoc(doc(db, "climbs", id), payload);
         await setDoc(doc(db, "climbPrivate", id), privateData, { merge: true });
@@ -653,6 +665,7 @@ export default function AdminClimbForm() {
                   <option value="open">Open</option>
                   <option value="closed">Closed</option>
                   <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
               </div>
             </div>

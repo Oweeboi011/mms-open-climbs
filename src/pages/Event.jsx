@@ -18,6 +18,7 @@ import { renderMarkdownLite } from "@/utils/markdownLite";
 import EventFeesCard from "@/components/EventFeesCard";
 import { TRAIL_CLASS_LABELS, TRAIL_CLASS_DESCRIPTIONS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { getEffectiveStatus } from "@/utils/climbStatus";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -40,7 +41,6 @@ function TrailClassTile({ trailClass }) {
 }
 
 function RegisterCta({
-  climb,
   climbId,
   isCancelled,
   isPostponed,
@@ -51,19 +51,19 @@ function RegisterCta({
   isFull,
 }) {
   const style = { marginTop: 20, display: "inline-flex" };
+  // The hero banner above already states the cancellation and carries the
+  // reason — this slot only needs to explain what it means for registering.
   if (isCancelled) {
     return (
       <div className="alert alert-error" style={style}>
-        This climb has been cancelled.
-        {climb.cancellationReason ? ` ${climb.cancellationReason}` : ""}
+        Registration is closed — this climb has been cancelled.
       </div>
     );
   }
   if (isPostponed) {
     return (
       <div className="alert alert-warning" style={style}>
-        This climb has been postponed.
-        {climb.cancellationReason ? ` ${climb.cancellationReason}` : ""}
+        Registration is on hold — this climb has been postponed.
       </div>
     );
   }
@@ -532,7 +532,7 @@ export default function Event() {
   const seatsLeft = climb.maxParticipants - (climb.registrationCount ?? 0);
   const isFull = seatsLeft <= 0;
   const isOpen = climb.status === "open";
-  const isCancelled = climb.cancellationStatus === "cancelled";
+  const isCancelled = getEffectiveStatus(climb) === "cancelled";
   const isPostponed = climb.cancellationStatus === "postponed";
   const fillPct = climb.maxParticipants
     ? Math.min(
@@ -544,7 +544,6 @@ export default function Event() {
 
   const registerCta = (
     <RegisterCta
-      climb={climb}
       climbId={climbId}
       isCancelled={isCancelled}
       isPostponed={isPostponed}

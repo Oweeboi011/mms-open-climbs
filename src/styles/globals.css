@@ -215,17 +215,6 @@ textarea {
     );
   animation: heroGlowPulse 10s ease-in-out infinite alternate;
 }
-.hero::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 50px;
-  background: var(--surface);
-  clip-path: ellipse(55% 100% at 50% 100%);
-  z-index: 3;
-}
 .hero-mountains {
   position: absolute;
   bottom: 0;
@@ -321,6 +310,32 @@ textarea {
   border-right: 1px solid var(--border);
   min-width: 80px;
   max-width: 160px;
+  /* Each tile is a filter button — reset the UA button styling so it still
+     reads as part of the stats bar. */
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-bottom: none;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.stat:hover {
+  background: var(--green-pale);
+}
+.stat.active {
+  background: var(--green-pale);
+  box-shadow: inset 0 -3px 0 var(--green-dark);
+}
+.stat.active .stat-label {
+  color: var(--green-dark);
+}
+.stat:focus-visible {
+  outline: 2px solid var(--green-dark);
+  outline-offset: -2px;
 }
 .stat:last-child {
   border-right: none;
@@ -415,6 +430,39 @@ textarea {
 }
 
 /* ── CARD ──────────────────────────────────────────────────────────────────── */
+/* Terminal and on-hold states (cancelled, postponed, completed, closed)
+   describe the whole card, so they sit in the corner rather than competing
+   with the type badge in the footer. Text stays horizontal: a rotated
+   diagonal ribbon is unreadable at this size. The card clips it via its own
+   overflow: hidden, so the tab meets both edges cleanly. */
+.card-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  padding: 5px 12px;
+  border-bottom-left-radius: var(--radius-md);
+  font-family: var(--font-head);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+.card-corner-cancelled {
+  background: #b91c1c;
+}
+.card-corner-postponed {
+  background: #b45309;
+}
+.card-corner-completed {
+  background: rgba(13, 43, 18, 0.82);
+}
+.card-corner-closed {
+  background: rgba(26, 26, 26, 0.7);
+}
 .card-link {
   display: block;
   text-decoration: none;
@@ -2230,6 +2278,12 @@ textarea {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* The ridge SVG scales with width, so on a phone it collapses to a
+     ~45px jagged strip. preserveAspectRatio="none" lets it stretch,
+     which keeps the silhouette reading as mountains. */
+  .hero-mountains svg {
+    height: 112px;
+  }
   .filters {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -2241,8 +2295,40 @@ textarea {
   .filters::-webkit-scrollbar {
     display: none;
   }
+  /* 0.72rem uppercase is fine on a desktop filter bar and too small to
+     read on a phone. Size up, darken, and keep enough tracking that the
+     all-caps labels stay legible — uppercase needs positive tracking,
+     not less of it. */
+  .filter-btn {
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    padding: 7px 14px;
+    color: var(--ink);
+    /* Without this the buttons shrink to fit the strip instead of
+       overflowing it, clipping their labels to "SEPTE" / "DECE".
+       They must keep their intrinsic width so the strip scrolls. */
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
   .filters-wrap {
     overflow-x: hidden;
+    position: relative;
+  }
+  /* The strip scrolls sideways with its scrollbar hidden, so the six
+     month buttons sit off-screen with nothing to say they are there.
+     This fade is the affordance. */
+  .filters-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 100%;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--white));
+  }
+  .filters-wrap.scrolled-end::after {
+    opacity: 0;
   }
 
   /* Admin tables stack into labelled cards at this width (see the rules above
@@ -2330,6 +2416,18 @@ textarea {
   .filters-wrap {
     padding: 10px 14px;
     top: 60px;
+  }
+  .filter-btn {
+    font-size: 0.78rem;
+    letter-spacing: 0.9px;
+    padding: 7px 12px;
+  }
+  /* 5px of tracking on "SEPTEMBER" is a lot of width to spend on a
+     narrow screen; pull it in and size the label up to compensate. */
+  .section-month {
+    font-size: 0.74rem;
+    letter-spacing: 2.5px;
+    padding: 16px 0 6px;
   }
   .mobile-nav {
     top: 60px;
@@ -3362,80 +3460,6 @@ details[open] > .myreg-collapsible::before {
 }
 
 /* ── SCHEDULE PAGE EFFECTS ─────────────────────────────────────────────────── */
-
-/* ── Animated hikers ── */
-.hero-hikers {
-  position: absolute;
-  bottom: 20px;
-  left: 0;
-  right: 0;
-  height: 50px;
-  z-index: 3;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.hiker {
-  position: absolute;
-  bottom: 0;
-  width: 22px;
-  height: 38px;
-}
-
-/* Each hiker walks from off-left to off-right at different speeds/delays */
-.hiker-1 {
-  animation:
-    hikerWalk 18s linear 0s infinite,
-    hikerBob 0.6s ease-in-out infinite,
-    hikerSway 0.6s ease-in-out infinite;
-  bottom: 8px;
-}
-.hiker-2 {
-  animation:
-    hikerWalk 22s linear 4s infinite,
-    hikerBob 0.65s ease-in-out 0.1s infinite,
-    hikerSway 0.65s ease-in-out 0.1s infinite;
-  bottom: 5px;
-  width: 18px;
-  height: 32px;
-}
-.hiker-3 {
-  animation:
-    hikerWalk 28s linear 9s infinite,
-    hikerBob 0.7s ease-in-out 0.3s infinite,
-    hikerSway 0.7s ease-in-out 0.3s infinite;
-  bottom: 2px;
-  width: 16px;
-  height: 28px;
-}
-
-@keyframes hikerWalk {
-  from {
-    transform: translateX(-60px);
-  }
-  to {
-    transform: translateX(calc(100vw + 60px));
-  }
-}
-@keyframes hikerBob {
-  from {
-    translate: 0 0;
-  }
-  to {
-    translate: 0 -2px;
-  }
-}
-@keyframes hikerSway {
-  0% {
-    rotate: -1.5deg;
-  }
-  50% {
-    rotate: 1.5deg;
-  }
-  100% {
-    rotate: -1.5deg;
-  }
-}
 
 /* Hero title entrance — letters slide up */
 .hero-title {
