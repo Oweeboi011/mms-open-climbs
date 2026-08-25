@@ -14,6 +14,23 @@ import { auth, db, googleProvider } from "@/firebase/config";
 
 export const AuthContext = createContext(null);
 
+// Storage rules gate members' payment proofs and medical certificates on the
+// `admin` custom claim (see syncAdminClaim in functions/src/index.js). A token
+// minted before a promotion does not carry it, and Firebase only refreshes
+// hourly on its own — so an admin promoted mid-session would be denied their
+// own files until then. Force the refresh once when the claim is behind the
+// profile. Failure is non-fatal: the token refreshes on its own eventually.
+async function syncAdminToken(user, profile) {
+  try {
+    const { claims } = await user.getIdTokenResult();
+    if ((profile?.role === "admin") !== (claims.admin === true)) {
+      await user.getIdToken(true);
+    }
+  } catch {
+    // Offline or a transient auth error — nothing worth surfacing.
+  }
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -119,6 +136,7 @@ export function AuthProvider({ children }) {
         if (user) {
           const profile = await fetchProfile(user.uid);
           setUserProfile(profile);
+          await syncAdminToken(user, profile);
         } else {
           setUserProfile(null);
         }
