@@ -24,8 +24,9 @@ import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import ClimbRatingCells from "@/components/admin/ClimbRatingCells";
 import { TRAIL_CLASS_LABELS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { getEffectiveStatus } from "@/utils/climbStatus";
 
-const STATUS_OPTIONS = ["draft", "open", "closed", "completed"];
+const STATUS_OPTIONS = ["draft", "open", "closed", "completed", "cancelled"];
 
 export default function AdminClimbsManage() {
   const [climbs, setClimbs] = useState([]);
@@ -43,7 +44,19 @@ export default function AdminClimbsManage() {
   }, []);
 
   async function changeStatus(id, status) {
-    await updateDoc(doc(db, "climbs", id), { status });
+    // `cancellationStatus` is derived from the lifecycle status, so it has to
+    // move with it — the cancellation email trigger and the public banners
+    // both key off that field, not off `status`.
+    const patch = { status };
+    if (status === "cancelled") {
+      patch.cancellationStatus = "cancelled";
+    } else if (
+      climbs.find((c) => c.id === id)?.cancellationStatus === "cancelled"
+    ) {
+      patch.cancellationStatus = "";
+      patch.cancellationReason = "";
+    }
+    await updateDoc(doc(db, "climbs", id), patch);
   }
 
   function toggleExpanded(id) {
@@ -78,7 +91,7 @@ export default function AdminClimbsManage() {
   };
   const toDate = (d) => d?.toDate?.() ?? new Date(d ?? 0);
   const groups = STATUS_GROUP_ORDER.map((status) => {
-    const list = filtered.filter((c) => (c.status || "draft") === status);
+    const list = filtered.filter((c) => getEffectiveStatus(c) === status);
     // Completed/cancelled: most recent first; others: soonest first
     const desc = status === "completed" || status === "cancelled";
     list.sort((a, b) => {
@@ -492,8 +505,10 @@ export default function AdminClimbsManage() {
                                           border: "#fca5a5",
                                         },
                                       };
+                                      const effective =
+                                        getEffectiveStatus(climb);
                                       const s =
-                                        statusStyle[climb.status] ||
+                                        statusStyle[effective] ||
                                         statusStyle.draft;
                                       return (
                                         <span
@@ -511,7 +526,7 @@ export default function AdminClimbsManage() {
                                             border: `1px solid ${s.border}`,
                                           }}
                                         >
-                                          {climb.status}
+                                          {effective}
                                         </span>
                                       );
                                     })()}

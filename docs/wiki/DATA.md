@@ -83,7 +83,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `endDate` | timestamp | No | End date for multi-day climbs |
 | `location` | string | Yes | Location description |
 | `type` | string | Yes | `minor` / `major` / `special` |
-| `status` | string | Yes | `draft` / `open` / `closed` / `completed` |
+| `status` | string | Yes | `draft` / `open` / `closed` / `completed` / `cancelled` |
 | `color` | string | No | Card color token, e.g. `c-slate` |
 | `maxParticipants` | number | Yes | Maximum allowed registrations |
 | `registrationCount` | number | Yes | Maintained by Cloud Functions — do not edit client-side |
@@ -127,7 +127,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `waiverDocSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded Waiver of Responsibility template |
 | `waiverDocSampleFileName` | string | No | Original filename of the uploaded template |
 | `thankYouSentAt` | timestamp | No | Set by `sendReminderNotifications` once the one-time post-climb thank-you email (`tplThankYou`) has been sent to all confirmed registrants; gates the email so it only sends once per climb — see [API.md — sendReminderNotifications](API.md#sendremindernotifications) |
-| `cancellationStatus` | string | No | `cancelled` / `postponed`, or unset/`""` for a climb that's proceeding as scheduled. Independent of `status` (registration-open lifecycle) — a climb can be `status: closed` and `cancellationStatus: cancelled` at once. Changing this triggers `onClimbUpdated`, which emails and notifies every active registrant plus officers/admins |
+| `cancellationStatus` | string | No | `cancelled` / `postponed`, or unset/`""` for a climb that's proceeding as scheduled. **Derived, not independently edited:** `status: "cancelled"` is the source of truth for a cancelled climb, and every write site (`ClimbForm`, the inline dropdown in `ClimbsManage`) sets this field to match. Admins pick `postponed` directly, since postponement has no `status` value. Changing this triggers `onClimbUpdated`, which emails and notifies every active registrant plus officers/admins |
 | `cancellationReason` | string | No | Admin-entered reason shown to participants when `cancellationStatus` is set |
 
 #### Climb status lifecycle
@@ -140,7 +140,11 @@ stateDiagram-v2
     open --> completed : Climb date passes, admin marks done
     closed --> open : Admin re-opens registration
     closed --> completed : Climb completed
+    open --> cancelled : Admin cancels
+    closed --> cancelled : Admin cancels
+    cancelled --> closed : Admin un-cancels
     completed --> [*]
+    cancelled --> [*]
 ```
 
 ---
