@@ -19,6 +19,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { getMissingFields } from "@/utils/climbCompleteness";
 import { getFeeSummary } from "@/utils/feeSummary";
+import { getEffectiveStatus } from "@/utils/climbStatus";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import {
   StatusBadge,
@@ -528,7 +529,7 @@ export default function AdminDashboard() {
                       status,
                       label: STATUS_LABEL[status] || status,
                       list: climbs.filter(
-                        (c) => (c.status || "draft") === status,
+                        (c) => getEffectiveStatus(c) === status,
                       ),
                     }))
                       .filter((g) => g.list.length > 0)

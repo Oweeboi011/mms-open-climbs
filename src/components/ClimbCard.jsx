@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import Icon from "@/components/Icon";
 import { getExperienceLevel, TRAIL_CLASS_LABELS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { getEffectiveStatus } from "@/utils/climbStatus";
 
 const BADGE_CLASS = {
   minor: "badge-minor",
@@ -15,6 +16,12 @@ const STATUS_LABEL = {
   closed: "Closed",
   completed: "Completed",
   draft: "Draft",
+};
+const CORNER_LABEL = {
+  cancelled: "Cancelled",
+  postponed: "Postponed",
+  completed: "Completed",
+  closed: "Closed",
 };
 const STATUS_CLASS = {
   open: "card-status-open",
@@ -61,7 +68,21 @@ export default function ClimbCard({ climb }) {
   const isActive = climb.status === "open";
   const isFull = hasCap && isActive && seatsLeft <= 0;
   const isLow = hasCap && isActive && seatsLeft > 0 && seatsLeft <= 5;
-  const isOngoing = climb.status !== "completed" && isClimbOngoing(climb);
+  const effectiveStatus = getEffectiveStatus(climb);
+  const isCancelled = effectiveStatus === "cancelled";
+  const isPostponed = climb.cancellationStatus === "postponed";
+  // Terminal and on-hold states describe the whole card rather than a
+  // detail inside it, so they get the corner tab and are rendered
+  // nowhere else — no flag tag, no footer status tag.
+  const cornerState = isCancelled
+    ? "cancelled"
+    : isPostponed
+      ? "postponed"
+      : effectiveStatus === "completed" || effectiveStatus === "closed"
+        ? effectiveStatus
+        : null;
+  const isOngoing =
+    climb.status !== "completed" && !isCancelled && isClimbOngoing(climb);
   const level = getExperienceLevel(climb);
   const leads = getLeadOfficers(climb.officers);
   const hasAnnouncement = climb.announcements?.length > 0;
@@ -79,6 +100,11 @@ export default function ClimbCard({ climb }) {
       className={`card-link${climb.isWide ? " card-wide" : ""}`}
     >
       <div className={`card ${climb.color || "c-slate"}`}>
+        {cornerState && (
+          <span className={`card-corner card-corner-${cornerState}`}>
+            {CORNER_LABEL[cornerState]}
+          </span>
+        )}
         <div>
           <div className="card-month">{(climb.month || "").toUpperCase()}</div>
           <div className="card-date">{climb.dateLabel || "—"}</div>
@@ -196,18 +222,6 @@ export default function ClimbCard({ climb }) {
               </span>
             )}
 
-            {climb.cancellationStatus === "cancelled" && (
-              <span className="card-flag-tag card-flag-cancelled">
-                Cancelled
-              </span>
-            )}
-
-            {climb.cancellationStatus === "postponed" && (
-              <span className="card-flag-tag card-flag-postponed">
-                Postponed
-              </span>
-            )}
-
             {hasAnnouncement && (
               <span className="card-flag-tag card-flag-announcement">
                 <Icon name="megaphone" size={11} />
@@ -236,11 +250,14 @@ export default function ClimbCard({ climb }) {
             >
               {TYPE_LABEL[climb.type] || climb.type}
             </span>
-            <span
-              className={`card-status-tag ${STATUS_CLASS[climb.status] || "card-status-open"}`}
-            >
-              {STATUS_LABEL[climb.status] || climb.status}
-            </span>
+            {/* Open/draft only — the corner tab owns every other state. */}
+            {!cornerState && (
+              <span
+                className={`card-status-tag ${STATUS_CLASS[climb.status] || "card-status-open"}`}
+              >
+                {STATUS_LABEL[climb.status] || climb.status}
+              </span>
+            )}
           </div>
           <span className="card-arrow">&#8594;</span>
         </div>

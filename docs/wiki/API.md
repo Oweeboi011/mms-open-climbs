@@ -419,7 +419,7 @@ flowchart TD
 | --- | --- |
 | New announcement | An entry in `after.announcements` whose `createdAt` is absent from `before.announcements` |
 | Requirement flipped | Any `REQUIRED_DOC_TYPES[].requiresField` differs in truthiness between before and after |
-| Climb cancelled/postponed | `cancellationStatus` changed **and** the new value is `cancelled` or `postponed` (any other value, including clearing it, is ignored) |
+| Climb cancelled/postponed | `cancellationStatus` changed **and** the new value is `cancelled` or `postponed` (any other value, including clearing it, is ignored). Admins pick **Cancelled** on the climb's `status`; the write sites derive `cancellationStatus` from it, so this trigger is unchanged |
 
 #### Side effects
 
@@ -427,8 +427,8 @@ flowchart TD
 | --- | --- | --- |
 | Clear stale nags | A requirement switched **off** | Sets `read: true` (merge) on `notifications/{prefix}_{regId}` for each active registration, so a no-longer-required document does not sit unread forever |
 | Recount `docsCompleteCount` | A requirement flipped in **either** direction | Full recount over active registrations - a flip changes who counts as compliant either way, so an increment/decrement would not be enough |
-| Registrant cancellation email | `cancellationStatus` becomes `cancelled`/`postponed` | `tplClimbCancellation`, subject `Climb {Cancelled or Postponed} - {title}`; sent per registration that has an `email` |
-| Registrant bell notification | Same | Type `climb_status_change`, id `climbstatus_{climbId}_{status}_{regId}`, links to `/event/{climbId}` |
+| Registrant cancellation email | `cancellationStatus` becomes `cancelled`/`postponed` | `tplClimbCancellation`, subject `Climb {Cancelled or Postponed} - {title}`; sent per registration that has an `email` — **including joiners an admin added by hand, who have no `userId`**. Recipients are every registration on the climb whose `status` is not `cancelled`; member type is irrelevant |
+| Registrant bell notification | Same | Type `climb_status_change`, id `climbstatus_{climbId}_{status}_{regId}`, links to `/event/{climbId}`. Skipped for registrations with no `userId` — there is no account to attach a bell notification to, so those joiners get the email only |
 | Officer/admin cancellation email | Same | `tplOfficerClimbCancellation`, subject `[Climb {Cancelled or Postponed}] {title}`, includes the count of registrants already notified. Sent to each officer with all admins CC'd; if the climb has no officers, sent to the first admin with the rest CC'd |
 | Announcement notifications | New announcement entries | Type `climb_announcement`, id `announcement_{climbId}_{createdAt}_{userId}`. A `pinned` announcement is titled "New reminder - ...", otherwise "New announcement - ..." |
 
@@ -453,6 +453,8 @@ Errors are caught, logged as `[onClimbUpdated] Failed`, and recorded via `logFai
 
 One daily pass over every `pending`/`confirmed` registration that does four things: member reminders, an officer summary, post-climb thank-you email, and post-climb feedback requests.
 
+**Cancelled and postponed climbs are filtered out first.** A cancelled climb (`status: "cancelled"` or the legacy `cancellationStatus: "cancelled"`) is skipped entirely — no payment nag, no document nag, no countdown, no officer summary, and no thank-you or feedback request. Chasing someone for money or thanking them for a climb that never happened is worse than saying nothing. A **postponed** climb is still going ahead, so payment and document reminders continue; only the date-driven messages (the 7/5/3/1-day countdown and the post-climb thank-you) are suppressed, because the old dates no longer mean anything.
+
 #### Member reminders (bell only)
 
 | Condition | Action |
@@ -463,7 +465,7 @@ One daily pass over every `pending`/`confirmed` registration that does four thin
 
 **The payment rule is a balance check, not a status check.** Members are told they can settle in instalments, so someone who paid ₱500 of ₱800 rolls up as `submitted` or even `verified` while still owing ₱300. Chasing the status alone would let them go silent, so the outstanding amount is what drives the nag — see [`paymentMath`](#paymentmath) for how the balance is computed. The wording follows suit: a partial payer gets "Balance still outstanding" naming both figures, while someone who has paid nothing gets "Payment still pending".
 
-The upcoming-climb thresholds come from `UPCOMING_REMINDER_DAYS` (`functions/src/index.js:1042`) and match on an *exact* whole-day distance, so a climb only ever produces one notification per threshold it passes through. That message is assembled from more than the climb: it appends the **next** pre-climb meeting from the climb's `climbPrivate` document (future meetings only, earliest first) when one exists, and a "you haven't submitted payment yet" line when the registration is `unpaid`/`rejected`.
+The upcoming-climb thresholds come from `UPCOMING_REMINDER_DAYS` (`functions/src/index.js:1051`) and match on an *exact* whole-day distance, so a climb only ever produces one notification per threshold it passes through. That message is assembled from more than the climb: it appends the **next** pre-climb meeting from the climb's `climbPrivate` document (future meetings only, earliest first) when one exists, and a "you haven't submitted payment yet" line when the registration is `unpaid`/`rejected`.
 
 Registrations with no `userId` (e.g. walk-in participants added manually by an admin — see `AddJoinerModal` in `ClimbDetail.jsx`) are skipped, since there's no account to notify.
 
@@ -713,7 +715,7 @@ sequenceDiagram
 **Access:** Admin users only
 **Secrets required:** `GITHUB_TOKEN`
 
-Both this and `generateReleaseNoteDraft` reach GitHub through the shared `githubApi` helper (`functions/src/index.js:1628`), which is what raises `failed-precondition` on a missing token and `internal` on a non-2xx response.
+Both this and `generateReleaseNoteDraft` reach GitHub through the shared `githubApi` helper (`functions/src/index.js:1652`), which is what raises `failed-precondition` on a missing token and `internal` on a non-2xx response.
 
 Powers the "Generate from commits" picker in `ReleaseNoteForm.jsx`. Calls the GitHub REST API to list the most recent 30 commits on the default branch, and reports the last commit that was already turned into a release note (its "checkpoint"), so the admin can pick a range instead of re-summarizing history that's already been announced.
 
