@@ -665,9 +665,10 @@ export default function Event() {
                 <Icon name="lock" size={22} />
               </div>
               <div className="visitor-event-prompt-text">
-                <strong>Sign in to access full event details</strong> — trail
-                map, participant list, fees, and documents are visible to
-                registered members.
+                <strong>Sign in to access full event details</strong> — the
+                trail map, itinerary, climb officers, and participant list
+                are visible to registered members. Fees and what to bring
+                are shown below.
               </div>
               {/* This block sits directly under the register CTA, so it sends
                   the user the same place. The LockedCard modal further down
