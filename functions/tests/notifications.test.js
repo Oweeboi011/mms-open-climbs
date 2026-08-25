@@ -85,7 +85,27 @@ const mockDb = {
 };
 
 jest.mock("firebase-admin/app", () => ({ initializeApp: jest.fn() }));
-jest.mock("firebase-admin/auth", () => ({ getAuth: () => ({}) }));
+const authUsers = {};
+const authCalls = { setClaims: [], revoked: [] };
+jest.mock("firebase-admin/auth", () => ({
+  getAuth: () => ({
+    getUser: async (uid) => {
+      if (!authUsers[uid]) {
+        const err = new Error("no user");
+        err.code = "auth/user-not-found";
+        throw err;
+      }
+      return authUsers[uid];
+    },
+    setCustomUserClaims: async (uid, claims) => {
+      authCalls.setClaims.push({ uid, claims });
+      if (authUsers[uid]) authUsers[uid].customClaims = claims;
+    },
+    revokeRefreshTokens: async (uid) => {
+      authCalls.revoked.push(uid);
+    },
+  }),
+}));
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => mockDb,
   FieldValue: {
@@ -101,6 +121,7 @@ let updatedHandler;
 let climbUpdatedHandler;
 let deletedHandler;
 let scheduleHandler;
+let userWrittenHandler;
 
 jest.mock("firebase-functions/v2/firestore", () => ({
   onDocumentCreated: (_opts, fn) => {
@@ -123,6 +144,10 @@ jest.mock("firebase-functions/v2/firestore", () => ({
   },
   onDocumentDeleted: (_opts, fn) => {
     deletedHandler = fn;
+    return fn;
+  },
+  onDocumentWritten: (_opts, fn) => {
+    userWrittenHandler = fn;
     return fn;
   },
 }));
@@ -149,6 +174,9 @@ require("../src/index");
 const { FieldValue } = require("firebase-admin/firestore");
 
 beforeEach(() => {
+  for (const k of Object.keys(authUsers)) delete authUsers[k];
+  authCalls.setClaims.length = 0;
+  authCalls.revoked.length = 0;
   resetStores();
   // jest.config.cjs sets resetMocks: true, which strips mock implementations
   // (not just call history) before every test — re-establish them here.
@@ -1003,6 +1031,66 @@ describe("sendReminderNotifications — cancelled climbs", () => {
       type: "payment_reminder",
     });
     expect(notifStore["upcoming3_reg-1"]).toBeUndefined();
+  });
+});
+
+describe("syncAdminClaim", () => {
+  const evt = (before, after) => ({
+    params: { uid: "user-1" },
+    data: {
+      before: { exists: before !== null, data: () => before },
+      after: { exists: after !== null, data: () => after },
+    },
+  });
+
+  it("grants the admin claim when a user is promoted", async () => {
+    authUsers["user-1"] = { uid: "user-1", customClaims: { seat: "a" } };
+
+    await userWrittenHandler(evt({ role: "member" }, { role: "admin" }));
+
+    expect(authCalls.setClaims).toEqual([
+      { uid: "user-1", claims: { seat: "a", admin: true } },
+    ]);
+    // Granting can wait for the client to refresh its token.
+    expect(authCalls.revoked).toEqual([]);
+  });
+
+  it("revokes the claim and the session when a user is demoted", async () => {
+    authUsers["user-1"] = { uid: "user-1", customClaims: { admin: true } };
+
+    await userWrittenHandler(evt({ role: "admin" }, { role: "member" }));
+
+    expect(authCalls.setClaims).toEqual([{ uid: "user-1", claims: {} }]);
+    // A live token would otherwise keep reading members' documents for up
+    // to an hour, so the session is cut immediately.
+    expect(authCalls.revoked).toEqual(["user-1"]);
+  });
+
+  it("revokes the claim when the user doc is deleted outright", async () => {
+    authUsers["user-1"] = { uid: "user-1", customClaims: { admin: true } };
+
+    await userWrittenHandler(evt({ role: "admin" }, null));
+
+    expect(authCalls.setClaims).toEqual([{ uid: "user-1", claims: {} }]);
+    expect(authCalls.revoked).toEqual(["user-1"]);
+  });
+
+  it("does nothing when the role did not change", async () => {
+    authUsers["user-1"] = { uid: "user-1", customClaims: { admin: true } };
+
+    await userWrittenHandler(
+      evt({ role: "admin", displayName: "A" }, { role: "admin", displayName: "B" }),
+    );
+
+    expect(authCalls.setClaims).toEqual([]);
+    expect(authCalls.revoked).toEqual([]);
+  });
+
+  it("tolerates a users doc with no auth account behind it", async () => {
+    await expect(
+      userWrittenHandler(evt(null, { role: "admin" })),
+    ).resolves.toBeUndefined();
+    expect(authCalls.setClaims).toEqual([]);
   });
 });
 
