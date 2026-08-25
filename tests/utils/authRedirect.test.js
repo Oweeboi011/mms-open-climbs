@@ -33,6 +33,37 @@ describe("resolveRedirect", () => {
     ).toBe("/register/abc");
   });
 
+  // `?redirect=` comes off the URL, so anyone can hand a member a link to
+  // our own /login pointing anywhere. Sending them off-site straight after
+  // they typed real credentials is the payoff a phishing chain is after.
+  it.each([
+    ["//evil.com"],
+    ["\\/evil.com"],
+    ["https://evil.com"],
+    ["javascript:alert(1)"],
+    ["  https://evil.com"],
+    ["evil.com"],
+  ])("refuses the off-site redirect %j", (target) => {
+    expect(
+      resolveRedirect({ search: `?redirect=${encodeURIComponent(target)}`, state: null }),
+    ).toBe("/");
+  });
+
+  it("still honours a genuine in-app path", () => {
+    expect(
+      resolveRedirect({ search: "?redirect=%2Fregister%2Fabc", state: null }),
+    ).toBe("/register/abc");
+  });
+
+  it("falls back to state.from when the query redirect is unsafe", () => {
+    expect(
+      resolveRedirect({
+        search: "?redirect=%2F%2Fevil.com",
+        state: { from: { pathname: "/my-registrations" } },
+      }),
+    ).toBe("/my-registrations");
+  });
+
   it("defaults to / when there is no pending intent", () => {
     expect(resolveRedirect({ search: "", state: null })).toBe("/");
   });
