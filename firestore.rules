@@ -125,13 +125,53 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Analytics writes stay open to signed-out visitors — a guest browsing
+    // the schedule is exactly what this measures, so requiring auth would
+    // blind it. "Open" still means shaped: an unvalidated `create: if true`
+    // lets anyone write documents of any size and any field into the
+    // collection, which is a billing problem before it is a data one.
+    // App Check is the real answer to raw volume; this bounds each write.
+    function analyticsIdentityIsHonest() {
+      return request.resource.data.userId == null ||
+        (request.auth != null && request.resource.data.userId == request.auth.uid);
+    }
     match /pageViews/{viewId} {
-      allow create: if true;
+      allow create: if request.resource.data.keys().hasOnly([
+          'path', 'climbId', 'userId', 'userRole', 'sessionId', 'timestamp'
+        ]) &&
+        request.resource.data.path is string &&
+        request.resource.data.path.size() <= 300 &&
+        request.resource.data.userRole in ['guest', 'member', 'admin'] &&
+        request.resource.data.sessionId is string &&
+        request.resource.data.sessionId.size() <= 100 &&
+        // serverTimestamp() only — a client cannot backdate or forward-date
+        // its own traffic and skew the admin analytics.
+        request.resource.data.timestamp == request.time &&
+        analyticsIdentityIsHonest();
       allow read, update, delete: if isAdmin();
     }
 
+    // Same reasoning as pageViews: a client-side error is worth capturing
+    // even from a signed-out visitor, but the shape is pinned so the
+    // collection cannot be used as free storage. Cloud Functions write here
+    // too, via the Admin SDK, which bypasses these rules.
     match /failedRequests/{id} {
-      allow create: if true;
+      allow create: if request.resource.data.keys().hasOnly([
+          'type', 'source', 'message', 'path', 'userId', 'userRole',
+          'climbId', 'registrationId', 'createdAt'
+        ]) &&
+        // Keep in step with the writers in src/utils/logFailedRequest.js
+        // callers and DATA.md — a type missing from this list is rejected
+        // silently, which loses exactly the diagnostic someone needed.
+        request.resource.data.type in [
+          'email', 'upload', 'firestore', 'client', 'payment'
+        ] &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() <= 500 &&
+        request.resource.data.source is string &&
+        request.resource.data.source.size() <= 200 &&
+        request.resource.data.createdAt == request.time &&
+        analyticsIdentityIsHonest();
       allow read, update, delete: if isAdmin();
     }
 
