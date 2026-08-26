@@ -56,13 +56,22 @@ jest.mock("firebase-admin/firestore", () => ({
   },
 }));
 
-jest.mock("firebase-functions/v2/firestore", () => ({
-  onDocumentCreated: (_opts, fn) => fn,
-  onDocumentUpdated: (_opts, fn) => fn,
-  onDocumentUpdatedWithAuthContext: (_opts, fn) => fn,
-  onDocumentDeleted: (_opts, fn) => fn,
-  onDocumentWritten: (_opts, fn) => fn,
-}));
+// Every Firestore trigger's options object, captured at registration so the
+// deploy-shape test below can inspect it.
+const triggerOptions = [];
+jest.mock("firebase-functions/v2/firestore", () => {
+  const record = (opts, fn) => {
+    triggerOptions.push(opts);
+    return fn;
+  };
+  return {
+    onDocumentCreated: record,
+    onDocumentUpdated: record,
+    onDocumentUpdatedWithAuthContext: record,
+    onDocumentDeleted: record,
+    onDocumentWritten: record,
+  };
+});
 
 jest.mock("firebase-functions/v2/https", () => ({
   onCall: (...args) => (args.length === 2 ? args[1] : args[0]),
@@ -584,5 +593,24 @@ describe("getBillingCost callable", () => {
       { service: "Cloud Firestore", cost: 3.5 },
       { service: "Cloud Functions", cost: 1.25 },
     ]);
+  });
+});
+
+describe("Firestore trigger deploy shape", () => {
+  // This project has no (default) Firestore database — everything lives in
+  // the named "openclimbs" one. A trigger registered without `database`
+  // targets (default), which does not exist, and firebase deploy fails the
+  // *entire* run: functions, rules, indexes and hosting all roll back.
+  //
+  // Nothing else catches this. The handler is mocked in tests, so a trigger
+  // with the wrong database passes every behavioural test and only fails in
+  // CI, after merge.
+  it("registers every trigger against the openclimbs database", () => {
+    expect(triggerOptions.length).toBeGreaterThan(0);
+    for (const opts of triggerOptions) {
+      expect(typeof opts).toBe("object");
+      expect(opts).toHaveProperty("document");
+      expect(opts.database).toBe("openclimbs");
+    }
   });
 });
