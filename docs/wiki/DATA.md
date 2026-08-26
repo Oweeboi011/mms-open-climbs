@@ -108,7 +108,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `weatherNote` | string | No | Seasonal weather notes |
 | `thingsToBring` | string[] | No | Recommended gear and supplies |
 | `fees` | object[] | No | `[{ label, amount, note, optional, isGuestFee }]` — `isGuestFee: true` marks the one fee charged only to non-member registrants (`memberType: "joiner"`), never to members; identified by this flag, not by label text |
-| `officers` | object[] | No | `[{ name, role, mobile, email }]` — used for email notifications |
+| `officers` | object[] | No | `[{ name, role, contact, email, userId }]` — the phone field is `contact`, not `mobile` (`mobile` is a *registration* field); `userId` links an officer to their account and is denormalised to `officerIds` on save. Used for email notifications. **This array lives on the publicly-readable climb document, so `contact` and `email` are world-readable — see the exposure note below.** |
 | `itinerary` | object[] | No | `[{ day, entries: [{ time, activity }] }]` |
 | `announcements` | object[] | No | `[{ message, pinned, createdAt }]` — shown on the public climb page under Mountain Profile; `createdAt` is a client-set epoch ms number (not a Firestore timestamp, since `serverTimestamp()` isn't valid inside array elements); `pinned` entries sort first and render as a highlighted reminder |
 | `gcashName` | string | No | GCash account holder name |
@@ -146,6 +146,22 @@ stateDiagram-v2
     completed --> [*]
     cancelled --> [*]
 ```
+
+#### Known exposure: officer contact details are public
+
+`climbs` is `allow read: if true` so unauthenticated visitors can browse the
+schedule, and `officers[]` — including each officer's `contact` number and
+`email` — sits on that same document. **Anyone can read them without an
+account.**
+
+The event page shows a "Sign in to view the climb officers" lock over this
+section, which implies a protection that does not exist: the data is one
+`getDoc` away regardless. Officer *names* are public by design (they appear on
+climb cards), so the fix is to move `contact`/`email` into `climbPrivate` and
+leave `name`/`role`/`userId` on the public document. That change also has to
+update `getNotifyLists` in `functions/src/index.js`, which currently reads the
+addresses straight off `climb.officers`.
+
 
 ---
 
@@ -339,7 +355,7 @@ Each document records one failure the admin "Failed Requests" analytics section 
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `type` | string | Yes | `email` / `upload` / `firestore` / `client` |
+| `type` | string | Yes | `email` / `upload` / `firestore` / `client` / `payment` — the set is enforced by `firestore.rules`, so a new value must be added there too or the write is silently rejected |
 | `source` | string | Yes | Origin of the failure, e.g. `onRegistrationCreated`, `Register.jsx:paymentUpload`, `window.onerror` |
 | `message` | string | Yes | Error message, truncated to 500 characters |
 | `path` | string | No | Route path, client-side failures only; `null` for Cloud Functions |
