@@ -241,8 +241,10 @@ describe("Admin ClimbDetail", () => {
         screen.getByText("Fee Breakdown (current fees)"),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText("Registration Fee")).toBeInTheDocument();
-    expect(screen.getByText("Transportation Fee")).toBeInTheDocument();
+    // Also appears in the page's Expected Collection Breakdown, so these can
+    // legitimately match more than once now.
+    expect(screen.getAllByText("Registration Fee").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Transportation Fee").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("₱800").length).toBeGreaterThanOrEqual(1);
   });
 

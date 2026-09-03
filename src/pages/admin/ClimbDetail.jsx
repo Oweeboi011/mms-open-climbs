@@ -22,6 +22,7 @@ import EditRegistrationModal from "@/components/EditRegistrationModal";
 import RegistrantRow from "@/components/admin/RegistrantRow";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
 import AddJoinerModal from "@/components/admin/AddJoinerModal";
+import CollectionBreakdown from "@/components/admin/CollectionBreakdown";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import ReceiptModal from "@/components/ReceiptModal";
@@ -691,6 +692,12 @@ export default function AdminClimbDetail() {
                 </div>
               )}
             </div>
+
+            <CollectionBreakdown
+              regs={regs}
+              climb={climb}
+              totalPaid={stats.totalPaid}
+            />
 
             {/* Required documents progress — how much of the paperwork this
                 climb asked for has actually come in, per document type, so an
