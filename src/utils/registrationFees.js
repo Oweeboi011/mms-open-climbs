@@ -22,7 +22,7 @@
 // fall back to summing the frozen feeBreakdown snapshot as-is.
 
 import { getCountedTotal, hasPaymentHistory } from "./payments";
-import { sumFeeAmounts } from "./feeSummary";
+import { sumFeeAmounts, parseFeeAmount } from "./feeSummary";
 
 // The fee line items this registrant currently owes. See file header for
 // how the climb's current fee schedule reconciles with their feeBreakdown
@@ -137,6 +137,45 @@ export function toggleOptionalFeeEntry(reg, climb, label) {
   return breakdown.map((f, i) =>
     i === idx ? { ...f, selected: !f.selected } : f,
   );
+}
+
+// What should be collected in total for this climb, split by fee line item —
+// unit price × how many active registrants currently owe it — so an officer
+// collecting money in the field can check a specific item's expected total
+// against what's actually come in, not just one lump sum. Order follows the
+// climb's own fee schedule; cancelled registrations are excluded since they
+// don't owe anything. Summing every item's subtotal equals the sum of
+// getExpectedTotal() across active registrants.
+export function getFeeItemAggregates(regs, climb) {
+  const active = (regs || []).filter((r) => r.status !== "cancelled");
+  const order = (climb?.fees || []).map((f) => f.label);
+  const totals = new Map();
+
+  active.forEach((reg) => {
+    getFeeItems(reg, climb).forEach((item) => {
+      const amount = parseFeeAmount(item.amount);
+      const existing = totals.get(item.label) || {
+        label: item.label,
+        amount: item.amount,
+        isGuestFee: !!item.isGuestFee,
+        optional: !!item.optional,
+        count: 0,
+        subtotal: 0,
+        hasTba: false,
+      };
+      existing.count += 1;
+      if (amount === null) existing.hasTba = true;
+      else existing.subtotal += amount;
+      totals.set(item.label, existing);
+    });
+  });
+
+  const items = [...totals.values()].sort(
+    (a, b) => order.indexOf(a.label) - order.indexOf(b.label),
+  );
+  const grandTotal = items.reduce((sum, i) => sum + i.subtotal, 0);
+  const hasTba = items.some((i) => i.hasTba);
+  return { items, grandTotal, hasTba };
 }
 
 // Per-service headcounts for a climb — what the organisers actually book
