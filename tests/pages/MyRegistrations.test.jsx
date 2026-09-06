@@ -110,6 +110,74 @@ describe("MyRegistrations page", () => {
     expect(screen.queryByText("Leave Feedback")).not.toBeInTheDocument();
   });
 
+  describe("a climb that has already happened", () => {
+    function renderPast(regData) {
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, {
+          ...climbFixture,
+          endDate: "2020-01-01",
+          fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+        }),
+      );
+      mockLiveSnapshot([{ id: registrationFixture.id, data: regData }]);
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    }
+
+    it("drops the prep CTAs and their before-climb-day nags", async () => {
+      renderPast({
+        ...registrationFixture,
+        status: "confirmed",
+        waiverSigned: false,
+      });
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole("button", { name: /Sign Waiver/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Complete Your Details/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/before climb day/i)).not.toBeInTheDocument();
+      // Still-useful links stay.
+      expect(
+        screen.getByRole("link", { name: /View Climb/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the pay CTA while money is still owed", async () => {
+      renderPast({
+        ...registrationFixture,
+        status: "confirmed",
+        paymentStatus: "unpaid",
+      });
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /Submit Payment/i }),
+        ).toBeInTheDocument(),
+      );
+    });
+
+    it("drops the pay CTA once the balance is settled", async () => {
+      renderPast({
+        ...registrationFixture,
+        status: "confirmed",
+        paymentStatus: "verified",
+        payments: [{ amount: 500, proofs: [], status: "verified" }],
+        amountPaid: 500,
+      });
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole("button", { name: /Add Fees \/ Pay More/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Submit Payment/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("updates the fee total when an optional fee is toggled in Submit Payment", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, {
