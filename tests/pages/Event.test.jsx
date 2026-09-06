@@ -208,9 +208,13 @@ describe("Event page", () => {
       makeGuestAuth(),
     );
     await waitFor(() => screen.getByText("Mt. Pulag"));
+    // Full climb → a guest still gets a "Create a free account" way in
+    // (previously this branch dead-ended with a warning and no CTA).
     expect(
-      screen.getByRole("link", { name: /Sign In to Register/i }),
-    ).toBeInTheDocument();
+      screen
+        .getByRole("link", { name: /Create a free account/i })
+        .getAttribute("href"),
+    ).toBe("/signup?redirect=/register/climb-1");
   });
 
   it("does not promise a waitlist that does not exist", async () => {
@@ -231,7 +235,7 @@ describe("Event page", () => {
     expect(screen.queryByText(/waitlist/i)).not.toBeInTheDocument();
   });
 
-  it("points the guest prompt at the registration form, like the CTA above it", async () => {
+  it("sends the primary CTA to register and the secondary prompt back to the event page", async () => {
     renderAtRoute(
       <Event />,
       "/event/:climbId",
@@ -239,12 +243,19 @@ describe("Event page", () => {
       makeGuestAuth(),
     );
     await waitFor(() => screen.getByText("Mt. Pulag"));
+    // Primary CTA — register intent.
+    expect(
+      screen
+        .getByRole("link", { name: /Sign In to Register/i })
+        .getAttribute("href"),
+    ).toBe("/login?redirect=/register/climb-1");
+    // Secondary "see the rest of this page" prompt — returns here after auth.
     const createAccount = screen.getAllByRole("link", {
       name: /Create Account/i,
     });
     expect(
       createAccount.some(
-        (a) => a.getAttribute("href") === "/signup?redirect=/register/climb-1",
+        (a) => a.getAttribute("href") === "/signup?redirect=%2Fevent%2Fclimb-1",
       ),
     ).toBe(true);
   });

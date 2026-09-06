@@ -36,7 +36,7 @@ export const MOUNTAINEERING_GUIDE_SECTIONS = [
       "**6/9 — Fairly Difficult** (Advanced): requires good physical fitness — longer trails with significant elevation gain.",
       "**7/9 — Difficult** (Advanced): long distances combined with steep, sustained ascents; only for experienced hikers.",
       "**8/9 — Very Difficult** (Advanced): extremely technical or remote terrain requiring advanced skill and endurance.",
-      "**9/9 — Most Dasddasasaasdifficult** (Advanced): expedition-level climbs under extreme conditions; only for veteran mountaineers.",
+      "**9/9 — Most Difficult** (Advanced): expedition-level climbs under extreme conditions; only for veteran mountaineers.",
     ],
     footnote:
       "The Beginner Friendly / Moderate / Advanced tag next to each score is the same badge shown on climb cards (1-3 Beginner Friendly, 4-5 Moderate, 6-9 Advanced). A climb's Trail Class (below) is a separate 1-6 scale for technical terrain — check both before you register.",
@@ -133,6 +133,21 @@ export const MOUNTAINEERING_GUIDE_SECTIONS = [
     paragraphs: [
       "MMS holds a pre-climb meeting before every scheduled climb, and **attendance is required for every registered participant — no exceptions.** This is where the team reviews the itinerary, safety protocols, gear checklist, group assignments, and the latest weather outlook together.",
       "If you can't make the scheduled pre-climb meeting, **reach out to your climb officer before the event** — missing it without coordinating first can affect your slot.",
+    ],
+  },
+  {
+    id: "member-vs-joiner",
+    icon: "users",
+    title: "Member or Joiner?",
+    critical: true,
+    paragraphs: [
+      "MMS Open Climbs are open to everyone. You don't need to be an MMS member to join.",
+      "**MMS members** have completed the club's membership process (application, induction, dues). **Joiners** (guests) are non-members who register for a specific climb — most first-timers start here.",
+    ],
+    bullets: [
+      "Joiners pay a small **guest fee** per climb (shown on each event's Fees card); members don't.",
+      "Everything else is identical — same registration form, same required documents, same waiver, same mandatory pre-climb meeting.",
+      "Enjoying the climbs and want in? Ask any climb officer about becoming a member.",
     ],
   },
 ];

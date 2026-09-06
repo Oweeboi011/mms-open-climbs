@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuide } from "@/contexts/GuideContext";
+import { authLinkWithRedirect } from "@/utils/authRedirect";
 import NotificationBell from "@/components/NotificationBell";
 
 export default function Header() {
@@ -33,6 +34,10 @@ export default function Header() {
     await logout();
     navigate("/");
   }
+
+  // Carry the current page through sign-in so a visitor who taps "Sign In"
+  // from an event page lands back on it, not the schedule.
+  const from = location.pathname + location.search;
 
   const navClass = ({ isActive }) =>
     `header-nav-link${isActive ? " active" : ""}`;
@@ -91,10 +96,16 @@ export default function Header() {
             </>
           ) : (
             <>
-              <Link to="/login" className="header-btn header-btn-outline">
+              <Link
+                to={authLinkWithRedirect("/login", from)}
+                className="header-btn header-btn-outline"
+              >
                 Sign In
               </Link>
-              <Link to="/signup" className="header-btn header-btn-primary">
+              <Link
+                to={authLinkWithRedirect("/signup", from)}
+                className="header-btn header-btn-primary"
+              >
                 Create Account
               </Link>
             </>
@@ -190,10 +201,16 @@ export default function Header() {
             </>
           ) : (
             <div className="mobile-nav-auth">
-              <Link to="/login" className="btn btn-outline btn-block">
+              <Link
+                to={authLinkWithRedirect("/login", from)}
+                className="btn btn-outline btn-block"
+              >
                 Sign In
               </Link>
-              <Link to="/signup" className="btn btn-gold btn-block">
+              <Link
+                to={authLinkWithRedirect("/signup", from)}
+                className="btn btn-gold btn-block"
+              >
                 Create Account
               </Link>
             </div>

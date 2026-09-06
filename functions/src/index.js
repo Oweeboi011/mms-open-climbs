@@ -369,7 +369,10 @@ exports.onRegistrationCreated = onDocumentCreated(
       }
       const climb = climbSnap.data();
 
-      // Increment registration count on the climb document
+      // Increment registration count on the climb document. Unconditional —
+      // the app always creates with status "pending"; the update/delete
+      // triggers keep it to "non-cancelled" from here (unlike registeredUserIds
+      // below, which is gated on an active status + a real userId).
       await db
         .doc(`climbs/${climbId}`)
         .update({ registrationCount: FieldValue.increment(1) });
@@ -690,6 +693,18 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
       });
     }
 
+    // registrationCount follows the same non-cancelled rule the create trigger
+    // uses (walk-ins included, so no userId guard). Kept here — above the
+    // notify early-returns — so reinstating a cancelled registration
+    // re-increments, not just cancelling decrements.
+    const wasCounted = before.status !== "cancelled";
+    const isCounted = after.status !== "cancelled";
+    if (wasCounted !== isCounted && after.climbId) {
+      await db.doc(`climbs/${after.climbId}`).update({
+        registrationCount: FieldValue.increment(isCounted ? 1 : -1),
+      });
+    }
+
     // Keep docsCompleteCount in sync (climb card progress badge) whenever a
     // status change or document upload could change whether this registrant
     // counts as compliant with the climb's *current* requirements. Presence
@@ -719,13 +734,6 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
 
     const notifyOn = ["confirmed", "cancelled", "waitlisted"];
     if (!notifyOn.includes(after.status)) return;
-
-    // If cancellation, decrement registration count
-    if (after.status === "cancelled" && before.status !== "cancelled") {
-      await db
-        .doc(`climbs/${after.climbId}`)
-        .update({ registrationCount: FieldValue.increment(-1) });
-    }
 
     try {
       const climbSnap = await db.doc(`climbs/${after.climbId}`).get();
@@ -829,21 +837,34 @@ exports.onRegistrationDeleted = onDocumentDeleted(
   { document: "registrations/{regId}", database: "openclimbs" },
   async (event) => {
     const reg = event.data.data();
-    if (!reg.userId || !reg.climbId) return;
-    if (!["pending", "confirmed"].includes(reg.status)) return;
+    if (!reg.climbId) return;
     try {
-      await db
-        .doc(`climbs/${reg.climbId}`)
-        .update({ registeredUserIds: FieldValue.arrayRemove(reg.userId) });
-
-      const climbSnap = await db.doc(`climbs/${reg.climbId}`).get();
-      if (climbSnap.exists && regDocsComplete(climbSnap.data(), reg)) {
+      // registrationCount mirrors the create trigger's non-cancelled rule — a
+      // cancelled reg was already decremented when it was cancelled, so only
+      // deleting a still-counted one adjusts the total. Walk-ins (no userId)
+      // count too.
+      if (reg.status !== "cancelled") {
         await db
           .doc(`climbs/${reg.climbId}`)
-          .update({ docsCompleteCount: FieldValue.increment(-1) });
+          .update({ registrationCount: FieldValue.increment(-1) });
+      }
+
+      // registeredUserIds / docsCompleteCount track only the active set and
+      // real accounts (mirrors scripts/backfill-climb-denorm.mjs).
+      if (reg.userId && ["pending", "confirmed"].includes(reg.status)) {
+        await db
+          .doc(`climbs/${reg.climbId}`)
+          .update({ registeredUserIds: FieldValue.arrayRemove(reg.userId) });
+
+        const climbSnap = await db.doc(`climbs/${reg.climbId}`).get();
+        if (climbSnap.exists && regDocsComplete(climbSnap.data(), reg)) {
+          await db
+            .doc(`climbs/${reg.climbId}`)
+            .update({ docsCompleteCount: FieldValue.increment(-1) });
+        }
       }
     } catch (err) {
-      logger.error("[onRegistrationDeleted] Failed to sync registeredUserIds", {
+      logger.error("[onRegistrationDeleted] Failed to sync climb denorm fields", {
         err: err.message,
         climbId: reg.climbId,
       });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { logFailedRequest } from "@/utils/logFailedRequest";
+import Modal from "@/components/Modal";
 
 // An admin registering someone can only record their best guess at a mobile
 // number, next of kin and medical history — so the participant confirms their
@@ -77,32 +78,18 @@ export default function DetailsPrompt({ reg, currentUser, onClose, onSaved }) {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
+    <Modal
+      onClose={onClose}
+      labelledBy="details-prompt-title"
+      contentStyle={{ maxWidth: 460 }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 460,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>Your Details</h3>
+      <div>
+        <h3
+          id="details-prompt-title"
+          style={{ margin: "0 0 4px", fontSize: "1.05rem" }}
+        >
+          Your Details
+        </h3>
         <p
           style={{
             fontSize: "0.82rem",
@@ -201,6 +188,6 @@ export default function DetailsPrompt({ reg, currentUser, onClose, onSaved }) {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

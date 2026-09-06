@@ -252,6 +252,108 @@ describe("Register page", () => {
     });
   });
 
+  describe("when the climb requires documents", () => {
+    // Kept off the shared climbFixture on purpose — turning on a doc
+    // requirement there would ripple into the Event / MyRegistrations / card
+    // suites.
+    const docClimb = {
+      ...climbFixture,
+      status: "open",
+      requiresRegistrationForm: true,
+      registrationFormUrl: "https://example.org/form.pdf",
+    };
+
+    beforeEach(() => {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, docClimb));
+      getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    });
+
+    function fillMinimum(container) {
+      fireEvent.change(controlByLabel(container, "Mobile Number"), {
+        target: { value: "09171234567" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Name"), {
+        target: { value: "Maria Cruz" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Mobile"), {
+        target: { value: "09179876543" },
+      });
+      fireEvent.change(controlByLabel(container, "Relationship"), {
+        target: { value: "Mother" },
+      });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.change(
+        screen.getByPlaceholderText("Type your complete legal name"),
+        { target: { value: "Juan Cruz" } },
+      );
+    }
+
+    it("registers with a required document still missing", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      fillMinimum(container);
+      fireEvent.click(
+        screen.getByRole("button", { name: /Submit Registration/i }),
+      );
+
+      await waitFor(() =>
+        expect(screen.getByText("Confirm Registration")).toBeInTheDocument(),
+      );
+      expect(screen.getByText(/Still to upload:/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Confirm & Submit/i }));
+      await waitFor(() => expect(addDoc).toHaveBeenCalled());
+      expect(addDoc.mock.calls[0][1].registrationFormUpload).toBeNull();
+    });
+
+    it("shows the docs-still-needed box on the success screen", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      fillMinimum(container);
+      fireEvent.click(
+        screen.getByRole("button", { name: /Submit Registration/i }),
+      );
+      await waitFor(() =>
+        expect(screen.getByText("Confirm Registration")).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Confirm & Submit/i }));
+
+      await waitFor(() =>
+        expect(screen.getByText(/Registration Submitted/i)).toBeInTheDocument(),
+      );
+      expect(screen.getByText(/we still need your/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/we still need your/i).textContent,
+      ).toMatch(/Registration Form/);
+    });
+
+    it("does not add the document to the missing-fields summary", async () => {
+      render();
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      fireEvent.submit(
+        screen
+          .getByRole("button", { name: /Submit Registration/i })
+          .closest("form"),
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByText("Please complete the following before submitting:"),
+        ).toBeInTheDocument(),
+      );
+      const items = screen
+        .getAllByRole("listitem")
+        .map((li) => li.textContent);
+      expect(items).toContain("Enter your mobile number.");
+      expect(items).not.toContain("Upload your signed registration form.");
+    });
+  });
+
   describe("when the climb is closed", () => {
     it("navigates away when the climb status is not open", async () => {
       getDoc.mockResolvedValue(

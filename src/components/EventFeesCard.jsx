@@ -23,7 +23,7 @@ function FeeRow({ fee }) {
 // Public fees card on the event page. The headline is the *member* total —
 // required fees only. Optional extras and the joiner-only guest fee are shown
 // apart so nobody reads them as owed (see utils/feeSummary.js).
-export default function EventFeesCard({ climb }) {
+export default function EventFeesCard({ climb, onOpenGuide }) {
   const {
     requiredFees,
     optionalFees,
@@ -82,6 +82,26 @@ export default function EventFeesCard({ climb }) {
               </div>
             )}
           </>
+        )}
+        {onOpenGuide && (
+          <div className="expense-guest-note" style={{ marginTop: 8 }}>
+            Not sure if you&rsquo;re a member or a joiner?{" "}
+            <button
+              type="button"
+              onClick={onOpenGuide}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                font: "inherit",
+                color: "var(--green-dark)",
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
+            >
+              See member vs joiner
+            </button>
+          </div>
         )}
       </div>
     </div>
