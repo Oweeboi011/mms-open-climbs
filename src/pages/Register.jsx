@@ -96,6 +96,7 @@ export default function Register() {
   const [blockedReason, setBlockedReason] = useState(null);
   const [successRegId, setSuccessRegId] = useState(null);
   const [successUnpaid, setSuccessUnpaid] = useState(false);
+  const [successMissingDocs, setSuccessMissingDocs] = useState([]);
   const [paymentFiles, setPaymentFiles] = useState([]);
   const [paymentPreviews, setPaymentPreviews] = useState([]);
   const [paymentNote, setPaymentNote] = useState("");
@@ -201,11 +202,9 @@ export default function Register() {
     if (!form.ecRelationship.trim()) {
       errors.ecRelationship = "Enter your relationship to this contact.";
     }
-    for (const docType of REQUIRED_DOC_TYPES) {
-      if (climb[docType.requiresField] && !docFiles[docType.key]) {
-        errors[docType.key] = docType.validationMessage;
-      }
-    }
+    // Required documents are intentionally NOT gated here — a joiner can
+    // register while still waiting on a medical certificate or permit and
+    // upload it later from My Climbs; the notification bell chases the gap.
     if (!waiverAgreed) {
       errors.waiverAgreed =
         "You must agree to the Waiver and Release of Liability.";
@@ -399,6 +398,12 @@ export default function Register() {
 
       const docRef = await addDoc(collection(db, "registrations"), regData);
       setSuccessUnpaid(paymentProofs.length === 0);
+      setSuccessMissingDocs(
+        REQUIRED_DOC_TYPES.filter(
+          (docType) =>
+            climb[docType.requiresField] && !docUploads[docType.uploadField],
+        ).map((docType) => docType.label),
+      );
       setSuccessRegId(docRef.id);
     } catch (err) {
       console.error(err);
@@ -543,6 +548,25 @@ export default function Register() {
               submit your GCash payment proof anytime from{" "}
               <strong>My Climbs</strong> — we'll remind you via the
               notification bell until it's settled.
+            </p>
+          )}
+          {successMissingDocs.length > 0 && (
+            <p
+              style={{
+                color: "#92400e",
+                background: "#fef9e7",
+                border: "1px solid #fcd34d",
+                borderRadius: 8,
+                padding: "10px 16px",
+                marginBottom: 28,
+                fontSize: "0.85rem",
+                maxWidth: 460,
+              }}
+            >
+              We still need your{" "}
+              <strong>{successMissingDocs.join(", ")}</strong>. Upload anytime
+              from <strong>My Climbs</strong> — we'll remind you via the
+              notification bell until it's in.
             </p>
           )}
           <div
@@ -815,14 +839,17 @@ export default function Register() {
           {REQUIRED_DOC_TYPES.some((docType) => climb[docType.requiresField]) && (
             <div className="register-form-card">
               <div className="form-section-title">Required Documents</div>
+              <p className="form-hint" style={{ marginBottom: 16 }}>
+                You can upload these now, or later from{" "}
+                <strong>My Climbs</strong> — we&rsquo;ll remind you in the
+                notification bell until they&rsquo;re in.
+              </p>
 
               {REQUIRED_DOC_TYPES.filter(
                 (docType) => climb[docType.requiresField],
               ).map((docType) => (
                 <div className="form-group" key={docType.key}>
-                  <label className="form-label required">
-                    {docType.registerLabel}
-                  </label>
+                  <label className="form-label">{docType.registerLabel}</label>
                   {climb[docType.sampleUrlField] && (
                     <div style={{ marginBottom: 8 }}>
                       <a
@@ -840,7 +867,6 @@ export default function Register() {
                     accept=".pdf,.doc,.docx,image/*"
                     ref={bindField(docType.key)}
                     className={inputClass(docType.key)}
-                    required
                     aria-invalid={!!fieldErrors[docType.key]}
                     onChange={(e) => {
                       setDocFiles((p) => ({
@@ -1596,6 +1622,10 @@ export default function Register() {
             ? `₱${total.toLocaleString("en-PH")} + TBA`
             : `₱${total.toLocaleString("en-PH")}`;
           const isPayingNow = paymentFiles.length > 0;
+          const missingDocLabels = REQUIRED_DOC_TYPES.filter(
+            (docType) =>
+              climb[docType.requiresField] && !docFiles[docType.key],
+          ).map((docType) => docType.label);
           return (
             <div
               onClick={() => setShowConfirm(false)}
@@ -1685,6 +1715,21 @@ export default function Register() {
                       </p>
                     )}
                   </div>
+                )}
+
+                {missingDocLabels.length > 0 && (
+                  <p
+                    style={{
+                      fontSize: "0.82rem",
+                      color: "var(--ink-soft)",
+                      marginBottom: 16,
+                    }}
+                  >
+                    Still to upload:{" "}
+                    <strong>{missingDocLabels.join(", ")}</strong>. You can
+                    submit these later from <strong>My Climbs</strong> — we'll
+                    remind you via the notification bell.
+                  </p>
                 )}
 
                 <p

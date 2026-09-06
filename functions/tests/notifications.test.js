@@ -846,6 +846,50 @@ describe("onRegistrationUpdated", () => {
     });
   });
 
+  it("re-increments registrationCount when a cancelled registration is reinstated", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "cancelled", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "pending", climbId: "climb-1", userId: "user-1" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registrationCount: { __increment: 1 } },
+    });
+  });
+
+  it("decrements registrationCount on a waitlisted → cancelled transition", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "waitlisted", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "cancelled", climbId: "climb-1", userId: "user-1" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registrationCount: { __increment: -1 } },
+    });
+  });
+
+  it("leaves registrationCount alone for a pending → confirmed transition", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ status: "pending", paymentStatus: "verified", climbId: "climb-1", userId: "user-1" }) },
+        after: { data: () => ({ status: "confirmed", paymentStatus: "verified", climbId: "climb-1", userId: "user-1" }) },
+      },
+      params: { regId: "reg-1" },
+    });
+    expect(
+      climbUpdates.some((u) => "registrationCount" in u.patch),
+    ).toBe(false);
+  });
+
   it("does not touch registeredUserIds for a pending → confirmed transition", async () => {
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
     await updatedHandler({
@@ -952,6 +996,42 @@ describe("onRegistrationDeleted", () => {
       params: { regId: "reg-1" },
     });
     expect(climbUpdates).toHaveLength(0);
+  });
+
+  it("decrements registrationCount when an active registration is deleted", async () => {
+    await deletedHandler({
+      data: { data: () => ({ climbId: "climb-1", userId: "user-1", status: "confirmed" }) },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registrationCount: { __increment: -1 } },
+    });
+  });
+
+  it("decrements registrationCount for a deleted waitlisted registration, without touching registeredUserIds", async () => {
+    await deletedHandler({
+      data: { data: () => ({ climbId: "climb-1", userId: "user-1", status: "waitlisted" }) },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registrationCount: { __increment: -1 } },
+    });
+    expect(
+      climbUpdates.some((u) => "registeredUserIds" in u.patch),
+    ).toBe(false);
+  });
+
+  it("decrements registrationCount for a deleted walk-in with no userId", async () => {
+    await deletedHandler({
+      data: { data: () => ({ climbId: "climb-1", status: "pending" }) },
+      params: { regId: "reg-1" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "climbs/climb-1",
+      patch: { registrationCount: { __increment: -1 } },
+    });
   });
 
   it("decrements docsCompleteCount when a compliant registration is hard-deleted", async () => {

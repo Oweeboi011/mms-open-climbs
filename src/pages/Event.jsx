@@ -16,9 +16,13 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import Icon from "@/components/Icon";
 import { renderMarkdownLite } from "@/utils/markdownLite";
 import EventFeesCard from "@/components/EventFeesCard";
+import MountaineeringGuideModal from "@/components/MountaineeringGuideModal";
+import RegisterCta from "@/components/RegisterCta";
 import { TRAIL_CLASS_LABELS, TRAIL_CLASS_DESCRIPTIONS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { getEffectiveStatus } from "@/utils/climbStatus";
+import { authLinkWithRedirect } from "@/utils/authRedirect";
+import { contactHref } from "@/data/orgContact";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -37,84 +41,6 @@ function TrailClassTile({ trailClass }) {
         {TRAIL_CLASS_LABELS[trailClass] || "Trail Class"}
       </div>
     </div>
-  );
-}
-
-function RegisterCta({
-  climbId,
-  isCancelled,
-  isPostponed,
-  isOpen,
-  alreadyReg,
-  regStatus,
-  currentUser,
-  isFull,
-}) {
-  const style = { marginTop: 20, display: "inline-flex" };
-  // The hero banner above already states the cancellation and carries the
-  // reason — this slot only needs to explain what it means for registering.
-  if (isCancelled) {
-    return (
-      <div className="alert alert-error" style={style}>
-        Registration is closed — this climb has been cancelled.
-      </div>
-    );
-  }
-  if (isPostponed) {
-    return (
-      <div className="alert alert-warning" style={style}>
-        Registration is on hold — this climb has been postponed.
-      </div>
-    );
-  }
-  if (!isOpen) {
-    return (
-      <div className="alert alert-warning" style={style}>
-        Registration is currently closed for this climb.
-      </div>
-    );
-  }
-  if (alreadyReg) {
-    return (
-      <div className="alert alert-success" style={style}>
-        You are registered &mdash; Status:{" "}
-        <strong style={{ marginLeft: 4 }}>{regStatus}</strong>
-      </div>
-    );
-  }
-  if (!currentUser) {
-    // Checked before isFull on purpose: a signed-out visitor looking at a
-    // full climb still needs a way in — slots open up, and an account is
-    // what lets them be there when one does.
-    return (
-      <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Link
-          to={`/login?redirect=/register/${climbId}`}
-          className="btn btn-gold btn-lg"
-        >
-          Sign In to Register
-        </Link>
-        <Link
-          to={`/signup?redirect=/register/${climbId}`}
-          className="btn btn-outline btn-lg"
-        >
-          Create Account
-        </Link>
-      </div>
-    );
-  }
-  if (isFull) {
-    return (
-      <div className="alert alert-warning" style={style}>
-        This climb is full. Slots occasionally open up &mdash; check back, or
-        watch the schedule for the next one.
-      </div>
-    );
-  }
-  return (
-    <Link to={`/register/${climbId}`} className="btn btn-gold btn-lg" style={style}>
-      Register Now &#8594;
-    </Link>
   );
 }
 
@@ -283,6 +209,7 @@ export default function Event() {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [selectedTrailIdx, setSelectedTrailIdx] = useState(0);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [weather, setWeather] = useState({
     status: "idle",
     daily: [],
@@ -670,18 +597,19 @@ export default function Event() {
                 are visible to registered members. Fees and what to bring
                 are shown below.
               </div>
-              {/* This block sits directly under the register CTA, so it sends
-                  the user the same place. The LockedCard modal further down
-                  the page keeps /event/:id — those unlock this page. */}
+              {/* Returns to this event page after auth (same as the LockedCard
+                  sign-in modal further down) — this prompt is about seeing the
+                  page, not registering. The primary CTA above keeps
+                  /register/:id. */}
               <div className="visitor-event-prompt-actions">
                 <Link
-                  to={`/signup?redirect=/register/${climbId}`}
+                  to={authLinkWithRedirect("/signup", `/event/${climbId}`)}
                   className="btn btn-gold"
                 >
                   Create Account
                 </Link>
                 <Link
-                  to={`/login?redirect=/register/${climbId}`}
+                  to={authLinkWithRedirect("/login", `/event/${climbId}`)}
                   className="btn btn-outline"
                 >
                   Sign In
@@ -838,7 +766,7 @@ export default function Event() {
                   }}
                 >
                   <Icon name="alert" size={13} />
-                  Required Before Registration is Confirmed
+                  Required Before Climb Day
                 </div>
                 <ul
                   className="info-list"
@@ -1893,7 +1821,7 @@ export default function Event() {
           </div>
         </div>
 
-        <EventFeesCard climb={climb} />
+        <EventFeesCard climb={climb} onOpenGuide={() => setGuideOpen(true)} />
 
         {/* Climb Officers */}
         <div className="section-card">
@@ -1905,10 +1833,25 @@ export default function Event() {
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <LockedCard
-                label="Sign in to view the climb officers"
-                onUnlock={() => setShowSignInModal(true)}
-              />
+              <>
+                <LockedCard
+                  label="Sign in to view the climb officers"
+                  onUnlock={() => setShowSignInModal(true)}
+                />
+                <p
+                  className="tbd-note"
+                  style={{ marginTop: 12, marginBottom: 0 }}
+                >
+                  Questions about this climb?{" "}
+                  {contactHref(`Question about ${climb.title}`) ? (
+                    <a href={contactHref(`Question about ${climb.title}`)}>
+                      Contact MMS Open Climbs
+                    </a>
+                  ) : (
+                    "Contact your MMS Open Climbs Coordinator."
+                  )}
+                </p>
+              </>
             ) : climb.officers?.length > 0 ? (
               climb.officers.map((o, i) => (
                 <div className="officer-row" key={i}>
@@ -2047,6 +1990,10 @@ export default function Event() {
       </main>
 
       <Footer />
+
+      {guideOpen && (
+        <MountaineeringGuideModal onClose={() => setGuideOpen(false)} />
+      )}
 
       {/* Sign-in required modal */}
       {showSignInModal && (

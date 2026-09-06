@@ -2,6 +2,7 @@ import { useState } from "react";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { logFailedRequest } from "@/utils/logFailedRequest";
+import Modal from "@/components/Modal";
 import WaiverText from "@/components/WaiverText";
 
 // Signing after the fact. Self-registration signs the waiver as part of the
@@ -60,32 +61,16 @@ export default function SignWaiverPrompt({
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
+    <Modal
+      onClose={onClose}
+      labelledBy="signwaiver-title"
+      contentStyle={{ maxWidth: 520 }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 520,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+      <div>
+        <h3
+          id="signwaiver-title"
+          style={{ margin: "0 0 4px", fontSize: "1.05rem" }}
+        >
           Sign Waiver &amp; Release of Liability
         </h3>
         <p
@@ -167,6 +152,6 @@ export default function SignWaiverPrompt({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

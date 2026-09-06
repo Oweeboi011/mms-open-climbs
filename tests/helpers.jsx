@@ -167,7 +167,9 @@ export const climbFixture = {
   status: "open",
   itinerary: ["Day 1: Arrival"],
   isWide: false,
-  startDate: { toDate: () => new Date("2026-08-01") },
+  // Kept comfortably in the future so the default fixture represents a live,
+  // upcoming climb — tests for past-climb behaviour set their own dates.
+  startDate: { toDate: () => new Date("2099-08-01") },
 };
 
 export const registrationFixture = {

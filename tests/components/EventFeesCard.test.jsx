@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import EventFeesCard from "@/components/EventFeesCard";
 
 const climb = {
@@ -50,5 +50,17 @@ describe("EventFeesCard", () => {
     render(<EventFeesCard climb={{}} />);
     expect(screen.getByText("Accommodation")).toBeInTheDocument();
     expect(screen.queryByText("Member Total")).not.toBeInTheDocument();
+  });
+
+  it("shows the member-vs-joiner teaser only when a handler is passed", () => {
+    const { rerender } = render(<EventFeesCard climb={climb} />);
+    expect(
+      screen.queryByRole("button", { name: /member vs joiner/i }),
+    ).not.toBeInTheDocument();
+
+    const onOpenGuide = vi.fn();
+    rerender(<EventFeesCard climb={climb} onOpenGuide={onOpenGuide} />);
+    fireEvent.click(screen.getByRole("button", { name: /member vs joiner/i }));
+    expect(onOpenGuide).toHaveBeenCalledTimes(1);
   });
 });

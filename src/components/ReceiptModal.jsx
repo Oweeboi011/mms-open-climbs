@@ -1,3 +1,4 @@
+import Modal from "@/components/Modal";
 import PaymentLog from "@/components/PaymentLog";
 import { getCountedTotal } from "@/utils/payments";
 import { getFeeItems, getOutstanding } from "@/utils/registrationFees";
@@ -47,31 +48,8 @@ export default function ReceiptModal({ reg, climb, onClose, emptyLogText }) {
   const outstanding = getOutstanding(reg, climb);
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 420,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
+    <Modal onClose={onClose} labelledBy="receipt-modal-title" showClose={false}>
+      <div>
         <div
           style={{
             display: "flex",
@@ -80,7 +58,12 @@ export default function ReceiptModal({ reg, climb, onClose, emptyLogText }) {
             marginBottom: 4,
           }}
         >
-          <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Official Receipt</h3>
+          <h3
+            id="receipt-modal-title"
+            style={{ margin: 0, fontSize: "1.05rem" }}
+          >
+            Official Receipt
+          </h3>
           <span className={`status-badge status-payment-${reg.paymentStatus}`}>
             {RECEIPT_STATUS_LABEL[reg.paymentStatus] || reg.paymentStatus}
           </span>
@@ -227,6 +210,6 @@ export default function ReceiptModal({ reg, climb, onClose, emptyLogText }) {
           Close
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }
