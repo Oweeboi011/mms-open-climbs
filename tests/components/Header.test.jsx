@@ -13,6 +13,7 @@ import { screen, fireEvent } from "@testing-library/react";
 import Header from "@/components/Header";
 import {
   renderWithProviders,
+  renderAtRoute,
   makeGuestAuth,
   makeMemberAuth,
   makeAdminAuth,
@@ -33,6 +34,34 @@ describe("Header — guest", () => {
     renderWithProviders(<Header />, makeGuestAuth());
     expect(screen.queryByText(/My Climbs/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Admin/i)).not.toBeInTheDocument();
+  });
+
+  it("carries the current page through the Sign In / Create Account links", () => {
+    renderAtRoute(
+      <Header />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeGuestAuth(),
+    );
+    for (const link of screen.getAllByRole("link", { name: /Sign In/i })) {
+      expect(link.getAttribute("href")).toBe(
+        "/login?redirect=%2Fevent%2Fclimb-1",
+      );
+    }
+    for (const link of screen.getAllByRole("link", {
+      name: /Create Account/i,
+    })) {
+      expect(link.getAttribute("href")).toBe(
+        "/signup?redirect=%2Fevent%2Fclimb-1",
+      );
+    }
+  });
+
+  it("leaves the auth links bare on the schedule page", () => {
+    renderAtRoute(<Header />, "/", "/", makeGuestAuth());
+    expect(
+      screen.getAllByRole("link", { name: /Sign In/i })[0].getAttribute("href"),
+    ).toBe("/login");
   });
 });
 

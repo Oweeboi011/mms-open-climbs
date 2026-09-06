@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Modal from "@/components/Modal";
 import { getPaymentEntries, getPaymentsTotal } from "@/utils/payments";
 import { getExpectedTotal } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
@@ -59,32 +60,16 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
+    <Modal
+      onClose={onClose}
+      labelledBy="edit-registration-title"
+      contentStyle={{ maxWidth: 460 }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 460,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
+      <div>
+        <h3
+          id="edit-registration-title"
+          style={{ margin: "0 0 4px", fontSize: "1.05rem" }}
+        >
           Edit Registration
         </h3>
         <p
@@ -251,6 +236,6 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

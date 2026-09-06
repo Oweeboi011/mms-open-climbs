@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import Modal from "@/components/Modal";
 import DetailsPrompt, { detailsIncomplete } from "@/components/DetailsPrompt";
 import SignWaiverPrompt from "@/components/SignWaiverPrompt";
 import DocumentUploadModal from "@/components/DocumentUploadModal";
@@ -259,31 +260,8 @@ function PayPrompt({ reg, onClose, onSaved }) {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 420,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
+    <>
+      <Modal onClose={onClose} label={payActionLabel(reg)}>
         <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
           {payActionLabel(reg)}
         </h3>
@@ -729,7 +707,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
             </button>
           </div>
         </form>
-      </div>
+      </Modal>
 
       {showConfirm &&
         (() => {
@@ -745,29 +723,12 @@ function PayPrompt({ reg, onClose, onSaved }) {
             String(amount).replace(/[^0-9.]/g, ""),
           );
           return (
-            <div
-              onClick={() => setShowConfirm(false)}
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 1100,
-                background: "rgba(0,0,0,0.6)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 20,
-              }}
+            <Modal
+              onClose={() => setShowConfirm(false)}
+              label="Confirm Payment"
+              zIndex={1100}
             >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  background: "var(--surface)",
-                  borderRadius: 12,
-                  padding: 24,
-                  maxWidth: 420,
-                  width: "100%",
-                }}
-              >
+              <div>
                 <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
                   Confirm Payment
                 </h3>
@@ -855,36 +816,26 @@ function PayPrompt({ reg, onClose, onSaved }) {
                   </button>
                 </div>
               </div>
-            </div>
+            </Modal>
           );
         })()}
 
       {qrModalOpen && (
-        <div
-          onClick={() => setQrModalOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1100,
-            background: "rgba(0,0,0,0.75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 24,
+        <Modal
+          onClose={() => setQrModalOpen(false)}
+          label="GCash QR Code"
+          zIndex={1100}
+          showClose={false}
+          overlayStyle={{ background: "rgba(0,0,0,0.75)", padding: 24 }}
+          contentStyle={{
+            background: "#fff",
+            borderRadius: 16,
+            maxWidth: 340,
+            textAlign: "center",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
           }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff",
-              borderRadius: 16,
-              padding: 24,
-              maxWidth: 340,
-              width: "100%",
-              textAlign: "center",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
-            }}
-          >
+          <div>
             <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: 4 }}>
               GCash QR Code
             </div>
@@ -935,9 +886,9 @@ function PayPrompt({ reg, onClose, onSaved }) {
               Close
             </button>
           </div>
-        </div>
+        </Modal>
       )}
-    </div>
+    </>
   );
 }
 
@@ -1116,6 +1067,13 @@ function RegCard({
   const requiredDocs = REQUIRED_DOC_TYPES.filter(
     (docType) => climb?.[docType.requiresField],
   );
+  // Once the climb is over, the prep CTAs (sign waiver, complete details,
+  // upload documents) and their "before climb day" nags are noise — hide them.
+  // A money balance can still outlive the climb, so payment stays if something
+  // is genuinely owed.
+  const outstanding = getOutstanding(reg, climb);
+  const showPrep = reg.status !== "cancelled" && !isPast;
+  const showPay = reg.status !== "cancelled" && (!isPast || outstanding > 0);
   return (
     <div className="reg-card" data-status={reg.status}>
       <div className="reg-card-header">
@@ -1183,7 +1141,7 @@ function RegCard({
             <em>&ldquo;{reg.waiverSignedName}&rdquo;</em>
           </div>
         ) : (
-          reg.status !== "cancelled" && (
+          showPrep && (
             <div className="alert alert-warning" style={{ marginTop: 12 }}>
               <strong>Your waiver isn&rsquo;t signed yet.</strong> This is
               required before climb day — sign it below.
@@ -1220,7 +1178,7 @@ function RegCard({
             })}
           </ul>
         )}
-        {reg.status !== "cancelled" && detailsIncomplete(reg) && (
+        {showPrep && detailsIncomplete(reg) && (
           <div className="alert alert-warning" style={{ marginTop: 12 }}>
             <strong>Your details are incomplete.</strong> Climb officers need
             your mobile, emergency contact and any medical conditions before
@@ -1238,13 +1196,13 @@ function RegCard({
             Print Waiver
           </Link>
         ) : (
-          reg.status !== "cancelled" && (
+          showPrep && (
             <button className="btn btn-accent btn-sm" onClick={onSignWaiver}>
               Sign Waiver
             </button>
           )
         )}
-        {reg.status !== "cancelled" && (
+        {showPrep && (
           <button
             className={`btn btn-sm ${
               detailsIncomplete(reg) ? "btn-accent" : "btn-outline"
@@ -1256,7 +1214,7 @@ function RegCard({
               : "Update Details"}
           </button>
         )}
-        {reg.status !== "cancelled" && (
+        {showPay && (
           <button
             className={`btn btn-sm ${
               hasPaymentOnRecord(reg) ? "btn-outline" : "btn-accent"
@@ -1278,7 +1236,7 @@ function RegCard({
             View OR
           </button>
         )}
-        {reg.status !== "cancelled" && missingDocs.length > 0 && (
+        {showPrep && missingDocs.length > 0 && (
           <button className="btn btn-accent btn-sm" onClick={onSubmitDocs}>
             Submit Required Documents
           </button>

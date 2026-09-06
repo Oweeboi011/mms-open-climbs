@@ -1,3 +1,5 @@
+import Modal from "@/components/Modal";
+
 // Shared modal chrome + form for submitting/replacing required documents.
 // Used by both the member-facing flow (MyRegistrations.jsx's DocumentPrompt)
 // and the admin-on-behalf-of-participant flow (AdminDocumentModal.jsx) — the
@@ -24,32 +26,14 @@ export default function DocumentUploadModal({
   savingLabel = "Saving…",
 }) {
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 420,
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>{title}</h3>
+    <Modal onClose={onClose} labelledBy="document-upload-title">
+      <div>
+        <h3
+          id="document-upload-title"
+          style={{ margin: "0 0 4px", fontSize: "1.05rem" }}
+        >
+          {title}
+        </h3>
         <p
           style={{
             fontSize: "0.82rem",
@@ -162,6 +146,6 @@ export default function DocumentUploadModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
