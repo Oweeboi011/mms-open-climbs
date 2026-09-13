@@ -26,6 +26,12 @@
   --accent: #1565c0;
   --accent-dark: #0d3a7a;
   --accent-pale: #e3f2fd;
+  /* Referenced across pages and admin views but never defined, so those
+     panels rendered with no background at all. */
+  --surface-alt: #f8f5ee;
+  --surface-warning: #fff8e1;
+  --warning-border: #ffe082;
+  --danger: #c62828;
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
@@ -105,7 +111,7 @@ textarea {
   font-style: normal;
 }
 .header-text p {
-  font-size: 0.6rem;
+  font-size: 0.64rem;
   color: rgba(255, 255, 255, 0.5);
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -114,17 +120,17 @@ textarea {
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .header-nav-link {
   font-family: var(--font-head);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
-  padding: 6px 12px;
+  color: rgba(255, 255, 255, 0.78);
+  padding: 9px 12px;
   border-radius: var(--radius-sm);
   transition:
     color 0.18s,
@@ -140,13 +146,15 @@ textarea {
 }
 .header-btn {
   font-family: var(--font-head);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  padding: 7px 16px;
+  padding: 9px 18px;
   border-radius: var(--radius-sm);
-  border: none;
+  /* Transparent rather than none so the filled and outlined buttons sit
+     at the same height side by side. */
+  border: 1.5px solid transparent;
   cursor: pointer;
   transition: all 0.18s;
 }
@@ -348,7 +356,7 @@ textarea {
   line-height: 1;
 }
 .stat-label {
-  font-size: 0.6rem;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 2.5px;
   text-transform: uppercase;
@@ -375,8 +383,8 @@ textarea {
 }
 .filter-btn {
   font-family: var(--font-head);
-  padding: 5px 16px;
-  border-radius: 20px;
+  padding: 7px 16px;
+  border-radius: 99px;
   border: 1.5px solid var(--border);
   background: transparent;
   color: var(--ink-soft);
@@ -422,7 +430,9 @@ textarea {
 /* ── GRID ──────────────────────────────────────────────────────────────────── */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  /* 260px: at 220 a 1440px screen fit five 233px columns and every
+     officer name wrapped onto a second line. */
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 18px;
   padding: 28px 32px 80px;
   max-width: 1300px;
@@ -443,7 +453,7 @@ textarea {
   padding: 5px 12px;
   border-bottom-left-radius: var(--radius-md);
   font-family: var(--font-head);
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 1.4px;
   text-transform: uppercase;
@@ -517,7 +527,7 @@ textarea {
 }
 .card-month {
   font-family: var(--font-head);
-  font-size: 0.6rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 4px;
   text-transform: uppercase;
@@ -539,7 +549,7 @@ textarea {
   margin-top: 12px;
 }
 .card-location {
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   opacity: 0.85;
   margin-top: 3px;
   min-height: 14px;
@@ -555,7 +565,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 600;
   opacity: 0.92;
 }
@@ -564,7 +574,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   opacity: 0.85;
   margin-top: 6px;
 }
@@ -578,7 +588,7 @@ textarea {
   background: rgba(255, 255, 255, 0.94);
   color: #232323;
   font-family: var(--font-head);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -594,7 +604,7 @@ textarea {
   padding: 3px 12px;
   border-radius: 10px;
   font-family: var(--font-head);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 800;
   font-style: italic;
   letter-spacing: 1px;
@@ -632,7 +642,7 @@ textarea {
   align-items: center;
   gap: 4px;
   font-family: var(--font-head);
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -648,7 +658,7 @@ textarea {
   align-items: center;
   gap: 4px;
   font-family: var(--font-head);
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -664,7 +674,7 @@ textarea {
   align-items: center;
   gap: 4px;
   font-family: var(--font-head);
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -680,7 +690,7 @@ textarea {
   align-items: center;
   gap: 4px;
   font-family: var(--font-head);
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -713,7 +723,7 @@ textarea {
   align-items: center;
   gap: 4px;
   font-family: var(--font-head);
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -949,6 +959,18 @@ textarea {
 .event-meta-item strong {
   color: #fff;
   font-weight: 700;
+}
+/* RegisterCta's "Create a free account" is a plain outline button, whose
+   dark text and faint border disappeared against the blue hero. The gold
+   visitor prompt inside the hero is a light card, so it keeps the default. */
+.event-hero .btn-outline:not(.visitor-event-prompt .btn-outline) {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.event-hero .btn-outline:not(.visitor-event-prompt .btn-outline):hover:not(:disabled) {
+  color: #fff;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 .seats-bar {
   margin-top: 18px;
@@ -1288,7 +1310,7 @@ textarea {
 .form-label {
   display: block;
   font-family: var(--font-head);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -1521,13 +1543,26 @@ textarea {
 .auth-footer a {
   color: var(--accent);
   font-weight: 600;
+  /* Inline padding widens the tap area without shifting the line. */
+  padding: 8px 2px;
+}
+.auth-forgot {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 12px;
+}
+.auth-forgot a {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 8px 0;
 }
 
 /* ── STATUS BADGES ─────────────────────────────────────────────────────────── */
 .status-badge {
   display: inline-block;
   font-family: var(--font-head);
-  font-size: 0.6rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -1715,9 +1750,9 @@ textarea {
 }
 .admin-table th {
   font-family: var(--font-head);
-  font-size: 0.58rem;
+  font-size: 0.66rem;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 1.6px;
   text-transform: uppercase;
   color: var(--ink-soft);
   padding: 10px 12px;
@@ -1892,9 +1927,9 @@ textarea {
     justify-self: start;
     padding-top: 3px;
     font-family: var(--font-head);
-    font-size: 0.56rem;
+    font-size: 0.64rem;
     font-weight: 800;
-    letter-spacing: 1.8px;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
     color: var(--ink-soft);
     text-align: left;
@@ -2311,9 +2346,6 @@ textarea {
     display: flex !important;
     flex-shrink: 0;
   }
-  .mobile-nav-backdrop {
-    display: block;
-  }
   .header-brand {
     flex-shrink: 1;
     min-width: 0;
@@ -2330,13 +2362,10 @@ textarea {
   }
 }
 
-@media (max-width: 768px) {
-  /* The ridge SVG scales with width, so on a phone it collapses to a
-     ~45px jagged strip. preserveAspectRatio="none" lets it stretch,
-     which keeps the silhouette reading as mountains. */
-  .hero-mountains svg {
-    height: 112px;
-  }
+/* Filter strip scrolls sideways below 900px, not just on phones: on an
+   820px tablet the ten pills wrapped and stranded "December" on a row of
+   its own. */
+@media (max-width: 900px) {
   .filters {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -2355,7 +2384,7 @@ textarea {
   .filter-btn {
     font-size: 0.8rem;
     letter-spacing: 1px;
-    padding: 7px 14px;
+    padding: 9px 14px;
     color: var(--ink);
     /* Without this the buttons shrink to fit the strip instead of
        overflowing it, clipping their labels to "SEPTE" / "DECE".
@@ -2363,9 +2392,12 @@ textarea {
     flex: 0 0 auto;
     white-space: nowrap;
   }
+  /* Sticky, not relative: relative kept the base `top` offset, which shoved
+     the strip 60px down (an empty band above it) and stopped it pinning. A
+     sticky box still anchors the ::after fade below. */
   .filters-wrap {
     overflow-x: hidden;
-    position: relative;
+    position: sticky;
   }
   /* The strip scrolls sideways with its scrollbar hidden, so the six
      month buttons sit off-screen with nothing to say they are there.
@@ -2382,6 +2414,15 @@ textarea {
   }
   .filters-wrap.scrolled-end::after {
     opacity: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  /* The ridge SVG scales with width, so on a phone it collapses to a
+     ~45px jagged strip. preserveAspectRatio="none" lets it stretch,
+     which keeps the silhouette reading as mountains. */
+  .hero-mountains svg {
+    height: 112px;
   }
 
   /* Admin tables stack into labelled cards at this width (see the rules above
@@ -2445,20 +2486,41 @@ textarea {
 
 /* Mobile (≤ 520px) */
 @media (max-width: 520px) {
+  /* One column: two 170px-wide cards forced 9–10px text and wrapped every
+     officer name onto extra lines. Full-width cards read at a glance. */
   .grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    padding: 16px 14px 56px;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 12px 16px 64px;
+  }
+  .card {
+    min-height: 0;
   }
   .card-date {
-    font-size: 1.9rem;
+    font-size: 2.3rem;
   }
   .stat-num {
     font-size: 1.7rem;
   }
   .header {
-    padding: 0 16px;
+    padding: 0 12px 0 16px;
     height: 60px;
+  }
+  /* At 2.5px tracking the society name ran out of room and ended in
+     "SO…". Tighter tracking and a slightly smaller mark fit it whole on a
+     390px phone; the ellipsis remains the fallback on narrower screens. */
+  .header-brand {
+    gap: 10px;
+  }
+  .header-logo {
+    width: 40px;
+    height: 40px;
+  }
+  .header-text h1 {
+    letter-spacing: 0.9px;
+  }
+  .header-text p {
+    letter-spacing: 1.5px;
   }
   .hero {
     padding: 52px 20px 104px;
@@ -2473,7 +2535,7 @@ textarea {
   .filter-btn {
     font-size: 0.78rem;
     letter-spacing: 0.9px;
-    padding: 7px 12px;
+    padding: 9px 13px;
   }
   /* 5px of tracking on "SEPTEMBER" is a lot of width to spend on a
      narrow screen; pull it in and size the label up to compensate. */
@@ -2481,6 +2543,23 @@ textarea {
     font-size: 0.74rem;
     letter-spacing: 2.5px;
     padding: 16px 0 6px;
+  }
+  /* Four tiles don't fit one row on a phone; as flex they wrapped 3 + 1,
+     leaving "Special" stranded full-width. A 2×2 grid keeps them even. */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat {
+    max-width: none;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stat:nth-child(2n) {
+    border-right: none;
+  }
+  .stat:nth-last-child(-n + 2) {
+    border-bottom: none;
   }
   .mobile-nav {
     top: 60px;
@@ -2556,9 +2635,6 @@ textarea {
 
 /* Very small (≤ 360px) */
 @media (max-width: 360px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
   .hero-title {
     font-size: 2.4rem;
   }
@@ -2776,14 +2852,24 @@ textarea {
   z-index: 250;
   padding: 20px 16px 40px;
   transform: translateX(102%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Off-canvas alone isn't hidden: the closed drawer still cast its shadow
+     back into the viewport — a grey band down the right edge of every page
+     at every width — and its links stayed in the tab order. Visibility
+     flips only once the slide-out has finished. */
+  visibility: hidden;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s linear 0.3s;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   box-shadow: -8px 0 48px rgba(0, 0, 0, 0.4);
 }
 .mobile-nav.open {
   transform: translateX(0);
+  visibility: visible;
+  transition-delay: 0s;
 }
 .mobile-nav-links {
   display: flex;
@@ -2880,8 +2966,22 @@ textarea {
   gap: 10px;
   margin-top: 8px;
 }
+/* The drawer's "Sign In" is a plain outline button, built for light
+   surfaces; on the dark drawer its grey text all but disappeared. */
+.mobile-nav-auth .btn-outline {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.mobile-nav-auth .btn-outline:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+}
+/* No display: none here. This rule comes after the ≤1120px block that
+   switched the backdrop on, so it always won and the backdrop never
+   rendered — no dimming, and tapping outside didn't close the drawer.
+   Opacity and pointer-events already keep it inert while closed. */
 .mobile-nav-backdrop {
-  display: none;
   position: fixed;
   inset: 0;
   z-index: 240;
@@ -3171,6 +3271,17 @@ textarea {
     padding: 60px 56px;
     overflow-y: auto;
   }
+  /* The card spans 58% of the viewport here, which stretched its inputs
+     past 700px on a wide screen. Hold the form to a readable column and
+     drop its logo — the panel beside it already carries one. */
+  .auth-card > * {
+    width: 100%;
+    max-width: 400px;
+    margin-inline: auto;
+  }
+  .auth-card .auth-logo {
+    display: none;
+  }
 }
 /* Restore card style on small screens */
 @media (max-width: 768px) {
@@ -3419,6 +3530,20 @@ details[open] > .myreg-collapsible::before {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Honour the OS "reduce motion" setting — the hero's looping star glows and
+   the entrance/reveal animations otherwise run for everyone. Durations go
+   to ~0 rather than none so scroll-reveal elements still end up visible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -4584,19 +4709,28 @@ details[open] > .myreg-collapsible::before {
 }
 
 /* ── Visitor banner (Schedule page) ───────────────────────────────────────── */
+/* A light card on the page surface. As a full-bleed dark strip it sat
+   under the hero's ridgeline with a band of pale ground showing between
+   the two, which read as a rendering gap. */
 .visitor-banner {
-  background: var(--green-dark);
-  color: var(--white);
-  padding: 0;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 4px 16px 18px;
 }
 .visitor-banner-inner {
+  position: relative;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 14px 24px;
+  padding: 14px 16px 14px 22px;
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--gold);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 .visitor-banner-text {
   flex: 1;
@@ -4605,7 +4739,15 @@ details[open] > .myreg-collapsible::before {
   min-width: 200px;
 }
 .visitor-banner-text strong {
-  color: var(--gold-light);
+  color: var(--green-dark);
+}
+.visitor-banner .btn-outline-white {
+  color: var(--green-dark);
+  border-color: rgba(13, 43, 18, 0.25);
+}
+.visitor-banner .btn-outline-white:hover {
+  background: var(--green-pale);
+  border-color: var(--green-light);
 }
 .visitor-banner-actions {
   display: flex;
@@ -4635,18 +4777,28 @@ details[open] > .myreg-collapsible::before {
   border-color: rgba(255, 255, 255, 0.8);
 }
 .visitor-banner-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  color: var(--ink-soft);
   font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0;
   flex-shrink: 0;
   margin-left: auto;
+  transition:
+    background 0.18s,
+    color 0.18s;
 }
 .visitor-banner-close:hover {
-  color: var(--white);
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* ── Visitor event prompt (Event page) ────────────────────────────────────── */
@@ -4663,7 +4815,11 @@ details[open] > .myreg-collapsible::before {
   gap: 12px;
 }
 .visitor-event-prompt-icon {
+  display: flex;
   font-size: 2rem;
+  /* The prompt sits inside the white-text event hero; without its own
+     colour the lock inherited white and vanished on the pale card. */
+  color: var(--green-mid);
 }
 .visitor-event-prompt-text {
   font-size: 0.92rem;
@@ -4690,13 +4846,13 @@ details[open] > .myreg-collapsible::before {
     align-items: flex-start;
     gap: 12px;
   }
+  .visitor-banner-text {
+    padding-right: 28px;
+  }
   .visitor-banner-close {
     position: absolute;
-    top: 10px;
-    right: 14px;
-  }
-  .visitor-banner {
-    position: relative;
+    top: 6px;
+    right: 6px;
   }
 }
 
