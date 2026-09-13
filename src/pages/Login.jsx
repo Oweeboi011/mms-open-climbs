@@ -128,10 +128,14 @@ export default function Login() {
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label required">Email</label>
+              <label className="form-label required" htmlFor="login-email">
+                Email
+              </label>
               <input
+                id="login-email"
                 type="email"
                 className="form-input"
+                autoComplete="email"
                 required
                 value={form.email}
                 onChange={(e) =>
@@ -140,10 +144,14 @@ export default function Login() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label required">Password</label>
+              <label className="form-label required" htmlFor="login-password">
+                Password
+              </label>
               <input
+                id="login-password"
                 type="password"
                 className="form-input"
+                autoComplete="current-password"
                 required
                 value={form.password}
                 onChange={(e) =>
@@ -151,13 +159,8 @@ export default function Login() {
                 }
               />
             </div>
-            <div style={{ textAlign: "right", marginBottom: 16 }}>
-              <Link
-                to="/forgot-password"
-                style={{ fontSize: "0.78rem", color: "var(--accent)" }}
-              >
-                Forgot password?
-              </Link>
+            <div className="auth-forgot">
+              <Link to="/forgot-password">Forgot password?</Link>
             </div>
             <button
               className="btn btn-primary btn-block btn-lg"
