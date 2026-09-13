@@ -901,7 +901,7 @@ export default function Analytics() {
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: 12,
-              overflow: "hidden",
+              overflowX: "auto",
               boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
             }}
           >
@@ -910,6 +910,7 @@ export default function Analytics() {
                 width: "100%",
                 borderCollapse: "collapse",
                 fontSize: "0.8rem",
+                minWidth: 640,
               }}
             >
               <thead>
@@ -1156,7 +1157,7 @@ export default function Analytics() {
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
                 borderRadius: 12,
-                overflow: "hidden",
+                overflowX: "auto",
                 boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
               }}
             >
@@ -1327,7 +1328,7 @@ export default function Analytics() {
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: 12,
-              overflow: "hidden",
+              overflowX: "auto",
               boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
             }}
           >
@@ -1336,6 +1337,7 @@ export default function Analytics() {
                 width: "100%",
                 borderCollapse: "collapse",
                 fontSize: "0.8rem",
+                minWidth: 640,
               }}
             >
               <thead>
@@ -1492,7 +1494,7 @@ export default function Analytics() {
                         style={{
                           padding: "8px 16px",
                           color: "var(--ink-soft)",
-                          maxWidth: 260,
+                          maxWidth: 220,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",

@@ -331,7 +331,7 @@ export default function ManagePayments() {
             <img
               src={lightboxUrl}
               alt="Proof"
-              style={{ maxWidth: "92vw", maxHeight: "90vh", borderRadius: 8 }}
+              style={{ maxWidth: "92vw", maxHeight: "90dvh", borderRadius: 8 }}
               onClick={(e) => e.stopPropagation()}
             />
             <button

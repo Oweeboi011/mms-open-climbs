@@ -151,6 +151,7 @@ export default function ExpensesCard({ items, totalPaid, onSave }) {
       >
         <input
           type="text"
+          className="form-input"
           placeholder="Item (e.g. Guide Fee)"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -158,6 +159,8 @@ export default function ExpensesCard({ items, totalPaid, onSave }) {
         />
         <input
           type="number"
+          inputMode="decimal"
+          className="form-input"
           placeholder="Amount"
           min="0"
           step="0.01"
@@ -167,6 +170,7 @@ export default function ExpensesCard({ items, totalPaid, onSave }) {
         />
         <input
           type="text"
+          className="form-input"
           placeholder="Note (optional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}

@@ -1334,6 +1334,26 @@ textarea {
   resize: vertical;
   min-height: 80px;
 }
+/* iOS Safari zooms the page when a focused control's text is under 16px and
+   doesn't zoom back out. !important because admin rows use compact inline
+   0.75rem selects. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+/* Apple's minimum tap target is 44pt. Small buttons stop at 38px so dense
+   admin rows stay compact — still half again their mouse-sized height. */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+  }
+  .btn-sm {
+    min-height: 38px;
+  }
+}
 .form-hint {
   font-size: 0.72rem;
   color: var(--ink-soft);
@@ -1725,15 +1745,9 @@ textarea {
   background: rgba(0, 0, 0, 0.015);
 }
 
-/* Hover highlight — bold enough to orient the eye without being distracting */
-.admin-table tbody tr:hover > td {
-  background: rgba(46, 125, 50, 0.05);
-}
 .admin-table tr:last-child td {
   border-bottom: none;
 }
-
-/* Left accent stripe on hovered rows — immediate visual anchor for auditing */
 .admin-table tbody tr {
   border-left: 3px solid transparent;
   transition:
@@ -1741,9 +1755,17 @@ textarea {
     box-shadow 0.15s ease;
   cursor: pointer;
 }
-.admin-table tbody tr:hover {
-  border-left-color: var(--green-light);
-  box-shadow: inset 0 0 0 1px rgba(46, 125, 50, 0.06);
+
+/* Hover only where there's a real pointer — on touch screens :hover sticks
+   to the last tapped row and leaves it highlighted. */
+@media (hover: hover) {
+  .admin-table tbody tr:hover > td {
+    background: rgba(46, 125, 50, 0.05);
+  }
+  .admin-table tbody tr:hover {
+    border-left-color: var(--green-light);
+    box-shadow: inset 0 0 0 1px rgba(46, 125, 50, 0.06);
+  }
 }
 
 /* Expanded row — highlighted and connected to parent */
@@ -1811,7 +1833,18 @@ textarea {
    Below this breakpoint columns can't fit legibly, so each row becomes a
    labelled card. Labels are copied from <thead> by ResponsiveTable. Cards
    have a subtle left-border accent for visual grouping.                      */
-@media (max-width: 860px) {
+/* 1000px rather than a phone width: the widest table (.table-min-900) needs
+   ~966px of viewport once .admin-main's padding is counted, so anything
+   narrower — portrait tablets, split-screen — gets cards, not sideways
+   scrolling.
+
+   Child combinators throughout, because expanded detail rows nest their own
+   tables (fee breakdowns) that must keep rendering as ordinary tables.
+
+   Each cell is a two-column grid, label left and value right, so a cell
+   holding several blocks (name, email, badges) stacks them in the value
+   column instead of squeezing them side by side. */
+@media (max-width: 1000px) {
   .admin-table-wrap {
     overflow-x: visible;
     padding: 0;
@@ -1819,57 +1852,45 @@ textarea {
     box-shadow: none;
     background: transparent;
   }
-  .admin-table,
-  .admin-table tbody,
-  .admin-table tr,
-  .admin-table td {
+  .admin-table-wrap > .admin-table,
+  .admin-table-wrap > .admin-table > tbody,
+  .admin-table-wrap > .admin-table > tbody > tr {
     display: block;
     width: auto;
   }
-  .admin-table thead {
+  .admin-table-wrap > .admin-table > thead {
     display: none;
   }
-  .admin-table tbody tr {
+  .admin-table-wrap > .admin-table > tbody > tr {
     background: var(--white);
     border: 1px solid var(--border);
     border-left: 3px solid var(--green-light);
     border-radius: var(--radius-sm);
     margin-bottom: 8px;
-    padding: 6px 0;
+    padding: 8px 0;
     box-shadow: var(--shadow-sm);
   }
-  .admin-table tbody tr:nth-child(even) > td {
-    background: transparent;
-  }
-  .admin-table tbody tr:hover > td {
-    background: transparent;
-  }
-  .admin-table tbody tr:hover {
-    border-left-color: var(--green-dark);
-    box-shadow: var(--shadow-md);
-  }
-  .admin-table tr:last-child {
+  .admin-table-wrap > .admin-table > tbody > tr:last-child {
     margin-bottom: 0;
   }
-  .admin-table td {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 14px;
+  .admin-table-wrap > .admin-table > tbody > tr > td {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start;
+    justify-items: end;
+    background: transparent;
     border-bottom: none;
-    padding: 4px 14px;
+    padding: 5px 14px;
     text-align: right;
     font-size: 0.82rem;
   }
-  .admin-table td:first-child {
-    padding-top: 10px;
-  }
-  .admin-table td:last-child {
-    padding-bottom: 10px;
-  }
-  .admin-table td[data-label]::before {
+  .admin-table-wrap > .admin-table > tbody > tr > td[data-label]::before {
     content: attr(data-label);
-    flex: 0 0 auto;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    padding-top: 3px;
     font-family: var(--font-head);
     font-size: 0.56rem;
     font-weight: 800;
@@ -1877,24 +1898,51 @@ textarea {
     text-transform: uppercase;
     color: var(--ink-soft);
     text-align: left;
+    white-space: nowrap;
+  }
+  .admin-table-wrap > .admin-table > tbody > tr > td[data-label] > * {
+    grid-column: 2;
   }
   /* Full-width cells (group headers, expanded detail panels) */
-  .admin-table td[colspan]:not([colspan="1"]) {
+  .admin-table-wrap
+    > .admin-table
+    > tbody
+    > tr
+    > td[colspan]:not([colspan="1"]) {
     display: block;
     text-align: left;
   }
-  .admin-table td:first-child {
+  /* Row numbers help scan a wide table; on a card they're noise. */
+  .admin-table-wrap > .admin-table > tbody > tr > td[data-label="#"] {
+    display: none;
+  }
+  .admin-table-wrap > .admin-table > tbody > tr > td:first-child,
+  .admin-table-wrap > .admin-table > tbody > tr > td[data-label="#"] + td {
     font-weight: 700;
+  }
+  .admin-table-wrap > .admin-table > tbody > tr > td > .slot-bar {
+    justify-self: stretch;
+  }
+  .admin-table-wrap .admin-table-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  @media (hover: hover) {
+    .admin-table-wrap > .admin-table > tbody > tr:hover {
+      border-left-color: var(--green-dark);
+      box-shadow: var(--shadow-md);
+    }
   }
 }
 
 /* Column-squeeze guards for wide admin tables — several columns need a real
    floor so short content (dates, role pills) doesn't get crushed into
    vertical single-character wrapping under browser auto table-layout.
-   Scoped to above the mobile card breakpoint only: below 860px the table
+   Scoped to above the mobile card breakpoint only: below 1000px the table
    collapses to stacked cards (see above) and a min-width would defeat that
    by forcing the table wider than the viewport. */
-@media (min-width: 861px) {
+@media (min-width: 1001px) {
   .table-min-880 {
     min-width: 880px;
   }
@@ -2253,7 +2301,9 @@ textarea {
 /* ── RESPONSIVE ────────────────────────────────────────────────────────────── */
 
 /* Tablet (≤ 768px) — activate mobile nav */
-@media (max-width: 768px) {
+/* A signed-in admin's nav needs ~1070px on one line; narrower than that it
+   wrapped to a second row (iPad Pro portrait), so tablets get the drawer. */
+@media (max-width: 1120px) {
   .header-nav {
     display: none;
   }
@@ -2278,6 +2328,9 @@ textarea {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+@media (max-width: 768px) {
   /* The ridge SVG scales with width, so on a phone it collapses to a
      ~45px jagged strip. preserveAspectRatio="none" lets it stretch,
      which keeps the silhouette reading as mountains. */
@@ -3357,14 +3410,15 @@ details[open] > .myreg-collapsible::before {
 .myreg-page {
   animation: pageFade 0.35s ease;
 }
+/* Opacity only: a transform on the page wrapper makes it the containing
+   block for the fixed-position mobile nav drawer inside it, so while the
+   fade ran, the hidden drawer added sideways scroll on phones. */
 @keyframes pageFade {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -4212,6 +4266,7 @@ details[open] > .myreg-collapsible::before {
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   position: relative;
@@ -4362,6 +4417,7 @@ details[open] > .myreg-collapsible::before {
   width: 100%;
   max-width: 640px;
   max-height: 88vh;
+  max-height: 88dvh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);

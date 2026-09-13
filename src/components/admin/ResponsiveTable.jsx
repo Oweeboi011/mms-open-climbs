@@ -17,10 +17,11 @@ export default function ResponsiveTable({ children, className = "", style }) {
     if (!table) return;
 
     const applyLabels = () => {
-      const labels = [...table.querySelectorAll("thead th")].map((th) =>
-        th.textContent.trim(),
-      );
-      table.querySelectorAll("tbody tr").forEach((row) => {
+      // Direct rows only — expanded detail panels nest their own tables.
+      const labels = [
+        ...table.querySelectorAll(":scope > thead > tr > th"),
+      ].map((th) => th.textContent.trim());
+      table.querySelectorAll(":scope > tbody > tr").forEach((row) => {
         [...row.children].forEach((cell, i) => {
           if (cell.colSpan > 1) return;
           const label = labels[i];
