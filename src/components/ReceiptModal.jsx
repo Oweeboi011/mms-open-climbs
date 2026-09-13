@@ -31,12 +31,18 @@ function formatDateTime(value) {
  * `emptyLogText` is the only thing that differs — an admin can't be told to
  * go and submit their own proof of payment.
  */
-export default function ReceiptModal({ reg, climb, onClose, emptyLogText }) {
+export default function ReceiptModal({
+  reg,
+  climb,
+  onClose,
+  emptyLogText,
+  serviceGroups = {},
+}) {
   // Read the climb's current fee schedule, not the snapshot frozen at
   // registration — an officer who corrects a "TBA" amount or adds a fee
   // afterwards should see the receipt follow, the same way the admin views
   // and the outstanding math do.
-  const items = getFeeItems(reg, climb);
+  const items = getFeeItems(reg, climb, serviceGroups);
   const { total, hasTba } = sumFeeAmounts(items);
   const totalDisplay = hasTba
     ? `₱${total.toLocaleString("en-PH")} + TBA`
@@ -45,7 +51,7 @@ export default function ReceiptModal({ reg, climb, onClose, emptyLogText }) {
   // What's actually been accepted, and what's left — a rejected instalment
   // stops counting, which is exactly the case a single "Amount Paid" hid.
   const paidCounted = getCountedTotal(reg);
-  const outstanding = getOutstanding(reg, climb);
+  const outstanding = getOutstanding(reg, climb, serviceGroups);
 
   return (
     <Modal onClose={onClose} labelledBy="receipt-modal-title" showClose={false}>
@@ -125,7 +131,22 @@ export default function ReceiptModal({ reg, climb, onClose, emptyLogText }) {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {e.amount || "TBA"}
+                      {e.groupSize > 1 ? (
+                        <>
+                          {peso(e.amount)}
+                          <div
+                            style={{
+                              fontWeight: 400,
+                              fontSize: "0.7rem",
+                              color: "var(--ink-soft)",
+                            }}
+                          >
+                            split {e.groupSize} ways from {e.unitAmount}
+                          </div>
+                        </>
+                      ) : (
+                        e.amount || "TBA"
+                      )}
                     </td>
                   </tr>
                 ))}

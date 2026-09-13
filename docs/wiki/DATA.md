@@ -7,6 +7,7 @@
 - [Collections Reference](#collections-reference)
   - [climbs](#climbs)
   - [climbPrivate](#climbprivate)
+  - [climbExpenses](#climbexpenses)
   - [registrations](#registrations)
   - [feedback](#feedback)
   - [users](#users)
@@ -27,7 +28,7 @@
 
 ## Overview
 
-MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under ten top-level collections: `climbs`, `climbPrivate`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, and `releaseNotes`.
+MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under eleven top-level collections: `climbs`, `climbPrivate`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, and `releaseNotes`.
 
 There is no SQL schema. Documents in the same collection can have varying fields, though the application follows a consistent structure as documented here.
 
@@ -42,6 +43,7 @@ graph TD
     subgraph Collections["Collections"]
         C1["climbs\nOne document per climb event\npublicly readable"]
         C1b["climbPrivate\nRegistrant-only detail for a climb\nsame doc ID as climbs"]
+        C1c["climbExpenses\nAdmin-only cost log for a climb\nsame doc ID as climbs"]
         C2["registrations\nOne document per member registration"]
         C2b["feedback\nOne post-climb review\nper member per climb"]
         C3["users\nOne document per user account"]
@@ -54,6 +56,7 @@ graph TD
 
     DB --> C1
     DB --> C1b
+    DB --> C1c
     DB --> C2
     DB --> C2b
     DB --> C3
@@ -64,6 +67,7 @@ graph TD
     DB --> C8
 
     C1 -. "same document ID" .-> C1b
+    C1 -. "same document ID" .-> C1c
 ```
 
 ---
@@ -107,7 +111,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `waterSourceNote` | string | No | Water source information |
 | `weatherNote` | string | No | Seasonal weather notes |
 | `thingsToBring` | string[] | No | Recommended gear and supplies |
-| `fees` | object[] | No | `[{ label, amount, note, optional, isGuestFee }]` — `isGuestFee: true` marks the one fee charged only to non-member registrants (`memberType: "joiner"`), never to members; identified by this flag, not by label text |
+| `fees` | object[] | No | `[{ label, amount, note, optional, isGuestFee, shareable }]` — `isGuestFee: true` marks the one fee charged only to non-member registrants (`memberType: "joiner"`), never to members; identified by this flag, not by label text. `shareable: true` (only meaningful alongside `optional: true`) lets admins group registrants who opt in to split one unit of the service between them — see `climbPrivate.serviceGroups` and `src/utils/registrationFees.js` |
 | `officers` | object[] | No | `[{ name, role, contact, email, userId }]` — the phone field is `contact`, not `mobile` (`mobile` is a *registration* field); `userId` links an officer to their account and is denormalised to `officerIds` on save. Used for email notifications. **This array lives on the publicly-readable climb document, so `contact` and `email` are world-readable — see the exposure note below.** |
 | `itinerary` | object[] | No | `[{ day, entries: [{ time, activity }] }]` |
 | `announcements` | object[] | No | `[{ message, pinned, createdAt }]` — shown on the public climb page under Mountain Profile; `createdAt` is a client-set epoch ms number (not a Firestore timestamp, since `serverTimestamp()` isn't valid inside array elements); `pinned` entries sort first and render as a highlighted reminder |
@@ -175,6 +179,7 @@ This collection exists purely as a security boundary. `climbs` is publicly reada
 | --- | --- | --- |
 | `preClimbMeetings` | array | Meeting entries, each `{ date, time, location, notes, link, recordingLink }`. `date` is a `YYYY-MM-DD` string, not a Timestamp |
 | `resources` | array | Registrant-only resource links |
+| `serviceGroups` | map | `{ [feeLabel]: string[][] }` — for a climb fee flagged `shareable`, the groups of registration IDs currently sharing one unit of that service (e.g. one porter split between three climbers). A registrant absent from every group for a label pays that fee's full amount, unchanged. Written field-by-label (`serviceGroups.<label>`) from `src/components/admin/ServiceSharingCard.jsx` on ClimbDetail; read by `src/utils/registrationFees.js` (`getFeeItems`/`getExpectedTotal`/`getOutstanding`/`getAvailmentCounts`) to split the cost and the booking headcount |
 
 #### Access
 
@@ -190,11 +195,38 @@ The `registeredUserIds` array on the climb is what the rule checks, which is why
 | Where | What |
 | --- | --- |
 | `src/pages/admin/ClimbForm.jsx` | `setDoc(..., { merge: true })` alongside every climb create/edit |
+| `src/pages/admin/ClimbDetail.jsx` / `ServiceSharingCard.jsx` | Forms/dissolves one service's sharing groups via `setDoc(..., { merge: true })` on `serviceGroups.<label>` |
 | `sendReminderNotifications` | Reads `preClimbMeetings` to name the next upcoming meeting in the 7/5/3/1-day reminder |
 
 #### Legacy fields
 
 Pre-climb meeting details were once a single object on the climb, then a single object here, before becoming the `preClimbMeetings` list. Both writers explicitly null out `preClimbMeetingDate`, `preClimbMeetingTime`, `preClimbMeetingLocation`, `preClimbMeetingNotes`, `preClimbMeetingLink`, and `preClimbMeetingRecordingLink` so the old shape can't linger beside the new list. Expect to see these as `null` on older documents.
+
+---
+
+### climbExpenses
+
+Admin-only cost log for a climb. **The document ID is the climb ID** — `climbExpenses/{climbId}` pairs 1:1 with `climbs/{climbId}`, same convention as `climbPrivate`.
+
+This is a separate collection from `climbPrivate` rather than another field there specifically because `climbPrivate` is readable by any registrant of the climb — expense line items (what the club actually paid for permits, guide fees, etc.) are internal financial detail that registrants should never see, even though `climbPrivate` would otherwise be a natural fit.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | array | `[{ id, label, amount, note }]` — one line item per logged cost. `id` is a client-generated string, unique within the array. Written wholesale (the full array) on every add/remove, same pattern as `preClimbMeetings` |
+
+#### Access
+
+| Operation | Who |
+| --- | --- |
+| read | Admins only |
+| write | Admins only |
+
+#### Written and read by
+
+| Where | What |
+| --- | --- |
+| `src/pages/admin/ClimbDetail.jsx` / `ExpensesCard.jsx` | Adds/removes one expense via `setDoc(..., { merge: true })` on the full `items` array |
+| `src/utils/climbExpenses.js` | `sumExpenses`/`getNetFunds` — totals expenses and nets them against verified collections (`stats.totalPaid` from `ClimbDetail.jsx`) |
 
 ---
 

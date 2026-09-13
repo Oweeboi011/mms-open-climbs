@@ -1,12 +1,19 @@
 import { getExpectedTotal, getFeeItems } from "@/utils/registrationFees";
+import { formatPeso } from "@/utils/feeSummary";
 
 // Read-only itemized fee table for admin review — shows a registrant's fee
 // items at their current climb amounts (see registrationFees.js for how
 // that reconciles with what they selected) plus a total. Shared by
 // ClimbDetail, ManagePayments, and AllRegistrations so payment review looks
 // the same everywhere.
-export default function FeeBreakdownTable({ reg, climb, title = "Fee Breakdown", maxWidth = 360 }) {
-  const items = getFeeItems(reg, climb);
+export default function FeeBreakdownTable({
+  reg,
+  climb,
+  title = "Fee Breakdown",
+  maxWidth = 360,
+  serviceGroups = {},
+}) {
+  const items = getFeeItems(reg, climb, serviceGroups);
 
   if (items.length === 0) {
     return (
@@ -52,7 +59,22 @@ export default function FeeBreakdownTable({ reg, climb, title = "Fee Breakdown",
                   whiteSpace: "nowrap",
                 }}
               >
-                {item.amount || "TBA"}
+                {item.groupSize > 1 ? (
+                  <>
+                    {formatPeso(item.amount)}
+                    <div
+                      style={{
+                        fontWeight: 400,
+                        fontSize: "0.68rem",
+                        color: "var(--ink-soft)",
+                      }}
+                    >
+                      split {item.groupSize} ways from {item.unitAmount}
+                    </div>
+                  </>
+                ) : (
+                  item.amount || "TBA"
+                )}
               </td>
             </tr>
           ))}
@@ -68,7 +90,7 @@ export default function FeeBreakdownTable({ reg, climb, title = "Fee Breakdown",
                 color: "var(--green-dark)",
               }}
             >
-              ₱{getExpectedTotal(reg, climb).toLocaleString("en-PH")}
+              ₱{getExpectedTotal(reg, climb, serviceGroups).toLocaleString("en-PH")}
             </td>
           </tr>
         </tfoot>

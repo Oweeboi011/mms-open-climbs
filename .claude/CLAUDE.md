@@ -84,7 +84,7 @@ node scripts/purge-admin-pageviews.mjs     # Maintenance: clean admin page views
 
 ### Firestore collections
 
-`climbs`, `climbPrivate`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, `releaseNotes`. See `docs/wiki/DATA.md` for full schema.
+`climbs`, `climbPrivate`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, `releaseNotes`. See `docs/wiki/DATA.md` for full schema.
 
 ### Email flow
 

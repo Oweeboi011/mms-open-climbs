@@ -34,6 +34,7 @@ import {
   toggleOptionalFeeEntry,
   getServicesForRegistrant,
   isAvailing,
+  getGroupmates,
   describeMemberTypeChange,
 } from "@/utils/registrationFees";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
@@ -65,6 +66,7 @@ export default function AllRegistrations() {
   const [searchParams] = useSearchParams();
   const [regs, setRegs] = useState([]);
   const [climbs, setClimbs] = useState([]);
+  const [climbPrivateMap, setClimbPrivateMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterClimb, setFilterClimb] = useState(
@@ -113,6 +115,19 @@ export default function AllRegistrations() {
       setClimbs(list);
     });
 
+    // Sharing groups for every climb's shareable services — same live-update
+    // reasoning as the climbs subscription above.
+    const unsubClimbPrivate = onSnapshot(
+      collection(db, "climbPrivate"),
+      (snap) => {
+        const map = {};
+        snap.docs.forEach((d) => {
+          map[d.id] = d.data();
+        });
+        setClimbPrivateMap(map);
+      },
+    );
+
     const q = query(
       collection(db, "registrations"),
       orderBy("createdAt", "desc"),
@@ -123,6 +138,7 @@ export default function AllRegistrations() {
     });
     return () => {
       unsubClimbs();
+      unsubClimbPrivate();
       unsub();
     };
   }, []);
@@ -311,8 +327,22 @@ export default function AllRegistrations() {
         r.climbTitle?.toLowerCase().includes(q);
       const matchClimb = filterClimb === "all" || r.climbId === filterClimb;
       const matchStatus = filterStatus === "all" || r.status === filterStatus;
+      // "Has Balance Due" catches anyone who still owes money at the climb's
+      // *current* fee schedule — including a registrant marked "verified" on
+      // an earlier instalment who now owes more (a fee was added, or they
+      // only ever paid part of it). paymentStatus alone can't tell that
+      // apart from someone fully settled, since it only reflects the last
+      // payment reviewed, not the running balance.
       const matchPayment =
-        filterPayment === "all" || r.paymentStatus === filterPayment;
+        filterPayment === "all"
+          ? true
+          : filterPayment === "balance_due"
+            ? getOutstanding(
+                r,
+                climbById[r.climbId],
+                climbPrivateMap[r.climbId]?.serviceGroups,
+              ) > 0
+            : r.paymentStatus === filterPayment;
       const matchDocs =
         filterDocs !== "missing" ||
         hasMissingRequiredDocs(r, climbById[r.climbId]);
@@ -328,6 +358,7 @@ export default function AllRegistrations() {
     filterPayment,
     filterDocs,
     climbById,
+    climbPrivateMap,
   ]);
 
   const stats = useMemo(
@@ -525,6 +556,7 @@ export default function AllRegistrations() {
                 style={{ width: "auto" }}
               >
                 <option value="all">All Payments</option>
+                <option value="balance_due">Has Balance Due</option>
                 <option value="unpaid">Unpaid</option>
                 <option value="submitted">Payment Submitted</option>
                 <option value="verified">Payment Verified</option>
@@ -589,7 +621,13 @@ export default function AllRegistrations() {
                   ) : (
                     filtered.map((reg, idx) => {
                       const climb = climbById[reg.climbId];
-                      const outstanding = getOutstanding(reg, climb);
+                      const serviceGroups =
+                        climbPrivateMap[reg.climbId]?.serviceGroups;
+                      const outstanding = getOutstanding(
+                        reg,
+                        climb,
+                        serviceGroups,
+                      );
                       const hasWaiver = !!reg.waiverSignedName;
                       const hasAllDocs = !hasMissingRequiredDocs(reg, climb);
                       // An admin-added participant starts with no waiver and
@@ -1052,6 +1090,15 @@ export default function AllRegistrations() {
                                           reg,
                                           svc.label,
                                         );
+                                        const mates =
+                                          svc.shareable && availing
+                                            ? getGroupmates(
+                                                reg,
+                                                regs,
+                                                serviceGroups,
+                                                svc.label,
+                                              )
+                                            : [];
                                         return (
                                           <label
                                             key={svc.label}
@@ -1077,6 +1124,18 @@ export default function AllRegistrations() {
                                             {availing
                                               ? `Availing ${svc.label}`
                                               : `Not availing ${svc.label}`}
+                                            {mates.length > 0 && (
+                                              <span
+                                                style={{
+                                                  color: "var(--ink-soft)",
+                                                }}
+                                              >
+                                                — sharing with{" "}
+                                                {mates
+                                                  .map((m) => m.name)
+                                                  .join(", ")}
+                                              </span>
+                                            )}
                                           </label>
                                         );
                                       })}
@@ -1142,6 +1201,7 @@ export default function AllRegistrations() {
                                     reg={reg}
                                     climb={climb}
                                     title={null}
+                                    serviceGroups={serviceGroups}
                                   />
                                 </div>
 
