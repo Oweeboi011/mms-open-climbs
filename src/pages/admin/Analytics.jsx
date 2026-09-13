@@ -340,11 +340,7 @@ export default function Analytics() {
             Volume
           </div>
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: 12,
-            }}
+            className="stat-grid"
           >
             <StatCard
               label="Total Views"
@@ -383,11 +379,7 @@ export default function Analytics() {
             Visitor Type
           </div>
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: 12,
-            }}
+            className="stat-grid"
           >
             <StatCard
               label="Guest Visits"
