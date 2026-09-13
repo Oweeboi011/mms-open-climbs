@@ -1222,6 +1222,78 @@ textarea {
   color: var(--accent);
 }
 
+/* ── MARKDOWN BODY ─────────────────────────────────────────────────────────── */
+/* Output of renderMarkdown (climb announcements). The global reset zeroes
+   margins, so spacing between blocks is set here. */
+.md-body {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.md-body > * + * {
+  margin-top: 10px;
+}
+.md-body h4,
+.md-body h5 {
+  font-family: var(--font-body);
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--green-dark);
+}
+.md-body h4 {
+  font-size: 1.02rem;
+}
+.md-body h5 {
+  font-size: 0.92rem;
+}
+.md-body > h4:not(:first-child),
+.md-body > h5:not(:first-child) {
+  margin-top: 18px;
+}
+.md-body ul,
+.md-body ol {
+  padding-left: 1.4em;
+}
+.md-body li + li {
+  margin-top: 4px;
+}
+.md-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+.md-body a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md-table-wrap {
+  overflow-x: auto;
+}
+.md-body table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 0.85rem;
+}
+.md-body th,
+.md-body td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: normal;
+}
+.md-body th {
+  font-family: var(--font-head);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: var(--surface);
+}
+
 /* ── BUTTONS ───────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
@@ -1392,8 +1464,12 @@ textarea {
   gap: 16px;
 }
 @media (max-width: 520px) {
+  /* Stacked, the row gap added to each field's own margin, leaving paired
+     fields (Mobile / Date of Birth, Start / End Date) twice as far apart
+     as every other field. */
   .form-row {
     grid-template-columns: 1fr;
+    row-gap: 0;
   }
 }
 .form-section-title {
@@ -1692,6 +1768,12 @@ textarea {
   gap: 16px;
   margin-bottom: 28px;
 }
+/* Analytics tile rows — auto-fit keeps each group on one line on desktop. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
 .admin-stat-card {
   background: var(--white);
   border-radius: var(--radius-md);
@@ -1957,6 +2039,11 @@ textarea {
   }
   .admin-table-wrap > .admin-table > tbody > tr > td > .slot-bar {
     justify-self: stretch;
+  }
+  /* Values are right-aligned on cards, so an expand chevron leading the
+     name block sat stranded at its far left. Put it after the name. */
+  .admin-table-wrap .row-expand-btn {
+    order: 2;
   }
   .admin-table-wrap .admin-table-actions {
     flex-direction: row;
@@ -2649,7 +2736,8 @@ textarea {
     gap: 10px;
   }
   /* An odd tile out would sit alone in the left column; let it span. */
-  .admin-stats > :last-child:nth-child(odd) {
+  .admin-stats > :last-child:nth-child(odd),
+  .stat-grid > :last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
   .admin-stat-card {
