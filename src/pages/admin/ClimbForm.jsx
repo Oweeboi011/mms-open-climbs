@@ -1712,11 +1712,39 @@ export default function AdminClimbForm() {
                       updateListItem("fees", i, {
                         ...fee,
                         optional: e.target.checked,
+                        // Sharing only makes sense for something a
+                        // registrant opts into.
+                        shareable: e.target.checked ? fee.shareable : false,
                       })
                     }
                   />
                   Optional
                 </label>
+                {fee.optional && !fee.isGuestFee && (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: "0.8rem",
+                      whiteSpace: "nowrap",
+                      cursor: "pointer",
+                    }}
+                    title="Let admins group registrants who opt in to share one unit of this service (e.g. one porter between several climbers), splitting the cost between them"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!fee.shareable}
+                      onChange={(e) =>
+                        updateListItem("fees", i, {
+                          ...fee,
+                          shareable: e.target.checked,
+                        })
+                      }
+                    />
+                    Shareable
+                  </label>
+                )}
                 <label
                   style={{
                     display: "flex",

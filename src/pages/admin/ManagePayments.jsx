@@ -36,6 +36,7 @@ import { groupClimbsByCompletion } from "@/utils/climbGrouping";
 export default function ManagePayments() {
   const { currentUser } = useAuth();
   const [climbs, setClimbs] = useState([]);
+  const [climbPrivateMap, setClimbPrivateMap] = useState({});
   const [regs, setRegs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
@@ -69,6 +70,20 @@ export default function ManagePayments() {
         setClimbs(list);
       },
     );
+    return unsub;
+  }, []);
+
+  // Live sharing groups for every climb's shareable services — an admin
+  // action on ClimbDetail (form/dissolve a group) has to be reflected here
+  // without a reload, same as the fee schedule itself.
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "climbPrivate"), (snap) => {
+      const map = {};
+      snap.docs.forEach((d) => {
+        map[d.id] = d.data();
+      });
+      setClimbPrivateMap(map);
+    });
     return unsub;
   }, []);
 
@@ -211,8 +226,13 @@ export default function ManagePayments() {
   // schedule (the snapshot on the registration only says which optional items
   // they picked) — see utils/registrationFees.js.
   const getOutstanding = useCallback(
-    (reg) => getOutstandingShared(reg, climbById[reg.climbId]),
-    [climbById],
+    (reg) =>
+      getOutstandingShared(
+        reg,
+        climbById[reg.climbId],
+        climbPrivateMap[reg.climbId]?.serviceGroups,
+      ),
+    [climbById, climbPrivateMap],
   );
 
   // Per-climb stats derived from regs
@@ -241,10 +261,14 @@ export default function ManagePayments() {
     // book vans and porters against. Derived from the climb's own fee
     // schedule, so a newly added service is counted with no code change.
     for (const [climbId, s] of Object.entries(map)) {
-      s.availment = getAvailmentCounts(s.regs, climbById[climbId]);
+      s.availment = getAvailmentCounts(
+        s.regs,
+        climbById[climbId],
+        climbPrivateMap[climbId]?.serviceGroups,
+      );
     }
     return map;
-  }, [regs, climbById, getOutstanding]);
+  }, [regs, climbById, climbPrivateMap, getOutstanding]);
 
   const totalStats = useMemo(() => {
     let declared = 0,
@@ -446,6 +470,7 @@ export default function ManagePayments() {
                         key={climb.id}
                         climb={climb}
                         cs={cs}
+                        serviceGroups={climbPrivateMap[climb.id]?.serviceGroups}
                         expandedId={expandedId}
                         setExpandedId={setExpandedId}
                         expandedRegId={expandedRegId}

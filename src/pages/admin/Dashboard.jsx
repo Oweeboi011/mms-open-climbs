@@ -4,6 +4,7 @@ import {
   collection,
   query,
   orderBy,
+  limit,
   onSnapshot,
   where,
   getCountFromServer,
@@ -259,14 +260,15 @@ export default function AdminDashboard() {
       });
     }
 
+    // Query-side limit — this only ever shows 20 rows, so don't pay to read
+    // (and re-read, on every registration write anywhere) the whole collection.
     const q = query(
       collection(db, "registrations"),
       orderBy("createdAt", "desc"),
+      limit(20),
     );
     const unsub = onSnapshot(q, (snap) => {
-      setRecentRegs(
-        snap.docs.slice(0, 20).map((d) => ({ id: d.id, ...d.data() })),
-      );
+      setRecentRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       loadAll().finally(() => setLoading(false));
     });
     return unsub;

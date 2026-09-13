@@ -9,6 +9,7 @@ import {
   orderBy,
   onSnapshot,
   updateDoc,
+  setDoc,
   deleteDoc,
   serverTimestamp,
   Timestamp,
@@ -40,6 +41,8 @@ import {
   toggleOptionalFeeEntry,
   describeMemberTypeChange,
 } from "@/utils/registrationFees";
+import ServiceSharingCard from "@/components/admin/ServiceSharingCard";
+import ExpensesCard from "@/components/admin/ExpensesCard";
 import {
   getPaymentEntries,
   setEntryStatus,
@@ -69,6 +72,7 @@ export default function AdminClimbDetail() {
   const { currentUser } = useAuth();
 
   const [climb, setClimb] = useState(null);
+  const [climbPrivate, setClimbPrivate] = useState(null);
   const [regs, setRegs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -86,6 +90,7 @@ export default function AdminClimbDetail() {
   const [managingDocsFor, setManagingDocsFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
   const [zippingDocs, setZippingDocs] = useState(false);
+  const [climbExpenses, setClimbExpenses] = useState(null);
 
   useEffect(() => {
     // Live, not a one-shot read: every expected/outstanding figure on this
@@ -94,6 +99,17 @@ export default function AdminClimbDetail() {
     const unsubClimb = onSnapshot(doc(db, "climbs", id), (snap) => {
       if (snap.exists()) setClimb({ id: snap.id, ...snap.data() });
     });
+
+    const unsubClimbPrivate = onSnapshot(doc(db, "climbPrivate", id), (snap) => {
+      setClimbPrivate(snap.exists() ? snap.data() : null);
+    });
+
+    const unsubClimbExpenses = onSnapshot(
+      doc(db, "climbExpenses", id),
+      (snap) => {
+        setClimbExpenses(snap.exists() ? snap.data() : null);
+      },
+    );
 
     const q = query(
       collection(db, "registrations"),
@@ -115,10 +131,56 @@ export default function AdminClimbDetail() {
 
     return () => {
       unsubClimb();
+      unsubClimbPrivate();
+      unsubClimbExpenses();
       unsub();
       unsubFeedback();
     };
   }, [id]);
+
+  const serviceGroups = useMemo(
+    () => climbPrivate?.serviceGroups || {},
+    [climbPrivate],
+  );
+
+  // Persists one shareable service's groups back to climbPrivate — a plain
+  // field-path update so grouping one service never touches another's.
+  async function saveServiceGroups(label, groups) {
+    // setDoc+merge rather than updateDoc: a climb whose climbPrivate doc was
+    // never otherwise written to (edge case — ClimbForm creates one on every
+    // save, but this stays safe if that ever isn't true) shouldn't throw
+    // "no document to update" the first time an admin forms a group.
+    await setDoc(
+      doc(db, "climbPrivate", id),
+      { [`serviceGroups.${label}`]: groups },
+      { merge: true },
+    );
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "service_groups_updated",
+      targetType: "climb",
+      targetId: id,
+      targetLabel: climb?.title || id,
+      details: `${label} sharing groups updated for ${climb?.title || "climb"}`,
+    });
+  }
+
+  // Persists the full expenses list back to climbExpenses — a small, admin-
+  // edited list, so replacing it wholesale (rather than per-item writes) is
+  // simplest and matches how serviceGroups is saved above.
+  async function saveExpenses(items) {
+    await setDoc(doc(db, "climbExpenses", id), { items }, { merge: true });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: "climb_expenses_updated",
+      targetType: "climb",
+      targetId: id,
+      targetLabel: climb?.title || id,
+      details: `Expenses updated for ${climb?.title || "climb"}`,
+    });
+  }
 
   async function changeStatus(regId, status) {
     await updateDoc(doc(db, "registrations", regId), {
@@ -483,8 +545,8 @@ export default function AdminClimbDetail() {
   );
 
   const getOutstanding = useCallback(
-    (reg) => getOutstandingShared(reg, climb),
-    [climb],
+    (reg) => getOutstandingShared(reg, climb, serviceGroups),
+    [climb, serviceGroups],
   );
 
   const stats = useMemo(
@@ -697,6 +759,20 @@ export default function AdminClimbDetail() {
               regs={regs}
               climb={climb}
               totalPaid={stats.totalPaid}
+              serviceGroups={serviceGroups}
+            />
+
+            <ServiceSharingCard
+              climb={climb}
+              regs={regs}
+              serviceGroups={serviceGroups}
+              onSaveGroups={saveServiceGroups}
+            />
+
+            <ExpensesCard
+              items={climbExpenses?.items || []}
+              totalPaid={stats.totalPaid}
+              onSave={saveExpenses}
             />
 
             {/* Required documents progress — how much of the paperwork this
@@ -1026,6 +1102,7 @@ export default function AdminClimbDetail() {
                         reg={reg}
                         idx={idx}
                         climb={climb}
+                        regs={regs}
                         expandedId={expandedId}
                         toggleExpand={toggleExpand}
                         changeStatus={changeStatus}
@@ -1044,6 +1121,7 @@ export default function AdminClimbDetail() {
                         savingNote={savingNote}
                         setLightboxUrl={setLightboxUrl}
                         getOutstanding={getOutstanding}
+                        serviceGroups={serviceGroups}
                       />
                     ))
                   )}
@@ -1127,6 +1205,7 @@ export default function AdminClimbDetail() {
           climb={climb}
           onClose={() => setViewingReceiptFor(null)}
           emptyLogText="No payment recorded yet for this participant."
+          serviceGroups={serviceGroups}
         />
       )}
 
