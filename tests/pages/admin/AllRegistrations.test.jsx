@@ -98,6 +98,58 @@ describe("Admin AllRegistrations", () => {
     expect(climbOptions).toEqual(["Sooner Climb", "Later Climb"]);
   });
 
+  it("'Has Balance Due' catches an underpaid registrant even when marked verified", async () => {
+    // Both are "verified" — a plain paymentStatus filter can't tell them
+    // apart. Balance Due has to look at the actual outstanding amount.
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: climbFixture.id,
+          data: {
+            ...climbFixture,
+            fees: [{ label: "Registration Fee", amount: "1000", optional: false }],
+          },
+        },
+      ]),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: { ...registrationFixture, paymentStatus: "verified", amountPaid: 1000 },
+      },
+      {
+        id: "reg-2",
+        data: {
+          ...registrationFixture,
+          id: "reg-2",
+          name: "Maria Santos",
+          paymentStatus: "verified",
+          amountPaid: 400,
+        },
+      },
+    ]);
+
+    const { container } = renderWithProviders(
+      <AllRegistrations />,
+      makeAdminAuth(),
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Juan Cruz")).toBeInTheDocument();
+      expect(screen.getByText("Maria Santos")).toBeInTheDocument();
+    });
+
+    const selects = container.querySelectorAll("select.form-select");
+    const paymentSelect = Array.from(selects).find((s) =>
+      Array.from(s.options).some((o) => o.value === "balance_due"),
+    );
+    fireEvent.change(paymentSelect, { target: { value: "balance_due" } });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Juan Cruz")).not.toBeInTheDocument();
+      expect(screen.getByText("Maria Santos")).toBeInTheDocument();
+    });
+  });
+
   it("shows an optional-service toggle and updates it on click", async () => {
     mockLiveSnapshot([
           {

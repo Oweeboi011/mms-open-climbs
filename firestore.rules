@@ -194,6 +194,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /climbExpenses/{climbId} {
+      // Cost line items (permits, guide fees, etc.) an admin logs against a
+      // climb, tallied against verified collections for a net-funds figure.
+      // Admin-only both ways — unlike climbPrivate, registrants never read
+      // this: it's the club's internal cost breakdown, not something a
+      // registrant's fee/outstanding view needs to disclose.
+      allow read, write: if isAdmin();
+    }
+
     match /feedback/{feedbackId} {
       // Doc ID is deterministic (`${climbId}_${userId}`, enforced client-side)
       // so a duplicate submission hits this same create rule as an update,

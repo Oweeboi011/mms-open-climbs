@@ -113,6 +113,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [climb, setClimb] = useState(null);
+  const [serviceGroups, setServiceGroups] = useState({});
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   // Live selections for optional fees (transportation, guest fee, shirt,
@@ -133,6 +134,28 @@ function PayPrompt({ reg, onClose, onSaved }) {
         logFailedRequest({
           type: "firestore",
           source: "MyRegistrations.jsx:PayPrompt:climbFetch",
+          message: err?.message,
+          path: window.location.pathname,
+          climbId: reg.climbId,
+        });
+      },
+    );
+    return unsub;
+  }, [reg.climbId]);
+
+  useEffect(() => {
+    // Whether this member is currently sharing a service with others — if
+    // an admin has grouped them for something like a porter, the balance
+    // below should reflect the split price, not the full one.
+    const unsub = onSnapshot(
+      doc(db, "climbPrivate", reg.climbId),
+      (snap) => {
+        setServiceGroups(snap.exists() ? snap.data().serviceGroups || {} : {});
+      },
+      (err) => {
+        logFailedRequest({
+          type: "firestore",
+          source: "MyRegistrations.jsx:PayPrompt:climbPrivateFetch",
           message: err?.message,
           path: window.location.pathname,
           climbId: reg.climbId,
@@ -325,10 +348,10 @@ function PayPrompt({ reg, onClose, onSaved }) {
             </div>
             <div style={{ fontSize: "0.82rem", marginBottom: 8 }}>
               <strong>Already paid: {peso(getCountedTotal(reg))}</strong>
-              {getOutstanding(reg, climb) > 0 && (
+              {getOutstanding(reg, climb, serviceGroups) > 0 && (
                 <span style={{ color: "#b45309" }}>
                   {" "}
-                  · Balance {peso(getOutstanding(reg, climb))}
+                  · Balance {peso(getOutstanding(reg, climb, serviceGroups))}
                 </span>
               )}
             </div>
@@ -1054,6 +1077,7 @@ function OfficerCard({ climb, currentUser }) {
 function RegCard({
   reg,
   climb,
+  serviceGroups = {},
   onPay,
   onViewReceipt,
   onSubmitDocs,
@@ -1071,7 +1095,7 @@ function RegCard({
   // upload documents) and their "before climb day" nags are noise — hide them.
   // A money balance can still outlive the climb, so payment stays if something
   // is genuinely owed.
-  const outstanding = getOutstanding(reg, climb);
+  const outstanding = getOutstanding(reg, climb, serviceGroups);
   const showPrep = reg.status !== "cancelled" && !isPast;
   const showPay = reg.status !== "cancelled" && (!isPast || outstanding > 0);
   return (
@@ -1262,6 +1286,7 @@ export default function MyRegistrations() {
   const { currentUser } = useAuth();
   const [regs, setRegs] = useState([]);
   const [climbsMap, setClimbsMap] = useState({});
+  const [climbPrivateMap, setClimbPrivateMap] = useState({});
   const [officerClimbs, setOfficerClimbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [payPromptReg, setPayPromptReg] = useState(null);
@@ -1302,6 +1327,36 @@ export default function MyRegistrations() {
           logFailedRequest({
             type: "firestore",
             source: "MyRegistrations.jsx:climbsFetch",
+            message: err?.message,
+            path: window.location.pathname,
+            userId: currentUser.uid,
+            climbId: id,
+          });
+        },
+      ),
+    );
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [regs, currentUser.uid]);
+
+  useEffect(() => {
+    const climbIds = [...new Set(regs.map((r) => r.climbId))].filter(Boolean);
+    if (climbIds.length === 0) return;
+    // Sharing groups, same live-subscription reasoning as the climbs fetch
+    // above — an admin forming/dissolving a group has to change what a
+    // member is shown they owe without a reload.
+    const unsubs = climbIds.map((id) =>
+      onSnapshot(
+        doc(db, "climbPrivate", id),
+        (snap) => {
+          setClimbPrivateMap((prev) => ({
+            ...prev,
+            [id]: snap.exists() ? snap.data() : null,
+          }));
+        },
+        (err) => {
+          logFailedRequest({
+            type: "firestore",
+            source: "MyRegistrations.jsx:climbPrivateFetch",
             message: err?.message,
             path: window.location.pathname,
             userId: currentUser.uid,
@@ -1483,6 +1538,9 @@ export default function MyRegistrations() {
                         key={reg.id}
                         reg={reg}
                         climb={climbsMap[reg.climbId]}
+                        serviceGroups={
+                          climbPrivateMap[reg.climbId]?.serviceGroups
+                        }
                         onPay={() => setPayPromptReg(reg)}
                         onViewReceipt={() => setReceiptReg(reg)}
                         onSubmitDocs={() => setDocPromptReg(reg)}
@@ -1504,6 +1562,9 @@ export default function MyRegistrations() {
                           key={reg.id}
                           reg={reg}
                           climb={climbsMap[reg.climbId]}
+                        serviceGroups={
+                          climbPrivateMap[reg.climbId]?.serviceGroups
+                        }
                           onPay={() => setPayPromptReg(reg)}
                           onViewReceipt={() => setReceiptReg(reg)}
                           onSubmitDocs={() => setDocPromptReg(reg)}
@@ -1576,6 +1637,7 @@ export default function MyRegistrations() {
         <ReceiptModal
           reg={receiptReg}
           climb={climbsMap[receiptReg.climbId]}
+          serviceGroups={climbPrivateMap[receiptReg.climbId]?.serviceGroups}
           onClose={() => setReceiptReg(null)}
           emptyLogText="No payment recorded yet. Submit your proof of payment from My Climbs."
         />

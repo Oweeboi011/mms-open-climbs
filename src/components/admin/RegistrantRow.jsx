@@ -7,6 +7,7 @@ import { getPaymentEntries, getAllProofs } from "@/utils/payments";
 import {
   getServicesForRegistrant,
   isAvailing,
+  getGroupmates,
 } from "@/utils/registrationFees";
 import {
   StatusBadge,
@@ -28,6 +29,8 @@ export default function RegistrantRow({
   reg,
   idx,
   climb,
+  regs,
+  serviceGroups = {},
   expandedId,
   toggleExpand,
   changeStatus,
@@ -437,6 +440,7 @@ export default function RegistrantRow({
                   reg={reg}
                   climb={climb}
                   title="Fee Breakdown (current fees)"
+                  serviceGroups={serviceGroups}
                 />
               </div>
 
@@ -448,6 +452,10 @@ export default function RegistrantRow({
                   <SectionLabel>Optional Services</SectionLabel>
                   {getServicesForRegistrant(reg, climb).map((svc) => {
                     const availing = isAvailing(reg, svc.label);
+                    const mates =
+                      svc.shareable && availing
+                        ? getGroupmates(reg, regs, serviceGroups, svc.label)
+                        : [];
                     return (
                       <label
                         key={svc.label}
@@ -469,6 +477,12 @@ export default function RegistrantRow({
                         {availing
                           ? `Availing ${svc.label}`
                           : `Not availing ${svc.label}`}
+                        {mates.length > 0 && (
+                          <span style={{ color: "var(--ink-soft)" }}>
+                            — sharing with{" "}
+                            {mates.map((m) => m.name).join(", ")}
+                          </span>
+                        )}
                       </label>
                     );
                   })}

@@ -2,10 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   getExpectedTotal,
   getOutstanding,
+  getFeeItems,
   toggleOptionalFeeEntry,
   getOptionalServices,
   getServicesForRegistrant,
   getAvailmentCounts,
+  getFeeItemAggregates,
+  getGroupSize,
+  getGroupmates,
   isAvailing,
   describeMemberTypeChange,
 } from "@/utils/registrationFees";
@@ -344,5 +348,125 @@ describe("optional services", () => {
     expect(
       getServicesForRegistrant(reg, porterClimb).map((f) => f.label),
     ).toEqual(["Transportation Fee", "Porter"]);
+  });
+});
+
+describe("service sharing", () => {
+  const shareableClimb = {
+    fees: [
+      { label: "Registration Fee", amount: "500", optional: false },
+      {
+        label: "Porter",
+        amount: "800",
+        optional: true,
+        shareable: true,
+      },
+    ],
+  };
+  const availing = (id) => ({
+    id,
+    feeBreakdown: [
+      { label: "Porter", amount: "800", optional: true, selected: true },
+    ],
+  });
+  const a = availing("a");
+  const b = availing("b");
+  const c = availing("c");
+  const solo = availing("solo");
+  const serviceGroups = { Porter: [["a", "b", "c"]] };
+
+  it("reports a solo registrant's group size as 1", () => {
+    expect(getGroupSize(solo, serviceGroups, "Porter")).toBe(1);
+    expect(getGroupSize(solo, {}, "Porter")).toBe(1);
+  });
+
+  it("reports the full group size for a grouped registrant", () => {
+    expect(getGroupSize(a, serviceGroups, "Porter")).toBe(3);
+  });
+
+  it("splits a shareable fee evenly across the group, rounded to centavos", () => {
+    const items = getFeeItems(a, shareableClimb, serviceGroups);
+    const porter = items.find((i) => i.label === "Porter");
+    expect(porter.amount).toBeCloseTo(266.67, 2);
+    expect(porter.unitAmount).toBe("800");
+    expect(porter.groupSize).toBe(3);
+  });
+
+  it("leaves a solo registrant's amount unsplit", () => {
+    const items = getFeeItems(solo, shareableClimb, serviceGroups);
+    const porter = items.find((i) => i.label === "Porter");
+    expect(porter.amount).toBe("800");
+    expect(porter.groupSize).toBeUndefined();
+  });
+
+  it("leaves an unshared item untouched when no groups exist at all", () => {
+    const items = getFeeItems(a, shareableClimb, {});
+    expect(items.find((i) => i.label === "Porter").amount).toBe("800");
+  });
+
+  it("carries the split into the registrant's expected total and balance", () => {
+    // 500 required + 800/3 = 766.67, rounded.
+    expect(
+      getExpectedTotal(a, shareableClimb, serviceGroups),
+    ).toBeCloseTo(766.67, 2);
+    expect(
+      getOutstanding(
+        { ...a, paymentStatus: "unpaid" },
+        shareableClimb,
+        serviceGroups,
+      ),
+    ).toBeCloseTo(766.67, 2);
+  });
+
+  it("resolves the other members sharing with a registrant, excluding themself", () => {
+    const regs = [a, b, c, solo];
+    const mates = getGroupmates(a, regs, serviceGroups, "Porter").map(
+      (r) => r.id,
+    );
+    expect(mates.sort()).toEqual(["b", "c"]);
+    expect(getGroupmates(solo, regs, serviceGroups, "Porter")).toEqual([]);
+  });
+
+  it("sums split shares back to the whole unit price in the collection aggregate", () => {
+    const { items } = getFeeItemAggregates(
+      [a, b, c, solo],
+      shareableClimb,
+      serviceGroups,
+    );
+    const porter = items.find((i) => i.label === "Porter");
+    // Unit price shown, not a split share.
+    expect(porter.amount).toBe("800");
+    expect(porter.count).toBe(4);
+    // 3 × 266.67 (rounded) + 1 × 800 ≈ 1600.
+    expect(porter.subtotal).toBeCloseTo(1600, 1);
+  });
+
+  it("reduces the booking headcount to groups-in-use plus solo opt-ins", () => {
+    const counts = getAvailmentCounts([a, b, c, solo], shareableClimb, serviceGroups);
+    const porter = counts.find((c2) => c2.label === "Porter");
+    expect(porter).toMatchObject({
+      availing: 4,
+      shareable: true,
+      groupsInUse: 1,
+      unitsNeeded: 2, // 1 group (a,b,c) + 1 solo
+    });
+  });
+
+  it("does not shrink the headcount for a non-shareable service", () => {
+    const nonShareableClimb = {
+      fees: [
+        { label: "Transportation Fee", amount: "300", optional: true },
+      ],
+    };
+    const reg1 = {
+      id: "x",
+      feeBreakdown: [
+        { label: "Transportation Fee", amount: "300", optional: true, selected: true },
+      ],
+    };
+    const counts = getAvailmentCounts([reg1], nonShareableClimb, {
+      "Transportation Fee": [["x", "y"]],
+    });
+    expect(counts[0]).toMatchObject({ availing: 1, unitsNeeded: 1 });
   });
 });
