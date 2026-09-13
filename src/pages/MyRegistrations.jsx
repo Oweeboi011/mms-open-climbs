@@ -1149,8 +1149,9 @@ function RegCard({
           </div>
           <div className="reg-detail-item">
             <span className="reg-detail-label">Emergency Contact</span>
-            <strong>{reg.emergencyContact?.name}</strong> (
-            {reg.emergencyContact?.relationship})
+            <strong>{reg.emergencyContact?.name || "—"}</strong>
+            {reg.emergencyContact?.relationship &&
+              ` (${reg.emergencyContact.relationship})`}
           </div>
           <div className="reg-detail-item">
             <span className="reg-detail-label">Registered</span>

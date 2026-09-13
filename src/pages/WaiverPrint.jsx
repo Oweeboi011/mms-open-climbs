@@ -37,12 +37,12 @@ export default function WaiverPrint() {
   return (
     <div>
       {/* Toolbar — hidden on print */}
-      <div className="no-print" style={{ background: 'var(--green-dark)', padding: '12px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
-        <button className="btn btn-outline" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }} onClick={() => navigate(-1)}>
+      <div className="no-print waiver-toolbar">
+        <button className="btn btn-outline btn-sm" onClick={() => navigate(-1)}>
           &#8592; Back
         </button>
-        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>Waiver for <strong style={{ color: '#fff' }}>{reg.name}</strong></span>
-        <button className="btn btn-gold btn-sm" style={{ marginLeft: 'auto' }} onClick={() => window.print()}>
+        <span className="waiver-toolbar-name">Waiver for <strong>{reg.name}</strong></span>
+        <button className="btn btn-gold btn-sm" onClick={() => window.print()}>
           &#128438; Print / Save PDF
         </button>
       </div>
@@ -70,7 +70,13 @@ export default function WaiverPrint() {
           <div className="waiver-info-item"><label>Experience Level</label><span style={{ textTransform: 'capitalize' }}>{reg.experienceLevel || '—'}</span></div>
           <div className="waiver-info-item">
             <label>Emergency Contact</label>
-            <span>{reg.emergencyContact?.name} ({reg.emergencyContact?.relationship}) — {reg.emergencyContact?.mobile}</span>
+            <span>
+              {[
+                reg.emergencyContact?.name,
+                reg.emergencyContact?.relationship && `(${reg.emergencyContact.relationship})`,
+              ].filter(Boolean).join(' ') || '—'}
+              {reg.emergencyContact?.mobile && ` — ${reg.emergencyContact.mobile}`}
+            </span>
           </div>
           {reg.medicalConditions && (
             <div className="waiver-info-item" style={{ gridColumn: '1 / -1' }}>

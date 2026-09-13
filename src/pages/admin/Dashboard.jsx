@@ -765,48 +765,53 @@ export default function AdminDashboard() {
                                       whiteSpace: "nowrap",
                                     }}
                                   >
-                                    <span
-                                      title="Confirmed"
-                                      style={{
-                                        fontWeight: 700,
-                                        color: "var(--green-dark)",
-                                      }}
-                                    >
-                                      {s.confirmed || 0}
-                                    </span>
-                                    <span
-                                      style={{
-                                        color: "var(--border)",
-                                        margin: "0 4px",
-                                      }}
-                                    >
-                                      &middot;
-                                    </span>
-                                    <span
-                                      title="Pending"
-                                      style={{
-                                        fontWeight: 700,
-                                        color: "#e67e00",
-                                      }}
-                                    >
-                                      {s.pending || 0}
-                                    </span>
-                                    <span
-                                      style={{
-                                        color: "var(--border)",
-                                        margin: "0 4px",
-                                      }}
-                                    >
-                                      &middot;
-                                    </span>
-                                    <span
-                                      title="Unpaid"
-                                      style={{
-                                        fontWeight: 700,
-                                        color: "#b91c1c",
-                                      }}
-                                    >
-                                      {s.paymentUnpaid || 0}
+                                    {/* One wrapper so the phone card layout,
+                                        which grid-places each child, keeps
+                                        the three counts on a single line. */}
+                                    <span>
+                                      <span
+                                        title="Confirmed"
+                                        style={{
+                                          fontWeight: 700,
+                                          color: "var(--green-dark)",
+                                        }}
+                                      >
+                                        {s.confirmed || 0}
+                                      </span>
+                                      <span
+                                        style={{
+                                          color: "var(--border)",
+                                          margin: "0 4px",
+                                        }}
+                                      >
+                                        &middot;
+                                      </span>
+                                      <span
+                                        title="Pending"
+                                        style={{
+                                          fontWeight: 700,
+                                          color: "#e67e00",
+                                        }}
+                                      >
+                                        {s.pending || 0}
+                                      </span>
+                                      <span
+                                        style={{
+                                          color: "var(--border)",
+                                          margin: "0 4px",
+                                        }}
+                                      >
+                                        &middot;
+                                      </span>
+                                      <span
+                                        title="Unpaid"
+                                        style={{
+                                          fontWeight: 700,
+                                          color: "#b91c1c",
+                                        }}
+                                      >
+                                        {s.paymentUnpaid || 0}
+                                      </span>
                                     </span>
                                   </td>
 
