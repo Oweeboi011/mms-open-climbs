@@ -1401,7 +1401,12 @@ export default function AdminClimbForm() {
               Shown on the climb's public page, right under Mountain Profile —
               use this for updates and reminders all joiners need to see
               (schedule changes, weather advisories, what to prepare, etc.).
-              Supports <strong>**bold**</strong> and <em>*italic*</em>.
+              Plain text works as typed. Optional formatting:{" "}
+              <strong>**bold**</strong>, <em>*italic*</em>,{" "}
+              <code>[link text](https://…)</code>, lines starting with{" "}
+              <code>-</code> or <code>1.</code> for lists, <code>#</code> for a
+              heading, <code>---</code> for a divider, and{" "}
+              <code>| pipe | tables |</code>.
             </p>
             {(form.announcements || []).map((note, i) => (
               <div
@@ -1416,7 +1421,7 @@ export default function AdminClimbForm() {
               >
                 <textarea
                   className="form-input"
-                  rows={2}
+                  rows={5}
                   placeholder="Announcement text"
                   value={note.message}
                   onChange={(e) =>

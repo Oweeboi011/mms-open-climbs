@@ -61,11 +61,12 @@ export default function ClimbPaymentCard({
                 {/* Climb header row */}
                 <div
                   style={{
+                    position: "relative",
                     display: "flex",
                     alignItems: "center",
                     flexWrap: "wrap",
                     gap: 14,
-                    padding: "14px 20px",
+                    padding: "14px 48px 14px 20px",
                     cursor: "pointer",
                     background: isOpen ? "var(--surface)" : "#fff",
                   }}
@@ -185,12 +186,18 @@ export default function ClimbPaymentCard({
                         Unpaid
                       </div>
                     </div>
+                    {/* Pinned to the header's right edge so it never wraps
+                        onto a line of its own beside wide totals. */}
                     <div
                       style={{
+                        position: "absolute",
+                        right: 18,
+                        top: "50%",
                         fontSize: "1.2rem",
+                        lineHeight: 1,
                         color: "var(--ink-soft)",
                         transition: "transform 0.2s",
-                        transform: isOpen ? "rotate(180deg)" : "none",
+                        transform: `translateY(-50%)${isOpen ? " rotate(180deg)" : ""}`,
                       }}
                     >
                       ▾

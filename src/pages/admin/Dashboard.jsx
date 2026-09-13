@@ -596,6 +596,7 @@ export default function AdminDashboard() {
                                     >
                                       <button
                                         type="button"
+                                        className="row-expand-btn"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           toggleExpanded(climb.id);

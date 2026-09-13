@@ -121,7 +121,9 @@ export default function NotificationBell() {
                   <div className="notif-bell-item-title">{n.title}</div>
                   {n.message && (
                     <div className="notif-bell-item-msg">
-                      {renderMarkdownLite(n.message)}
+                      {/* The row is a button; a link inside it would be
+                          nested interactive content. */}
+                      {renderMarkdownLite(n.message, { links: false })}
                     </div>
                   )}
                   <div className="notif-bell-item-time">
