@@ -423,10 +423,13 @@ describe("Admin ClimbDetail", () => {
     await waitFor(() =>
       expect(screen.getByText("Amount Received")).toBeInTheDocument(),
     );
-    fireEvent.change(document.querySelector('input[type="number"]'), {
+    // Scoped to the modal's own form — the page behind it (ExpensesCard) also
+    // has a number input, so a page-wide querySelector would grab the wrong one.
+    const modalForm = screen.getByText("Amount Received").closest("form");
+    fireEvent.change(modalForm.querySelector('input[type="number"]'), {
       target: { value: "300" },
     });
-    fireEvent.change(document.querySelector("textarea"), {
+    fireEvent.change(modalForm.querySelector("textarea"), {
       target: { value: "cash at the jump-off" },
     });
     fireEvent.click(
@@ -475,7 +478,10 @@ describe("Admin ClimbDetail", () => {
     await waitFor(() =>
       expect(screen.getByText("Amount Received")).toBeInTheDocument(),
     );
-    fireEvent.change(document.querySelector('input[type="number"]'), {
+    // Scoped to the modal's own form — the page behind it (ExpensesCard) also
+    // has a number input, so a page-wide querySelector would grab the wrong one.
+    const modalForm = screen.getByText("Amount Received").closest("form");
+    fireEvent.change(modalForm.querySelector('input[type="number"]'), {
       target: { value: "300" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^Record Payment$/i }));

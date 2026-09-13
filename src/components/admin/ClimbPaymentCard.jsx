@@ -15,6 +15,7 @@ import ResponsiveTable from "@/components/admin/ResponsiveTable";
 export default function ClimbPaymentCard({
   climb,
   cs,
+  serviceGroups = {},
   expandedId,
   setExpandedId,
   expandedRegId,
@@ -313,6 +314,14 @@ export default function ClimbPaymentCard({
                                   sub={`of ${svc.total} registrants`}
                                   color="#0070E0"
                                 />
+                                {svc.shareable && svc.availing > 0 ? (
+                                  <StatBox
+                                    label={`${svc.label} To Book`}
+                                    value={svc.unitsNeeded}
+                                    sub={`${svc.groupsInUse} group${svc.groupsInUse === 1 ? "" : "s"} + ${svc.unitsNeeded - svc.groupsInUse} solo`}
+                                    color="var(--green-dark)"
+                                  />
+                                ) : null}
                                 <StatBox
                                   label="Not Availing"
                                   value={svc.notAvailing}
@@ -605,7 +614,11 @@ export default function ClimbPaymentCard({
                               {cs.regs.map((reg, idx) => {
                                 const services = getServicesForRegistrant(reg, climb);
                                 const outstanding = getOutstanding(reg);
-                                const expected = getExpectedTotal(reg, climb);
+                                const expected = getExpectedTotal(
+                                  reg,
+                                  climb,
+                                  serviceGroups,
+                                );
                                 return (
                                   <React.Fragment key={reg.id}>
                                   <tr
@@ -889,6 +902,7 @@ export default function ClimbPaymentCard({
                                           reg={reg}
                                           climb={climb}
                                           title="Fee Breakdown (current fees)"
+                                          serviceGroups={serviceGroups}
                                         />
                                         {getPaymentEntries(reg).length > 0 && (
                                           <div style={{ marginTop: 14 }}>

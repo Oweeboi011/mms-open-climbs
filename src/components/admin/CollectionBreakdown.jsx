@@ -5,8 +5,17 @@ import { formatPeso } from "@/utils/feeSummary";
 // how many active registrants currently owe it — next to what's actually
 // been verified, so an officer collecting money can spot which item is
 // lagging rather than only seeing one lump expected/outstanding figure.
-export default function CollectionBreakdown({ regs, climb, totalPaid }) {
-  const { items, grandTotal, hasTba } = getFeeItemAggregates(regs, climb);
+export default function CollectionBreakdown({
+  regs,
+  climb,
+  totalPaid,
+  serviceGroups = {},
+}) {
+  const { items, grandTotal, hasTba } = getFeeItemAggregates(
+    regs,
+    climb,
+    serviceGroups,
+  );
 
   if (items.length === 0) return null;
 
@@ -76,7 +85,7 @@ export default function CollectionBreakdown({ regs, climb, totalPaid }) {
                         color: "var(--ink-soft)",
                       }}
                     >
-                      (optional)
+                      (optional{item.shareable ? ", shareable" : ""})
                     </span>
                   )}
                 </td>

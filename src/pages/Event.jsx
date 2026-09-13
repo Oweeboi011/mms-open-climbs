@@ -1360,7 +1360,7 @@ export default function Event() {
               onClick={(e) => e.stopPropagation()}
               style={{
                 maxWidth: "90vw",
-                maxHeight: "88vh",
+                maxHeight: "88dvh",
                 objectFit: "contain",
                 borderRadius: 10,
                 boxShadow: "0 8px 40px rgba(0,0,0,0.6)",

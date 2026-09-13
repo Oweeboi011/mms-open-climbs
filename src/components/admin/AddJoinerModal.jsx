@@ -159,7 +159,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
           padding: 24,
           maxWidth: 480,
           width: "100%",
-          maxHeight: "90vh",
+          maxHeight: "90dvh",
           overflowY: "auto",
         }}
       >
