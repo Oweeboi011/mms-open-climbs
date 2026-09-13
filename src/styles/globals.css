@@ -2228,6 +2228,40 @@ textarea {
 }
 
 /* ── WAIVER PRINT PAGE ─────────────────────────────────────────────────────── */
+.waiver-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px 32px;
+  background: var(--green-dark);
+}
+.waiver-toolbar .btn-outline {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.waiver-toolbar .btn-outline:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+/* Takes the leftover width and truncates, so the Print button keeps its
+   full label on a phone instead of being clipped to "PRINT / SAVE PD". */
+.waiver-toolbar-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.waiver-toolbar-name strong {
+  color: #fff;
+}
+@media (max-width: 520px) {
+  .waiver-toolbar {
+    padding: 10px 16px;
+  }
+}
 .waiver-print-page {
   max-width: 800px;
   margin: 0 auto;
@@ -2274,6 +2308,12 @@ textarea {
   border-bottom: 1px solid var(--border);
   padding-bottom: 6px;
   margin-bottom: 10px;
+  /* WaiverText is bare h4/p pairs with no wrappers, so without a top
+     margin each heading butted straight against the paragraph above. */
+  margin-top: 24px;
+}
+.waiver-section h4:first-child {
+  margin-top: 0;
 }
 .waiver-section p {
   font-size: 0.85rem;
@@ -2602,11 +2642,24 @@ textarea {
     padding: 6px 10px;
     font-size: 0.78rem;
   }
+  /* Two across: at the 180px column floor a phone fit one, so My Climbs'
+     six tiles (and the dashboard's) filled ~560px before any content. */
+  .admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  /* An odd tile out would sit alone in the left column; let it span. */
+  .admin-stats > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
   .admin-stat-card {
-    padding: 16px;
+    padding: 14px;
   }
   .admin-stat-num {
     font-size: 1.8rem;
+  }
+  .admin-stat-label {
+    letter-spacing: 1.2px;
   }
   .reg-card-header {
     padding: 14px 16px;
