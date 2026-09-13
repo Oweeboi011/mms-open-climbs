@@ -743,7 +743,7 @@ export default function AdminClimbsManage() {
                                           }
                                         />
                                         <DetailCell
-                                          label="Expenses"
+                                          label="Fees"
                                           value={getFeeSummary(climb)}
                                         />
                                         <DetailCell

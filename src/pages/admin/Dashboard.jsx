@@ -883,7 +883,7 @@ export default function AdminDashboard() {
                                           value={climb.recommendedDays}
                                         />
                                         <InfoCell
-                                          label="Expenses"
+                                          label="Fees"
                                           value={getFeeSummary(climb)}
                                         />
                                         <InfoCell

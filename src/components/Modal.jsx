@@ -34,7 +34,7 @@ const DEFAULT_CONTENT = {
   padding: 24,
   maxWidth: 420,
   width: "100%",
-  maxHeight: "90vh",
+  maxHeight: "90dvh",
   overflowY: "auto",
 };
 

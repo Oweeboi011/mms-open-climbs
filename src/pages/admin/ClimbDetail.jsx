@@ -594,7 +594,7 @@ export default function AdminClimbDetail() {
               alt="Proof of payment"
               style={{
                 maxWidth: "92vw",
-                maxHeight: "90vh",
+                maxHeight: "90dvh",
                 borderRadius: 8,
                 boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
               }}
@@ -1059,7 +1059,7 @@ export default function AdminClimbDetail() {
 
             {/* Table */}
             <ResponsiveTable>
-              <table className="admin-table table-min-980">
+              <table className="admin-table table-min-900">
                 <thead>
                   <tr>
                     <th style={{ minWidth: 40 }}>#</th>

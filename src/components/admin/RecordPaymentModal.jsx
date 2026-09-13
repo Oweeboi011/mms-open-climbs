@@ -80,7 +80,7 @@ export default function RecordPaymentModal({ reg, onClose, onSave }) {
           padding: 24,
           maxWidth: 420,
           width: "100%",
-          maxHeight: "90vh",
+          maxHeight: "90dvh",
           overflowY: "auto",
         }}
       >
