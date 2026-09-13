@@ -1392,8 +1392,12 @@ textarea {
   gap: 16px;
 }
 @media (max-width: 520px) {
+  /* Stacked, the row gap added to each field's own margin, leaving paired
+     fields (Mobile / Date of Birth, Start / End Date) twice as far apart
+     as every other field. */
   .form-row {
     grid-template-columns: 1fr;
+    row-gap: 0;
   }
 }
 .form-section-title {
@@ -1692,6 +1696,12 @@ textarea {
   gap: 16px;
   margin-bottom: 28px;
 }
+/* Analytics tile rows — auto-fit keeps each group on one line on desktop. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
 .admin-stat-card {
   background: var(--white);
   border-radius: var(--radius-md);
@@ -1957,6 +1967,11 @@ textarea {
   }
   .admin-table-wrap > .admin-table > tbody > tr > td > .slot-bar {
     justify-self: stretch;
+  }
+  /* Values are right-aligned on cards, so an expand chevron leading the
+     name block sat stranded at its far left. Put it after the name. */
+  .admin-table-wrap .row-expand-btn {
+    order: 2;
   }
   .admin-table-wrap .admin-table-actions {
     flex-direction: row;
@@ -2649,7 +2664,8 @@ textarea {
     gap: 10px;
   }
   /* An odd tile out would sit alone in the left column; let it span. */
-  .admin-stats > :last-child:nth-child(odd) {
+  .admin-stats > :last-child:nth-child(odd),
+  .stat-grid > :last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
   .admin-stat-card {
