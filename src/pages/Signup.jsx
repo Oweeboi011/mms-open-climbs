@@ -76,35 +76,39 @@ export default function Signup() {
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label required">Full Name</label>
+              <label className="form-label required" htmlFor="signup-name">Full Name</label>
               <input
-                type="text" className="form-input" required placeholder="Juan dela Cruz"
+                id="signup-name" type="text" className="form-input" required placeholder="Juan dela Cruz"
+                autoComplete="name"
                 value={form.displayName}
                 onChange={e => setForm(p => ({ ...p, displayName: e.target.value }))}
               />
             </div>
             <div className="form-group">
-              <label className="form-label required">Email</label>
+              <label className="form-label required" htmlFor="signup-email">Email</label>
               <input
-                type="email" className="form-input" required
+                id="signup-email" type="email" className="form-input" required
+                autoComplete="email"
                 value={form.email}
                 onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
               />
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label required">Password</label>
+                <label className="form-label required" htmlFor="signup-password">Password</label>
                 <input
-                  type="password" className="form-input" required minLength={8}
+                  id="signup-password" type="password" className="form-input" required minLength={8}
+                  autoComplete="new-password"
                   placeholder="Min. 8 characters"
                   value={form.password}
                   onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label required">Confirm Password</label>
+                <label className="form-label required" htmlFor="signup-confirm">Confirm Password</label>
                 <input
-                  type="password" className="form-input" required
+                  id="signup-confirm" type="password" className="form-input" required
+                  autoComplete="new-password"
                   value={form.confirm}
                   onChange={e => setForm(p => ({ ...p, confirm: e.target.value }))}
                 />
