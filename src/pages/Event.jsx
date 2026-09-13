@@ -14,7 +14,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Icon from "@/components/Icon";
-import { renderMarkdownLite } from "@/utils/markdownLite";
+import { renderMarkdown } from "@/utils/markdownLite";
 import EventFeesCard from "@/components/EventFeesCard";
 import MountaineeringGuideModal from "@/components/MountaineeringGuideModal";
 import RegisterCta from "@/components/RegisterCta";
@@ -974,6 +974,7 @@ export default function Event() {
                     key={i}
                     style={{
                       display: "flex",
+                      flexWrap: "wrap",
                       gap: 10,
                       alignItems: "flex-start",
                       padding: "10px 0",
@@ -998,16 +999,13 @@ export default function Event() {
                         Reminder
                       </span>
                     )}
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: "0.86rem",
-                          lineHeight: 1.6,
-                          color: "var(--ink)",
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {renderMarkdownLite(note.message)}
+                    {/* 280px basis: wide enough that, beside the Reminder
+                        pill, it overflows a phone's ~326px card, so the pill
+                        wraps above the text instead of holding a narrow
+                        column beside a long announcement. */}
+                    <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                      <div className="md-body">
+                        {renderMarkdown(note.message)}
                       </div>
                       {note.createdAt && (
                         <div
