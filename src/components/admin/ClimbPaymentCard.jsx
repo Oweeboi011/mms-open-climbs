@@ -63,6 +63,7 @@ export default function ClimbPaymentCard({
                   style={{
                     display: "flex",
                     alignItems: "center",
+                    flexWrap: "wrap",
                     gap: 14,
                     padding: "14px 20px",
                     cursor: "pointer",
@@ -70,7 +71,10 @@ export default function ClimbPaymentCard({
                   }}
                   onClick={() => setExpandedId(isOpen ? null : climb.id)}
                 >
-                  <div style={{ flex: 1 }}>
+                  {/* 220px basis: on a phone the name takes its own row
+                      instead of being squeezed to one word per line
+                      beside the totals. */}
+                  <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                     <div
                       style={{
                         display: "flex",
