@@ -26,6 +26,8 @@ import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import CollectionBreakdown from "@/components/admin/CollectionBreakdown";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import SplitPaymentModal from "@/components/admin/SplitPaymentModal";
+import RecordRefundModal from "@/components/admin/RecordRefundModal";
+import { recordRefund, removeRefund } from "@/utils/recordRefund";
 import { splitPayment, undoSplitPayment } from "@/utils/splitPayment";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import ReceiptModal from "@/components/ReceiptModal";
@@ -54,6 +56,7 @@ import {
   getPaymentEntries,
   setEntryStatus,
   setAllEntryStatuses,
+  getRefundedTotal,
 } from "@/utils/payments";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 
@@ -96,6 +99,8 @@ export default function AdminClimbDetail() {
   // { regId, index } of the payment being split. The registration itself is
   // re-read from the live list so the dialog never works off a stale copy.
   const [splittingPayment, setSplittingPayment] = useState(null);
+  // Registration id being refunded; its excess is read live from the card.
+  const [refundingFor, setRefundingFor] = useState(null);
   const [viewingReceiptFor, setViewingReceiptFor] = useState(null);
   const [managingDocsFor, setManagingDocsFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
@@ -302,6 +307,31 @@ export default function AdminClimbDetail() {
       });
     } catch (err) {
       window.alert(err?.message || "Couldn't undo the split. Please try again.");
+    }
+  }
+
+  async function saveRefund(reg, refund) {
+    await recordRefund(reg, refund, { currentUser, climbTitle: climb?.title });
+    setRefundingFor(null);
+  }
+
+  async function deleteRefund(reg, refund) {
+    const amount = `₱${Number(refund.amount || 0).toLocaleString("en-PH")}`;
+    if (
+      !window.confirm(
+        `Remove the ${amount} refund recorded for ${reg.name || "this registrant"}? Their excess payment comes back.`,
+      )
+    )
+      return;
+    try {
+      await removeRefund(reg, refund.id, {
+        currentUser,
+        climbTitle: climb?.title,
+      });
+    } catch (err) {
+      window.alert(
+        err?.message || "Couldn't remove the refund. Please try again.",
+      );
     }
   }
 
@@ -608,9 +638,13 @@ export default function AdminClimbDetail() {
       cancelled: regs.filter((r) => r.status === "cancelled").length,
       awaitingPayment: regs.filter((r) => r.paymentStatus === "submitted")
         .length,
-      totalPaid: regs
-        .filter((r) => r.paymentStatus === "verified")
-        .reduce((s, r) => s + (Number(r.amountPaid) || 0), 0),
+      // Refunds are money back out, so they come off collections (and so off
+      // net funds) whatever the refunded registration's status.
+      totalPaid:
+        regs
+          .filter((r) => r.paymentStatus === "verified")
+          .reduce((s, r) => s + (Number(r.amountPaid) || 0), 0) -
+        regs.reduce((s, r) => s + getRefundedTotal(r), 0),
       totalMissing: regs
         .filter((r) => r.status !== "cancelled")
         .reduce((s, r) => s + getOutstanding(r), 0),
@@ -628,6 +662,8 @@ export default function AdminClimbDetail() {
     () => getExcessPayments(regs, climb, serviceGroups),
     [regs, climb, serviceGroups],
   );
+  const refundPayee =
+    refundingFor && excessPayments.find((row) => row.reg.id === refundingFor);
 
   const docs = useMemo(() => getDocCompliance(climb, regs), [climb, regs]);
 
@@ -846,6 +882,8 @@ export default function AdminClimbDetail() {
               card
               onSplitEntry={openSplit}
               onUndoSplit={undoSplit}
+              onRecordRefund={(reg) => setRefundingFor(reg.id)}
+              onRemoveRefund={deleteRefund}
             />
 
             {/* Required documents progress — how much of the paperwork this
@@ -1184,6 +1222,7 @@ export default function AdminClimbDetail() {
                         onRecordPayment={setRecordingPaymentFor}
                         onSplitEntry={openSplit}
                         onUndoSplit={undoSplit}
+                        onRemoveRefund={deleteRefund}
                         onViewReceipt={setViewingReceiptFor}
                         onManageDocuments={setManagingDocsFor}
                         toggleOptionalFee={toggleOptionalFee}
@@ -1283,6 +1322,15 @@ export default function AdminClimbDetail() {
           serviceGroups={serviceGroups}
           onClose={() => setSplittingPayment(null)}
           onSave={saveSplitPayment}
+        />
+      )}
+
+      {refundPayee && (
+        <RecordRefundModal
+          reg={refundPayee.reg}
+          excess={refundPayee.amount}
+          onClose={() => setRefundingFor(null)}
+          onSave={saveRefund}
         />
       )}
 

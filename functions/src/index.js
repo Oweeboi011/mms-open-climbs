@@ -668,6 +668,27 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
       }
     }
 
+    // An admin recorded a refund — usually the excess on a payment that
+    // covered more than this registrant owed. Only newly added refunds are
+    // named, so removing one (or any unrelated edit) stays silent.
+    if (after.userId) {
+      const beforeRefunds = Array.isArray(before.refunds)
+        ? before.refunds.length
+        : 0;
+      const refunded = (Array.isArray(after.refunds) ? after.refunds : [])
+        .slice(beforeRefunds)
+        .reduce((sum, r) => sum + (Number(r && r.amount) || 0), 0);
+      if (refunded > 0) {
+        await createNotification({
+          userId: after.userId,
+          type: "payment_refunded",
+          title: "Refund sent",
+          message: `₱${refunded.toLocaleString("en-PH")} was refunded to you for ${after.climbTitle || "your climb"}. See the details in My Climbs.`,
+          link: "/my-registrations",
+        });
+      }
+    }
+
     // Required document uploaded → clear the corresponding nag notification.
     for (const docType of REQUIRED_DOC_TYPES) {
       if (!before[docType.uploadField] && after[docType.uploadField]) {

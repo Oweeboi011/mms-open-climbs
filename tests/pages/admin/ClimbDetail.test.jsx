@@ -1051,6 +1051,119 @@ describe("Admin ClimbDetail", () => {
     });
   });
 
+  describe("refunding an excess payment", () => {
+    function mockExcess(extra = {}) {
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, {
+          ...climbFixture,
+          fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+        }),
+      );
+      mockRegistrantSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            paymentStatus: "verified",
+            amountPaid: 1500,
+            payments: [{ amount: 1500, proofs: [], status: "verified" }],
+            ...extra,
+          },
+        },
+      ]);
+    }
+
+    async function openHistory(title) {
+      const heading = await screen.findByText(title);
+      fireEvent.click(
+        within(heading.closest(".admin-card")).getByText("Juan Cruz"),
+      );
+      return screen.findByRole("dialog", {
+        name: "Payment history for Juan Cruz",
+      });
+    }
+
+    it("records a refund of the excess from the payer's history", async () => {
+      updateDoc.mockResolvedValue(undefined);
+      mockExcess();
+      render();
+
+      const history = await openHistory(
+        "Excess Payments — 1 registrant · ₱1,000 over",
+      );
+      fireEvent.click(within(history).getByRole("button", { name: "Record Refund" }));
+
+      const dialog = await screen.findByRole("dialog", { name: "Record Refund" });
+      expect(within(dialog).getByLabelText(/Amount Refunded/)).toHaveValue(1000);
+      fireEvent.change(within(dialog).getByLabelText(/Notes/), {
+        target: { value: "GCash ref 123" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save Refund" }));
+
+      await waitFor(() =>
+        expect(updateDoc.mock.calls.some((c) => c[1]?.refunds)).toBe(true),
+      );
+      const patch = updateDoc.mock.calls.find((c) => c[1]?.refunds)[1];
+      expect(patch.refunds).toEqual([
+        expect.objectContaining({ amount: 1000, note: "GCash ref 123" }),
+      ]);
+    });
+
+    it("won't refund more than the excess", async () => {
+      mockExcess();
+      render();
+
+      const history = await openHistory(
+        "Excess Payments — 1 registrant · ₱1,000 over",
+      );
+      fireEvent.click(within(history).getByRole("button", { name: "Record Refund" }));
+      const dialog = await screen.findByRole("dialog", { name: "Record Refund" });
+      fireEvent.change(within(dialog).getByLabelText(/Amount Refunded/), {
+        target: { value: "1200" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save Refund" }));
+
+      await waitFor(() =>
+        expect(
+          within(dialog).getByText(/more than the ₱1,000/),
+        ).toBeInTheDocument(),
+      );
+      expect(updateDoc.mock.calls.some((c) => c[1]?.refunds)).toBe(false);
+    });
+
+    it("removes a refund recorded by mistake after confirming", async () => {
+      updateDoc.mockResolvedValue(undefined);
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+      mockExcess({
+        refunds: [
+          { id: "rf-1", amount: 500, proofs: [], recordedBy: "Admin User" },
+        ],
+      });
+      render();
+
+      const history = await openHistory(
+        "Excess Payments — 1 registrant · ₱500 over",
+      );
+      fireEvent.click(
+        within(history).getByRole("button", {
+          name: "Remove the ₱500 refund",
+        }),
+      );
+
+      await waitFor(() =>
+        expect(
+          updateDoc.mock.calls.some((c) => Array.isArray(c[1]?.refunds)),
+        ).toBe(true),
+      );
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(
+        updateDoc.mock.calls.find((c) => Array.isArray(c[1]?.refunds))[1]
+          .refunds,
+      ).toEqual([]);
+      confirmSpy.mockRestore();
+    });
+  });
+
   describe("undoing a split", () => {
     it("sends the share back onto the payer after confirming", async () => {
       const batch = {

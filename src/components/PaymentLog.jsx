@@ -2,6 +2,8 @@ import {
   getPaymentEntries,
   getPaymentsTotal,
   getCountedTotal,
+  getRefunds,
+  getNetPaid,
 } from "@/utils/payments";
 
 const peso = (n) => `₱${Number(n || 0).toLocaleString("en-PH")}`;
@@ -45,6 +47,7 @@ export default function PaymentLog({ reg, emptyText }) {
   const submittedTotal = getPaymentsTotal(reg);
   const countedTotal = getCountedTotal(reg);
   const rejected = entries.filter((e) => e.status === "rejected");
+  const refunds = getRefunds(reg);
 
   return (
     <div>
@@ -178,6 +181,44 @@ export default function PaymentLog({ reg, emptyText }) {
           </div>
         );
       })}
+
+      {/* Money the club sent back — without it the member's own payments
+          add up to more than their receipt says they've paid. */}
+      {refunds.map((r, k) => (
+        <div key={r.id || k} className="payment-refund">
+          <div className="payment-refund-head">
+            <span className="payment-refund-label">Refund</span>
+            <strong className="payment-refund-amount">−{peso(r.amount)}</strong>
+            {formatWhen(r.refundedAt) && (
+              <span className="payment-refund-when">
+                {formatWhen(r.refundedAt)}
+              </span>
+            )}
+          </div>
+          {r.note && (
+            <div className="payment-refund-note">Comment: {r.note}</div>
+          )}
+          {r.proofs.length > 0 && (
+            <div className="payment-refund-proofs">
+              {r.proofs.map((proof, j) => (
+                <a
+                  key={j}
+                  href={proof.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {proof.fileName || `Receipt ${j + 1}`}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {refunds.length > 0 && (
+        <div className="payment-refund-net">
+          Paid after refunds: {peso(getNetPaid(reg))}
+        </div>
+      )}
 
       {entries.length > 1 && (
         <div style={{ fontSize: "0.82rem", fontWeight: 700 }}>

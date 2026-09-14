@@ -3,7 +3,11 @@ import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
 import PaymentHistory from "./PaymentHistory";
-import { getPaymentEntries, getAllProofs } from "@/utils/payments";
+import {
+  getPaymentEntries,
+  getAllProofs,
+  getRefundedTotal,
+} from "@/utils/payments";
 import {
   getServicesForRegistrant,
   isAvailing,
@@ -38,6 +42,7 @@ export default function RegistrantRow({
   onEntryStatusChange,
   onSplitEntry,
   onUndoSplit,
+  onRemoveRefund,
   onRecordPayment,
   onViewReceipt,
   onManageDocuments,
@@ -190,6 +195,11 @@ export default function RegistrantRow({
               ? `₱${Number(reg.amountPaid).toLocaleString("en-PH")}`
               : "—"}
           </div>
+          {getRefundedTotal(reg) > 0 && (
+            <div className="registrant-refunded">
+              −₱{getRefundedTotal(reg).toLocaleString("en-PH")} refunded
+            </div>
+          )}
           {getOutstanding(reg) > 0 && (
             <div
               style={{
@@ -594,6 +604,7 @@ export default function RegistrantRow({
                     onEntryStatusChange={onEntryStatusChange}
                     onSplitEntry={onSplitEntry}
                     onUndoSplit={onUndoSplit}
+                    onRemoveRefund={onRemoveRefund}
                   />
                 ) : (
                   <div

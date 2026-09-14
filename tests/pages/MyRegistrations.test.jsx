@@ -382,6 +382,40 @@ describe("MyRegistrations page", () => {
     await waitFor(() => expect(screen.getByText("₱800")).toBeInTheDocument());
   });
 
+  it("shows a refund in the member's payment log and takes it off what they've paid", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+      }),
+    );
+    mockLiveSnapshot([
+      {
+        id: registrationFixture.id,
+        data: {
+          ...registrationFixture,
+          paymentStatus: "verified",
+          amountPaid: 1500,
+          payments: [{ amount: 1500, proofs: [], status: "verified" }],
+          refunds: [
+            { id: "rf-1", amount: 1000, proofs: [], note: "GCash back to 0917" },
+          ],
+        },
+      },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Add Fees \/ Pay More/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/Already paid: ₱500/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText("−₱1,000")).toBeInTheDocument();
+    expect(screen.getByText(/GCash back to 0917/)).toBeInTheDocument();
+  });
+
   it("adds a second payment to the history and the running total instead of replacing it", async () => {
     mockLiveSnapshot([
           {
