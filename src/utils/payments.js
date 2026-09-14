@@ -149,6 +149,30 @@ export function hasAdjustedTotal(reg) {
 
 // All receipts across every payment, for the places that just need a count
 // or a flat list. Falls back to the legacy `paymentProofs` field.
+// Money sent back to a registrant — usually the excess on a payment that
+// covered more than they owed. Kept apart from `payments` because members
+// write that array (and `amountPaid`) themselves when they pay, and a refund
+// must never be something their next submission can overwrite. So
+// `amountPaid` stays the gross of accepted payments, and every "what they've
+// paid" figure nets refunds off through getNetPaid.
+export function getRefunds(reg) {
+  return Array.isArray(reg?.refunds)
+    ? reg.refunds.map((r) => ({
+        ...r,
+        amount: parseAmount(r?.amount),
+        proofs: r?.proofs || [],
+      }))
+    : [];
+}
+
+export function getRefundedTotal(reg) {
+  return getRefunds(reg).reduce((sum, r) => sum + r.amount, 0);
+}
+
+export function getNetPaid(reg) {
+  return getCountedTotal(reg) - getRefundedTotal(reg);
+}
+
 export function getAllProofs(reg) {
   if (hasPaymentHistory(reg)) {
     return reg.payments.flatMap((p) => p?.proofs || []);

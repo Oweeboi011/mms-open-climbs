@@ -21,7 +21,11 @@
 // Only when the climb itself isn't available (e.g. it was deleted) do we
 // fall back to summing the frozen feeBreakdown snapshot as-is.
 
-import { getCountedTotal, hasPaymentHistory } from "./payments";
+import {
+  getCountedTotal,
+  getRefundedTotal,
+  hasPaymentHistory,
+} from "./payments";
 import { sumFeeAmounts, parseFeeAmount } from "./feeSummary";
 
 // Sharing groups for shareable optional services (e.g. a porter split
@@ -101,11 +105,13 @@ export function getExpectedTotal(reg, climb, serviceGroups = {}) {
 // instalment can be rejected while others stand), and for older
 // single-payment registrations it's the registration's own status.
 export function getCountedPaid(reg) {
-  return hasPaymentHistory(reg)
+  const accepted = hasPaymentHistory(reg)
     ? getCountedTotal(reg)
     : reg.paymentStatus === "rejected"
       ? 0
       : Number(reg.amountPaid) || 0;
+  // Money refunded to them comes back off (see getRefunds in ./payments).
+  return accepted - getRefundedTotal(reg);
 }
 
 // Remaining balance still to be settled: expected total minus what counts

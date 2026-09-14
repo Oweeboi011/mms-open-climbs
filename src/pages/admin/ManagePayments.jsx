@@ -30,7 +30,11 @@ import {
   toggleOptionalFeeEntry,
   getAvailmentCounts,
 } from "@/utils/registrationFees";
-import { setEntryStatus, setAllEntryStatuses } from "@/utils/payments";
+import {
+  setEntryStatus,
+  setAllEntryStatuses,
+  getRefundedTotal,
+} from "@/utils/payments";
 import { groupClimbsByCompletion } from "@/utils/climbGrouping";
 
 export default function ManagePayments() {
@@ -251,8 +255,10 @@ export default function ManagePayments() {
       const s = map[reg.climbId];
       s.regs.push(reg);
 
+      // Net of refunds — money sent back isn't collected.
       const paid =
-        parseFloat(String(reg.amountPaid || 0).replace(/[^0-9.]/g, "")) || 0;
+        (parseFloat(String(reg.amountPaid || 0).replace(/[^0-9.]/g, "")) ||
+          0) - getRefundedTotal(reg);
       s.totalDeclared += paid;
       if (reg.paymentStatus === "verified") s.totalVerified += paid;
       s.totalOutstanding += getOutstanding(reg);
@@ -277,8 +283,10 @@ export default function ManagePayments() {
       outstanding = 0;
     for (const reg of regs) {
       if (reg.status === "cancelled") continue;
+      // Net of refunds — money sent back isn't collected.
       const paid =
-        parseFloat(String(reg.amountPaid || 0).replace(/[^0-9.]/g, "")) || 0;
+        (parseFloat(String(reg.amountPaid || 0).replace(/[^0-9.]/g, "")) ||
+          0) - getRefundedTotal(reg);
       declared += paid;
       if (reg.paymentStatus === "verified") verified += paid;
       outstanding += getOutstanding(reg);
