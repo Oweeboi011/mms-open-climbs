@@ -9,9 +9,16 @@ import { logAuditEvent } from "@/utils/auditLog";
 // entry and onto the other registrant's own history, carrying the receipt and
 // the review verdict with it, so every record's balance reflects who is
 // actually covered.
+//
+// Both sides of a share carry the same `splitId` (in the payer's `splitTo`
+// and the recipient's `paidBy`) so an undo removes exactly the entry that
+// split created. Splits made before ids existed are matched by recipient and
+// amount instead.
 
 const round2 = (n) => Math.round(n * 100) / 100;
 const peso = (n) => `₱${Number(n || 0).toLocaleString("en-PH")}`;
+const makeSplitId = () =>
+  `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
 // `allocations` is `[{ reg, amount }]`. Returns the Firestore patches for the
 // payer and each recipient; throws with an admin-readable message when the
@@ -23,9 +30,18 @@ export function buildSplitPatches(payer, index, allocations, { actorName } = {})
   if (entry.status === "rejected") {
     throw new Error("A rejected payment can't be split.");
   }
+  if (entry.paidBy) {
+    throw new Error(
+      "This payment was split onto this record from someone else's — undo that split instead of splitting it again.",
+    );
+  }
 
   const shares = (allocations || [])
-    .map((a) => ({ reg: a.reg, amount: round2(Number(a.amount) || 0) }))
+    .map((a) => ({
+      reg: a.reg,
+      amount: round2(Number(a.amount) || 0),
+      splitId: makeSplitId(),
+    }))
     .filter((a) => a.amount > 0);
   if (shares.length === 0) {
     throw new Error("Choose who else this payment covers and how much.");
@@ -52,6 +68,7 @@ export function buildSplitPatches(payer, index, allocations, { actorName } = {})
               registrationId: a.reg.id,
               name: a.reg.name || "",
               amount: a.amount,
+              splitId: a.splitId,
             })),
           ],
         }
@@ -64,7 +81,11 @@ export function buildSplitPatches(payer, index, allocations, { actorName } = {})
       proofs: entry.proofs,
       submittedAt: entry.submittedAt,
       status: entry.status,
-      paidBy: { registrationId: payer.id, name: payer.name || "" },
+      paidBy: {
+        registrationId: payer.id,
+        name: payer.name || "",
+        splitId: a.splitId,
+      },
       note: `Paid by ${payer.name || "another registrant"} — part of their ${peso(originalAmount)} payment`,
       ...(actorName ? { recordedBy: actorName } : {}),
       ...(entry.reviewedBy ? { reviewedBy: entry.reviewedBy } : {}),
@@ -122,5 +143,105 @@ export async function splitPayment(
       recipients
         .map((r) => `${peso(r.amount)} to ${r.reg.name || r.reg.id}`)
         .join(", "),
+  });
+}
+
+// Reverses one share: its amount goes back onto the payer's entry and the
+// entry it created comes off the recipient. `share` is
+// `{ recipientId, splitId, amount }`. `recipient` may be null when their
+// registration has since been deleted — the payer still gets the money back.
+export function buildUndoSplitPatches(payer, recipient, share) {
+  const { recipientId, splitId, amount } = share;
+  const isShare = (s) =>
+    s.registrationId === recipientId &&
+    (splitId ? s.splitId === splitId : Math.abs(s.amount - amount) < 0.005);
+
+  const payerEntries = getPaymentEntries(payer);
+  const payerIndex = payerEntries.findIndex((e) =>
+    (e.splitTo || []).some(isShare),
+  );
+  if (payerIndex === -1) {
+    throw new Error("That split is no longer on the payer's record.");
+  }
+  const entry = payerEntries[payerIndex];
+  const undone = entry.splitTo.find(isShare);
+  const otherShares = entry.splitTo.filter((s) => s !== undone);
+  const {
+    splitTo: _splitTo,
+    originalAmount: _originalAmount,
+    ...rest
+  } = entry;
+  const restored = {
+    ...rest,
+    amount: round2(entry.amount + undone.amount),
+    // Still split onto others — keep the bookkeeping for those shares.
+    ...(otherShares.length > 0
+      ? { splitTo: otherShares, originalAmount: entry.originalAmount }
+      : {}),
+  };
+  const payerPatch = buildPaymentPatch(
+    payerEntries.map((e, i) => (i === payerIndex ? restored : e)),
+  );
+
+  let recipientPatch = null;
+  if (recipient) {
+    const entries = getPaymentEntries(recipient);
+    const received = entries.findIndex(
+      (e) =>
+        e.paidBy?.registrationId === payer.id &&
+        (splitId
+          ? e.paidBy.splitId === splitId
+          : Math.abs(e.amount - undone.amount) < 0.005),
+    );
+    if (received === -1) {
+      throw new Error(
+        `That share is no longer on ${recipient.name || "the other registrant"}'s record.`,
+      );
+    }
+    recipientPatch = buildPaymentPatch(
+      entries.filter((_, i) => i !== received),
+    );
+  }
+
+  return { payerPatch, recipientPatch, amount: undone.amount };
+}
+
+export async function undoSplitPayment(
+  payer,
+  recipient,
+  share,
+  { currentUser, climbTitle } = {},
+) {
+  const { payerPatch, recipientPatch, amount } = buildUndoSplitPatches(
+    payer,
+    recipient,
+    share,
+  );
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, "registrations", payer.id), {
+    ...payerPatch,
+    updatedAt: serverTimestamp(),
+  });
+  if (recipientPatch) {
+    batch.update(doc(db, "registrations", recipient.id), {
+      ...recipientPatch,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
+
+  logAuditEvent({
+    actorUid: currentUser?.uid,
+    actorName: currentUser?.displayName || currentUser?.email,
+    action: "payment_split_undone",
+    targetType: "registration",
+    targetId: payer.id,
+    targetLabel: payer.name || payer.id,
+    details:
+      `Undid the ${peso(amount)} split to ` +
+      `${recipient?.name || share.recipientName || share.recipientId} for ` +
+      `${climbTitle || payer.climbTitle || "climb"} — returned to ` +
+      `${payer.name || payer.id}'s payment`,
   });
 }

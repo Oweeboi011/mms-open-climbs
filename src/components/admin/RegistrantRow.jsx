@@ -37,6 +37,7 @@ export default function RegistrantRow({
   changePaymentStatus,
   onEntryStatusChange,
   onSplitEntry,
+  onUndoSplit,
   onRecordPayment,
   onViewReceipt,
   onManageDocuments,
@@ -592,6 +593,7 @@ export default function RegistrantRow({
                     setLightboxUrl={setLightboxUrl}
                     onEntryStatusChange={onEntryStatusChange}
                     onSplitEntry={onSplitEntry}
+                    onUndoSplit={onUndoSplit}
                   />
                 ) : (
                   <div
