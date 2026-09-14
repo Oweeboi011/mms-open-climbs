@@ -121,6 +121,9 @@ export default function PaymentHistory({
   // When provided, a payment that covered other registrants can have their
   // shares moved onto their own records.
   onSplitEntry,
+  // When provided, a split share can be reversed from either side — the
+  // payer's "Split from …" line or the recipient's received entry.
+  onUndoSplit,
 }) {
   const entries = getPaymentEntries(reg);
   if (entries.length === 0) return null;
@@ -192,11 +195,13 @@ export default function PaymentHistory({
                     : ""}
                 </span>
               )}
-              {onEntryStatusChange && (
+              {(onEntryStatusChange || onSplitEntry || onUndoSplit) && (
                 <span
                   style={{ display: "flex", gap: 6, marginLeft: "auto" }}
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {onEntryStatusChange && (
+                  <>
                   <button
                     className="btn btn-sm"
                     style={{
@@ -226,7 +231,10 @@ export default function PaymentHistory({
                   >
                     &#8634;
                   </button>
+                  </>
+                  )}
                   {onSplitEntry &&
+                    !entry.paidBy &&
                     entry.status !== "rejected" &&
                     entry.amount > 0 && (
                       <button
@@ -237,6 +245,25 @@ export default function PaymentHistory({
                         Split
                       </button>
                     )}
+                  {onUndoSplit && entry.paidBy?.registrationId && (
+                    <button
+                      className="btn btn-outline btn-sm"
+                      aria-label={`Undo split from ${entry.paidBy.name || "the payer"}`}
+                      title="Send this share back onto the payer's payment"
+                      onClick={() =>
+                        onUndoSplit({
+                          payerId: entry.paidBy.registrationId,
+                          payerName: entry.paidBy.name,
+                          recipientId: reg.id,
+                          recipientName: reg.name,
+                          splitId: entry.paidBy.splitId,
+                          amount: entry.amount,
+                        })
+                      }
+                    >
+                      Undo split
+                    </button>
+                  )}
                 </span>
               )}
             </div>
@@ -254,13 +281,33 @@ export default function PaymentHistory({
             )}
             {entry.splitTo?.length > 0 && (
               <div className="payment-split-line">
-                Split from {peso(entry.originalAmount ?? entry.amount)}:{" "}
-                {entry.splitTo
-                  .map(
-                    (s) =>
-                      `${peso(s.amount)} to ${s.name || "another registrant"}`,
-                  )
-                  .join(", ")}
+                Split from {peso(entry.originalAmount ?? entry.amount)}:
+                {entry.splitTo.map((s, k) => (
+                  <span key={s.splitId || k}>
+                    {k > 0 ? ", " : " "}
+                    {peso(s.amount)} to {s.name || "another registrant"}
+                    {onUndoSplit && (
+                      <button
+                        type="button"
+                        className="payment-split-undo"
+                        aria-label={`Undo the ${peso(s.amount)} split to ${s.name || "another registrant"}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUndoSplit({
+                            payerId: reg.id,
+                            payerName: reg.name,
+                            recipientId: s.registrationId,
+                            recipientName: s.name,
+                            splitId: s.splitId,
+                            amount: s.amount,
+                          });
+                        }}
+                      >
+                        Undo
+                      </button>
+                    )}
+                  </span>
+                ))}
               </div>
             )}
             {entry.proofs.length > 0 ? (
