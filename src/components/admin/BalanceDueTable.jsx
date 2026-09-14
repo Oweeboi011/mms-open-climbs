@@ -7,8 +7,15 @@ import {
   PAYMENT_STYLE,
 } from "@/components/admin/registrantShared";
 import { getPaymentEntries } from "@/utils/payments";
-import { getExpectedTotal, getOutstanding } from "@/utils/registrationFees";
-import { formatPeso } from "@/utils/feeSummary";
+import {
+  getCountedPaid,
+  getExpectedTotal,
+  getFeeItems,
+  getOutstanding,
+} from "@/utils/registrationFees";
+import { formatPeso, sumFeeAmounts } from "@/utils/feeSummary";
+
+const round2 = (n) => Math.round(n * 100) / 100;
 
 // Registrants on one climb who still owe money at the climb's current fees,
 // biggest balance first. Cancelled registrations owe nothing.
@@ -20,35 +27,76 @@ export function getBalancesDue(regs, climb, serviceGroups) {
       const balance = getOutstanding(reg, climb, serviceGroups);
       // Only rows with a balance are kept, so nobody here has overpaid and
       // what counts as paid is exactly the difference.
-      return { reg, expected, paid: expected - balance, balance };
+      return { reg, expected, paid: expected - balance, amount: balance };
     })
-    .filter((row) => row.balance > 0)
-    .sort((a, b) => b.balance - a.balance);
+    .filter((row) => row.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
 }
 
-export function sumBalances(rows) {
-  const total = (rows || []).reduce((sum, row) => sum + row.balance, 0);
-  return Math.round(total * 100) / 100;
+// The reverse: registrants who have paid more than their fees — usually one
+// joiner whose payment covered friends, waiting to be split onto their
+// records. Skipped when someone's fees aren't fully known (nothing on record,
+// or an amount still TBA), since any payment would look like excess.
+export function getExcessPayments(regs, climb, serviceGroups) {
+  return (regs || [])
+    .filter((reg) => reg.status !== "cancelled")
+    .map((reg) => {
+      const items = getFeeItems(reg, climb, serviceGroups);
+      const { total, hasTba } = sumFeeAmounts(items);
+      if (items.length === 0 || hasTba) return null;
+      const paid = getCountedPaid(reg);
+      return { reg, expected: total, paid, amount: round2(paid - total) };
+    })
+    .filter((row) => row && row.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
 }
 
-// `card` renders it as a standalone admin card (the climb detail page);
-// otherwise it's a section inside an expanded row (the climbs list).
-export default function BalanceDueTable({ rows, card = false }) {
+export function sumAmounts(rows) {
+  return round2((rows || []).reduce((sum, row) => sum + row.amount, 0));
+}
+
+const KINDS = {
+  due: {
+    title: "Remaining Balances",
+    amountLabel: "Balance",
+    totalSuffix: "due",
+    amountClass: "balance-due-amount",
+    empty: "No one on this climb has a balance left to pay.",
+  },
+  excess: {
+    title: "Excess Payments",
+    amountLabel: "Excess",
+    totalSuffix: "over",
+    amountClass: "excess-amount",
+    empty: "No one on this climb has paid more than they owe.",
+  },
+};
+
+// `kind` picks balances still owed ("due") or overpayments ("excess"); `card`
+// renders it as a standalone admin card (the climb detail page), otherwise
+// it's a section inside an expanded row (the climbs list). `onSplitEntry`
+// lets a payment be split straight from the payment history dialog.
+export default function BalanceDueTable({
+  rows,
+  kind = "due",
+  card = false,
+  onSplitEntry,
+  onUndoSplit,
+}) {
+  const config = KINDS[kind];
   // Looked up from `rows` on every render so the open history follows live
-  // payment updates, and closes once the balance is settled.
+  // payment updates, and closes once the row no longer applies.
   const [viewingId, setViewingId] = useState(null);
   const viewing = rows.find((row) => row.reg.id === viewingId);
 
   const summary =
     rows.length > 0
-      ? `${rows.length} registrant${rows.length !== 1 ? "s" : ""} · ${formatPeso(sumBalances(rows))} due`
+      ? `${rows.length} registrant${rows.length !== 1 ? "s" : ""} · ${formatPeso(sumAmounts(rows))} ${config.totalSuffix}`
       : null;
 
   const body =
     rows.length === 0 ? (
-      <div className="admin-table-sub">
-        No one on this climb has a balance left to pay.
-      </div>
+      <div className="admin-table-sub">{config.empty}</div>
     ) : (
       <ResponsiveTable>
         <table className="admin-table">
@@ -59,12 +107,12 @@ export default function BalanceDueTable({ rows, card = false }) {
               <th>Mobile</th>
               <th>Fees</th>
               <th>Paid</th>
-              <th>Balance</th>
+              <th>{config.amountLabel}</th>
               <th>Payment</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ reg, expected, paid, balance }) => (
+            {rows.map(({ reg, expected, paid, amount }) => (
               <tr
                 key={reg.id}
                 className="balance-due-row"
@@ -85,7 +133,7 @@ export default function BalanceDueTable({ rows, card = false }) {
                 <td className="balance-due-money">{reg.mobile || "—"}</td>
                 <td className="balance-due-money">{formatPeso(expected)}</td>
                 <td className="balance-due-money">{formatPeso(paid)}</td>
-                <td className="balance-due-amount">{formatPeso(balance)}</td>
+                <td className={config.amountClass}>{formatPeso(amount)}</td>
                 <td>
                   <StatusBadge
                     status={reg.paymentStatus}
@@ -109,12 +157,23 @@ export default function BalanceDueTable({ rows, card = false }) {
       </h3>
       <p className="balance-history-summary">
         Fees {formatPeso(viewing.expected)} · Paid {formatPeso(viewing.paid)} ·{" "}
-        <strong className="balance-due-amount">
-          Balance {formatPeso(viewing.balance)}
+        <strong className={config.amountClass}>
+          {config.amountLabel} {formatPeso(viewing.amount)}
         </strong>
       </p>
+      {kind === "excess" && onSplitEntry && (
+        <p className="balance-history-summary">
+          If a payment covered someone else on this climb, use Split on it to
+          move their share onto their record.
+        </p>
+      )}
       {getPaymentEntries(viewing.reg).length > 0 ? (
-        <PaymentHistory reg={viewing.reg} thumbSize={90} />
+        <PaymentHistory
+          reg={viewing.reg}
+          thumbSize={90}
+          onSplitEntry={onSplitEntry}
+          onUndoSplit={onUndoSplit}
+        />
       ) : (
         <p className="admin-table-sub">No payments recorded yet.</p>
       )}
@@ -132,7 +191,8 @@ export default function BalanceDueTable({ rows, card = false }) {
     return (
       <div className="admin-card balance-due-card">
         <div className="admin-card-title">
-          Remaining Balances{summary && ` — ${summary}`}
+          {config.title}
+          {summary && ` — ${summary}`}
         </div>
         {body}
         {historyModal}
@@ -143,7 +203,7 @@ export default function BalanceDueTable({ rows, card = false }) {
   return (
     <div className="balance-due-section">
       <div className="admin-section-bar">
-        <span className="admin-section-label">Remaining Balances</span>
+        <span className="admin-section-label">{config.title}</span>
         {summary && <span className="admin-table-sub">{summary}</span>}
       </div>
       {body}

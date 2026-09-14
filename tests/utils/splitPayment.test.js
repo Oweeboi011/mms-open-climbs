@@ -4,7 +4,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { writeBatch } from "firebase/firestore";
-import { buildSplitPatches, splitPayment } from "@/utils/splitPayment";
+import {
+  buildSplitPatches,
+  splitPayment,
+  buildUndoSplitPatches,
+  undoSplitPayment,
+} from "@/utils/splitPayment";
 import { setEntryStatus } from "@/utils/payments";
 import { logAuditEvent } from "@/utils/auditLog";
 
@@ -211,6 +216,190 @@ describe("splitPayment", () => {
     expect(entry.targetId).toBe("reg-juan");
     expect(entry.details).toMatch(/Split ₱800/);
     expect(entry.details).toMatch(/₱500 to Maria Santos/);
+    expect(entry.details).toMatch(/Mt\. Pulag/);
+  });
+});
+
+// Applies a split to plain registration objects, the way the live snapshot
+// would hand them back after the write.
+function splitJuan(allocations) {
+  const { payerPatch, recipients } = buildSplitPatches(juan, 0, allocations);
+  return {
+    payer: { ...juan, payments: payerPatch.payments },
+    recipients: recipients.map(({ reg, patch }) => ({
+      ...reg,
+      payments: patch.payments,
+    })),
+  };
+}
+
+function shareFor(payer, recipient) {
+  const s = payer.payments[0].splitTo.find(
+    (x) => x.registrationId === recipient.id,
+  );
+  return {
+    payerId: payer.id,
+    recipientId: recipient.id,
+    splitId: s.splitId,
+    amount: s.amount,
+  };
+}
+
+describe("buildUndoSplitPatches", () => {
+  it("puts the share back on the payer and takes it off the recipient", () => {
+    const {
+      payer,
+      recipients: [mariaAfter],
+    } = splitJuan([{ reg: maria, amount: 500 }]);
+    const { payerPatch, recipientPatch } = buildUndoSplitPatches(
+      payer,
+      mariaAfter,
+      shareFor(payer, mariaAfter),
+    );
+
+    expect(payerPatch.payments[0]).toMatchObject({
+      amount: 1500,
+      status: "verified",
+      proofs: [receipt],
+    });
+    expect(payerPatch.payments[0]).not.toHaveProperty("splitTo");
+    expect(payerPatch.payments[0]).not.toHaveProperty("originalAmount");
+    expect(recipientPatch).toMatchObject({
+      payments: [],
+      amountPaid: 0,
+      paymentStatus: "unpaid",
+    });
+  });
+
+  it("undoes one share and leaves the others split", () => {
+    const {
+      payer,
+      recipients: [, pedroAfter],
+    } = splitJuan([
+      { reg: maria, amount: 500 },
+      { reg: pedro, amount: 300 },
+    ]);
+    const { payerPatch, recipientPatch } = buildUndoSplitPatches(
+      payer,
+      pedroAfter,
+      shareFor(payer, pedroAfter),
+    );
+
+    expect(payerPatch.payments[0]).toMatchObject({
+      amount: 1000,
+      originalAmount: 1500,
+    });
+    expect(payerPatch.payments[0].splitTo).toEqual([
+      expect.objectContaining({ registrationId: "reg-maria" }),
+    ]);
+    // Pedro keeps the payment he made himself.
+    expect(recipientPatch.payments).toHaveLength(1);
+    expect(recipientPatch.amountPaid).toBe(200);
+  });
+
+  it("matches a split recorded before splits carried an id", () => {
+    const payer = {
+      id: "reg-juan",
+      name: "Juan Cruz",
+      payments: [
+        {
+          amount: 1000,
+          originalAmount: 1500,
+          proofs: [],
+          status: "verified",
+          splitTo: [
+            { registrationId: "reg-maria", name: "Maria Santos", amount: 500 },
+          ],
+        },
+      ],
+    };
+    const recipient = {
+      id: "reg-maria",
+      name: "Maria Santos",
+      payments: [
+        {
+          amount: 500,
+          proofs: [],
+          status: "verified",
+          paidBy: { registrationId: "reg-juan", name: "Juan Cruz" },
+        },
+      ],
+    };
+    const { payerPatch, recipientPatch } = buildUndoSplitPatches(
+      payer,
+      recipient,
+      { recipientId: "reg-maria", amount: 500 },
+    );
+    expect(payerPatch.payments[0].amount).toBe(1500);
+    expect(recipientPatch.payments).toEqual([]);
+  });
+
+  it("still returns the money to the payer if the recipient's registration is gone", () => {
+    const {
+      payer,
+      recipients: [mariaAfter],
+    } = splitJuan([{ reg: maria, amount: 500 }]);
+    const { payerPatch, recipientPatch } = buildUndoSplitPatches(
+      payer,
+      null,
+      shareFor(payer, mariaAfter),
+    );
+    expect(payerPatch.payments[0].amount).toBe(1500);
+    expect(recipientPatch).toBeNull();
+  });
+
+  it("refuses once the split is no longer on record", () => {
+    expect(() =>
+      buildUndoSplitPatches(juan, maria, {
+        recipientId: "reg-maria",
+        splitId: "gone",
+        amount: 500,
+      }),
+    ).toThrow(/no longer on the payer's record/);
+  });
+
+  it("won't split a share that was itself split onto this record", () => {
+    const {
+      recipients: [mariaAfter],
+    } = splitJuan([{ reg: maria, amount: 500 }]);
+    expect(() =>
+      buildSplitPatches(mariaAfter, 0, [{ reg: pedro, amount: 100 }]),
+    ).toThrow(/undo that split/);
+  });
+});
+
+describe("undoSplitPayment", () => {
+  let batch;
+
+  beforeEach(() => {
+    batch = {
+      update: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+      commit: vi.fn(() => Promise.resolve()),
+    };
+    writeBatch.mockReturnValue(batch);
+  });
+
+  it("restores the payer and the recipient together, and logs it", async () => {
+    const {
+      payer,
+      recipients: [mariaAfter],
+    } = splitJuan([{ reg: maria, amount: 500 }]);
+    await undoSplitPayment(payer, mariaAfter, shareFor(payer, mariaAfter), {
+      currentUser: admin,
+      climbTitle: "Mt. Pulag",
+    });
+
+    expect(batch.update.mock.calls.map((c) => c[0].path)).toEqual([
+      "registrations/reg-juan",
+      "registrations/reg-maria",
+    ]);
+    expect(batch.commit).toHaveBeenCalledTimes(1);
+
+    const entry = logAuditEvent.mock.calls.at(-1)[0];
+    expect(entry.action).toBe("payment_split_undone");
+    expect(entry.details).toMatch(/₱500 split to Maria Santos/);
     expect(entry.details).toMatch(/Mt\. Pulag/);
   });
 });

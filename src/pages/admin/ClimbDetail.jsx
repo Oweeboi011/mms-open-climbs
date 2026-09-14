@@ -26,7 +26,7 @@ import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import CollectionBreakdown from "@/components/admin/CollectionBreakdown";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import SplitPaymentModal from "@/components/admin/SplitPaymentModal";
-import { splitPayment } from "@/utils/splitPayment";
+import { splitPayment, undoSplitPayment } from "@/utils/splitPayment";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import ReceiptModal from "@/components/ReceiptModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
@@ -47,6 +47,7 @@ import ServiceSharingCard from "@/components/admin/ServiceSharingCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
 import BalanceDueTable, {
   getBalancesDue,
+  getExcessPayments,
 } from "@/components/admin/BalanceDueTable";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import {
@@ -264,6 +265,8 @@ export default function AdminClimbDetail() {
     setRecordingPaymentFor(null);
   }
 
+  const openSplit = (payer, index) =>
+    setSplittingPayment({ regId: payer.id, index });
   const splitPayer =
     splittingPayment && regs.find((r) => r.id === splittingPayment.regId);
 
@@ -273,6 +276,33 @@ export default function AdminClimbDetail() {
       climbTitle: climb?.title,
     });
     setSplittingPayment(null);
+  }
+
+  async function undoSplit(share) {
+    const payer = regs.find((r) => r.id === share.payerId);
+    const recipient = regs.find((r) => r.id === share.recipientId) || null;
+    const amount = `₱${Number(share.amount || 0).toLocaleString("en-PH")}`;
+    if (!payer) {
+      window.alert(
+        `${share.payerName || "The payer"}'s registration no longer exists, so this split can't be undone.`,
+      );
+      return;
+    }
+    const payerName = payer.name || "the payer";
+    if (
+      !window.confirm(
+        `Undo the ${amount} split from ${payerName} to ${share.recipientName || "the other registrant"}? The ${amount} goes back onto ${payerName}'s payment.`,
+      )
+    )
+      return;
+    try {
+      await undoSplitPayment(payer, recipient, share, {
+        currentUser,
+        climbTitle: climb?.title,
+      });
+    } catch (err) {
+      window.alert(err?.message || "Couldn't undo the split. Please try again.");
+    }
   }
 
   async function saveAdminDocs(reg, patch) {
@@ -594,6 +624,10 @@ export default function AdminClimbDetail() {
     () => getBalancesDue(regs, climb, serviceGroups),
     [regs, climb, serviceGroups],
   );
+  const excessPayments = useMemo(
+    () => getExcessPayments(regs, climb, serviceGroups),
+    [regs, climb, serviceGroups],
+  );
 
   const docs = useMemo(() => getDocCompliance(climb, regs), [climb, regs]);
 
@@ -805,6 +839,14 @@ export default function AdminClimbDetail() {
             {getEffectiveStatus(climb) !== "cancelled" && (
               <BalanceDueTable rows={balancesDue} card />
             )}
+
+            <BalanceDueTable
+              kind="excess"
+              rows={excessPayments}
+              card
+              onSplitEntry={openSplit}
+              onUndoSplit={undoSplit}
+            />
 
             {/* Required documents progress — how much of the paperwork this
                 climb asked for has actually come in, per document type, so an
@@ -1140,9 +1182,8 @@ export default function AdminClimbDetail() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         onRecordPayment={setRecordingPaymentFor}
-                        onSplitEntry={(payer, index) =>
-                          setSplittingPayment({ regId: payer.id, index })
-                        }
+                        onSplitEntry={openSplit}
+                        onUndoSplit={undoSplit}
                         onViewReceipt={setViewingReceiptFor}
                         onManageDocuments={setManagingDocsFor}
                         toggleOptionalFee={toggleOptionalFee}

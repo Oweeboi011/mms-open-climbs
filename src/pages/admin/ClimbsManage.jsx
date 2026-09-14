@@ -23,7 +23,7 @@ import {
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import BalanceDueTable, {
   getBalancesDue,
-  sumBalances,
+  sumAmounts,
 } from "@/components/admin/BalanceDueTable";
 import ClimbRatingCells from "@/components/admin/ClimbRatingCells";
 import { TRAIL_CLASS_LABELS } from "@/utils/trailClass";
@@ -351,7 +351,7 @@ export default function AdminClimbsManage() {
                                               className="balance-due-pill"
                                               title={`${balances.length} registrant${balances.length !== 1 ? "s" : ""} still owe — expand for the list`}
                                             >
-                                              {formatPeso(sumBalances(balances))}{" "}
+                                              {formatPeso(sumAmounts(balances))}{" "}
                                               due
                                             </span>
                                           )}
