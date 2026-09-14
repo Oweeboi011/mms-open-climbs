@@ -25,6 +25,8 @@ import { detailsIncomplete } from "@/components/DetailsPrompt";
 import AddJoinerModal from "@/components/admin/AddJoinerModal";
 import CollectionBreakdown from "@/components/admin/CollectionBreakdown";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
+import SplitPaymentModal from "@/components/admin/SplitPaymentModal";
+import { splitPayment } from "@/utils/splitPayment";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import ReceiptModal from "@/components/ReceiptModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
@@ -43,6 +45,10 @@ import {
 } from "@/utils/registrationFees";
 import ServiceSharingCard from "@/components/admin/ServiceSharingCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
+import BalanceDueTable, {
+  getBalancesDue,
+} from "@/components/admin/BalanceDueTable";
+import { getEffectiveStatus } from "@/utils/climbStatus";
 import {
   getPaymentEntries,
   setEntryStatus,
@@ -86,6 +92,9 @@ export default function AdminClimbDetail() {
   const [addJoinerOpen, setAddJoinerOpen] = useState(false);
   const [editingReg, setEditingReg] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
+  // { regId, index } of the payment being split. The registration itself is
+  // re-read from the live list so the dialog never works off a stale copy.
+  const [splittingPayment, setSplittingPayment] = useState(null);
   const [viewingReceiptFor, setViewingReceiptFor] = useState(null);
   const [managingDocsFor, setManagingDocsFor] = useState(null);
   const [feedback, setFeedback] = useState([]);
@@ -253,6 +262,17 @@ export default function AdminClimbDetail() {
       climbTitle: climb?.title,
     });
     setRecordingPaymentFor(null);
+  }
+
+  const splitPayer =
+    splittingPayment && regs.find((r) => r.id === splittingPayment.regId);
+
+  async function saveSplitPayment(allocations) {
+    await splitPayment(splitPayer, splittingPayment.index, allocations, {
+      currentUser,
+      climbTitle: climb?.title,
+    });
+    setSplittingPayment(null);
   }
 
   async function saveAdminDocs(reg, patch) {
@@ -568,6 +588,13 @@ export default function AdminClimbDetail() {
     [regs, getOutstanding],
   );
 
+  // Who still owes, for the summary card under Expenses — the same figure as
+  // each registrant row's outstanding amount.
+  const balancesDue = useMemo(
+    () => getBalancesDue(regs, climb, serviceGroups),
+    [regs, climb, serviceGroups],
+  );
+
   const docs = useMemo(() => getDocCompliance(climb, regs), [climb, regs]);
 
   return (
@@ -774,6 +801,10 @@ export default function AdminClimbDetail() {
               totalPaid={stats.totalPaid}
               onSave={saveExpenses}
             />
+
+            {getEffectiveStatus(climb) !== "cancelled" && (
+              <BalanceDueTable rows={balancesDue} card />
+            )}
 
             {/* Required documents progress — how much of the paperwork this
                 climb asked for has actually come in, per document type, so an
@@ -1109,6 +1140,9 @@ export default function AdminClimbDetail() {
                         changePaymentStatus={changePaymentStatus}
                         onEntryStatusChange={changeEntryStatus}
                         onRecordPayment={setRecordingPaymentFor}
+                        onSplitEntry={(payer, index) =>
+                          setSplittingPayment({ regId: payer.id, index })
+                        }
                         onViewReceipt={setViewingReceiptFor}
                         onManageDocuments={setManagingDocsFor}
                         toggleOptionalFee={toggleOptionalFee}
@@ -1196,6 +1230,18 @@ export default function AdminClimbDetail() {
           reg={recordingPaymentFor}
           onClose={() => setRecordingPaymentFor(null)}
           onSave={recordPayment}
+        />
+      )}
+
+      {splitPayer && (
+        <SplitPaymentModal
+          payer={splitPayer}
+          entryIndex={splittingPayment.index}
+          regs={regs}
+          climb={climb}
+          serviceGroups={serviceGroups}
+          onClose={() => setSplittingPayment(null)}
+          onSave={saveSplitPayment}
         />
       )}
 

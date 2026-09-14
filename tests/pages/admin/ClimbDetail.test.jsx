@@ -2,7 +2,7 @@
  * Tests for the Admin Climb Detail page.
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
 import {
   renderAtRoute,
   makeAdminAuth,
@@ -11,7 +11,13 @@ import {
   mockLiveSnapshot,
 } from "@tests/helpers";
 import ClimbDetail from "@/pages/admin/ClimbDetail";
-import { getDoc, getDocs, addDoc, updateDoc } from "firebase/firestore";
+import {
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 
 // Captures what the page puts into the ZIP so the docs test can assert on
@@ -36,6 +42,10 @@ const memberDoc = {
 function mockRegistrantSnapshot(items) {
   mockLiveSnapshot(items);
 }
+
+// The Remaining Balances card repeats owing registrants' names and the
+// Balance header, so lookups meant for the registrants table are scoped to it.
+const IN_REGISTRANTS_TABLE = { selector: ".table-min-900 *" };
 
 // Mobile, emergency contact and medical conditions are required on the Add
 // Participant form — officers rely on them on the trail.
@@ -190,7 +200,11 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Balance")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText("Balance", IN_REGISTRANTS_TABLE),
+      ).toBeInTheDocument(),
+    );
     // Both the aggregate Total Outstanding stat and this registrant's own
     // row cell show ₱500, since they're the only unpaid registrant.
     expect(screen.getAllByText("₱500").length).toBeGreaterThanOrEqual(1);
@@ -212,7 +226,11 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Balance")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText("Balance", IN_REGISTRANTS_TABLE),
+      ).toBeInTheDocument(),
+    );
     // 500 expected - 300 already declared = 200 remaining (shown in both the
     // aggregate Total Outstanding stat and this registrant's own row cell).
     expect(screen.getAllByText("₱200").length).toBeGreaterThanOrEqual(1);
@@ -233,8 +251,12 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Juan Cruz"));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE));
 
     await waitFor(() =>
       expect(
@@ -323,9 +345,11 @@ describe("Admin ClimbDetail", () => {
 
     render();
     await waitFor(() =>
-      expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
+      expect(
+        screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE),
+      ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByText("Juan Cruz"));
+    fireEvent.click(screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE));
 
     await waitFor(() =>
       expect(
@@ -895,6 +919,132 @@ describe("Admin ClimbDetail", () => {
     expect(payload.mobile).toBe("+63 917 000 0000");
     // Signing binds the participant, so an admin never sets it.
     expect(payload.waiverSigned).toBe(false);
+  });
+
+  describe("Remaining Balances card", () => {
+    it("summarizes who still owes, right under Expenses", async () => {
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, {
+          ...climbFixture,
+          fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+        }),
+      );
+      mockRegistrantSnapshot([
+        {
+          id: registrationFixture.id,
+          data: { ...registrationFixture, paymentStatus: "unpaid" },
+        },
+        {
+          id: "reg-paid",
+          data: {
+            ...registrationFixture,
+            id: "reg-paid",
+            name: "Pedro Reyes",
+            paymentStatus: "verified",
+            amountPaid: 500,
+            payments: [{ amount: 500, proofs: [], status: "verified" }],
+          },
+        },
+      ]);
+      render();
+
+      const title = await screen.findByText(
+        "Remaining Balances — 1 registrant · ₱500 due",
+      );
+      const card = title.closest(".admin-card");
+      expect(within(card).getByText("Juan Cruz")).toBeInTheDocument();
+      expect(within(card).queryByText("Pedro Reyes")).not.toBeInTheDocument();
+
+      const expenses = screen
+        .getByText("Expenses", { selector: ".admin-card-title" })
+        .closest(".admin-card");
+      expect(expenses.nextElementSibling).toBe(card);
+    });
+
+    it("says so when nobody owes anything", async () => {
+      render();
+      await waitFor(() =>
+        expect(
+          screen.getByText("No one on this climb has a balance left to pay."),
+        ).toBeInTheDocument(),
+      );
+    });
+  });
+
+  describe("splitting a payment that covered someone else", () => {
+    it("moves the share onto the other registrant in one batch", async () => {
+      const batch = {
+        update: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
+        commit: vi.fn(() => Promise.resolve()),
+      };
+      writeBatch.mockReturnValue(batch);
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, {
+          ...climbFixture,
+          fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+        }),
+      );
+      mockRegistrantSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            paymentStatus: "verified",
+            amountPaid: 1000,
+            payments: [{ amount: 1000, proofs: [], status: "verified" }],
+          },
+        },
+        {
+          id: "reg-pedro",
+          data: {
+            ...registrationFixture,
+            id: "reg-pedro",
+            name: "Pedro Reyes",
+            email: "pedro@example.com",
+            paymentStatus: "unpaid",
+          },
+        },
+      ]);
+      render();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE),
+        ).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE));
+      fireEvent.click(await screen.findByRole("button", { name: "Split" }));
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "Split Payment",
+      });
+      // Ticking Pedro fills in what he still owes.
+      fireEvent.click(within(dialog).getByRole("checkbox"));
+      expect(
+        within(dialog).getByLabelText("Amount for Pedro Reyes"),
+      ).toHaveValue(500);
+      expect(
+        within(dialog).getByText("Moving ₱500 · ₱500 stays with Juan Cruz"),
+      ).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save Split" }));
+
+      await waitFor(() => expect(batch.commit).toHaveBeenCalled());
+      const [payerCall, pedroCall] = batch.update.mock.calls;
+      expect(payerCall[0].path).toBe(`registrations/${registrationFixture.id}`);
+      expect(payerCall[1].payments[0]).toMatchObject({
+        amount: 500,
+        originalAmount: 1000,
+      });
+      expect(pedroCall[0].path).toBe("registrations/reg-pedro");
+      expect(pedroCall[1].payments.at(-1)).toMatchObject({
+        amount: 500,
+        status: "verified",
+        paidBy: { name: "Juan Cruz" },
+      });
+    });
   });
 
   describe("Download Docs (ZIP)", () => {

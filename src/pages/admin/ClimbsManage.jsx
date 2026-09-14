@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   collection,
@@ -21,6 +21,10 @@ import {
   formatPeso,
 } from "@/utils/feeSummary";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import BalanceDueTable, {
+  getBalancesDue,
+  sumBalances,
+} from "@/components/admin/BalanceDueTable";
 import ClimbRatingCells from "@/components/admin/ClimbRatingCells";
 import { TRAIL_CLASS_LABELS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
@@ -42,6 +46,48 @@ export default function AdminClimbsManage() {
     });
     return unsub;
   }, []);
+
+  // Registrations and service-sharing groups for every climb, so each climb's
+  // remaining balances follow payments and fee edits while the page is open.
+  // One listener each rather than one per climb.
+  const [regs, setRegs] = useState([]);
+  const [climbPrivateMap, setClimbPrivateMap] = useState({});
+  useEffect(() => {
+    const unsubRegs = onSnapshot(collection(db, "registrations"), (snap) => {
+      setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    const unsubPrivate = onSnapshot(collection(db, "climbPrivate"), (snap) => {
+      const map = {};
+      snap.docs.forEach((d) => {
+        map[d.id] = d.data();
+      });
+      setClimbPrivateMap(map);
+    });
+    return () => {
+      unsubRegs();
+      unsubPrivate();
+    };
+  }, []);
+
+  // A cancelled climb's balances aren't being collected, so it lists none.
+  const balancesByClimb = useMemo(() => {
+    const regsByClimb = {};
+    regs.forEach((reg) => {
+      (regsByClimb[reg.climbId] ||= []).push(reg);
+    });
+    const map = {};
+    climbs.forEach((climb) => {
+      map[climb.id] =
+        getEffectiveStatus(climb) === "cancelled"
+          ? []
+          : getBalancesDue(
+              regsByClimb[climb.id],
+              climb,
+              climbPrivateMap[climb.id]?.serviceGroups,
+            );
+    });
+    return map;
+  }, [regs, climbs, climbPrivateMap]);
 
   async function changeStatus(id, status) {
     // `cancellationStatus` is derived from the lifecycle status, so it has to
@@ -230,6 +276,7 @@ export default function AdminClimbsManage() {
                               (climb.registrationCount ?? 0);
                             const isOpen = expandedIds.has(climb.id);
                             const missing = getMissingFields(climb);
+                            const balances = balancesByClimb[climb.id] || [];
                             return (
                               <React.Fragment key={climb.id}>
                                 <tr>
@@ -297,6 +344,15 @@ export default function AdminClimbsManage() {
                                               }}
                                             >
                                               &#9888; {missing.length}
+                                            </span>
+                                          )}
+                                          {balances.length > 0 && (
+                                            <span
+                                              className="balance-due-pill"
+                                              title={`${balances.length} registrant${balances.length !== 1 ? "s" : ""} still owe — expand for the list`}
+                                            >
+                                              {formatPeso(sumBalances(balances))}{" "}
+                                              due
                                             </span>
                                           )}
                                         </div>
@@ -774,6 +830,11 @@ export default function AdminClimbsManage() {
                                       <div style={{ marginBottom: 12 }}>
                                         <ClimbFeeBreakdown climb={climb} />
                                       </div>
+
+                                      {getEffectiveStatus(climb) !==
+                                        "cancelled" && (
+                                        <BalanceDueTable rows={balances} />
+                                      )}
 
                                       <div
                                         style={{

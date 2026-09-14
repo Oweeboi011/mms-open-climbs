@@ -2,7 +2,7 @@
  * Tests for the Admin Climbs Manage page.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
 import {
   renderWithProviders,
   makeAdminAuth,
@@ -36,12 +36,64 @@ const climbDoc2 = {
   },
 };
 
+// The page listens to climbs, registrations and climbPrivate; hand each
+// listener its own collection.
+function routeSnapshots({
+  climbs = [climbDoc, climbDoc2],
+  registrations = [],
+  climbPrivate = [],
+} = {}) {
+  onSnapshot.mockImplementation((target, cb) => {
+    const path = (Array.isArray(target) ? target[0]?.path : target?.path) ?? "";
+    const docs =
+      path === "registrations"
+        ? registrations
+        : path === "climbPrivate"
+          ? climbPrivate
+          : climbs;
+    cb(makeQuerySnapshot(docs));
+    return vi.fn();
+  });
+}
+
+const reg = (id, data) => ({
+  id,
+  data: { climbId: climbFixture.id, status: "confirmed", ...data },
+});
+
+// Mt. Pulag's required fees come to ₱1,200, plus the ₱450 guest fee for
+// joiners.
+const juanOwesAll = reg("r-juan", {
+  name: "Juan Cruz",
+  email: "juan@example.com",
+  memberType: "joiner",
+  paymentStatus: "unpaid",
+});
+const mariaOwesPart = reg("r-maria", {
+  name: "Maria Santos",
+  email: "maria@example.com",
+  memberType: "member",
+  paymentStatus: "verified",
+  amountPaid: 700,
+  payments: [{ amount: 700, proofs: [], status: "verified" }],
+});
+const pedroPaid = reg("r-pedro", {
+  name: "Pedro Reyes",
+  memberType: "member",
+  paymentStatus: "verified",
+  amountPaid: 1200,
+  payments: [{ amount: 1200, proofs: [], status: "verified" }],
+});
+const anaCancelled = reg("r-ana", {
+  name: "Ana Lim",
+  memberType: "joiner",
+  status: "cancelled",
+  paymentStatus: "unpaid",
+});
+
 describe("Admin ClimbsManage", () => {
   beforeEach(() => {
-    onSnapshot.mockImplementation((_q, cb) => {
-      cb(makeQuerySnapshot([climbDoc, climbDoc2]));
-      return vi.fn();
-    });
+    routeSnapshots();
   });
 
   it("renders the Climbs page heading", async () => {
@@ -179,5 +231,126 @@ describe("Admin ClimbsManage", () => {
     const select = await screen.findByRole("combobox");
     fireEvent.change(select, { target: { value: "closed" } });
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+  });
+
+  describe("remaining balances per climb", () => {
+    it("tags the climb row with what is still owed", async () => {
+      routeSnapshots({
+        registrations: [juanOwesAll, mariaOwesPart, pedroPaid, anaCancelled],
+      });
+      renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+      await waitFor(() =>
+        expect(screen.getByText("₱2,150 due")).toBeInTheDocument(),
+      );
+    });
+
+    it("lists everyone with a balance in the expanded climb, and no one else", async () => {
+      routeSnapshots({
+        registrations: [juanOwesAll, mariaOwesPart, pedroPaid, anaCancelled],
+      });
+      renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getAllByLabelText("Expand details")[0]);
+
+      await waitFor(() =>
+        expect(screen.getByText("Remaining Balances")).toBeInTheDocument(),
+      );
+      expect(screen.getByText("2 registrants · ₱2,150 due")).toBeInTheDocument();
+
+      const juan = within(screen.getByText("Juan Cruz").closest("tr"));
+      expect(juan.getByText("Joiner")).toBeInTheDocument();
+      // Nothing paid yet, so the fees and the balance are the same figure.
+      expect(juan.getAllByText("₱1,650")).toHaveLength(2);
+      expect(juan.getByText("₱0")).toBeInTheDocument();
+
+      const maria = within(screen.getByText("Maria Santos").closest("tr"));
+      expect(maria.getByText("Member")).toBeInTheDocument();
+      expect(maria.getByText("₱1,200")).toBeInTheDocument();
+      expect(maria.getByText("₱700")).toBeInTheDocument();
+      expect(maria.getByText("₱500")).toBeInTheDocument();
+
+      expect(screen.queryByText("Pedro Reyes")).not.toBeInTheDocument();
+      expect(screen.queryByText("Ana Lim")).not.toBeInTheDocument();
+    });
+
+    it("opens a registrant's payment history from their row", async () => {
+      routeSnapshots({ registrations: [juanOwesAll, mariaOwesPart] });
+      renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getAllByLabelText("Expand details")[0]);
+      fireEvent.click(await screen.findByText("Maria Santos"));
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "Payment history for Maria Santos",
+      });
+      expect(within(dialog).getByText("Balance ₱500")).toBeInTheDocument();
+      expect(within(dialog).getByText("Payment 1")).toBeInTheDocument();
+      expect(within(dialog).getByText("₱700")).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByText("Close", { selector: "button" }));
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+    });
+
+    it("says when someone with a balance hasn't paid anything yet", async () => {
+      routeSnapshots({ registrations: [juanOwesAll] });
+      renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getAllByLabelText("Expand details")[0]);
+      fireEvent.click(await screen.findByText("Juan Cruz"));
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "Payment history for Juan Cruz",
+      });
+      expect(
+        within(dialog).getByText("No payments recorded yet."),
+      ).toBeInTheDocument();
+    });
+
+    it("says so when everyone on the climb is paid up", async () => {
+      routeSnapshots({ registrations: [pedroPaid] });
+      renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/ due$/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getAllByLabelText("Expand details")[0]);
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("No one on this climb has a balance left to pay."),
+        ).toBeInTheDocument(),
+      );
+    });
+
+    it("leaves balances off a cancelled climb", async () => {
+      routeSnapshots({
+        climbs: [
+          {
+            id: climbFixture.id,
+            data: { ...climbDoc.data, status: "cancelled" },
+          },
+        ],
+        registrations: [juanOwesAll],
+      });
+      renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/ due$/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getAllByLabelText("Expand details")[0]);
+
+      await waitFor(() =>
+        expect(screen.getByText("Completeness Check")).toBeInTheDocument(),
+      );
+      expect(screen.queryByText("Remaining Balances")).not.toBeInTheDocument();
+    });
   });
 });
