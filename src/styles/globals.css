@@ -4645,6 +4645,66 @@ details[open] > .myreg-collapsible::before {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Refunds, listed after a registrant's payments */
+.payment-refund {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--surface);
+}
+.payment-refund-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.payment-refund-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.payment-refund-amount {
+  font-size: 0.92rem;
+  color: #b45309;
+}
+.payment-refund-when {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.payment-refund-remove {
+  margin-left: auto;
+}
+.payment-refund-note {
+  font-size: 0.8rem;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+.payment-refund-proofs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+.payment-refund-net {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.registrant-refunded {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #b45309;
+  margin-top: 2px;
+}
+.balance-history-refund {
+  width: 100%;
+  margin-bottom: 12px;
+}
 .admin-table-sub {
   font-size: 0.75rem;
   color: var(--ink-soft);

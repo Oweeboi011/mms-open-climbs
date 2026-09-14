@@ -1,6 +1,6 @@
 import Modal from "@/components/Modal";
 import PaymentLog from "@/components/PaymentLog";
-import { getCountedTotal } from "@/utils/payments";
+import { getNetPaid, getRefundedTotal } from "@/utils/payments";
 import { getFeeItems, getOutstanding } from "@/utils/registrationFees";
 import { sumFeeAmounts } from "@/utils/feeSummary";
 
@@ -50,7 +50,8 @@ export default function ReceiptModal({
   const orNumber = `OR-${reg.id.slice(-8).toUpperCase()}`;
   // What's actually been accepted, and what's left — a rejected instalment
   // stops counting, which is exactly the case a single "Amount Paid" hid.
-  const paidCounted = getCountedTotal(reg);
+  const paidCounted = getNetPaid(reg);
+  const refunded = getRefundedTotal(reg);
   const outstanding = getOutstanding(reg, climb, serviceGroups);
 
   return (
@@ -175,6 +176,12 @@ export default function ReceiptModal({
             <span className="reg-detail-label">Amount Paid</span>
             <strong>{peso(paidCounted)}</strong>
           </div>
+          {refunded > 0 && (
+            <div className="reg-detail-item">
+              <span className="reg-detail-label">Refunded</span>
+              <strong>{peso(refunded)}</strong>
+            </div>
+          )}
           <div className="reg-detail-item">
             <span className="reg-detail-label">Balance</span>
             <strong

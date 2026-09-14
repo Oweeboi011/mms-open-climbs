@@ -416,6 +416,56 @@ describe("onRegistrationCreated", () => {
 });
 
 describe("onRegistrationUpdated", () => {
+  const refundBase = {
+    status: "confirmed",
+    paymentStatus: "verified",
+    climbId: "climb-1",
+    userId: "user-1",
+    climbTitle: "Mt. Pulag",
+  };
+
+  it("tells the member when an admin records a refund, naming only the new one", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ ...refundBase, refunds: [{ id: "rf-1", amount: 200 }] }) },
+        after: {
+          data: () => ({
+            ...refundBase,
+            refunds: [
+              { id: "rf-1", amount: 200 },
+              { id: "rf-2", amount: 500 },
+            ],
+          }),
+        },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    const refund = Object.values(notifStore).find((n) => n.type === "payment_refunded");
+    expect(refund).toBeTruthy();
+    expect(refund.userId).toBe("user-1");
+    expect(refund.message).toMatch(/₱500 was refunded/);
+    expect(refund.message).toMatch(/Mt\. Pulag/);
+  });
+
+  it("stays quiet when a refund is removed", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+
+    await updatedHandler({
+      data: {
+        before: { data: () => ({ ...refundBase, refunds: [{ id: "rf-1", amount: 200 }] }) },
+        after: { data: () => ({ ...refundBase, refunds: [] }) },
+      },
+      params: { regId: "reg-1" },
+    });
+
+    expect(
+      Object.values(notifStore).find((n) => n.type === "payment_refunded"),
+    ).toBeFalsy();
+  });
+
   it("marks the payment reminder read and notifies when payment is verified", async () => {
     notifStore["payment_reg-1"] = { read: false };
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };

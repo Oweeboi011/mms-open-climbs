@@ -46,6 +46,15 @@ function getCountedTotal(reg) {
     .reduce((sum, e) => sum + e.amount, 0);
 }
 
+// Money an admin sent back to the registrant — it comes off what they've
+// paid. Mirrors getRefundedTotal in src/utils/payments.js.
+function getRefundedTotal(reg) {
+  return (Array.isArray(reg && reg.refunds) ? reg.refunds : []).reduce(
+    (sum, r) => sum + parseAmount(r && r.amount),
+    0,
+  );
+}
+
 // The fee items a registrant owes, priced at the climb's *current* amounts.
 // Required fees always count; optional ones only when they selected them,
 // with the guest fee auto-applying to joiners.
@@ -76,7 +85,10 @@ function getExpectedTotal(reg, climb) {
 function getOutstanding(reg, climb) {
   const expected = getExpectedTotal(reg, climb);
   if (expected <= 0) return 0;
-  return Math.max(expected - getCountedTotal(reg), 0);
+  return Math.max(
+    expected - (getCountedTotal(reg) - getRefundedTotal(reg)),
+    0,
+  );
 }
 
 module.exports = {
@@ -84,6 +96,7 @@ module.exports = {
   hasPaymentHistory,
   getPaymentEntries,
   getCountedTotal,
+  getRefundedTotal,
   getFeeItems,
   getExpectedTotal,
   getOutstanding,
