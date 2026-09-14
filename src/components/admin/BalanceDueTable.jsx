@@ -82,6 +82,8 @@ export default function BalanceDueTable({
   card = false,
   onSplitEntry,
   onUndoSplit,
+  onRecordRefund,
+  onRemoveRefund,
 }) {
   const config = KINDS[kind];
   // Looked up from `rows` on every render so the open history follows live
@@ -161,11 +163,21 @@ export default function BalanceDueTable({
           {config.amountLabel} {formatPeso(viewing.amount)}
         </strong>
       </p>
-      {kind === "excess" && onSplitEntry && (
+      {kind === "excess" && (onSplitEntry || onRecordRefund) && (
         <p className="balance-history-summary">
           If a payment covered someone else on this climb, use Split on it to
-          move their share onto their record.
+          move their share onto their record. Otherwise send the excess back
+          and record it as a refund.
         </p>
+      )}
+      {kind === "excess" && onRecordRefund && (
+        <button
+          type="button"
+          className="btn btn-accent btn-sm balance-history-refund"
+          onClick={() => onRecordRefund(viewing.reg)}
+        >
+          Record Refund
+        </button>
       )}
       {getPaymentEntries(viewing.reg).length > 0 ? (
         <PaymentHistory
@@ -173,6 +185,7 @@ export default function BalanceDueTable({
           thumbSize={90}
           onSplitEntry={onSplitEntry}
           onUndoSplit={onUndoSplit}
+          onRemoveRefund={onRemoveRefund}
         />
       ) : (
         <p className="admin-table-sub">No payments recorded yet.</p>

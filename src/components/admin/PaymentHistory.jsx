@@ -3,6 +3,8 @@ import {
   getPaymentsTotal,
   getCountedTotal,
   hasAdjustedTotal,
+  getRefunds,
+  getNetPaid,
 } from "@/utils/payments";
 import { StatusBadge, PAYMENT_STYLE } from "./registrantShared";
 
@@ -124,9 +126,12 @@ export default function PaymentHistory({
   // When provided, a split share can be reversed from either side — the
   // payer's "Split from …" line or the recipient's received entry.
   onUndoSplit,
+  // When provided, a refund recorded by mistake can be removed.
+  onRemoveRefund,
 }) {
   const entries = getPaymentEntries(reg);
   if (entries.length === 0) return null;
+  const refunds = getRefunds(reg);
   const rejected = entries.filter((e) => e.status === "rejected");
   return (
     <div style={{ marginBottom: 12 }}>
@@ -330,6 +335,59 @@ export default function PaymentHistory({
           </div>
         );
       })}
+      {refunds.map((r, k) => (
+        <div key={r.id || k} className="payment-refund">
+          <div className="payment-refund-head">
+            <span className="payment-refund-label">Refund</span>
+            <strong className="payment-refund-amount">−{peso(r.amount)}</strong>
+            {formatSubmittedAt(r.refundedAt) && (
+              <span className="payment-refund-when">
+                {formatSubmittedAt(r.refundedAt)}
+              </span>
+            )}
+            {r.recordedBy && (
+              <span className="payment-refund-when">
+                recorded by {r.recordedBy}
+              </span>
+            )}
+            {onRemoveRefund && r.id && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm payment-refund-remove"
+                aria-label={`Remove the ${peso(r.amount)} refund`}
+                title="Recorded by mistake? Remove it and their excess comes back"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveRefund(reg, r);
+                }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          {r.note && <div className="payment-refund-note">Note: {r.note}</div>}
+          {r.proofs.length > 0 && (
+            <div className="payment-refund-proofs">
+              {r.proofs.map((proof, j) => (
+                <a
+                  key={j}
+                  href={proof.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {proof.fileName || `Receipt ${j + 1}`}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {refunds.length > 0 && (
+        <div className="payment-refund-net">
+          Paid after refunds: {peso(getNetPaid(reg))}
+        </div>
+      )}
       {entries.length > 1 && (
         <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>
           Total across {entries.length} payments: {peso(getPaymentsTotal(reg))}

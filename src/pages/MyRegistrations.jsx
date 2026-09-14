@@ -33,7 +33,7 @@ import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
 import {
   getPaymentEntries,
   buildPaymentPatch,
-  getCountedTotal,
+  getNetPaid,
 } from "@/utils/payments";
 import { getOutstanding } from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
@@ -347,7 +347,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
               </span>
             </div>
             <div style={{ fontSize: "0.82rem", marginBottom: 8 }}>
-              <strong>Already paid: {peso(getCountedTotal(reg))}</strong>
+              <strong>Already paid: {peso(getNetPaid(reg))}</strong>
               {getOutstanding(reg, climb, serviceGroups) > 0 && (
                 <span style={{ color: "#b45309" }}>
                   {" "}
