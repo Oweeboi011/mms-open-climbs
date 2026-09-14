@@ -4497,6 +4497,138 @@ details[open] > .myreg-collapsible::before {
 .admin-table-name {
   font-weight: 600;
 }
+.balance-due-section {
+  margin-bottom: 12px;
+}
+.balance-due-card {
+  margin-bottom: 28px;
+}
+.balance-due-row {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .balance-due-row:hover > td {
+    background: var(--surface-alt);
+  }
+}
+.balance-due-name {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--green-dark);
+  text-align: inherit;
+  cursor: pointer;
+}
+.balance-due-name:hover,
+.balance-due-name:focus-visible {
+  text-decoration: underline;
+}
+.balance-history-title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+.balance-history-summary {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+.balance-history-close {
+  width: 100%;
+}
+.balance-due-pill {
+  font-size: 0.62rem;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #fce8e8;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+.balance-due-money {
+  white-space: nowrap;
+}
+.balance-due-amount {
+  font-family: var(--font-head);
+  font-weight: 800;
+  color: #b91c1c;
+  white-space: nowrap;
+}
+
+/* Split payment dialog (admin climb detail) */
+.split-payment-title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+.split-payment-intro {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+}
+.split-payment-search {
+  margin-bottom: 10px;
+}
+.split-payment-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 40dvh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.split-payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.split-payment-row:last-child {
+  border-bottom: none;
+}
+.split-payment-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+.split-payment-who > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.split-payment-amount {
+  width: 110px;
+  flex-shrink: 0;
+}
+.split-payment-summary {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.split-payment-summary.over {
+  color: #b91c1c;
+}
+.split-payment-actions {
+  display: flex;
+  gap: 10px;
+}
+.split-payment-actions > .btn {
+  flex: 1;
+}
+.payment-split-line {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.payment-log-split {
+  margin: 6px 0 0;
+}
 .admin-table-sub {
   font-size: 0.75rem;
   color: var(--ink-soft);
