@@ -1096,6 +1096,7 @@ function RegCard({
   // A money balance can still outlive the climb, so payment stays if something
   // is genuinely owed.
   const outstanding = getOutstanding(reg, climb, serviceGroups);
+  const owesBalance = reg.status !== "cancelled" && outstanding > 0;
   const showPrep = reg.status !== "cancelled" && !isPast;
   const showPay = reg.status !== "cancelled" && (!isPast || outstanding > 0);
   return (
@@ -1124,6 +1125,17 @@ function RegCard({
               className={`status-badge status-payment-${reg.paymentStatus}`}
             >
               {PAYMENT_LABEL[reg.paymentStatus]}
+            </span>
+          )}
+          {/* "Payment Verified" only speaks to the payments reviewed so far —
+              a verified downpayment, or a fee added since, still leaves money
+              owed, so the balance gets its own flag. */}
+          {owesBalance && (
+            <span
+              className="status-badge status-balance-due"
+              title="Still to pay for this climb, at its current fees"
+            >
+              {peso(outstanding)} Balance Due
             </span>
           )}
           {reg.status !== "cancelled" && missingDocs.length > 0 && (
@@ -1242,7 +1254,9 @@ function RegCard({
         {showPay && (
           <button
             className={`btn btn-sm ${
-              hasPaymentOnRecord(reg) ? "btn-outline" : "btn-accent"
+              hasPaymentOnRecord(reg) && !owesBalance
+                ? "btn-outline"
+                : "btn-accent"
             }`}
             onClick={onPay}
             title={
@@ -1433,6 +1447,22 @@ export default function MyRegistrations() {
   );
   const cancelledRegs = regs.filter((reg) => reg.status === "cancelled");
 
+  // Per-climb balances at each climb's current fees, same figure as the card
+  // badges — surfaced up top too since past climbs sit collapsed below.
+  const balancesDue = regs
+    .filter((reg) => reg.status !== "cancelled")
+    .map((reg) =>
+      getOutstanding(
+        reg,
+        climbsMap[reg.climbId],
+        climbPrivateMap[reg.climbId]?.serviceGroups,
+      ),
+    )
+    .filter((amount) => amount > 0);
+  const totalBalanceDue =
+    Math.round(balancesDue.reduce((sum, amount) => sum + amount, 0) * 100) /
+    100;
+
   useEffect(() => {
     getDocs(
       query(
@@ -1475,6 +1505,16 @@ export default function MyRegistrations() {
           <LoadingSpinner />
         ) : (
           <>
+            {totalBalanceDue > 0 && (
+              <div className="alert alert-warning">
+                <span>
+                  <strong>You have {peso(totalBalanceDue)} left to pay</strong>{" "}
+                  across {balancesDue.length} climb
+                  {balancesDue.length > 1 ? "s" : ""}. Look for the Balance Due
+                  tag on each climb below.
+                </span>
+              </div>
+            )}
             <div className="admin-stats" style={{ marginBottom: 28 }}>
               <div className="admin-stat-card">
                 <div className="admin-stat-num">{pastRegs.length}</div>
