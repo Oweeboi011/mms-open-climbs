@@ -118,6 +118,9 @@ export default function PaymentHistory({
   // accept the downpayment and bounce only the instalment with the unreadable
   // receipt, instead of one verdict covering everything.
   onEntryStatusChange,
+  // When provided, a payment that covered other registrants can have their
+  // shares moved onto their own records.
+  onSplitEntry,
 }) {
   const entries = getPaymentEntries(reg);
   if (entries.length === 0) return null;
@@ -126,7 +129,8 @@ export default function PaymentHistory({
     <div style={{ marginBottom: 12 }}>
       {entries.map((entry, i) => {
         const when = formatSubmittedAt(entry.submittedAt);
-        const hasBody = entry.proofs.length > 0 || !!entry.note;
+        const hasBody =
+          entry.proofs.length > 0 || !!entry.note || entry.splitTo?.length > 0;
         return (
           <div
             key={i}
@@ -222,6 +226,17 @@ export default function PaymentHistory({
                   >
                     &#8634;
                   </button>
+                  {onSplitEntry &&
+                    entry.status !== "rejected" &&
+                    entry.amount > 0 && (
+                      <button
+                        className="btn btn-outline btn-sm"
+                        title="This payment covered other registrants too — move their shares onto their own records"
+                        onClick={() => onSplitEntry(reg, i)}
+                      >
+                        Split
+                      </button>
+                    )}
                 </span>
               )}
             </div>
@@ -235,6 +250,17 @@ export default function PaymentHistory({
               >
                 <span style={{ color: "var(--ink-soft)" }}>Note: </span>
                 {entry.note}
+              </div>
+            )}
+            {entry.splitTo?.length > 0 && (
+              <div className="payment-split-line">
+                Split from {peso(entry.originalAmount ?? entry.amount)}:{" "}
+                {entry.splitTo
+                  .map(
+                    (s) =>
+                      `${peso(s.amount)} to ${s.name || "another registrant"}`,
+                  )
+                  .join(", ")}
               </div>
             )}
             {entry.proofs.length > 0 ? (
