@@ -96,18 +96,25 @@ export function getExpectedTotal(reg, climb, serviceGroups = {}) {
   return sumFeeAmounts(getFeeItems(reg, climb, serviceGroups)).total;
 }
 
-// Remaining balance still to be settled: expected total minus whatever
-// they've already paid. A rejected payment doesn't count toward what's been
-// paid, since it wasn't accepted — with a payment history that's per
-// payment (one instalment can be rejected while others stand), and for
-// older single-payment registrations it's the registration's own status.
-export function getOutstanding(reg, climb, serviceGroups = {}) {
-  const paidCounted = hasPaymentHistory(reg)
+// What counts as paid toward the fees. A rejected payment doesn't, since it
+// wasn't accepted — with a payment history that's per payment (one
+// instalment can be rejected while others stand), and for older
+// single-payment registrations it's the registration's own status.
+export function getCountedPaid(reg) {
+  return hasPaymentHistory(reg)
     ? getCountedTotal(reg)
     : reg.paymentStatus === "rejected"
       ? 0
       : Number(reg.amountPaid) || 0;
-  return Math.max(getExpectedTotal(reg, climb, serviceGroups) - paidCounted, 0);
+}
+
+// Remaining balance still to be settled: expected total minus what counts
+// as paid.
+export function getOutstanding(reg, climb, serviceGroups = {}) {
+  return Math.max(
+    getExpectedTotal(reg, climb, serviceGroups) - getCountedPaid(reg),
+    0,
+  );
 }
 
 // Audit-trail note for an edit that switched member/joiner. Participant type

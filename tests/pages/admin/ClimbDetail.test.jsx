@@ -971,6 +971,175 @@ describe("Admin ClimbDetail", () => {
     });
   });
 
+  describe("Excess Payments card", () => {
+    const FEES = [{ label: "Registration Fee", amount: "500", optional: false }];
+
+    function mockOverpaid(fees) {
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, { ...climbFixture, fees }),
+      );
+      mockRegistrantSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            paymentStatus: "verified",
+            amountPaid: 1500,
+            payments: [{ amount: 1500, proofs: [], status: "verified" }],
+          },
+        },
+        {
+          id: "reg-pedro",
+          data: {
+            ...registrationFixture,
+            id: "reg-pedro",
+            name: "Pedro Reyes",
+            paymentStatus: "unpaid",
+          },
+        },
+      ]);
+    }
+
+    it("lists who paid more than they owe, right under Remaining Balances", async () => {
+      mockOverpaid(FEES);
+      render();
+
+      const title = await screen.findByText(
+        "Excess Payments — 1 registrant · ₱1,000 over",
+      );
+      const card = title.closest(".admin-card");
+      expect(within(card).getByText("Juan Cruz")).toBeInTheDocument();
+      expect(within(card).queryByText("Pedro Reyes")).not.toBeInTheDocument();
+
+      const balances = screen
+        .getByText(/^Remaining Balances/, { selector: ".admin-card-title" })
+        .closest(".admin-card");
+      expect(balances.nextElementSibling).toBe(card);
+    });
+
+    it("lets the excess be split from the payer's payment history", async () => {
+      mockOverpaid(FEES);
+      render();
+
+      const title = await screen.findByText(
+        "Excess Payments — 1 registrant · ₱1,000 over",
+      );
+      fireEvent.click(within(title.closest(".admin-card")).getByText("Juan Cruz"));
+
+      const history = await screen.findByRole("dialog", {
+        name: "Payment history for Juan Cruz",
+      });
+      expect(within(history).getByText("Excess ₱1,000")).toBeInTheDocument();
+      fireEvent.click(within(history).getByRole("button", { name: "Split" }));
+
+      expect(
+        await screen.findByRole("dialog", { name: "Split Payment" }),
+      ).toBeInTheDocument();
+    });
+
+    it("doesn't guess at excess while a fee is still TBA", async () => {
+      mockOverpaid([
+        ...FEES,
+        { label: "Guide Fee", amount: "TBA", optional: false },
+      ]);
+      render();
+      await waitFor(() =>
+        expect(
+          screen.getByText("No one on this climb has paid more than they owe."),
+        ).toBeInTheDocument(),
+      );
+    });
+  });
+
+  describe("undoing a split", () => {
+    it("sends the share back onto the payer after confirming", async () => {
+      const batch = {
+        update: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
+        commit: vi.fn(() => Promise.resolve()),
+      };
+      writeBatch.mockReturnValue(batch);
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, {
+          ...climbFixture,
+          fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+        }),
+      );
+      mockRegistrantSnapshot([
+        {
+          id: registrationFixture.id,
+          data: {
+            ...registrationFixture,
+            paymentStatus: "verified",
+            amountPaid: 500,
+            payments: [
+              {
+                amount: 500,
+                originalAmount: 1000,
+                proofs: [],
+                status: "verified",
+                splitTo: [
+                  {
+                    registrationId: "reg-pedro",
+                    name: "Pedro Reyes",
+                    amount: 500,
+                    splitId: "split-1",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          id: "reg-pedro",
+          data: {
+            ...registrationFixture,
+            id: "reg-pedro",
+            name: "Pedro Reyes",
+            paymentStatus: "verified",
+            amountPaid: 500,
+            payments: [
+              {
+                amount: 500,
+                proofs: [],
+                status: "verified",
+                paidBy: {
+                  registrationId: registrationFixture.id,
+                  name: "Juan Cruz",
+                  splitId: "split-1",
+                },
+              },
+            ],
+          },
+        },
+      ]);
+      render();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE),
+        ).toBeInTheDocument(),
+      );
+      fireEvent.click(screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE));
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: "Undo the ₱500 split to Pedro Reyes",
+        }),
+      );
+
+      await waitFor(() => expect(batch.commit).toHaveBeenCalled());
+      expect(confirmSpy).toHaveBeenCalled();
+      const [payerCall, pedroCall] = batch.update.mock.calls;
+      expect(payerCall[1].payments[0].amount).toBe(1000);
+      expect(payerCall[1].payments[0]).not.toHaveProperty("splitTo");
+      expect(pedroCall[0].path).toBe("registrations/reg-pedro");
+      expect(pedroCall[1].payments).toEqual([]);
+      confirmSpy.mockRestore();
+    });
+  });
+
   describe("splitting a payment that covered someone else", () => {
     it("moves the share onto the other registrant in one batch", async () => {
       const batch = {

@@ -4503,6 +4503,12 @@ details[open] > .myreg-collapsible::before {
 .balance-due-card {
   margin-bottom: 28px;
 }
+.excess-amount {
+  font-family: var(--font-head);
+  font-weight: 800;
+  color: #b45309;
+  white-space: nowrap;
+}
 .balance-due-row {
   cursor: pointer;
 }
@@ -4628,6 +4634,16 @@ details[open] > .myreg-collapsible::before {
 }
 .payment-log-split {
   margin: 6px 0 0;
+}
+.payment-split-undo {
+  background: none;
+  border: none;
+  padding: 0 0 0 6px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent-dark);
+  text-decoration: underline;
+  cursor: pointer;
 }
 .admin-table-sub {
   font-size: 0.75rem;
