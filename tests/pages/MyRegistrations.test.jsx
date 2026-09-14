@@ -780,6 +780,73 @@ describe("MyRegistrations page", () => {
     expect(screen.queryByText(/Docs? Needed/)).not.toBeInTheDocument();
   });
 
+  describe("flagging a balance still to pay", () => {
+    function renderWithBalance(regData, climbExtra = {}) {
+      getDoc.mockResolvedValue(
+        makeSnapshot(climbFixture.id, {
+          ...climbFixture,
+          fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+          ...climbExtra,
+        }),
+      );
+      mockLiveSnapshot([{ id: registrationFixture.id, data: regData }]);
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    }
+
+    it("flags the rest of a verified downpayment on the card and up top", async () => {
+      renderWithBalance({
+        ...registrationFixture,
+        status: "confirmed",
+        paymentStatus: "verified",
+        amountPaid: 200,
+        payments: [{ amount: 200, proofs: [], status: "verified" }],
+      });
+      await waitFor(() =>
+        expect(screen.getByText("₱300 Balance Due")).toBeInTheDocument(),
+      );
+      expect(screen.getByText("You have ₱300 left to pay")).toBeInTheDocument();
+    });
+
+    it("doesn't flag a climb that is fully paid", async () => {
+      renderWithBalance({
+        ...registrationFixture,
+        status: "confirmed",
+        paymentStatus: "verified",
+        amountPaid: 500,
+        payments: [{ amount: 500, proofs: [], status: "verified" }],
+      });
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/Balance Due/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/left to pay/)).not.toBeInTheDocument();
+    });
+
+    it("doesn't flag a cancelled registration", async () => {
+      renderWithBalance({
+        ...registrationFixture,
+        status: "cancelled",
+        paymentStatus: "unpaid",
+      });
+      await waitFor(() =>
+        expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/Balance Due/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/left to pay/)).not.toBeInTheDocument();
+    });
+
+    it("still flags a balance left over on a past climb", async () => {
+      renderWithBalance(
+        { ...registrationFixture, status: "confirmed", paymentStatus: "unpaid" },
+        { endDate: "2020-01-01" },
+      );
+      await waitFor(() =>
+        expect(screen.getByText("₱500 Balance Due")).toBeInTheDocument(),
+      );
+      expect(screen.getByText("You have ₱500 left to pay")).toBeInTheDocument();
+    });
+  });
+
   it("shows officer section when user is an officer on a climb", async () => {
     getDocs.mockResolvedValue(
       makeQuerySnapshot([
