@@ -125,6 +125,20 @@ export default function PaymentLog({ reg, emptyText }) {
               </div>
             )}
 
+            {/* Part of this payment covered other people on the climb — say
+                where it went, or the payer only sees a smaller amount. */}
+            {entry.splitTo?.length > 0 && (
+              <div className="payment-split-line payment-log-split">
+                Split from {peso(entry.originalAmount ?? entry.amount)}:{" "}
+                {entry.splitTo
+                  .map(
+                    (s) =>
+                      `${peso(s.amount)} to ${s.name || "another registrant"}`,
+                  )
+                  .join(", ")}
+              </div>
+            )}
+
             {entry.proofs.length > 0 ? (
               <div
                 style={{

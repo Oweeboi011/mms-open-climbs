@@ -43,6 +43,13 @@ export function getPaymentEntries(reg) {
       ...(p?.recordedBy ? { recordedBy: p.recordedBy } : {}),
       ...(p?.reviewedBy ? { reviewedBy: p.reviewedBy } : {}),
       ...(p?.reviewedAt ? { reviewedAt: p.reviewedAt } : {}),
+      // Split bookkeeping (see utils/splitPayment) — carried through so a
+      // later review of the payment doesn't erase where the money went.
+      ...(p?.paidBy ? { paidBy: p.paidBy } : {}),
+      ...(p?.splitTo ? { splitTo: p.splitTo } : {}),
+      ...(p?.originalAmount
+        ? { originalAmount: parseAmount(p.originalAmount) }
+        : {}),
     }));
   }
   const amount = parseAmount(reg?.amountPaid);
