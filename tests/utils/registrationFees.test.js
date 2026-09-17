@@ -12,6 +12,9 @@ import {
   getGroupmates,
   isAvailing,
   describeMemberTypeChange,
+  serviceGroupsToDoc,
+  serviceGroupsFromDoc,
+  readClimbPrivate,
 } from "@/utils/registrationFees";
 
 const climb = {
@@ -468,5 +471,30 @@ describe("service sharing", () => {
       "Transportation Fee": [["x", "y"]],
     });
     expect(counts[0]).toMatchObject({ availing: 1, unitsNeeded: 1 });
+  });
+});
+
+describe("service group storage shape", () => {
+  it("wraps groups so Firestore never sees a nested array", () => {
+    const stored = serviceGroupsToDoc([["r1", "r2"], ["r3"]]);
+    expect(stored).toEqual([{ ids: ["r1", "r2"] }, { ids: ["r3"] }]);
+    expect(stored.some(Array.isArray)).toBe(false);
+  });
+
+  it("round-trips back to string[][]", () => {
+    const groups = { Porter: [["r1", "r2"]], Van: [] };
+    const stored = Object.fromEntries(
+      Object.entries(groups).map(([k, v]) => [k, serviceGroupsToDoc(v)]),
+    );
+    expect(serviceGroupsFromDoc(stored)).toEqual(groups);
+  });
+
+  it("treats a missing map as no groups", () => {
+    expect(serviceGroupsFromDoc(undefined)).toEqual({});
+    expect(readClimbPrivate({ resources: [] })).toEqual({
+      resources: [],
+      serviceGroups: {},
+    });
+    expect(readClimbPrivate(null)).toBe(null);
   });
 });

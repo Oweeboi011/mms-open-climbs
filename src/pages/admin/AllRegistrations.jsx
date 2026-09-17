@@ -36,6 +36,7 @@ import {
   isAvailing,
   getGroupmates,
   describeMemberTypeChange,
+  readClimbPrivate,
 } from "@/utils/registrationFees";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import {
@@ -122,7 +123,7 @@ export default function AllRegistrations() {
       (snap) => {
         const map = {};
         snap.docs.forEach((d) => {
-          map[d.id] = d.data();
+          map[d.id] = readClimbPrivate(d.data());
         });
         setClimbPrivateMap(map);
       },
