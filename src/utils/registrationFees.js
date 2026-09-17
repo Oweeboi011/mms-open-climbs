@@ -35,6 +35,31 @@ import { sumFeeAmounts, parseFeeAmount } from "./feeSummary";
 // climb detail page. A registrant absent from every group for a label is on
 // their own (group size 1), which is also what a climb with no groups at all
 // (serviceGroups undefined) means for everyone.
+//
+// Firestore rejects nested arrays, so each group is stored wrapped as
+// `{ ids: string[] }`. Convert with the two helpers below at the Firestore
+// boundary; everything else works with the plain string[][] shape.
+
+export function serviceGroupsToDoc(groups) {
+  return (groups || []).map((ids) => ({ ids }));
+}
+
+export function serviceGroupsFromDoc(stored) {
+  const out = {};
+  Object.entries(stored || {}).forEach(([label, groups]) => {
+    out[label] = (Array.isArray(groups) ? groups : []).map((g) =>
+      Array.isArray(g) ? g : g?.ids || [],
+    );
+  });
+  return out;
+}
+
+// A climbPrivate doc's data with serviceGroups in the in-memory shape.
+export function readClimbPrivate(data) {
+  return data
+    ? { ...data, serviceGroups: serviceGroupsFromDoc(data.serviceGroups) }
+    : data;
+}
 
 // How many people reg is sharing this service with, including themself.
 export function getGroupSize(reg, serviceGroups, label) {

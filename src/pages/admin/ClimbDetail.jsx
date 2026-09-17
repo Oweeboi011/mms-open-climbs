@@ -44,6 +44,8 @@ import {
   getOutstanding as getOutstandingShared,
   toggleOptionalFeeEntry,
   describeMemberTypeChange,
+  serviceGroupsFromDoc,
+  serviceGroupsToDoc,
 } from "@/utils/registrationFees";
 import ServiceSharingCard from "@/components/admin/ServiceSharingCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
@@ -154,12 +156,13 @@ export default function AdminClimbDetail() {
   }, [id]);
 
   const serviceGroups = useMemo(
-    () => climbPrivate?.serviceGroups || {},
+    () => serviceGroupsFromDoc(climbPrivate?.serviceGroups),
     [climbPrivate],
   );
 
-  // Persists one shareable service's groups back to climbPrivate — a plain
-  // field-path update so grouping one service never touches another's.
+  // Persists one shareable service's groups back to climbPrivate. A merge
+  // deep-merges the serviceGroups map, so grouping one service never touches
+  // another's.
   async function saveServiceGroups(label, groups) {
     // setDoc+merge rather than updateDoc: a climb whose climbPrivate doc was
     // never otherwise written to (edge case — ClimbForm creates one on every
@@ -167,7 +170,7 @@ export default function AdminClimbDetail() {
     // "no document to update" the first time an admin forms a group.
     await setDoc(
       doc(db, "climbPrivate", id),
-      { [`serviceGroups.${label}`]: groups },
+      { serviceGroups: { [label]: serviceGroupsToDoc(groups) } },
       { merge: true },
     );
     logAuditEvent({

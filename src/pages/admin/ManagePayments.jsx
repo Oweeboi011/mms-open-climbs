@@ -29,6 +29,7 @@ import {
   getOutstanding as getOutstandingShared,
   toggleOptionalFeeEntry,
   getAvailmentCounts,
+  readClimbPrivate,
 } from "@/utils/registrationFees";
 import {
   setEntryStatus,
@@ -84,7 +85,7 @@ export default function ManagePayments() {
     const unsub = onSnapshot(collection(db, "climbPrivate"), (snap) => {
       const map = {};
       snap.docs.forEach((d) => {
-        map[d.id] = d.data();
+        map[d.id] = readClimbPrivate(d.data());
       });
       setClimbPrivateMap(map);
     });

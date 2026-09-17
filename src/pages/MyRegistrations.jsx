@@ -35,7 +35,11 @@ import {
   buildPaymentPatch,
   getNetPaid,
 } from "@/utils/payments";
-import { getOutstanding } from "@/utils/registrationFees";
+import {
+  getOutstanding,
+  readClimbPrivate,
+  serviceGroupsFromDoc,
+} from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 
@@ -150,7 +154,11 @@ function PayPrompt({ reg, onClose, onSaved }) {
     const unsub = onSnapshot(
       doc(db, "climbPrivate", reg.climbId),
       (snap) => {
-        setServiceGroups(snap.exists() ? snap.data().serviceGroups || {} : {});
+        setServiceGroups(
+          serviceGroupsFromDoc(
+            snap.exists() ? snap.data().serviceGroups : null,
+          ),
+        );
       },
       (err) => {
         logFailedRequest({
@@ -915,7 +923,6 @@ function PayPrompt({ reg, onClose, onSaved }) {
   );
 }
 
-
 function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
   const missingDocs = REQUIRED_DOC_TYPES.filter(
     (docType) => climb?.[docType.requiresField] && !reg[docType.uploadField],
@@ -1365,7 +1372,7 @@ export default function MyRegistrations() {
         (snap) => {
           setClimbPrivateMap((prev) => ({
             ...prev,
-            [id]: snap.exists() ? snap.data() : null,
+            [id]: snap.exists() ? readClimbPrivate(snap.data()) : null,
           }));
         },
         (err) => {
@@ -1603,9 +1610,9 @@ export default function MyRegistrations() {
                           key={reg.id}
                           reg={reg}
                           climb={climbsMap[reg.climbId]}
-                        serviceGroups={
-                          climbPrivateMap[reg.climbId]?.serviceGroups
-                        }
+                          serviceGroups={
+                            climbPrivateMap[reg.climbId]?.serviceGroups
+                          }
                           onPay={() => setPayPromptReg(reg)}
                           onViewReceipt={() => setReceiptReg(reg)}
                           onSubmitDocs={() => setDocPromptReg(reg)}
