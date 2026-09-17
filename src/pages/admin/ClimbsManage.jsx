@@ -15,6 +15,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import DetailCell from "@/components/DetailCell";
 import ClimbFeeBreakdown from "@/components/ClimbFeeBreakdown";
 import { getMissingFields } from "@/utils/climbCompleteness";
+import { readClimbPrivate } from "@/utils/registrationFees";
 import {
   getFeeSummary,
   getClimbFeeModel,
@@ -59,7 +60,7 @@ export default function AdminClimbsManage() {
     const unsubPrivate = onSnapshot(collection(db, "climbPrivate"), (snap) => {
       const map = {};
       snap.docs.forEach((d) => {
-        map[d.id] = d.data();
+        map[d.id] = readClimbPrivate(d.data());
       });
       setClimbPrivateMap(map);
     });
