@@ -354,6 +354,20 @@ describe("Register page", () => {
     });
   });
 
+  it("warns that a full climb registers onto the waitlist", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        status: "open",
+        maxParticipants: 10,
+        registrationCount: 10,
+      }),
+    );
+    getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    render();
+    expect(await screen.findByText(/currently full/i)).toBeInTheDocument();
+  });
+
   describe("when the climb has a donation drive", () => {
     const driveClimb = {
       ...climbFixture,

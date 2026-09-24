@@ -665,6 +665,14 @@ export default function Register() {
           </div>
         )}
 
+        {climb.maxParticipants > 0 &&
+          (climb.registrationCount ?? 0) >= climb.maxParticipants && (
+            <div className="alert alert-warning" role="status">
+              This climb is currently full. You can still register — you&rsquo;ll
+              be placed on the waitlist and notified if a slot opens.
+            </div>
+          )}
+
         <form onSubmit={handleSubmit} noValidate>
           {/* Personal Information */}
           <div className="register-form-card">

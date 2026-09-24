@@ -184,6 +184,7 @@ flowchart TD
 | Effect | Condition | Details |
 | --- | --- | --- |
 | Increment `registrationCount` | Always | `FieldValue.increment(1)` on `climbs/{climbId}` — atomic, race-condition-safe |
+| Auto-waitlist | `status` is `pending`, the climb has `maxParticipants`, and pending + confirmed registrations already fill it | Sets `status: "waitlisted"`, `autoWaitlisted: true`. Skips the "Registration Received" email — `onRegistrationUpdated` sends "Added to Waitlist" — and the roster add. Officers are still notified |
 | Drop duplicate | Another `pending`/`confirmed`/`waitlisted` registration exists for the same `userId` + `climbId` | Deletes the new registration and returns before any email (the count increment above is balanced by `onRegistrationDeleted`) |
 | Add to roster | `userId` set and `status != cancelled` | `climbInternal/{climbId}.registeredUserIds` `arrayUnion(userId)`. This denormalized array exists because Firestore rules cannot query `registrations` by `climbId` + `userId`; it gates member access to the climb's private briefing and resource links, and who may leave feedback |
 | Increment `docsCompleteCount` | Registration already satisfies every required doc type (`regDocsComplete`) | Feeds the compliance progress badge on the climb card |

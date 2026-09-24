@@ -289,6 +289,52 @@ describe("onRegistrationCreated", () => {
     expect(docSets.some((s) => s.path.startsWith("climbInternal/"))).toBe(false);
   });
 
+  it("waitlists a registration that arrives after every seat is taken", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [], maxParticipants: 2 };
+    userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
+    regStore["r-a"] = { climbId: "climb-1", userId: "a", status: "confirmed" };
+    regStore["r-b"] = { climbId: "climb-1", userId: "b", status: "pending" };
+    regStore["r-c"] = { climbId: "climb-1", userId: "c", status: "waitlisted" };
+    regStore["reg-new"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+    await createdHandler({
+      data: {
+        data: () => ({
+          name: "Juan Cruz",
+          email: "juan@x.com",
+          climbId: "climb-1",
+          userId: "user-1",
+          status: "pending",
+        }),
+      },
+      params: { regId: "reg-new" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "registrations/reg-new",
+      patch: { status: "waitlisted", autoWaitlisted: true, updatedAt: "SERVER_TS" },
+    });
+    // The member hears about the waitlist from onRegistrationUpdated, not a
+    // misleading "registration received" here.
+    const recipients = global.fetch.mock.calls.map(([, o]) => JSON.parse(o.body).to[0].email);
+    expect(recipients).not.toContain("juan@x.com");
+    expect(recipients).toContain("admin@mms.ph");
+    expect(docSets.some((d) => d.path.startsWith("climbInternal/"))).toBe(false);
+  });
+
+  it("keeps a registration pending while seats remain (waitlisted don't hold one)", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [], maxParticipants: 2 };
+    regStore["r-a"] = { climbId: "climb-1", userId: "a", status: "confirmed" };
+    regStore["r-c"] = { climbId: "climb-1", userId: "c", status: "waitlisted" };
+    await createdHandler({
+      data: {
+        data: () => ({ name: "Juan", email: "juan@x.com", climbId: "climb-1", userId: "user-1", status: "pending" }),
+      },
+      params: { regId: "reg-new" },
+    });
+    expect(climbUpdates.some((u) => u.path === "registrations/reg-new")).toBe(false);
+    const recipients = global.fetch.mock.calls.map(([, o]) => JSON.parse(o.body).to[0].email);
+    expect(recipients).toContain("juan@x.com");
+  });
+
   it("allows re-registering after a cancelled registration", async () => {
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
     regStore["reg-old"] = { climbId: "climb-1", userId: "user-1", status: "cancelled" };

@@ -344,6 +344,22 @@ const ACTIVE_REG_STATUSES = ["pending", "confirmed", "waitlisted"];
 // sendReminderNotifications): time for leads to mark no-shows first.
 const NO_SHOW_GRACE_MS = 24 * 60 * 60 * 1000;
 
+// Whether every seat is taken: pending + confirmed registrations (other than
+// `regId`) at or above the climb's maxParticipants. No limit set = never full.
+const SEAT_HOLDING_STATUSES = ["pending", "confirmed"];
+async function isClimbFull(climb, climbId, regId) {
+  const max = Number(climb?.maxParticipants);
+  if (!max || max <= 0) return false;
+  const snap = await db
+    .collection("registrations")
+    .where("climbId", "==", climbId)
+    .get();
+  const taken = snap.docs.filter(
+    (d) => d.id !== regId && SEAT_HOLDING_STATUSES.includes(d.data().status),
+  ).length;
+  return taken >= max;
+}
+
 // Another live registration by the same account for the same climb, if any.
 // The client checks before registering, but that check is advisory — a
 // double submit or a scripted write gets past it.
@@ -505,10 +521,26 @@ exports.onRegistrationCreated = onDocumentCreated(
         }
       }
 
+      // Capacity: pending and confirmed registrations hold a seat. Past
+      // maxParticipants a new pending registration goes to the waitlist
+      // instead — the status change fires onRegistrationUpdated, which sends
+      // the member the "Added to Waitlist" email, so the "received" email
+      // below is skipped. The client only warns; this is the enforcement.
+      const autoWaitlisted =
+        reg.status === "pending" &&
+        (await isClimbFull(climb, climbId, event.params.regId));
+      if (autoWaitlisted) {
+        await db.doc(`registrations/${event.params.regId}`).update({
+          status: "waitlisted",
+          autoWaitlisted: true,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
       // Keep the roster in sync — it's what the climbPrivate security rule
       // checks to gate pre-climb meeting details and resource links to
       // actual registrants.
-      if (userId && isActive) {
+      if (userId && isActive && !autoWaitlisted) {
         await updateRoster(climbId, userId, true);
       }
 
@@ -547,8 +579,10 @@ exports.onRegistrationCreated = onDocumentCreated(
       const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
       const { officerEmails, adminEmails } = await getNotifyLists(climb, climbId);
 
-      // 1. Confirmation to registrant (skip for admin-added walk-ins with no email on file)
-      if (email) {
+      // 1. Confirmation to registrant (skip for admin-added walk-ins with no
+      // email on file, and for the auto-waitlisted — they get the waitlist
+      // email from onRegistrationUpdated instead)
+      if (email && !autoWaitlisted) {
         await sendEmail({
           to: email,
           toName: name,
