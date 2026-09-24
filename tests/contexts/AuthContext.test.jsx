@@ -22,6 +22,7 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
+  sendEmailVerification,
 } from "firebase/auth";
 import { getDoc, setDoc } from "firebase/firestore";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -147,6 +148,7 @@ describe("AuthContext — signup()", () => {
     );
     expect(updateProfile).toHaveBeenCalled();
     expect(setDoc).toHaveBeenCalled();
+    expect(sendEmailVerification).toHaveBeenCalledWith(user);
   });
 });
 

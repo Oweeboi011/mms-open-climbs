@@ -5443,3 +5443,22 @@ details[open] > .myreg-collapsible::before {
   color: inherit;
   text-decoration: underline;
 }
+
+/* ── Email verification reminder ────────────────────────────────────────── */
+.verify-email-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  background: var(--surface-warning);
+  border-bottom: 1px solid var(--warning-border);
+  text-align: center;
+}
+.verify-email-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
