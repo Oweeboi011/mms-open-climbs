@@ -335,6 +335,22 @@ describe("onRegistrationCreated", () => {
     expect(recipients).toContain("juan@x.com");
   });
 
+  it("publishes a short-name participant list to climbPrivate for registrants", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    regStore["r-a"] = { climbId: "climb-1", name: "Ana Maria Reyes", memberType: "member", status: "confirmed" };
+    regStore["r-b"] = { climbId: "climb-1", name: "Ben", memberType: "joiner", status: "pending" };
+    regStore["r-c"] = { climbId: "climb-1", name: "Cara Lim", memberType: "joiner", status: "cancelled" };
+    regStore["r-d"] = { climbId: "climb-1", name: "Dan Cruz", memberType: "joiner", status: "waitlisted" };
+    await createdHandler({
+      data: { data: () => ({ name: "Ben", climbId: "climb-1", userId: "u-b", status: "pending" }) },
+      params: { regId: "r-b" },
+    });
+    expect(climbPrivateStore["climb-1"].participants).toEqual([
+      { name: "Ana R.", memberType: "member" },
+      { name: "Ben", memberType: "joiner" },
+    ]);
+  });
+
   it("allows re-registering after a cancelled registration", async () => {
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
     regStore["reg-old"] = { climbId: "climb-1", userId: "user-1", status: "cancelled" };

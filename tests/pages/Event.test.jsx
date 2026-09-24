@@ -217,7 +217,7 @@ describe("Event page", () => {
     ).toBe("/signup?redirect=/register/climb-1");
   });
 
-  it("does not promise a waitlist that does not exist", async () => {
+  it("offers a full climb's waitlist to signed-in members", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot("climb-1", {
         ...OPEN_CLIMB,
@@ -232,7 +232,43 @@ describe("Event page", () => {
       makeMemberAuth(),
     );
     await waitFor(() => screen.getByText("Mt. Pulag"));
-    expect(screen.queryByText(/waitlist/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Join the Waitlist/i }).getAttribute("href"),
+    ).toBe("/register/climb-1");
+  });
+
+  it("shows fellow participants' names only to registrants", async () => {
+    getDoc.mockImplementation((ref) =>
+      Promise.resolve(
+        ref.path.includes("climbPrivate")
+          ? makeSnapshot("climb-1", {
+              participants: [
+                { name: "Ana R.", memberType: "member" },
+                { name: "Ben C.", memberType: "joiner" },
+              ],
+            })
+          : makeSnapshot("climb-1", OPEN_CLIMB),
+      ),
+    );
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        { id: "reg-1", data: { status: "confirmed", climbId: "climb-1", userId: "user-1" } },
+      ]),
+    );
+    renderAtRoute(<Event />, "/event/:climbId", "/event/climb-1", makeMemberAuth());
+    expect(await screen.findByText("Ana R.")).toBeInTheDocument();
+    expect(screen.getByText("Ben C.")).toBeInTheDocument();
+  });
+
+  it("shows a non-registrant only that the list is private", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", { ...OPEN_CLIMB, registrationCount: 4 }),
+    );
+    getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    renderAtRoute(<Event />, "/event/:climbId", "/event/climb-1", makeMemberAuth());
+    expect(
+      await screen.findByText(/Only registered participants can see/i),
+    ).toBeInTheDocument();
   });
 
   it("sends the primary CTA to register and the secondary prompt back to the event page", async () => {

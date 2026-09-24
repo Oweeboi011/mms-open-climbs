@@ -179,6 +179,7 @@ This collection exists purely as a security boundary. `climbs` is publicly reada
 | --- | --- | --- |
 | `preClimbMeetings` | array | Meeting entries, each `{ date, time, location, notes, link, recordingLink }`. `date` is a `YYYY-MM-DD` string, not a Timestamp |
 | `resources` | array | Registrant-only resource links |
+| `participants` | array | `{ name, memberType }[]` — who's joining (pending + confirmed), names shortened to first name + last initial. Maintained by `syncParticipantList` on every registration create/status change/delete; the event page's participant list reads it (members can't query other people's registrations) |
 | `serviceGroups` | map | `{ [feeLabel]: { ids: string[] }[] }` — for a climb fee flagged `shareable`, the groups of registration IDs currently sharing one unit of that service (e.g. one porter split between three climbers). A registrant absent from every group for a label pays that fee's full amount, unchanged. Each group is wrapped as `{ ids }` because Firestore rejects nested arrays; `serviceGroupsFromDoc`/`serviceGroupsToDoc` convert to and from the in-memory `string[][]`. Written one label at a time (a merge on `serviceGroups`) from `src/components/admin/ServiceSharingCard.jsx` on ClimbDetail; read by `src/utils/registrationFees.js` (`getFeeItems`/`getExpectedTotal`/`getOutstanding`/`getAvailmentCounts`) to split the cost and the booking headcount |
 
 #### Access
