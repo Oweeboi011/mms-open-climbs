@@ -28,6 +28,7 @@ import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { compressImage } from "@/utils/compressImage";
 import DonationPledgeFields from "@/components/DonationPledgeFields";
 import { isDonationDriveOn, normalizePledge } from "@/utils/donations";
+import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
 
 // Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
@@ -1218,6 +1219,13 @@ export default function Register() {
                 </div>
               );
             })()}
+
+          {(climb.paymentDueDate || climb.cancellationPolicy) && (
+            <div className="register-form-card">
+              <div className="form-section-title">Payment Deadline &amp; Cancellation</div>
+              <RegistrationPolicyInfo climb={climb} />
+            </div>
+          )}
 
           {isDonationDriveOn(climb) && (
             <div className="register-form-card">

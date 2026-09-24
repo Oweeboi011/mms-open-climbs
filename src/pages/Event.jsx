@@ -24,6 +24,7 @@ import { getEffectiveStatus } from "@/utils/climbStatus";
 import { authLinkWithRedirect } from "@/utils/authRedirect";
 import { contactHref } from "@/data/orgContact";
 import DonationDriveInfo from "@/components/DonationDriveInfo";
+import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -1823,6 +1824,7 @@ export default function Event() {
         </div>
 
         <EventFeesCard climb={climb} onOpenGuide={() => setGuideOpen(true)} />
+        <RegistrationPolicyInfo climb={climb} className="policy-info section-card" />
 
         {/* Climb Officers */}
         <div className="section-card">

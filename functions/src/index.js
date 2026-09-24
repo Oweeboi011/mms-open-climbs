@@ -344,6 +344,19 @@ const ACTIVE_REG_STATUSES = ["pending", "confirmed", "waitlisted"];
 // sendReminderNotifications): time for leads to mark no-shows first.
 const NO_SHOW_GRACE_MS = 24 * 60 * 60 * 1000;
 
+// A climb's paymentDueDate ("YYYY-MM-DD") for reminder text, or "".
+// Mirrors formatDueDate in src/utils/registrationPolicy.js.
+function formatDueDate(value) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 // Whether every seat is taken: pending + confirmed registrations (other than
 // `regId`) at or above the climb's maxParticipants. No limit set = never full.
 const SEAT_HOLDING_STATUSES = ["pending", "confirmed"];
@@ -1315,10 +1328,11 @@ exports.sendReminderNotifications = onSchedule(
         outstanding > 0
       ) {
         const paidSoFar = getCountedTotal(reg);
+        const due = formatDueDate(climb?.paymentDueDate);
         const message =
           paidSoFar > 0 && outstanding > 0
-            ? `You've paid ₱${paidSoFar.toLocaleString("en-PH")} for ${reg.climbTitle || "your climb"} — ₱${outstanding.toLocaleString("en-PH")} still to go. You can send the balance anytime before the climb.`
-            : `Don't forget to submit your GCash payment proof for ${reg.climbTitle || "your climb"}.`;
+            ? `You've paid ₱${paidSoFar.toLocaleString("en-PH")} for ${reg.climbTitle || "your climb"} — ₱${outstanding.toLocaleString("en-PH")} still to go. ${due ? `Please settle it by ${due}.` : "You can send the balance anytime before the climb."}`
+            : `Don't forget to submit your GCash payment proof for ${reg.climbTitle || "your climb"}${due ? ` — due by ${due}` : ""}.`;
         await createNotification({
           userId: reg.userId,
           type: "payment_reminder",

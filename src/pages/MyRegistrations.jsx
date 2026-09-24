@@ -47,6 +47,8 @@ import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { compressImage } from "@/utils/compressImage";
 import DonationPledgeModal from "@/components/DonationPledgeModal";
 import { isDonationDriveOn } from "@/utils/donations";
+import CancelRegistrationModal from "@/components/CancelRegistrationModal";
+import { canMemberCancel, formatDueDate, isPaymentOverdue } from "@/utils/registrationPolicy";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -1110,6 +1112,7 @@ function RegCard({
   onSignWaiver,
   onEditDetails,
   onEditPledge,
+  onCancel,
   isPast,
 }) {
   const missingDocs = REQUIRED_DOC_TYPES.filter(
@@ -1314,9 +1317,22 @@ function RegCard({
               View Submitted Documents
             </button>
           )}
+        {showPay && owesBalance && climb?.paymentDueDate && (
+          <span
+            className={`policy-due-chip${isPaymentOverdue(climb, outstanding) ? " overdue" : ""}`}
+          >
+            {isPaymentOverdue(climb, outstanding) ? "Overdue — was due " : "Due by "}
+            {formatDueDate(climb.paymentDueDate)}
+          </span>
+        )}
         {showPrep && isDonationDriveOn(climb) && onEditPledge && (
           <button className="btn btn-outline btn-sm" onClick={onEditPledge}>
             {reg.donation ? "Edit Donation Pledge" : "Pledge a Donation"}
+          </button>
+        )}
+        {onCancel && canMemberCancel(reg, climb) && (
+          <button className="btn btn-outline btn-sm btn-cancel-reg" onClick={onCancel}>
+            Cancel Registration
           </button>
         )}
         {isPast && reg.status === "confirmed" && !reg.noShow && (
@@ -1342,6 +1358,7 @@ export default function MyRegistrations() {
   const [waiverPromptReg, setWaiverPromptReg] = useState(null);
   const [detailsPromptReg, setDetailsPromptReg] = useState(null);
   const [pledgeReg, setPledgeReg] = useState(null);
+  const [cancelReg, setCancelReg] = useState(null);
 
   useEffect(() => {
     const q = query(
@@ -1621,6 +1638,7 @@ export default function MyRegistrations() {
                         onSignWaiver={() => setWaiverPromptReg(reg)}
                         onEditDetails={() => setDetailsPromptReg(reg)}
                         onEditPledge={() => setPledgeReg(reg)}
+                        onCancel={() => setCancelReg(reg)}
                       />
                     ))}
                   </div>
@@ -1734,6 +1752,15 @@ export default function MyRegistrations() {
           currentUser={currentUser}
           onClose={() => setDetailsPromptReg(null)}
           onSaved={() => setDetailsPromptReg(null)}
+        />
+      )}
+
+      {cancelReg && (
+        <CancelRegistrationModal
+          reg={cancelReg}
+          climb={climbsMap[cancelReg.climbId]}
+          currentUser={currentUser}
+          onClose={() => setCancelReg(null)}
         />
       )}
 

@@ -99,6 +99,17 @@ await no("negative cash pledge denied", () => m1().doc("registrations/r_hist").u
 await ok("member registers with a pledge", () => m1().collection("registrations").add({ ...baseReg, donation: { cashPledge: 300, inKind: "" } }));
 await no("member cannot register as already-received donor", () => m1().collection("registrations").add({ ...baseReg, donationReceived: { cash: 300 } }));
 await ok("admin records a received donation", () => admin().doc("registrations/r_hist").update({ donationReceived: { cash: 500, items: "", receivedBy: "Lead" } }));
+const cancelPatch = { status: "cancelled", cancelledByMember: true, cancellationReason: "You cancelled", cancelledAt: FV.serverTimestamp(), updatedAt: FV.serverTimestamp() };
+await ok("member cancels their own registration", () => m1().doc("registrations/r_unpaid").update(cancelPatch));
+await seed();
+await no("member cannot cancel someone else's", () => m2().doc("registrations/r_unpaid").update(cancelPatch));
+await no("member cannot reinstate themselves", async () => {
+  await env.withSecurityRulesDisabled((c) => c.firestore().doc("registrations/r_unpaid").update({ status: "cancelled" }));
+  return m1().doc("registrations/r_unpaid").update({ status: "pending" });
+});
+await seed();
+await no("member cannot self-confirm while 'cancelling'", () => m1().doc("registrations/r_unpaid").update({ ...cancelPatch, status: "confirmed" }));
+await no("cancel cannot smuggle other fields", () => m1().doc("registrations/r_unpaid").update({ ...cancelPatch, paymentStatus: "verified" }));
 await ok("admin edits payment", () => admin().doc("registrations/r_hist").update({ paymentStatus: "verified", amountPaid: 1 }));
 
 console.log("Firestore: roster, private, feedback, analytics");
