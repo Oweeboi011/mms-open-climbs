@@ -1858,9 +1858,17 @@ describe("sendReminderNotifications", () => {
       climbId: "climb-1",
       email: "cancelled@x.com",
     };
+    regStore["reg-noshow"] = {
+      status: "confirmed",
+      noShow: true,
+      userId: "user-3",
+      climbId: "climb-1",
+      name: "Absent",
+      email: "absent@x.com",
+    };
     climbStore["climb-1"] = {
       title: "Mt. Pulag",
-      endDate: { toDate: () => new Date(Date.now() - 86400000) },
+      endDate: { toDate: () => new Date(Date.now() - 2 * 86400000) },
     };
 
     await scheduleHandler({});
@@ -1883,6 +1891,29 @@ describe("sendReminderNotifications", () => {
       link: "/feedback/climb-1",
     });
     expect(Object.keys(notifStore)).not.toContain("feedback_climb-1_user-2");
+    // No-shows are confirmed but weren't there: no thank-you, no feedback ask.
+    expect(Object.keys(notifStore)).not.toContain("feedback_climb-1_user-3");
+  });
+
+  it("waits a day after the climb ends before thanking, so no-shows can be marked", async () => {
+    regStore["reg-done"] = {
+      status: "confirmed",
+      userId: "user-1",
+      climbId: "climb-1",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      endDate: { toDate: () => new Date(Date.now() - 6 * 60 * 60 * 1000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(
+      climbUpdates.some((u) => u.patch && "thankYouSentAt" in u.patch),
+    ).toBe(false);
   });
 
   it("skips the thank-you email for climbs that already have thankYouSentAt or haven't ended", async () => {

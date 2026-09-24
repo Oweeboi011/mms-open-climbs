@@ -339,6 +339,10 @@ function updateRoster(climbId, userId, add) {
 
 const ACTIVE_REG_STATUSES = ["pending", "confirmed", "waitlisted"];
 
+// How long after a climb ends the thank-you email waits (see
+// sendReminderNotifications): time for leads to mark no-shows first.
+const NO_SHOW_GRACE_MS = 24 * 60 * 60 * 1000;
+
 // Another live registration by the same account for the same climb, if any.
 // The client checks before registering, but that check is advisory — a
 // double submit or a scripted write gets past it.
@@ -1437,10 +1441,12 @@ exports.sendReminderNotifications = onSchedule(
       const climb = climbs[climbId];
       if (!climb || climb.thankYouSentAt || !climb.endDate?.toDate) continue;
       if (isClimbCancelled(climb) || isClimbPostponed(climb)) continue;
-      if (climb.endDate.toDate().getTime() > now) continue;
+      // A day's grace after the climb ends, so leads can mark no-shows
+      // before the thank-you goes out.
+      if (climb.endDate.toDate().getTime() + NO_SHOW_GRACE_MS > now) continue;
 
       const confirmedRegs = regs.filter(
-        (r) => r.climbId === climbId && r.status === "confirmed",
+        (r) => r.climbId === climbId && r.status === "confirmed" && !r.noShow,
       );
       const feedbackUrl = `${appUrl}/feedback/${climbId}`;
 

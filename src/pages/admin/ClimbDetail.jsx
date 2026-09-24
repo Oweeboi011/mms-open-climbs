@@ -8,6 +8,7 @@ import {
   where,
   orderBy,
   onSnapshot,
+  getDocs,
   updateDoc,
   setDoc,
   deleteDoc,
@@ -61,6 +62,7 @@ import {
   getRefundedTotal,
 } from "@/utils/payments";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import { countPriorNoShows, buildNoShowPatch } from "@/utils/noShow";
 
 // What the Compliance column of the registrants table shows, as a list of the
 // gaps rather than ticks — the waiver, the participant's own details, and each
@@ -154,6 +156,40 @@ export default function AdminClimbDetail() {
       unsubFeedback();
     };
   }, [id]);
+
+  // Every no-show on record (a small set) — for the "earlier no-shows"
+  // warning next to each registrant. Read once per visit.
+  const [noShowRegs, setNoShowRegs] = useState([]);
+  useEffect(() => {
+    getDocs(query(collection(db, "registrations"), where("noShow", "==", true)))
+      .then((snap) => setNoShowRegs(snap.docs.map((d) => d.data())))
+      .catch(() => setNoShowRegs([]));
+  }, [id]);
+  const priorNoShows = useMemo(
+    () => countPriorNoShows(noShowRegs, id),
+    [noShowRegs, id],
+  );
+
+  async function toggleNoShow(reg) {
+    const next = !reg.noShow;
+    await updateDoc(doc(db, "registrations", reg.id), {
+      ...buildNoShowPatch(
+        next,
+        currentUser?.displayName || currentUser?.email || "admin",
+        serverTimestamp(),
+      ),
+      updatedAt: serverTimestamp(),
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: currentUser?.displayName || currentUser?.email,
+      action: next ? "registration_no_show_marked" : "registration_no_show_cleared",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: `${next ? "Marked" : "Cleared"} no-show for ${climb?.title || "climb"}`,
+    });
+  }
 
   const serviceGroups = useMemo(
     () => serviceGroupsFromDoc(climbPrivate?.serviceGroups),
@@ -649,6 +685,7 @@ export default function AdminClimbDetail() {
       pending: regs.filter((r) => r.status === "pending").length,
       waitlisted: regs.filter((r) => r.status === "waitlisted").length,
       cancelled: regs.filter((r) => r.status === "cancelled").length,
+      noShows: regs.filter((r) => r.noShow).length,
       awaitingPayment: regs.filter((r) => r.paymentStatus === "submitted")
         .length,
       // Refunds are money back out, so they come off collections (and so off
@@ -847,6 +884,12 @@ export default function AdminClimbDetail() {
                     {climb.maxParticipants - stats.confirmed}
                   </div>
                   <div className="admin-stat-label">Open Slots</div>
+                </div>
+              )}
+              {stats.noShows > 0 && (
+                <div className="admin-stat-card danger">
+                  <div className="admin-stat-num">{stats.noShows}</div>
+                  <div className="admin-stat-label">No-shows</div>
                 </div>
               )}
               {docs.expected > 0 && (
@@ -1249,6 +1292,8 @@ export default function AdminClimbDetail() {
                         setLightboxUrl={setLightboxUrl}
                         getOutstanding={getOutstanding}
                         serviceGroups={serviceGroups}
+                        onToggleNoShow={toggleNoShow}
+                        priorNoShows={priorNoShows[reg.userId] || 0}
                       />
                     ))
                   )}
