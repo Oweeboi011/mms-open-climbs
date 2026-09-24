@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { contactHref, contactLabel } from "@/data/orgContact";
 
 export default function Footer() {
@@ -20,6 +21,11 @@ export default function Footer() {
             "your MMS Open Climbs Coordinator"
           )}
           .
+        </p>
+        <p>
+          <Link to="/privacy" className="footer-link">
+            Privacy Notice
+          </Link>
         </p>
         <p>Built and developed by MMS Batch 2026</p>
       </div>

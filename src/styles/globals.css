@@ -5411,3 +5411,35 @@ details[open] > .myreg-collapsible::before {
   color: var(--danger);
   border-color: var(--danger);
 }
+
+/* ── Privacy notice ─────────────────────────────────────────────────────── */
+.privacy-page {
+  background: var(--surface);
+  min-height: 100vh;
+}
+.privacy-content {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+  line-height: 1.6;
+}
+.privacy-content h1 {
+  font-family: var(--font-head);
+  margin-bottom: 4px;
+}
+.privacy-content h2 {
+  font-family: var(--font-head);
+  font-size: 1.2rem;
+  margin: 24px 0 8px;
+}
+.privacy-content ul {
+  padding-left: 20px;
+}
+.privacy-version {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.footer-link {
+  color: inherit;
+  text-decoration: underline;
+}
