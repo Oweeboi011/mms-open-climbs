@@ -357,6 +357,38 @@ function formatDueDate(value) {
   });
 }
 
+// ── Helper: registrants-only participant list ───────────────────────────────
+// Who's joining, as first name + last initial, in climbPrivate/{climbId} —
+// readable only by the climb's registrants and admins (the full registrations
+// can't be: the rules only let members read their own). Rebuilt from the
+// climb's live registrations whenever one is created, changes status/name,
+// or is deleted.
+function shortName(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "Participant";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
+
+async function syncParticipantList(climbId) {
+  if (!climbId) return;
+  try {
+    const snap = await db
+      .collection("registrations")
+      .where("climbId", "==", climbId)
+      .get();
+    const participants = snap.docs
+      .map((d) => d.data())
+      .filter((r) => SEAT_HOLDING_STATUSES.includes(r.status))
+      .map((r) => ({ name: shortName(r.name), memberType: r.memberType || "" }));
+    await db
+      .doc(`climbPrivate/${climbId}`)
+      .set({ participants }, { merge: true });
+  } catch (err) {
+    logger.error("[syncParticipantList] failed", { climbId, err: err.message });
+  }
+}
+
 // Whether every seat is taken: pending + confirmed registrations (other than
 // `regId`) at or above the climb's maxParticipants. No limit set = never full.
 const SEAT_HOLDING_STATUSES = ["pending", "confirmed"];
@@ -556,6 +588,8 @@ exports.onRegistrationCreated = onDocumentCreated(
       if (userId && isActive && !autoWaitlisted) {
         await updateRoster(climbId, userId, true);
       }
+
+      await syncParticipantList(climbId);
 
       // Keep docsCompleteCount in sync for the climb card progress badge.
       if (isActive && regDocsComplete(climb, reg)) {
@@ -871,6 +905,14 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
       }
     }
 
+    if (
+      before.status !== after.status ||
+      before.name !== after.name ||
+      before.memberType !== after.memberType
+    ) {
+      await syncParticipantList(after.climbId);
+    }
+
     // Keep the roster in sync whenever status moves in or out of the
     // "active" set (pending/confirmed) — the list the climbPrivate rule
     // checks. Runs even for status changes that don't
@@ -1026,6 +1068,7 @@ exports.onRegistrationDeleted = onDocumentDeleted(
   async (event) => {
     const reg = event.data.data();
     if (!reg.climbId) return;
+    await syncParticipantList(reg.climbId);
     try {
       // registrationCount mirrors the create trigger's non-cancelled rule — a
       // cancelled reg was already decremented when it was cancelled, so only
