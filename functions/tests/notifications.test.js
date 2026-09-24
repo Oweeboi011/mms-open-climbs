@@ -1895,6 +1895,25 @@ describe("sendReminderNotifications", () => {
     expect(Object.keys(notifStore)).not.toContain("feedback_climb-1_user-3");
   });
 
+  it("thanks donors for their donation in the post-climb email", async () => {
+    regStore["reg-donor"] = {
+      status: "confirmed",
+      userId: "user-1",
+      climbId: "climb-1",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+      donationReceived: { cash: 500, items: "", receivedBy: "Lead" },
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      endDate: { toDate: () => new Date(Date.now() - 2 * 86400000) },
+      donationDrive: { enabled: true, beneficiary: "Tanglag School" },
+    };
+    await scheduleHandler({});
+    const [, opts] = global.fetch.mock.calls[0];
+    expect(JSON.parse(opts.body).htmlContent).toMatch(/donation to <strong>Tanglag School<\/strong>/);
+  });
+
   it("waits a day after the climb ends before thanking, so no-shows can be marked", async () => {
     regStore["reg-done"] = {
       status: "confirmed",

@@ -268,10 +268,11 @@ function tplReleaseNoteRaw({ title, body, appUrl }) {
     </p>`);
 }
 
-function tplThankYouRaw({ name, climbTitle, appUrl, feedbackUrl }) {
+function tplThankYouRaw({ name, climbTitle, appUrl, feedbackUrl, beneficiary }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Thank You, ${name}!</h2>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Congratulations on completing <strong>${climbTitle}</strong>! We hope it was an unforgettable journey.</p>
+    ${beneficiary ? `<p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Thank you too for your donation to <strong>${beneficiary}</strong> — it made a real difference.</p>` : ""}
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">MMS thanks you for joining us on this climb. We'd love to see you again — check out the upcoming schedule and join us on the next one!</p>
     <p style="margin:24px 0;">
       <a href="${feedbackUrl}" style="background:#c8a000;color:#0d2b12;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-right:10px;">Share Your Feedback</a>
@@ -1462,6 +1463,9 @@ exports.sendReminderNotifications = onSchedule(
                 climbTitle: climb.title,
                 appUrl,
                 feedbackUrl,
+                beneficiary: reg.donationReceived
+                  ? climb.donationDrive?.beneficiary || "the outreach"
+                  : "",
               }),
             });
             thankYouEmails++;

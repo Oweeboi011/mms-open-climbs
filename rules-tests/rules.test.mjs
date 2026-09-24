@@ -90,6 +90,15 @@ await no("reject legacy migration that inflates", () => m1().doc("registrations/
 await ok("member uploads document", () => m1().doc("registrations/r_hist").update({ medicalCertUpload: { url: "x", fileName: "a.pdf" } }));
 await ok("member signs own waiver", () => m1().doc("registrations/r_unpaid").update({ waiverSigned: true, waiverSignedName: "Juan Cruz", waiverSignedAt: FV.serverTimestamp() }));
 await ok("member updates own details", () => m1().doc("registrations/r_hist").update({ mobile: "0917" }));
+await ok("member pledges a donation", () => m1().doc("registrations/r_hist").update({ donation: { cashPledge: 500, inKind: "10 notebooks" }, updatedAt: FV.serverTimestamp() }));
+await ok("member withdraws a pledge", () => m1().doc("registrations/r_hist").update({ donation: null }));
+await no("member cannot record their own donation as received", () => m1().doc("registrations/r_hist").update({ donationReceived: { cash: 500, items: "", receivedBy: "me" } }));
+await no("member cannot clear a no-show mark", () => m1().doc("registrations/r_hist").update({ noShow: false }));
+await no("pledge with extra fields denied", () => m1().doc("registrations/r_hist").update({ donation: { cashPledge: 500, received: true } }));
+await no("negative cash pledge denied", () => m1().doc("registrations/r_hist").update({ donation: { cashPledge: -5, inKind: "" } }));
+await ok("member registers with a pledge", () => m1().collection("registrations").add({ ...baseReg, donation: { cashPledge: 300, inKind: "" } }));
+await no("member cannot register as already-received donor", () => m1().collection("registrations").add({ ...baseReg, donationReceived: { cash: 300 } }));
+await ok("admin records a received donation", () => admin().doc("registrations/r_hist").update({ donationReceived: { cash: 500, items: "", receivedBy: "Lead" } }));
 await ok("admin edits payment", () => admin().doc("registrations/r_hist").update({ paymentStatus: "verified", amountPaid: 1 }));
 
 console.log("Firestore: roster, private, feedback, analytics");
