@@ -45,7 +45,7 @@ existing climb docs. They need Application Default Credentials
 
 | What | How | Why |
 | --- | --- | --- |
-| Firestore TTL | `gcloud firestore fields ttls update expireAt --collection-group=pageViews --enable-ttl --database=openclimbs --project=mms-open-climbs`, and the same for `--collection-group=failedRequests` | New page views and error logs carry `expireAt` (90 days). Without the policy the field does nothing. Rows written before this change have no `expireAt` and are never deleted by TTL — purge them once if the collection is large |
+| Firestore TTL | Declared in `firestore.indexes.json` (`fieldOverrides` with `"ttl": true` on `pageViews.expireAt` and `failedRequests.expireAt`), so every deploy applies it | New page views and error logs carry `expireAt` (90 days). Rows written before this change have no `expireAt` and are never deleted by TTL — purge them once if the collection is large |
 | Storage lifecycle | `gcloud storage buckets update gs://<bucket> --lifecycle-file=storage-lifecycle.json` | Deletes member uploads (receipts, medical certificates, permits, waivers) 2 years after upload. **This is a data-retention decision — confirm 730 days suits the club before applying.** |
 | Function image cleanup | `npx firebase-tools functions:artifacts:setpolicy --project mms-open-climbs` | Every functions deploy leaves a container image in Artifact Registry; without a cleanup policy they accumulate and are billed |
 | App Check | Firebase Console → App Check → register the web app with reCAPTCHA v3; add the site key as the `VITE_APPCHECK_SITE_KEY` GitHub secret and redeploy; watch the metrics for a few days, then **Enforce** for Firestore and Storage | The only real limit on scripted writes to the open `pageViews`/`failedRequests` collections |
