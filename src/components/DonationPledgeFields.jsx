@@ -17,9 +17,18 @@ export default function DonationPledgeFields({ drive, value, onChange }) {
             onChange={(e) => set("cashPledge", e.target.value)}
             placeholder="0"
           />
+          <label className="form-check">
+            <input
+              type="checkbox"
+              checked={value.payWithFees !== false}
+              onChange={(e) => set("payWithFees", e.target.checked)}
+            />
+            Add it to my GCash payment
+          </label>
           <p className="form-hint">
-            Handed to the climb leads on the day — not paid through GCash and
-            not part of your fees.
+            {value.payWithFees !== false
+              ? "It's added to your amount due as a separate donation line, so the leads can total it."
+              : "You'll hand it to the climb leads on the day."}
           </p>
         </div>
       )}

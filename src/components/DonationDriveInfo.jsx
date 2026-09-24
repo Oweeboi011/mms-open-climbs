@@ -28,7 +28,10 @@ export default function DonationDriveInfo({ climb }) {
         {drive.description && <p>{drive.description}</p>}
         <ul className="info-list">
           {drive.acceptsCash && (
-            <li>Cash donations are handed to the climb leads on the day.</li>
+            <li>
+              Cash donations can be added to your GCash payment with your fees,
+              or handed to the climb leads on the day.
+            </li>
           )}
           {drive.acceptsInKind && (
             <li>Carry-on donations: bring the items with you on the climb.</li>

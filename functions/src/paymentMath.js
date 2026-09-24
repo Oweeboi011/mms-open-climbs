@@ -59,17 +59,35 @@ function getRefundedTotal(reg) {
 // Required fees always count; optional ones only when they selected them,
 // with the guest fee auto-applying to joiners.
 function getFeeItems(reg, climb) {
-  if (!climb || !Array.isArray(climb.fees) || climb.fees.length === 0) {
-    return Array.isArray(reg && reg.feeBreakdown)
-      ? reg.feeBreakdown.filter((f) => f.selected)
-      : [];
-  }
-  return climb.fees.filter((fee) => {
-    if (!fee.optional) return true;
-    const stored = (reg.feeBreakdown || []).find((f) => f.label === fee.label);
-    if (stored) return !!stored.selected;
-    return fee.isGuestFee && reg.memberType === "joiner";
-  });
+  const fees =
+    !climb || !Array.isArray(climb.fees) || climb.fees.length === 0
+      ? Array.isArray(reg && reg.feeBreakdown)
+        ? reg.feeBreakdown.filter((f) => f.selected)
+        : []
+      : climb.fees.filter((fee) => {
+          if (!fee.optional) return true;
+          const stored = (reg.feeBreakdown || []).find((f) => f.label === fee.label);
+          if (stored) return !!stored.selected;
+          return fee.isGuestFee && reg.memberType === "joiner";
+        });
+  const donation = getDonationFeeItem(reg, climb);
+  return donation ? [...fees, donation] : fees;
+}
+
+// A cash donation pledge the member chose to send with their GCash payment
+// is owed alongside the fees. Mirrors getDonationFeeItem in
+// src/utils/donations.js.
+function getDonationFeeItem(reg, climb) {
+  const pledge = reg && reg.donation;
+  if (!climb || !climb.donationDrive || !climb.donationDrive.enabled) return null;
+  if (!pledge || !pledge.payWithFees) return null;
+  const amount = Number(pledge.cashPledge) || 0;
+  if (amount <= 0) return null;
+  return {
+    label: `Donation — ${climb.donationDrive.beneficiary || "outreach"}`,
+    amount,
+    isDonation: true,
+  };
 }
 
 function getExpectedTotal(reg, climb) {

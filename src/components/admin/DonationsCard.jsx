@@ -6,7 +6,13 @@ import { summarizeDonations } from "@/utils/donations";
 // pledged, and what the leads actually received on the day. Received cash
 // passes through leads' hands off-app, so every record names who took it and
 // is audit-logged (see recordDonation in ClimbDetail).
-export default function DonationsCard({ climb, regs, onRecord }) {
+export default function DonationsCard({
+  climb,
+  regs,
+  onRecord,
+  paidWithFees = () => 0,
+  onPublish,
+}) {
   const [editingId, setEditingId] = useState(null);
   const [cash, setCash] = useState("");
   const [items, setItems] = useState("");
@@ -14,12 +20,16 @@ export default function DonationsCard({ climb, regs, onRecord }) {
   const [addId, setAddId] = useState("");
 
   const listed = regs.filter(
-    (r) => (r.donation && r.status !== "cancelled") || r.donationReceived,
+    (r) =>
+      (r.donation && r.status !== "cancelled") ||
+      r.donationReceived ||
+      paidWithFees(r) > 0,
   );
+  const [publishing, setPublishing] = useState(false);
   const unlisted = regs.filter(
     (r) => r.status !== "cancelled" && !listed.includes(r),
   );
-  const totals = summarizeDonations(regs);
+  const totals = summarizeDonations(regs, paidWithFees);
   const rows =
     editingId && !listed.some((r) => r.id === editingId)
       ? [...listed, regs.find((r) => r.id === editingId)]
@@ -119,11 +129,20 @@ export default function DonationsCard({ climb, regs, onRecord }) {
                       {reg.donation?.cashPledge
                         ? formatPeso(reg.donation.cashPledge)
                         : ""}
+                      {reg.donation?.payWithFees && (
+                        <div className="donations-by">with GCash payment</div>
+                      )}
                       {reg.donation?.inKind && (
                         <div className="donations-items">{reg.donation.inKind}</div>
                       )}
                     </td>
                     <td>
+                      {paidWithFees(reg) > 0 && (
+                        <div>
+                          {formatPeso(paidWithFees(reg))}
+                          <div className="donations-by">via GCash with fees</div>
+                        </div>
+                      )}
                       {reg.donationReceived ? (
                         <>
                           {reg.donationReceived.cash > 0 &&
@@ -137,7 +156,7 @@ export default function DonationsCard({ climb, regs, onRecord }) {
                             by {reg.donationReceived.receivedBy}
                           </div>
                         </>
-                      ) : (
+                      ) : paidWithFees(reg) > 0 ? null : (
                         <span className="donations-pending">Not yet received</span>
                       )}
                     </td>
@@ -155,6 +174,27 @@ export default function DonationsCard({ climb, regs, onRecord }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {onPublish && (
+        <p className="form-hint">
+          The event page shows a running total.{" "}
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            disabled={publishing}
+            onClick={async () => {
+              setPublishing(true);
+              try {
+                await onPublish();
+              } finally {
+                setPublishing(false);
+              }
+            }}
+          >
+            {publishing ? "Updating…" : "Update public total"}
+          </button>
+        </p>
       )}
 
       {unlisted.length > 0 && !editingId && (

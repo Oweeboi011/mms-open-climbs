@@ -47,6 +47,8 @@ import {
   describeMemberTypeChange,
   serviceGroupsFromDoc,
   serviceGroupsToDoc,
+  getExpectedTotal,
+  getCountedPaid,
 } from "@/utils/registrationFees";
 import ServiceSharingCard from "@/components/admin/ServiceSharingCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
@@ -64,7 +66,13 @@ import {
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import { countPriorNoShows, buildNoShowPatch } from "@/utils/noShow";
 import DonationsCard from "@/components/admin/DonationsCard";
-import { isDonationDriveOn, normalizeReceived, summarizeDonations } from "@/utils/donations";
+import {
+  getDonationFeeItem,
+  getDonationPaidWithFees,
+  isDonationDriveOn,
+  normalizeReceived,
+  summarizeDonations,
+} from "@/utils/donations";
 
 // What the Compliance column of the registrants table shows, as a list of the
 // gaps rather than ticks — the waiver, the participant's own details, and each
@@ -183,7 +191,10 @@ export default function AdminClimbDetail() {
       updatedAt: serverTimestamp(),
     });
     const next = regs.map((r) => (r.id === reg.id ? { ...r, donationReceived } : r));
-    const { receivedCash, donors, itemDonations } = summarizeDonations(next);
+    const { receivedCash, donors, itemDonations } = summarizeDonations(
+      next,
+      donationPaidWithFees,
+    );
     await updateDoc(doc(db, "climbs", id), {
       donationTotals: { receivedCash, donors, itemDonations },
     });
@@ -199,6 +210,18 @@ export default function AdminClimbDetail() {
           `${donationReceived.items ? ` + items (${donationReceived.items})` : ""}` +
           ` for ${climb?.donationDrive?.beneficiary || climb?.title || "outreach"}`
         : `Cleared donation record for ${climb?.title || "climb"}`,
+    });
+  }
+
+  // Refresh the event page's public tally — with-fees donations change as
+  // payments are verified, not only when leads record something.
+  async function publishDonationTotals() {
+    const { receivedCash, donors, itemDonations } = summarizeDonations(
+      regs,
+      donationPaidWithFees,
+    );
+    await updateDoc(doc(db, "climbs", id), {
+      donationTotals: { receivedCash, donors, itemDonations },
     });
   }
 
@@ -671,6 +694,19 @@ export default function AdminClimbDetail() {
     [climb, serviceGroups],
   );
 
+  // The part of a member's GCash payments that is their donation (sent with
+  // their fees) rather than the club's money.
+  const donationPaidWithFees = useCallback(
+    (reg) =>
+      getDonationPaidWithFees(
+        reg,
+        getExpectedTotal(reg, climb, serviceGroups) -
+          (getDonationFeeItem(reg, climb)?.amount || 0),
+        getCountedPaid(reg),
+      ),
+    [climb, serviceGroups],
+  );
+
   const filtered = useMemo(
     () =>
       regs.filter((r) => {
@@ -718,6 +754,9 @@ export default function AdminClimbDetail() {
       waitlisted: regs.filter((r) => r.status === "waitlisted").length,
       cancelled: regs.filter((r) => r.status === "cancelled").length,
       noShows: regs.filter((r) => r.noShow).length,
+      donationsInPayments: regs
+        .filter((r) => r.paymentStatus === "verified")
+        .reduce((s, r) => s + donationPaidWithFees(r), 0),
       awaitingPayment: regs.filter((r) => r.paymentStatus === "submitted")
         .length,
       // Refunds are money back out, so they come off collections (and so off
@@ -731,7 +770,7 @@ export default function AdminClimbDetail() {
         .filter((r) => r.status !== "cancelled")
         .reduce((s, r) => s + getOutstanding(r), 0),
     }),
-    [regs, getOutstanding],
+    [regs, getOutstanding, donationPaidWithFees],
   );
 
   // Who still owes, for the summary card under Expenses — the same figure as
@@ -956,7 +995,8 @@ export default function AdminClimbDetail() {
 
             <ExpensesCard
               items={climbExpenses?.items || []}
-              totalPaid={stats.totalPaid}
+              totalPaid={stats.totalPaid - stats.donationsInPayments}
+              donationsExcluded={stats.donationsInPayments}
               onSave={saveExpenses}
             />
 
@@ -975,7 +1015,13 @@ export default function AdminClimbDetail() {
             />
 
             {isDonationDriveOn(climb) && (
-              <DonationsCard climb={climb} regs={regs} onRecord={recordDonation} />
+              <DonationsCard
+                climb={climb}
+                regs={regs}
+                onRecord={recordDonation}
+                paidWithFees={donationPaidWithFees}
+                onPublish={publishDonationTotals}
+              />
             )}
 
             {/* Required documents progress — how much of the paperwork this

@@ -5462,3 +5462,11 @@ details[open] > .myreg-collapsible::before {
   gap: 8px;
   align-items: center;
 }
+.fee-donation-row td {
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: var(--green-light);
+}
+.fee-donation-row td:last-child {
+  text-align: right;
+}

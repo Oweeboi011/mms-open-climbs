@@ -27,17 +27,27 @@ import { computeExpectedTotal, getClimbFeeModel } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { compressImage } from "@/utils/compressImage";
 import DonationPledgeFields from "@/components/DonationPledgeFields";
-import { isDonationDriveOn, normalizePledge } from "@/utils/donations";
+import {
+  getDonationFeeItem,
+  isDonationDriveOn,
+  normalizePledge,
+} from "@/utils/donations";
 import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
 import { PRIVACY_NOTICE_VERSION } from "@/data/privacyNotice";
 
 // Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
-function expectedTotalFor(climb, form, optionalFeeSelections) {
-  return computeExpectedTotal(climb, {
+function expectedTotalFor(climb, form, optionalFeeSelections, pledge) {
+  const fees = computeExpectedTotal(climb, {
     isJoiner: form.memberType === "joiner",
     optionalSelections: optionalFeeSelections,
   });
+  // A cash pledge sent with the GCash payment is part of what they transfer.
+  const donation = getDonationFeeItem(
+    { donation: isDonationDriveOn(climb) ? normalizePledge(pledge) : null },
+    climb,
+  );
+  return donation ? { ...fees, total: fees.total + donation.amount, donation } : fees;
 }
 
 // Submit order, top to bottom. Drives which field the page scrolls to when
@@ -107,7 +117,7 @@ export default function Register() {
   const [paymentFiles, setPaymentFiles] = useState([]);
   const [paymentPreviews, setPaymentPreviews] = useState([]);
   const [paymentNote, setPaymentNote] = useState("");
-  const [pledge, setPledge] = useState({ cashPledge: "", inKind: "" });
+  const [pledge, setPledge] = useState({ cashPledge: "", inKind: "", payWithFees: true });
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
@@ -1014,11 +1024,11 @@ export default function Register() {
                 ...(isJoiner && guestFee ? [guestFee] : []),
               ];
               const optional = optionalFees;
-              const { total: expectedTotal, hasTba } = expectedTotalFor(
-                climb,
-                form,
-                optionalFeeSelections,
-              );
+              const {
+                total: expectedTotal,
+                hasTba,
+                donation: donationLine,
+              } = expectedTotalFor(climb, form, optionalFeeSelections, pledge);
               const totalDisplay = hasTba
                 ? `₱${expectedTotal.toLocaleString("en-PH")} + TBA`
                 : `₱${expectedTotal.toLocaleString("en-PH")}`;
@@ -1205,6 +1215,13 @@ export default function Register() {
                       })}
                     </tbody>
                     <tfoot>
+                      {donationLine && (
+                        <tr className="fee-donation-row">
+                          <td></td>
+                          <td>{donationLine.label}</td>
+                          <td>₱{donationLine.amount.toLocaleString("en-PH")}</td>
+                        </tr>
+                      )}
                       <tr style={{ borderTop: "2px solid var(--border)" }}>
                         <td></td>
                         <td
@@ -1688,6 +1705,7 @@ export default function Register() {
             climb,
             form,
             optionalFeeSelections,
+            pledge,
           );
           const totalDisplay = hasTba
             ? `₱${total.toLocaleString("en-PH")} + TBA`

@@ -54,7 +54,7 @@ describe("DonationPledgeModal", () => {
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
     const patch = updateDoc.mock.calls.at(-1)[1];
     expect(Object.keys(patch).sort()).toEqual(["donation", "updatedAt"]);
-    expect(patch.donation).toEqual({ cashPledge: 300, inKind: "" });
+    expect(patch.donation).toEqual({ cashPledge: 300, inKind: "", payWithFees: true });
     expect(onClose).toHaveBeenCalled();
   });
 });

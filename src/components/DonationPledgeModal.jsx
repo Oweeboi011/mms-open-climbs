@@ -11,6 +11,7 @@ export default function DonationPledgeModal({ reg, drive, currentUser, onClose }
   const [value, setValue] = useState({
     cashPledge: reg.donation?.cashPledge ?? "",
     inKind: reg.donation?.inKind ?? "",
+    payWithFees: reg.donation?.payWithFees ?? true,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
