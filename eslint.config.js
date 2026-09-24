@@ -225,7 +225,12 @@ export default [
     },
   },
   {
-    files: ["scripts/**/*.{js,mjs}", "*.config.js", "*.config.mjs"],
+    files: [
+      "scripts/**/*.{js,mjs}",
+      "rules-tests/**/*.mjs",
+      "*.config.js",
+      "*.config.mjs",
+    ],
     languageOptions: { globals: { ...globals.node } },
     rules: {
       "no-console": "off",

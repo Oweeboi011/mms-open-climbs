@@ -9,6 +9,7 @@ import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
 import DocumentUploadModal from "@/components/DocumentUploadModal";
+import { compressImage } from "@/utils/compressImage";
 
 // Lets an admin submit or replace a required document on a participant's
 // behalf — for a walk-in with no phone on them, or a physical copy handed
@@ -71,7 +72,7 @@ export default function AdminDocumentModal({
     try {
       const patch = {};
       for (const docType of toUpload) {
-        const file = docFiles[docType.key];
+        const file = await compressImage(docFiles[docType.key]);
         const fileRef = storageRef(
           storage,
           // Registration id stands in for a walk-in with no userId, so their
