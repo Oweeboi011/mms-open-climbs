@@ -7,14 +7,20 @@ that live outside the repo.
 ## Deploy order
 
 The new storage rules read the `admin` custom claim, and the new Firestore
-rules read the registrant roster from `climbInternal`. Both must be populated
-**before** the rules deploy, or admins lose access to members' files and
-registrants lose access to their climb briefing.
+rules read the registrant roster from `climbInternal`. Neither depends on a
+backfill to stay usable:
 
-Both scripts need Application Default Credentials for the project
-(`gcloud auth application-default login`, or `GOOGLE_APPLICATION_CREDENTIALS`
-pointing at a service-account key). Both are dry runs unless given `--apply`,
-and both are safe to re-run.
+- An admin whose token lacks the claim gets it on their next app load:
+  AuthContext calls the `ensureAdminClaim` callable, which issues it from
+  their `users/` role.
+- `isRegisteredFor` still accepts the legacy `climbs/{id}.registeredUserIds`
+  list until a climb's roster has moved.
+
+The scripts below still finish the job — they issue claims to admins who
+haven't opened the app, and remove the public roster and officer emails from
+existing climb docs. They need Application Default Credentials
+(`gcloud auth application-default login`), are dry runs unless given
+`--apply`, and are safe to re-run. Run them after the deploy.
 
 1. **Admin claims**
    ```bash
@@ -28,13 +34,10 @@ and both are safe to re-run.
    node scripts/backfill-climb-denorm.mjs
    node scripts/backfill-climb-denorm.mjs --apply
    ```
-3. **Deploy**: push `develop` (CI runs `npm run qa`, then deploys rules,
-   functions and hosting together).
-4. **Re-run step 2** once the deploy finishes. Between step 2 and the deploy,
-   the old functions still write the roster to the climb doc and the old
-   ClimbForm still saves officer emails publicly; the re-run sweeps up that
-   window.
-5. **Smoke test** as a member on a real climb: register unpaid, submit a
+   Until this runs, existing climbs still expose the legacy roster and
+   officer emails, and a member who cancels keeps briefing access through
+   the legacy list.
+3. **Smoke test** as a member on a real climb: register unpaid, submit a
    payment, submit a second payment, open the climb's briefing, upload a
    document. As an admin: open a member's receipt, replace a GCash QR.
 
@@ -104,6 +107,6 @@ and both are safe to re-run.
 
 ## Testing
 
-- `npm run test:rules` — 51 emulator checks of `firestore.rules` and
+- `npm run test:rules` — 53 emulator checks of `firestore.rules` and
   `storage.rules` (needs Java). Not part of `npm test`.
 - `npm run qa` — build plus frontend and functions tests with coverage.

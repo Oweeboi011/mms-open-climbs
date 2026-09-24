@@ -22,11 +22,18 @@ service cloud.firestore {
     }
     // The roster lives in admin-only climbInternal/, not on the public climb
     // doc: a public list of uids let anyone enumerate every registrant.
+    //
+    // Until scripts/backfill-climb-denorm.mjs has moved a climb's roster, the
+    // legacy list on the climb doc still counts, so registrants aren't locked
+    // out in between.
     function isRegisteredFor(climbId) {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/climbInternal/$(climbId)) &&
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/climbInternal/$(climbId)) &&
+          request.auth.uid in
+            get(/databases/$(database)/documents/climbInternal/$(climbId)).data.get('registeredUserIds', [])) ||
         request.auth.uid in
-          get(/databases/$(database)/documents/climbInternal/$(climbId)).data.get('registeredUserIds', []);
+          get(/databases/$(database)/documents/climbs/$(climbId)).data.get('registeredUserIds', [])
+      );
     }
 
     // Which fields an update actually touches.

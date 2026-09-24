@@ -1556,6 +1556,28 @@ exports.syncAdminClaim = onDocumentWritten(
   },
 );
 
+// ── Callable: issue the caller's admin claim from their users/ role ─────────
+// syncAdminClaim only fires on users/ writes, so an admin promoted before it
+// existed has no claim and storage.rules would deny them members' files.
+// AuthContext calls this when the profile says admin but the token doesn't.
+// The role is read server-side; the caller can't grant themselves anything.
+exports.ensureAdminClaim = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "You must be signed in.");
+  const snap = await db.doc(`users/${uid}`).get();
+  const isAdmin = snap.exists && snap.data().role === "admin";
+  if (!isAdmin) return { admin: false };
+  if (request.auth.token?.admin === true) return { admin: true };
+  try {
+    const user = await adminAuth.getUser(uid);
+    await adminAuth.setCustomUserClaims(uid, { ...(user.customClaims || {}), admin: true });
+    logger.info("[ensureAdminClaim] claim issued", { uid });
+    return { admin: true };
+  } catch (err) {
+    throw new HttpsError("internal", err.message);
+  }
+});
+
 exports.createUser = onCall(
   { secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"] },
   async (request) => {

@@ -1998,3 +1998,30 @@ describe("sendReminderNotifications", () => {
     ).toBe(false);
   });
 });
+
+describe("ensureAdminClaim", () => {
+  const handler = () => require("../src/index").ensureAdminClaim;
+
+  it("issues the claim to an admin whose token lacks it, keeping other claims", async () => {
+    userStore["user-1"] = { role: "admin" };
+    authUsers["user-1"] = { uid: "user-1", customClaims: { seat: "a" } };
+    const res = await handler()({ auth: { uid: "user-1", token: {} } });
+    expect(res).toEqual({ admin: true });
+    expect(authCalls.setClaims).toContainEqual({
+      uid: "user-1",
+      claims: { seat: "a", admin: true },
+    });
+  });
+
+  it("grants nothing to a member, whatever they ask", async () => {
+    userStore["user-2"] = { role: "member" };
+    authUsers["user-2"] = { uid: "user-2", customClaims: {} };
+    const res = await handler()({ auth: { uid: "user-2", token: {} }, data: { admin: true } });
+    expect(res).toEqual({ admin: false });
+    expect(authCalls.setClaims.some((c) => c.uid === "user-2")).toBe(false);
+  });
+
+  it("rejects a signed-out caller", async () => {
+    await expect(handler()({})).rejects.toMatchObject({ code: "unauthenticated" });
+  });
+});
