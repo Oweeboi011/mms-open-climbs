@@ -29,6 +29,7 @@ import { compressImage } from "@/utils/compressImage";
 import DonationPledgeFields from "@/components/DonationPledgeFields";
 import { isDonationDriveOn, normalizePledge } from "@/utils/donations";
 import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
+import { PRIVACY_NOTICE_VERSION } from "@/data/privacyNotice";
 
 // Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
@@ -54,6 +55,7 @@ const FIELD_ORDER = [
   "waiverDoc",
   "waiverAgreed",
   "sigName",
+  "privacyConsent",
   "amountPaid",
   "paymentFiles",
 ];
@@ -93,6 +95,7 @@ export default function Register() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(INITIAL_FORM);
   const [waiverAgreed, setWaiverAgreed] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [sigName, setSigName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -213,6 +216,10 @@ export default function Register() {
     if (!waiverAgreed) {
       errors.waiverAgreed =
         "You must agree to the Waiver and Release of Liability.";
+    }
+    if (!privacyConsent) {
+      errors.privacyConsent =
+        "Please agree to the Privacy Notice so we can process your registration.";
     }
     if (!sigName.trim()) {
       errors.sigName = "Type your full name to sign the waiver.";
@@ -343,6 +350,9 @@ export default function Register() {
         medicalConditions: form.medicalConditions,
         experienceLevel: form.experienceLevel,
         memberType: form.memberType,
+        // Data Privacy Act consent, with the notice version it was given on
+        privacyConsentAt: serverTimestamp(),
+        privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         // Waiver
         waiverSigned: true,
         waiverSignedAt: serverTimestamp(),
@@ -941,6 +951,29 @@ export default function Register() {
               </span>
             </label>
             <FieldError message={fieldErrors.waiverAgreed} />
+
+            <label className="waiver-check">
+              <input
+                type="checkbox"
+                ref={bindField("privacyConsent")}
+                required
+                aria-invalid={!!fieldErrors.privacyConsent}
+                checked={privacyConsent}
+                onChange={(e) => {
+                  setPrivacyConsent(e.target.checked);
+                  clearFieldError("privacyConsent");
+                }}
+              />
+              <span className="waiver-check-label">
+                I consent to MMS collecting and processing my personal and
+                health information for this climb, as described in the{" "}
+                <Link to="/privacy" target="_blank" rel="noopener">
+                  Privacy Notice
+                </Link>
+                .
+              </span>
+            </label>
+            <FieldError message={fieldErrors.privacyConsent} />
 
             <div className="form-group">
               <label className="form-label required">

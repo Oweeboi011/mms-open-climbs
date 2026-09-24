@@ -24,6 +24,7 @@ import ClimbFeedback from "@/pages/ClimbFeedback";
 // either to sit in the entry chunk.
 const WaiverPrint = lazy(() => import("@/pages/WaiverPrint"));
 const ReleaseNotes = lazy(() => import("@/pages/ReleaseNotes"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
 
 // Admin pages — lazy so anonymous landing traffic doesn't download the whole
 // admin surface (ClimbForm alone is ~2100 lines) just to read the schedule.
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/my-registrations" element={<MyRegistrations />} />
             <Route path="/waiver/:registrationId" element={<WaiverPrint />} />
             <Route path="/release-notes" element={<ReleaseNotes />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/feedback/:climbId" element={<ClimbFeedback />} />
           </Route>
 

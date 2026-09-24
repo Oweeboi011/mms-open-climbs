@@ -15,6 +15,12 @@ function controlByLabel(container, labelText) {
   return label.closest(".form-group")?.querySelector("input,select,textarea");
 }
 
+// The waiver agreement and the Data Privacy Act consent are both required.
+function agreeToWaiverAndPrivacy() {
+  fireEvent.click(screen.getByRole("checkbox", { name: /voluntarily agree/i }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /I consent/i }));
+}
+
 function render(authOverrides = {}) {
   return renderAtRoute(
     <Register />,
@@ -53,7 +59,7 @@ describe("Register page", () => {
     it("shows the waiver agreement checkbox", async () => {
       render();
       await waitFor(() =>
-        expect(screen.getByRole("checkbox")).toBeInTheDocument(),
+        expect(screen.getByRole("checkbox", { name: /voluntarily agree/i })).toBeInTheDocument(),
       );
     });
 
@@ -167,7 +173,7 @@ describe("Register page", () => {
       fireEvent.change(controlByLabel(container, "Relationship"), {
         target: { value: "Mother" },
       });
-      fireEvent.click(screen.getByRole("checkbox"));
+      agreeToWaiverAndPrivacy();
       fireEvent.change(
         screen.getByPlaceholderText("Type your complete legal name"),
         { target: { value: "Juan Cruz" } },
@@ -215,7 +221,7 @@ describe("Register page", () => {
       fireEvent.change(controlByLabel(container, "Relationship"), {
         target: { value: "Mother" },
       });
-      fireEvent.click(screen.getByRole("checkbox"));
+      agreeToWaiverAndPrivacy();
       fireEvent.change(
         screen.getByPlaceholderText("Type your complete legal name"),
         { target: { value: "Juan Cruz" } },
@@ -281,7 +287,7 @@ describe("Register page", () => {
       fireEvent.change(controlByLabel(container, "Relationship"), {
         target: { value: "Mother" },
       });
-      fireEvent.click(screen.getByRole("checkbox"));
+      agreeToWaiverAndPrivacy();
       fireEvent.change(
         screen.getByPlaceholderText("Type your complete legal name"),
         { target: { value: "Juan Cruz" } },
@@ -368,6 +374,33 @@ describe("Register page", () => {
     expect(await screen.findByText(/currently full/i)).toBeInTheDocument();
   });
 
+  it("requires privacy consent and records the notice version", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, { ...climbFixture, status: "open" }),
+    );
+    getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    const { container } = render();
+    await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
+    fireEvent.change(controlByLabel(container, "Mobile Number"), { target: { value: "09171234567" } });
+    fireEvent.change(controlByLabel(container, "Contact Name"), { target: { value: "Maria Cruz" } });
+    fireEvent.change(controlByLabel(container, "Contact Mobile"), { target: { value: "09179876543" } });
+    fireEvent.change(controlByLabel(container, "Relationship"), { target: { value: "Mother" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /voluntarily agree/i }));
+    fireEvent.change(screen.getByPlaceholderText("Type your complete legal name"), {
+      target: { value: "Juan Cruz" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+    expect(await screen.findAllByText(/agree to the Privacy Notice/i)).not.toHaveLength(0);
+    expect(addDoc).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /I consent/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Confirm & Submit/i }));
+    await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    expect(addDoc.mock.calls[0][1].privacyNoticeVersion).toBeTruthy();
+    expect(addDoc.mock.calls[0][1].privacyConsentAt).toBeTruthy();
+  });
+
   describe("when the climb has a donation drive", () => {
     const driveClimb = {
       ...climbFixture,
@@ -408,7 +441,7 @@ describe("Register page", () => {
       fireEvent.change(controlByLabel(container, "Items you"), {
         target: { value: "10 notebooks" },
       });
-      fireEvent.click(screen.getByRole("checkbox"));
+      agreeToWaiverAndPrivacy();
       fireEvent.change(
         screen.getByPlaceholderText("Type your complete legal name"),
         { target: { value: "Juan Cruz" } },
