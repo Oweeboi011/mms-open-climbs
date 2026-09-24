@@ -39,6 +39,9 @@ async function seed() {
     await db.doc("climbs/c1").set({ status: "open", title: "Pulag" });
     await db.doc("climbInternal/c1").set({ registeredUserIds: ["m1"], officerEmails: [{ email: "o@x.com" }] });
     await db.doc("climbPrivate/c1").set({ resources: [] });
+    // c2: not yet migrated — roster still only on the climb doc.
+    await db.doc("climbs/c2").set({ status: "open", title: "Apo", registeredUserIds: ["m2"] });
+    await db.doc("climbPrivate/c2").set({ resources: [] });
     await db.doc("registrations/r_unpaid").set({ userId: "m1", climbId: "c1", status: "pending", paymentStatus: "unpaid", amountPaid: null, payments: [], waiverSigned: false });
     await db.doc("registrations/r_hist").set({ userId: "m1", climbId: "c1", status: "confirmed", paymentStatus: "verified", amountPaid: 500,
       payments: [{ amount: 500, proofs: [], submittedAt: ts, status: "verified", reviewedBy: "A" }] });
@@ -93,6 +96,8 @@ console.log("Firestore: roster, private, feedback, analytics");
 await seed();
 await ok("registrant reads climbPrivate", () => m1().doc("climbPrivate/c1").get());
 await no("non-registrant denied climbPrivate", () => m2().doc("climbPrivate/c1").get());
+await ok("registrant of an unmigrated climb reads climbPrivate", () => m2().doc("climbPrivate/c2").get());
+await no("non-registrant of an unmigrated climb denied", () => m1().doc("climbPrivate/c2").get());
 await no("member denied climbInternal", () => m1().doc("climbInternal/c1").get());
 await ok("admin reads climbInternal", () => admin().doc("climbInternal/c1").get());
 await ok("public still reads climbs", () => anon().doc("climbs/c1").get());
