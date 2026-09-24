@@ -586,12 +586,43 @@ describe("Admin ClimbDetail", () => {
     ).not.toBeInTheDocument();
   });
 
+  // Matches the Total Outstanding card: who still owes money, whatever their
+  // payment review status — not "anyone not yet verified".
   it("filters to only registrants with an outstanding balance", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        fees: [{ label: "Registration Fee", amount: "500", optional: false }],
+      }),
+    );
     mockRegistrantSnapshot([
       { id: registrationFixture.id, data: { ...registrationFixture, paymentStatus: "unpaid" } },
       {
         id: "reg-2",
-        data: { ...registrationFixture, name: "Maria Santos", paymentStatus: "verified" },
+        data: {
+          ...registrationFixture,
+          name: "Maria Santos",
+          paymentStatus: "verified",
+          amountPaid: 500,
+        },
+      },
+      {
+        id: "reg-3",
+        data: {
+          ...registrationFixture,
+          name: "Pedro Reyes",
+          paymentStatus: "verified",
+          amountPaid: 200,
+        },
+      },
+      {
+        id: "reg-4",
+        data: {
+          ...registrationFixture,
+          name: "Ana Lim",
+          paymentStatus: "submitted",
+          amountPaid: 500,
+        },
       },
     ]);
 
@@ -602,8 +633,10 @@ describe("Admin ClimbDetail", () => {
     fireEvent.change(paymentFilter, { target: { value: "outstanding" } });
 
     await waitFor(() => {
-      expect(screen.getByText("Juan Cruz")).toBeInTheDocument();
-      expect(screen.queryByText("Maria Santos")).not.toBeInTheDocument();
+      expect(screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE)).toBeInTheDocument();
+      expect(screen.getByText("Pedro Reyes", IN_REGISTRANTS_TABLE)).toBeInTheDocument();
+      expect(screen.queryByText("Maria Santos", IN_REGISTRANTS_TABLE)).not.toBeInTheDocument();
+      expect(screen.queryByText("Ana Lim", IN_REGISTRANTS_TABLE)).not.toBeInTheDocument();
     });
   });
 
