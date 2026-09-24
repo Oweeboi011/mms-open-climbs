@@ -598,6 +598,11 @@ export default function AdminClimbDetail() {
     }
   }
 
+  const getOutstanding = useCallback(
+    (reg) => getOutstandingShared(reg, climb, serviceGroups),
+    [climb, serviceGroups],
+  );
+
   const filtered = useMemo(
     () =>
       regs.filter((r) => {
@@ -609,8 +614,10 @@ export default function AdminClimbDetail() {
         const matchStatus = filterStatus === "all" || r.status === filterStatus;
         const matchPayment =
           filterPayment === "all" ||
+          // Same balance the Total Outstanding card sums, so the filtered
+          // rows add up to it — not "anyone not yet verified".
           (filterPayment === "outstanding"
-            ? r.status !== "cancelled" && r.paymentStatus !== "verified"
+            ? r.status !== "cancelled" && getOutstanding(r) > 0
             : r.paymentStatus === filterPayment);
         let matchCompliance = true;
         if (filterCompliance !== "all") {
@@ -624,12 +631,15 @@ export default function AdminClimbDetail() {
         }
         return matchSearch && matchStatus && matchPayment && matchCompliance;
       }),
-    [regs, search, filterStatus, filterPayment, filterCompliance, climb],
-  );
-
-  const getOutstanding = useCallback(
-    (reg) => getOutstandingShared(reg, climb, serviceGroups),
-    [climb, serviceGroups],
+    [
+      regs,
+      search,
+      filterStatus,
+      filterPayment,
+      filterCompliance,
+      climb,
+      getOutstanding,
+    ],
   );
 
   const stats = useMemo(
