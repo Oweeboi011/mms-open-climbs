@@ -16,7 +16,10 @@ const climbStore = {};
 const climbPrivateStore = {};
 const userStore = {};
 const regStore = {};
+const climbInternalStore = {};
 const climbUpdates = [];
+// Every set() call, in order — the roster writes to climbInternal/ go here.
+const docSets = [];
 let autoIdCounter = 0;
 
 function resetStores() {
@@ -25,7 +28,9 @@ function resetStores() {
   for (const k of Object.keys(climbPrivateStore)) delete climbPrivateStore[k];
   for (const k of Object.keys(userStore)) delete userStore[k];
   for (const k of Object.keys(regStore)) delete regStore[k];
+  for (const k of Object.keys(climbInternalStore)) delete climbInternalStore[k];
   climbUpdates.length = 0;
+  docSets.length = 0;
   autoIdCounter = 0;
 }
 
@@ -34,6 +39,7 @@ function storeFor(col) {
   if (col === "climbPrivate") return climbPrivateStore;
   if (col === "users") return userStore;
   if (col === "registrations") return regStore;
+  if (col === "climbInternal") return climbInternalStore;
   return notifStore;
 }
 
@@ -49,6 +55,7 @@ function docRef(path) {
       climbUpdates.push({ path, patch });
     },
     set: async (payload, opts) => {
+      docSets.push({ path, payload });
       store[id] = opts?.merge ? { ...(store[id] || {}), ...payload } : payload;
     },
     delete: async () => {
@@ -237,7 +244,7 @@ describe("onRegistrationCreated", () => {
     expect(global.fetch).toHaveBeenCalled();
   });
 
-  it("adds the registrant to registeredUserIds on creation", async () => {
+  it("adds the registrant to the private climbInternal roster, not the public climb doc", async () => {
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
     await createdHandler({
       data: {
@@ -250,10 +257,85 @@ describe("onRegistrationCreated", () => {
       },
       params: { regId: "reg-1" },
     });
-    expect(climbUpdates).toContainEqual({
-      path: "climbs/climb-1",
-      patch: { registeredUserIds: { __arrayUnion: ["user-1"] } },
+    expect(docSets).toContainEqual({
+      path: "climbInternal/climb-1",
+      payload: { registeredUserIds: { __arrayUnion: ["user-1"] } },
     });
+    expect(
+      climbUpdates.some((u) => "registeredUserIds" in u.patch),
+    ).toBe(false);
+  });
+
+  it("drops a duplicate live registration for the same climb before emailing anyone", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    regStore["reg-original"] = { climbId: "climb-1", userId: "user-1", status: "confirmed" };
+    regStore["reg-dup"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+    await createdHandler({
+      data: {
+        data: () => ({
+          name: "Juan Cruz",
+          email: "juan@x.com",
+          climbId: "climb-1",
+          userId: "user-1",
+          status: "pending",
+          paymentStatus: "unpaid",
+        }),
+      },
+      params: { regId: "reg-dup" },
+    });
+    expect(regStore["reg-dup"]).toBeUndefined();
+    expect(regStore["reg-original"]).toBeDefined();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(docSets.some((s) => s.path.startsWith("climbInternal/"))).toBe(false);
+  });
+
+  it("allows re-registering after a cancelled registration", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    regStore["reg-old"] = { climbId: "climb-1", userId: "user-1", status: "cancelled" };
+    regStore["reg-new"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+    await createdHandler({
+      data: {
+        data: () => ({ name: "Juan", climbId: "climb-1", userId: "user-1", status: "pending" }),
+      },
+      params: { regId: "reg-new" },
+    });
+    expect(regStore["reg-new"]).toBeDefined();
+  });
+
+  it("escapes HTML in member-typed names in officer and admin emails", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
+    await createdHandler({
+      data: {
+        data: () => ({
+          name: '<a href="https://evil.example">Verify payment</a>',
+          email: "juan@x.com",
+          climbId: "climb-1",
+          userId: "user-1",
+          paymentStatus: "unpaid",
+        }),
+      },
+      params: { regId: "reg-1" },
+    });
+    const bodies = global.fetch.mock.calls.map(([, opts]) => JSON.parse(opts.body).htmlContent);
+    expect(bodies.length).toBeGreaterThan(0);
+    for (const html of bodies) {
+      expect(html).not.toContain('<a href="https://evil.example">');
+      expect(html).toContain("&lt;a href=&quot;https://evil.example&quot;&gt;");
+    }
+  });
+
+  it("emails officers whose addresses are kept in climbInternal", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [{ name: "Leader", role: "TL" }] };
+    climbInternalStore["climb-1"] = { officerEmails: [{ name: "Leader", email: "leader@mms.ph" }] };
+    await createdHandler({
+      data: {
+        data: () => ({ name: "Juan", email: "juan@x.com", climbId: "climb-1", userId: "user-1" }),
+      },
+      params: { regId: "reg-1" },
+    });
+    const recipients = global.fetch.mock.calls.map(([, opts]) => JSON.parse(opts.body).to[0].email);
+    expect(recipients).toContain("leader@mms.ph");
   });
 
   it("increments docsCompleteCount when the registrant already satisfies all required docs", async () => {
@@ -877,12 +959,12 @@ describe("onRegistrationUpdated", () => {
       },
       params: { regId: "reg-1" },
     });
-    expect(climbUpdates).toContainEqual({
-      path: "climbs/climb-1",
-      patch: { registeredUserIds: { __arrayRemove: ["user-1"] } },
+    expect(docSets).toContainEqual({
+      path: "climbInternal/climb-1",
+      payload: { registeredUserIds: { __arrayRemove: ["user-1"] } },
     });
 
-    climbUpdates.length = 0;
+    docSets.length = 0;
     await updatedHandler({
       data: {
         before: { data: () => ({ status: "cancelled", climbId: "climb-1", userId: "user-1" }) },
@@ -890,9 +972,9 @@ describe("onRegistrationUpdated", () => {
       },
       params: { regId: "reg-1" },
     });
-    expect(climbUpdates).toContainEqual({
-      path: "climbs/climb-1",
-      patch: { registeredUserIds: { __arrayUnion: ["user-1"] } },
+    expect(docSets).toContainEqual({
+      path: "climbInternal/climb-1",
+      payload: { registeredUserIds: { __arrayUnion: ["user-1"] } },
     });
   });
 
@@ -1029,14 +1111,27 @@ describe("onRegistrationUpdated", () => {
 });
 
 describe("onRegistrationDeleted", () => {
-  it("removes the user from registeredUserIds when an active registration is deleted", async () => {
+  it("removes the user from the roster when an active registration is deleted", async () => {
     await deletedHandler({
       data: { data: () => ({ climbId: "climb-1", userId: "user-1", status: "confirmed" }) },
       params: { regId: "reg-1" },
     });
+    expect(docSets).toContainEqual({
+      path: "climbInternal/climb-1",
+      payload: { registeredUserIds: { __arrayRemove: ["user-1"] } },
+    });
+  });
+
+  it("keeps the roster when a dropped duplicate is deleted and the original is still live", async () => {
+    regStore["reg-original"] = { climbId: "climb-1", userId: "user-1", status: "confirmed" };
+    await deletedHandler({
+      data: { data: () => ({ climbId: "climb-1", userId: "user-1", status: "pending" }) },
+      params: { regId: "reg-dup" },
+    });
+    expect(docSets.some((s) => s.path === "climbInternal/climb-1")).toBe(false);
     expect(climbUpdates).toContainEqual({
       path: "climbs/climb-1",
-      patch: { registeredUserIds: { __arrayRemove: ["user-1"] } },
+      patch: { registrationCount: { __increment: -1 } },
     });
   });
 

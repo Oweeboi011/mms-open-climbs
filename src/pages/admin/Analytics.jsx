@@ -5,7 +5,9 @@ import {
   query,
   orderBy,
   limit,
+  where,
   getDocs,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import Header from "@/components/Header";
@@ -13,8 +15,10 @@ import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const DAYS_WINDOW = 30;
-const MAX_VIEWS = 5000;
-const MAX_FAILURES = 1000;
+// Every document read here is billed, so the queries are bounded by the same
+// 30-day window the charts show, with a cap as a backstop.
+const MAX_VIEWS = 2000;
+const MAX_FAILURES = 300;
 const VISITORS_PER_PAGE = 50;
 const ACTIVITY_PER_PAGE = 50;
 
@@ -96,9 +100,13 @@ export default function Analytics() {
   useEffect(() => {
     async function load() {
       try {
-        // Fetch recent page views (last MAX_VIEWS, ordered by time desc)
+        const windowStart = Timestamp.fromMillis(
+          Date.now() - DAYS_WINDOW * 24 * 60 * 60 * 1000,
+        );
+        // Page views inside the charted window only, newest first
         const q = query(
           collection(db, "pageViews"),
+          where("timestamp", ">=", windowStart),
           orderBy("timestamp", "desc"),
           limit(MAX_VIEWS),
         );
@@ -109,6 +117,7 @@ export default function Analytics() {
         // Fetch recent failed requests (last MAX_FAILURES, ordered by time desc)
         const failQ = query(
           collection(db, "failedRequests"),
+          where("createdAt", ">=", windowStart),
           orderBy("createdAt", "desc"),
           limit(MAX_FAILURES),
         );

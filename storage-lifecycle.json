@@ -1,0 +1,17 @@
+{
+  "rule": [
+    {
+      "action": { "type": "Delete" },
+      "condition": {
+        "age": 730,
+        "matchesPrefix": [
+          "payment-proofs/",
+          "registration-form-uploads/",
+          "medical-cert-uploads/",
+          "permit-uploads/",
+          "waiver-doc-uploads/"
+        ]
+      }
+    }
+  ]
+}

@@ -1,5 +1,13 @@
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/firebase/config";
+
+// Deleted by Firestore's TTL policy on `expireAt` after this long.
+const FAILED_REQUEST_RETENTION_DAYS = 90;
 
 // Fire-and-forget — failure logging must never affect the user.
 export function logFailedRequest({
@@ -22,5 +30,8 @@ export function logFailedRequest({
     climbId,
     registrationId,
     createdAt: serverTimestamp(),
+    expireAt: Timestamp.fromMillis(
+      Date.now() + FAILED_REQUEST_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    ),
   }).catch(() => {});
 }

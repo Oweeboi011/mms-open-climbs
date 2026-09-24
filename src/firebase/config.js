@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
@@ -15,6 +16,19 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// App Check attests that Firestore/Storage/Functions traffic comes from this
+// app rather than a script — the only real limit on the open analytics and
+// error-log writes. Initialised before any other service so the first
+// requests already carry a token. Enforcement is switched on per service in
+// the Firebase console once its metrics show legitimate traffic verified.
+const appCheckSiteKey = import.meta.env.VITE_APPCHECK_SITE_KEY;
+if (appCheckSiteKey && !import.meta.env.DEV) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 export const auth      = getAuth(app);
 export const db        = getFirestore(app, 'openclimbs');

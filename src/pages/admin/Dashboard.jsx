@@ -269,8 +269,11 @@ export default function AdminDashboard() {
     );
     const unsub = onSnapshot(q, (snap) => {
       setRecentRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      loadAll().finally(() => setLoading(false));
     });
+    // Once per visit, not per snapshot: loadAll reads every registration and
+    // climb, and re-running it on each write anywhere in the collection
+    // multiplied the page's reads by the day's registration traffic.
+    loadAll().finally(() => setLoading(false));
     return unsub;
   }, []);
 

@@ -10,6 +10,7 @@ const {
 } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
@@ -22,6 +23,11 @@ const {
 const { REQUIRED_DOC_TYPES } = require("./requiredDocTypes");
 
 initializeApp();
+
+// A club-sized app never needs more than a handful of concurrent instances;
+// the cap bounds what a runaway trigger loop or a flood of calls can bill.
+// No minInstances — idle warm instances are charged around the clock.
+setGlobalOptions({ maxInstances: 5, memory: "256MiB" });
 
 const adminAuth = getAuth();
 const db = getFirestore("openclimbs");
@@ -62,6 +68,34 @@ async function sendEmail({ to, toName, subject, html, cc = [] }) {
   return res.json();
 }
 
+// ── HTML escaping for email templates ─────────────────────────────────────────
+// Template arguments are plain values — names, climb titles, reasons — and
+// several (a registrant's name, their email) are typed by members. Unescaped,
+// a name like `<a href="…">Verify payment</a>` becomes a working link in an
+// email the club really sent to its officers and admins.
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Wraps a template so every string argument is escaped before it is
+// interpolated. Numbers and booleans pass through untouched.
+function escaped(template) {
+  return (args = {}) =>
+    template(
+      Object.fromEntries(
+        Object.entries(args).map(([key, value]) => [
+          key,
+          typeof value === "string" ? escapeHtml(value) : value,
+        ]),
+      ),
+    );
+}
+
 // ── Email HTML templates ──────────────────────────────────────────────────────
 function tplBase(content) {
   return `
@@ -77,7 +111,7 @@ function tplBase(content) {
     </div>`;
 }
 
-function tplRegistrationConfirmation({
+function tplRegistrationConfirmationRaw({
   name,
   climbTitle,
   climbDate,
@@ -99,7 +133,7 @@ function tplRegistrationConfirmation({
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">Please print and bring your signed waiver on the day of the climb. For questions, contact your MMS coordinator.</p>`);
 }
 
-function tplStatusUpdate({ name, climbTitle, newStatus, reason }) {
+function tplStatusUpdateRaw({ name, climbTitle, newStatus, reason }) {
   const msgs = {
     confirmed: {
       title: "You're Confirmed!",
@@ -134,7 +168,7 @@ function tplStatusUpdate({ name, climbTitle, newStatus, reason }) {
     <p style="color:#4a4a4a;font-size:13px;">For inquiries, contact your MMS Open Climbs Coordinator.</p>`);
 }
 
-function tplClimbCancellation({
+function tplClimbCancellationRaw({
   name,
   climbTitle,
   climbDate,
@@ -157,7 +191,7 @@ function tplClimbCancellation({
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">For questions, please contact your MMS coordinator.</p>`);
 }
 
-function tplOfficerClimbCancellation({
+function tplOfficerClimbCancellationRaw({
   climbTitle,
   statusLabel,
   reason,
@@ -173,7 +207,7 @@ function tplOfficerClimbCancellation({
     </p>`);
 }
 
-function tplWelcome({ displayName, setupLink }) {
+function tplWelcomeRaw({ displayName, setupLink }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Welcome, ${displayName}!</h2>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">An account has been created for you on the MMS Open Climbs 2026 portal.</p>
@@ -184,7 +218,7 @@ function tplWelcome({ displayName, setupLink }) {
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">This link expires in 24 hours. If you did not expect this email, please disregard it.</p>`);
 }
 
-function tplOfficerNewRegistration({ registrantName, registrantEmail, climbTitle, climbDate, climbLocation, regId, appUrl }) {
+function tplOfficerNewRegistrationRaw({ registrantName, registrantEmail, climbTitle, climbDate, climbLocation, regId, appUrl }) {
   const adminUrl = `${appUrl}/admin/climbs/${regId}`;
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">New Registration Received</h2>
@@ -204,7 +238,7 @@ function tplOfficerNewRegistration({ registrantName, registrantEmail, climbTitle
     </p>`);
 }
 
-function tplOfficerStatusUpdate({ registrantName, registrantEmail, climbTitle, newStatus, reason, appUrl }) {
+function tplOfficerStatusUpdateRaw({ registrantName, registrantEmail, climbTitle, newStatus, reason, appUrl }) {
   const statusColors = { confirmed: '#2e7d32', cancelled: '#c62828', waitlisted: '#e65100' };
   const color = statusColors[newStatus] || '#1565c0';
   return tplBase(`
@@ -221,7 +255,7 @@ function tplOfficerStatusUpdate({ registrantName, registrantEmail, climbTitle, n
     </p>`);
 }
 
-function tplReleaseNote({ title, body, appUrl }) {
+function tplReleaseNoteRaw({ title, body, appUrl }) {
   const paragraphs = (body || "")
     .split(/\n\s*\n/)
     .map((p) => `<p style="color:#4a4a4a;font-size:15px;line-height:1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
@@ -234,7 +268,7 @@ function tplReleaseNote({ title, body, appUrl }) {
     </p>`);
 }
 
-function tplThankYou({ name, climbTitle, appUrl, feedbackUrl }) {
+function tplThankYouRaw({ name, climbTitle, appUrl, feedbackUrl }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Thank You, ${name}!</h2>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Congratulations on completing <strong>${climbTitle}</strong>! We hope it was an unforgettable journey.</p>
@@ -247,7 +281,7 @@ function tplThankYou({ name, climbTitle, appUrl, feedbackUrl }) {
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">Stay safe, and see you on the trail!</p>`);
 }
 
-function tplOfficerOutstandingSummary({
+function tplOfficerOutstandingSummaryRaw({
   officerName,
   climbTitle,
   unpaidCount,
@@ -276,12 +310,76 @@ function tplOfficerOutstandingSummary({
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">You'll get this reminder daily until it's resolved.</p>`);
 }
 
+const tplRegistrationConfirmation = escaped(tplRegistrationConfirmationRaw);
+const tplStatusUpdate = escaped(tplStatusUpdateRaw);
+const tplClimbCancellation = escaped(tplClimbCancellationRaw);
+const tplOfficerClimbCancellation = escaped(tplOfficerClimbCancellationRaw);
+const tplWelcome = escaped(tplWelcomeRaw);
+const tplOfficerNewRegistration = escaped(tplOfficerNewRegistrationRaw);
+const tplOfficerStatusUpdate = escaped(tplOfficerStatusUpdateRaw);
+const tplReleaseNote = escaped(tplReleaseNoteRaw);
+const tplThankYou = escaped(tplThankYouRaw);
+const tplOfficerOutstandingSummary = escaped(tplOfficerOutstandingSummaryRaw);
+
+// ── Helper: registrant roster ─────────────────────────────────────────────────
+// The uids of a climb's active registrants, kept in admin-only
+// climbInternal/{climbId}. The climbPrivate and feedback rules check it
+// (Firestore rules can't query registrations by climbId + userId). It used to
+// sit on the public climb doc, where anyone could enumerate every registrant.
+function updateRoster(climbId, userId, add) {
+  return db.doc(`climbInternal/${climbId}`).set(
+    {
+      registeredUserIds: add
+        ? FieldValue.arrayUnion(userId)
+        : FieldValue.arrayRemove(userId),
+    },
+    { merge: true },
+  );
+}
+
+const ACTIVE_REG_STATUSES = ["pending", "confirmed", "waitlisted"];
+
+// Another live registration by the same account for the same climb, if any.
+// The client checks before registering, but that check is advisory — a
+// double submit or a scripted write gets past it.
+async function findOtherActiveRegistration({ climbId, userId, regId }) {
+  if (!climbId || !userId) return null;
+  const snap = await db
+    .collection("registrations")
+    .where("userId", "==", userId)
+    .get();
+  return (
+    snap.docs.find(
+      (d) =>
+        d.id !== regId &&
+        d.data().climbId === climbId &&
+        ACTIVE_REG_STATUSES.includes(d.data().status),
+    ) || null
+  );
+}
+
 // ── Helper: get officer emails and admin CC list for a climb ─────────────────
-async function getNotifyLists(climb) {
-  // Officer emails stored directly on climb.officers[].email
-  const officerEmails = (climb.officers || [])
+// Officer email addresses live in admin-only climbInternal/{climbId}, as an
+// array aligned by index with the public climb.officers list — the public doc
+// keeps names, roles and phone contacts, never emails. Climbs saved before
+// that move still carry climb.officers[].email, which is used as a fallback.
+async function getOfficerContacts(climbId, climb) {
+  let internal = [];
+  if (climbId) {
+    const snap = await db.doc(`climbInternal/${climbId}`).get();
+    if (snap.exists) internal = snap.data().officerEmails || [];
+  }
+  return (climb?.officers || []).map((o, i) => ({
+    name: o.name || internal[i]?.name || "",
+    userId: o.userId || internal[i]?.userId || "",
+    email: o.email || internal[i]?.email || "",
+  }));
+}
+
+async function getNotifyLists(climb, climbId) {
+  const officerEmails = (await getOfficerContacts(climbId, climb))
     .filter((o) => o.email && o.email.includes("@"))
-    .map((o) => ({ email: o.email, name: o.name || "" }));
+    .map((o) => ({ email: o.email, name: o.name }));
 
   // All site admins
   const adminSnap = await db.collection("users").where("role", "==", "admin").get();
@@ -333,6 +431,8 @@ async function logFailedRequest({
       climbId: climbId || null,
       registrationId: registrationId || null,
       createdAt: FieldValue.serverTimestamp(),
+      // Firestore TTL deletes it after 90 days (same as the client logger).
+      expireAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
     });
   } catch (e) {
     logger.error("[logFailedRequest] Failed to write failure log", {
@@ -377,15 +477,34 @@ exports.onRegistrationCreated = onDocumentCreated(
         .doc(`climbs/${climbId}`)
         .update({ registrationCount: FieldValue.increment(1) });
 
-      // Keep registeredUserIds in sync — this denormalized list is what the
-      // climbPrivate security rule checks to gate pre-climb meeting details
-      // and resource links to actual registrants (Firestore rules can't
-      // query registrations by climbId+userId directly).
+      // A second live registration for the same climb is a duplicate: drop
+      // it before anything is emailed. Counted above so the delete trigger's
+      // decrement balances; that trigger leaves the roster and docs count
+      // alone because the original registration is still active.
       const isActive = reg.status !== "cancelled";
       if (userId && isActive) {
-        await db
-          .doc(`climbs/${climbId}`)
-          .update({ registeredUserIds: FieldValue.arrayUnion(userId) });
+        const original = await findOtherActiveRegistration({
+          climbId,
+          userId,
+          regId: event.params.regId,
+        });
+        if (original) {
+          logger.warn("[onRegistrationCreated] duplicate dropped", {
+            regId: event.params.regId,
+            originalId: original.id,
+            climbId,
+            userId,
+          });
+          await db.doc(`registrations/${event.params.regId}`).delete();
+          return;
+        }
+      }
+
+      // Keep the roster in sync — it's what the climbPrivate security rule
+      // checks to gate pre-climb meeting details and resource links to
+      // actual registrants.
+      if (userId && isActive) {
+        await updateRoster(climbId, userId, true);
       }
 
       // Keep docsCompleteCount in sync for the climb card progress badge.
@@ -421,7 +540,7 @@ exports.onRegistrationCreated = onDocumentCreated(
 
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
       const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
-      const { officerEmails, adminEmails } = await getNotifyLists(climb);
+      const { officerEmails, adminEmails } = await getNotifyLists(climb, climbId);
 
       // 1. Confirmation to registrant (skip for admin-added walk-ins with no email on file)
       if (email) {
@@ -700,18 +819,14 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
       }
     }
 
-    // Keep registeredUserIds in sync whenever status moves in or out of the
-    // "active" set (pending/confirmed) — same denormalized list the
-    // climbPrivate rule checks. Runs even for status changes that don't
+    // Keep the roster in sync whenever status moves in or out of the
+    // "active" set (pending/confirmed) — the list the climbPrivate rule
+    // checks. Runs even for status changes that don't
     // trigger a notification below (e.g. waitlisted → pending).
     const wasActive = ["pending", "confirmed"].includes(before.status);
     const isActive = ["pending", "confirmed"].includes(after.status);
     if (wasActive !== isActive && after.userId) {
-      await db.doc(`climbs/${after.climbId}`).update({
-        registeredUserIds: isActive
-          ? FieldValue.arrayUnion(after.userId)
-          : FieldValue.arrayRemove(after.userId),
-      });
+      await updateRoster(after.climbId, after.userId, isActive);
     }
 
     // registrationCount follows the same non-cancelled rule the create trigger
@@ -762,7 +877,7 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
         ? climbSnap.data()
         : { title: after.climbTitle || after.climbId, officers: [] };
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
-      const { officerEmails, adminEmails } = await getNotifyLists(climb);
+      const { officerEmails, adminEmails } = await getNotifyLists(climb, after.climbId);
 
       // 1. Status update to registrant (skip for walk-ins with no email on file)
       if (after.email) {
@@ -872,10 +987,21 @@ exports.onRegistrationDeleted = onDocumentDeleted(
 
       // registeredUserIds / docsCompleteCount track only the active set and
       // real accounts (mirrors scripts/backfill-climb-denorm.mjs).
-      if (reg.userId && ["pending", "confirmed"].includes(reg.status)) {
-        await db
-          .doc(`climbs/${reg.climbId}`)
-          .update({ registeredUserIds: FieldValue.arrayRemove(reg.userId) });
+      // A dropped duplicate (see onRegistrationCreated) never entered the
+      // roster or docs count, and the original registration still holds them.
+      const stillRegistered =
+        reg.userId &&
+        (await findOtherActiveRegistration({
+          climbId: reg.climbId,
+          userId: reg.userId,
+          regId: event.params.regId,
+        }));
+      if (
+        reg.userId &&
+        !stillRegistered &&
+        ["pending", "confirmed"].includes(reg.status)
+      ) {
+        await updateRoster(reg.climbId, reg.userId, false);
 
         const climbSnap = await db.doc(`climbs/${reg.climbId}`).get();
         if (climbSnap.exists && regDocsComplete(climbSnap.data(), reg)) {
@@ -977,7 +1103,7 @@ exports.onClimbUpdated = onDocumentUpdated(
         const statusLabel = CANCELLATION_LABELS[after.cancellationStatus];
         const reason = after.cancellationReason || "";
         const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
-        const { officerEmails, adminEmails } = await getNotifyLists(after);
+        const { officerEmails, adminEmails } = await getNotifyLists(after, climbId);
 
         await Promise.all(
           activeRegs.map(async (r) => {
@@ -1263,7 +1389,8 @@ exports.sendReminderNotifications = onSchedule(
       }
       const summaryMessage = `${climb.title || "Your climb"}: ${summaryParts.join(", ")}.`;
 
-      for (const officer of climb.officers) {
+      const contacts = await getOfficerContacts(climbId, climb);
+      for (const officer of contacts) {
         if (officer.userId) {
           await createNotification({
             userId: officer.userId,
@@ -1456,6 +1583,12 @@ exports.createUser = onCall(
           "email and displayName are required.",
         );
       }
+      if (!["member", "admin"].includes(role)) {
+        throw new HttpsError(
+          "invalid-argument",
+          'role must be "member" or "admin".',
+        );
+      }
 
       let userRecord;
       let isFreshAccount = false;
@@ -1616,6 +1749,57 @@ exports.updateUserProfile = onCall(async (request) => {
   }
 });
 
+// ── Helper: remove a deleted account's personal data ────────────────────────
+// Registrations stay — they are the club's payment and attendance record —
+// but the health and contact details on them, the member's notifications and
+// every file they uploaded (medical certificates, IDs, receipts) go with the
+// account. Best effort: a failure here is logged, never surfaced, since the
+// account itself is already gone.
+const MEMBER_UPLOAD_PREFIXES = [
+  "payment-proofs",
+  "registration-form-uploads",
+  "medical-cert-uploads",
+  "permit-uploads",
+  "waiver-doc-uploads",
+];
+
+async function purgeUserPersonalData(uid) {
+  try {
+    const regs = await db.collection("registrations").where("userId", "==", uid).get();
+    await Promise.all(
+      regs.docs.map((d) =>
+        d.ref.update({
+          medicalConditions: FieldValue.delete(),
+          emergencyContact: FieldValue.delete(),
+          dateOfBirth: FieldValue.delete(),
+          address: FieldValue.delete(),
+          mobile: FieldValue.delete(),
+          accountDeletedAt: FieldValue.serverTimestamp(),
+        }),
+      ),
+    );
+
+    const notifs = await db.collection("notifications").where("userId", "==", uid).get();
+    await Promise.all(notifs.docs.map((d) => d.ref.delete()));
+
+    const { getStorage } = require("firebase-admin/storage");
+    const bucket = getStorage().bucket();
+    const climbIds = [...new Set(regs.docs.map((d) => d.data().climbId).filter(Boolean))];
+    await Promise.all(
+      climbIds.flatMap((climbId) =>
+        MEMBER_UPLOAD_PREFIXES.map((prefix) =>
+          bucket.deleteFiles({ prefix: `${prefix}/${climbId}/${uid}/` }),
+        ),
+      ),
+    );
+  } catch (err) {
+    logger.error("[deleteUserAccount] personal data purge incomplete", {
+      uid,
+      err: err.message,
+    });
+  }
+}
+
 // ── Callable: admin deletes a user's login account and profile ────────────────
 exports.deleteUserAccount = onCall(async (request) => {
   try {
@@ -1641,6 +1825,7 @@ exports.deleteUserAccount = onCall(async (request) => {
       }
     }
     await db.doc(`users/${uid}`).delete();
+    await purgeUserPersonalData(uid);
 
     logger.info("[deleteUserAccount] Deleted", { uid });
     return { success: true };

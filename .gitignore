@@ -17,3 +17,7 @@ scripts/.release-notes-state.json
 docs/dependency-graph.svg
 coverage/
 functions/coverage/
+
+# Local emulator / scratch artifacts
+__azurite_db_*.json
+*.rules.tmp

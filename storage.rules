@@ -2,91 +2,108 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Payment proof uploads. Usually the member uploading their own GCash
-    // receipt, but an admin recording a payment on someone's behalf writes a
-    // receipt into that member's folder too — so this can't be pinned to
-    // `request.auth.uid == userId`, the same "authenticated write, admin check
-    // in UI" pattern the required-document uploads below use. The resulting
-    // Firestore write is still gated to the registration's owner or an admin
-    // by firestore.rules.
-    // Any authenticated user can read (admin access is enforced in the UI/Firestore).
-    // PDFs are allowed alongside images: both payment forms accept
-    // `image/*,application/pdf` and GCash receipts are often shared as PDFs,
-    // so an image-only rule silently failed those uploads.
-    match /payment-proofs/{climbId}/{userId}/{fileName} {
-      allow write: if request.auth != null
-                   && request.resource.size < 10 * 1024 * 1024  // 10 MB limit
-                   && (request.resource.contentType.matches('image/.*')
-                       || request.resource.contentType == 'application/pdf');
-
-      allow read: if request.auth != null;
+    // Storage rules cannot read this project's Firestore: the app uses a named
+    // database ("openclimbs") and storage's firestore.get() only reaches the
+    // default one. The admin role is therefore read from the `admin` custom
+    // claim that the syncAdminClaim function mirrors from users/{uid}.role.
+    //
+    // DEPLOY ORDER: run scripts/backfill-admin-claims.mjs --apply before these
+    // rules go live, or admins promoted before the trigger existed lose access
+    // to members' files.
+    function isAdmin() {
+      // .get(): reading a claim the token doesn't carry is an evaluation error.
+      return request.auth != null && request.auth.token.get('admin', false) == true;
+    }
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    function isImageOrPdf() {
+      return request.resource.contentType.matches('image/.*')
+        || request.resource.contentType == 'application/pdf';
+    }
+    // Required-document forms may be filled in as Word files.
+    function isDocument() {
+      return isImageOrPdf()
+        || request.resource.contentType == 'application/msword'
+        || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+    function underLimit() {
+      return request.resource.size < 10 * 1024 * 1024;
     }
 
-    // Climb cover/trail images: only authenticated users can write (admin check in UI),
-    // anyone can read (used in public event pages).
+    // ── Private: a member's own payment receipts and required documents ──
+    // Readable by the member they belong to and by admins, nobody else —
+    // these hold medical certificates, IDs and financial records.
+    //
+    // The {userId} segment is the member's uid. For a walk-in added by an
+    // admin (no account) it is the registration id, which only an admin can
+    // write to or read. Members may add files to their own folder but never
+    // overwrite or delete one: a submitted receipt is evidence. (`resource ==
+    // null` because an upload onto an existing path is also a create.)
+    match /payment-proofs/{climbId}/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if resource == null && (isOwner(userId) || isAdmin()) && underLimit() && isImageOrPdf();
+      allow update, delete: if isAdmin();
+    }
+    match /registration-form-uploads/{climbId}/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if resource == null && (isOwner(userId) || isAdmin()) && underLimit() && isDocument();
+      allow update, delete: if isAdmin();
+    }
+    match /medical-cert-uploads/{climbId}/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if resource == null && (isOwner(userId) || isAdmin()) && underLimit() && isDocument();
+      allow update, delete: if isAdmin();
+    }
+    match /permit-uploads/{climbId}/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if resource == null && (isOwner(userId) || isAdmin()) && underLimit() && isDocument();
+      allow update, delete: if isAdmin();
+    }
+    match /waiver-doc-uploads/{climbId}/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if resource == null && (isOwner(userId) || isAdmin()) && underLimit() && isDocument();
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Public, admin-maintained assets ──
+    // Shown on public event pages, so anyone reads; only admins write. The
+    // GCash QR in particular is where members send money — an open write
+    // would let any account holder swap in their own.
     match /climbs/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && underLimit() && request.resource.contentType.matches('image/.*');
     }
-
-    // GCash QR codes: authenticated users write (admin check in UI), public read
-    // (shown on the registration page before login).
-    match /gcash-qr/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-
-    // Trail images: same as climbs.
     match /trail-images/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && underLimit() && request.resource.contentType.matches('image/.*');
     }
-
-    // Required-document templates/samples, uploaded by admins for a climb
-    // (admin check enforced in the UI): registration form, medical
-    // certificate, mountaineering/trekking permit, waiver of responsibility.
+    match /gcash-qr/{allPaths=**} {
+      allow read: if true;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && underLimit() && request.resource.contentType.matches('image/.*');
+    }
     match /registration-form-templates/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && underLimit() && isDocument();
     }
     match /medical-cert-samples/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && underLimit() && isDocument();
     }
     match /permit-templates/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && underLimit() && isDocument();
     }
     match /waiver-doc-templates/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
-    }
-
-    // Required-document copies uploaded when a member registers. Usually the
-    // member uploading their own file, but an admin can also submit one on a
-    // participant's behalf (e.g. a walk-in's physical copy) — same
-    // "authenticated write, admin check in UI" pattern as the templates
-    // above, since the resulting Firestore field write is still gated to the
-    // registration's owner or an admin by firestore.rules.
-    match /registration-form-uploads/{climbId}/{userId}/{fileName} {
-      allow write: if request.auth != null
-                   && request.resource.size < 10 * 1024 * 1024;
-      allow read: if request.auth != null;
-    }
-    match /medical-cert-uploads/{climbId}/{userId}/{fileName} {
-      allow write: if request.auth != null
-                   && request.resource.size < 10 * 1024 * 1024;
-      allow read: if request.auth != null;
-    }
-    match /permit-uploads/{climbId}/{userId}/{fileName} {
-      allow write: if request.auth != null
-                   && request.resource.size < 10 * 1024 * 1024;
-      allow read: if request.auth != null;
-    }
-    match /waiver-doc-uploads/{climbId}/{userId}/{fileName} {
-      allow write: if request.auth != null
-                   && request.resource.size < 10 * 1024 * 1024;
-      allow read: if request.auth != null;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && underLimit() && isDocument();
     }
 
     // Deny everything else by default.
