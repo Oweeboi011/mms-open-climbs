@@ -1,4 +1,7 @@
 const PATHS = {
+  heart: (
+    <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+  ),
   lock: (
     <>
       <rect x="5" y="10.5" width="14" height="9" rx="2" />

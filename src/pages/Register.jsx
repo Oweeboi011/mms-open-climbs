@@ -26,6 +26,8 @@ import { logFailedRequest } from "@/utils/logFailedRequest";
 import { computeExpectedTotal, getClimbFeeModel } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { compressImage } from "@/utils/compressImage";
+import DonationPledgeFields from "@/components/DonationPledgeFields";
+import { isDonationDriveOn, normalizePledge } from "@/utils/donations";
 
 // Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
@@ -101,6 +103,7 @@ export default function Register() {
   const [paymentFiles, setPaymentFiles] = useState([]);
   const [paymentPreviews, setPaymentPreviews] = useState([]);
   const [paymentNote, setPaymentNote] = useState("");
+  const [pledge, setPledge] = useState({ cashPledge: "", inKind: "" });
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
@@ -393,6 +396,8 @@ export default function Register() {
             selected: !!optionalFeeSelections[exp.label],
           };
         }),
+        // Optional outreach pledge — separate from fees and payments.
+        ...(isDonationDriveOn(climb) ? { donation: normalizePledge(pledge) } : {}),
         // Status
         status: "pending",
         createdAt: serverTimestamp(),
@@ -1205,6 +1210,21 @@ export default function Register() {
                 </div>
               );
             })()}
+
+          {isDonationDriveOn(climb) && (
+            <div className="register-form-card">
+              <div className="form-section-title">Donation Pledge (Optional)</div>
+              <p className="form-hint">
+                This climb supports <strong>{climb.donationDrive.beneficiary}</strong>.
+                {climb.donationDrive.description ? ` ${climb.donationDrive.description}` : ""}
+              </p>
+              <DonationPledgeFields
+                drive={climb.donationDrive}
+                value={pledge}
+                onChange={setPledge}
+              />
+            </div>
+          )}
 
           {/* GCash Payment */}
           <div className="register-form-card">

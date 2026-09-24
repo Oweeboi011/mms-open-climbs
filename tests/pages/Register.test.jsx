@@ -354,6 +354,61 @@ describe("Register page", () => {
     });
   });
 
+  describe("when the climb has a donation drive", () => {
+    const driveClimb = {
+      ...climbFixture,
+      status: "open",
+      donationDrive: {
+        enabled: true,
+        beneficiary: "Tanglag Elementary",
+        acceptsCash: true,
+        acceptsInKind: true,
+      },
+    };
+
+    beforeEach(() => {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, driveClimb));
+      getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    });
+
+    it("saves an optional pledge alongside, not inside, the fees", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Donation Pledge (Optional)")).toBeInTheDocument(),
+      );
+      fireEvent.change(controlByLabel(container, "Mobile Number"), {
+        target: { value: "09171234567" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Name"), {
+        target: { value: "Maria Cruz" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Mobile"), {
+        target: { value: "09179876543" },
+      });
+      fireEvent.change(controlByLabel(container, "Relationship"), {
+        target: { value: "Mother" },
+      });
+      fireEvent.change(controlByLabel(container, "Cash pledge"), {
+        target: { value: "500" },
+      });
+      fireEvent.change(controlByLabel(container, "Items you"), {
+        target: { value: "10 notebooks" },
+      });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.change(
+        screen.getByPlaceholderText("Type your complete legal name"),
+        { target: { value: "Juan Cruz" } },
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /Confirm & Submit/i }));
+
+      await waitFor(() => expect(addDoc).toHaveBeenCalled());
+      const payload = addDoc.mock.calls[0][1];
+      expect(payload.donation).toEqual({ cashPledge: 500, inKind: "10 notebooks" });
+      expect(payload.feeBreakdown.some((f) => /donat/i.test(f.label))).toBe(false);
+    });
+  });
+
   describe("when the climb is closed", () => {
     it("navigates away when the climb status is not open", async () => {
       getDoc.mockResolvedValue(

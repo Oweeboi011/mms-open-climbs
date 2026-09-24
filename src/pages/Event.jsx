@@ -23,6 +23,7 @@ import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import { authLinkWithRedirect } from "@/utils/authRedirect";
 import { contactHref } from "@/data/orgContact";
+import DonationDriveInfo from "@/components/DonationDriveInfo";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -1741,6 +1742,8 @@ export default function Event() {
             )}
           </div>
         </div>
+
+        <DonationDriveInfo climb={climb} />
 
         <div className="two-col">
           {/* Things to Bring */}

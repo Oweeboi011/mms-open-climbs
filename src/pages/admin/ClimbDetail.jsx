@@ -63,6 +63,8 @@ import {
 } from "@/utils/payments";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import { countPriorNoShows, buildNoShowPatch } from "@/utils/noShow";
+import DonationsCard from "@/components/admin/DonationsCard";
+import { isDonationDriveOn, normalizeReceived, summarizeDonations } from "@/utils/donations";
 
 // What the Compliance column of the registrants table shows, as a list of the
 // gaps rather than ticks — the waiver, the participant's own details, and each
@@ -169,6 +171,36 @@ export default function AdminClimbDetail() {
     () => countPriorNoShows(noShowRegs, id),
     [noShowRegs, id],
   );
+
+  // What the leads actually received from one registrant. The climb doc's
+  // `donationTotals` is republished from every registration so the event
+  // page can show a running total without exposing who gave what.
+  async function recordDonation(reg, received) {
+    const actor = currentUser?.displayName || currentUser?.email || "admin";
+    const donationReceived = normalizeReceived(received, actor, Timestamp.now());
+    await updateDoc(doc(db, "registrations", reg.id), {
+      donationReceived,
+      updatedAt: serverTimestamp(),
+    });
+    const next = regs.map((r) => (r.id === reg.id ? { ...r, donationReceived } : r));
+    const { receivedCash, donors, itemDonations } = summarizeDonations(next);
+    await updateDoc(doc(db, "climbs", id), {
+      donationTotals: { receivedCash, donors, itemDonations },
+    });
+    logAuditEvent({
+      actorUid: currentUser?.uid,
+      actorName: actor,
+      action: donationReceived ? "donation_recorded" : "donation_cleared",
+      targetType: "registration",
+      targetId: reg.id,
+      targetLabel: reg.name || reg.id,
+      details: donationReceived
+        ? `Received ₱${donationReceived.cash.toLocaleString("en-PH")}` +
+          `${donationReceived.items ? ` + items (${donationReceived.items})` : ""}` +
+          ` for ${climb?.donationDrive?.beneficiary || climb?.title || "outreach"}`
+        : `Cleared donation record for ${climb?.title || "climb"}`,
+    });
+  }
 
   async function toggleNoShow(reg) {
     const next = !reg.noShow;
@@ -941,6 +973,10 @@ export default function AdminClimbDetail() {
               onRecordRefund={(reg) => setRefundingFor(reg.id)}
               onRemoveRefund={deleteRefund}
             />
+
+            {isDonationDriveOn(climb) && (
+              <DonationsCard climb={climb} regs={regs} onRecord={recordDonation} />
+            )}
 
             {/* Required documents progress — how much of the paperwork this
                 climb asked for has actually come in, per document type, so an

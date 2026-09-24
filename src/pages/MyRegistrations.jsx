@@ -45,6 +45,8 @@ import {
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { compressImage } from "@/utils/compressImage";
+import DonationPledgeModal from "@/components/DonationPledgeModal";
+import { isDonationDriveOn } from "@/utils/donations";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -1107,6 +1109,7 @@ function RegCard({
   onSubmitDocs,
   onSignWaiver,
   onEditDetails,
+  onEditPledge,
   isPast,
 }) {
   const missingDocs = REQUIRED_DOC_TYPES.filter(
@@ -1311,7 +1314,12 @@ function RegCard({
               View Submitted Documents
             </button>
           )}
-        {isPast && reg.status === "confirmed" && (
+        {showPrep && isDonationDriveOn(climb) && onEditPledge && (
+          <button className="btn btn-outline btn-sm" onClick={onEditPledge}>
+            {reg.donation ? "Edit Donation Pledge" : "Pledge a Donation"}
+          </button>
+        )}
+        {isPast && reg.status === "confirmed" && !reg.noShow && (
           <Link to={`/feedback/${reg.climbId}`} className="btn btn-gold btn-sm">
             Leave Feedback
           </Link>
@@ -1333,6 +1341,7 @@ export default function MyRegistrations() {
   const [docPromptReg, setDocPromptReg] = useState(null);
   const [waiverPromptReg, setWaiverPromptReg] = useState(null);
   const [detailsPromptReg, setDetailsPromptReg] = useState(null);
+  const [pledgeReg, setPledgeReg] = useState(null);
 
   useEffect(() => {
     const q = query(
@@ -1611,6 +1620,7 @@ export default function MyRegistrations() {
                         onSubmitDocs={() => setDocPromptReg(reg)}
                         onSignWaiver={() => setWaiverPromptReg(reg)}
                         onEditDetails={() => setDetailsPromptReg(reg)}
+                        onEditPledge={() => setPledgeReg(reg)}
                       />
                     ))}
                   </div>
@@ -1724,6 +1734,15 @@ export default function MyRegistrations() {
           currentUser={currentUser}
           onClose={() => setDetailsPromptReg(null)}
           onSaved={() => setDetailsPromptReg(null)}
+        />
+      )}
+
+      {pledgeReg && isDonationDriveOn(climbsMap[pledgeReg.climbId]) && (
+        <DonationPledgeModal
+          reg={pledgeReg}
+          drive={climbsMap[pledgeReg.climbId].donationDrive}
+          currentUser={currentUser}
+          onClose={() => setPledgeReg(null)}
         />
       )}
 
