@@ -282,6 +282,8 @@ Each document represents a single member's registration for a single climb.
 | `permitUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresPermit` is `true` |
 | `waiverDocUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresWaiverDoc` is `true` |
 | `adminNotes` | string | No | Admin-only internal notes |
+| `noShow` | boolean | No | `true` when a confirmed registrant didn't turn up on climb day. A flag, not a status — the registration stays `confirmed`, so payments, counters and status emails are untouched. Set by admins after the climb (`src/utils/noShow.js`); no-shows get no thank-you/feedback request, and ClimbDetail warns on members with earlier no-shows |
+| `noShowMarkedBy` / `noShowMarkedAt` | string / Timestamp | No | Who marked the no-show and when; cleared on undo |
 | `cancellationReason` | string | No | Reason provided when `status = cancelled` |
 | `confirmedAt` | timestamp | No | Set when status changes to `confirmed` |
 | `createdAt` | timestamp | Yes | Firestore server timestamp on creation |

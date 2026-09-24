@@ -754,6 +754,50 @@ describe("Admin ClimbDetail", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("lets an admin mark a confirmed registrant a no-show once the climb is over", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        startDate: new Date("2026-01-01"),
+        endDate: new Date("2026-01-03"),
+      }),
+    );
+    mockRegistrantSnapshot([
+      { id: registrationFixture.id, data: { ...registrationFixture, status: "confirmed" } },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+    fireEvent.click(await screen.findByRole("button", { name: /Mark no-show/i }));
+
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => "noShow" in (c[1] || {}))?.[1];
+    expect(patch.noShow).toBe(true);
+    expect(patch.noShowMarkedBy).toBeTruthy();
+    // A flag, never a status change — payments and counters stay as they were.
+    expect(patch.status).toBeUndefined();
+  });
+
+  it("does not offer no-show before the climb has happened", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        startDate: new Date("2099-01-01"),
+        endDate: new Date("2099-01-03"),
+      }),
+    );
+    mockRegistrantSnapshot([
+      { id: registrationFixture.id, data: { ...registrationFixture, status: "confirmed" } },
+    ]);
+
+    render();
+    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz"));
+    await screen.findByRole("button", { name: /Edit/i });
+    expect(screen.queryByRole("button", { name: /Mark no-show/i })).toBeNull();
+  });
+
   it("lets an admin toggle a registrant's optional-service selection", async () => {
     mockRegistrantSnapshot([
       {
