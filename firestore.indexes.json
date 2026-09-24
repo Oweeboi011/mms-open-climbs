@@ -59,5 +59,8 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "pageViews", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "failedRequests", "fieldPath": "expireAt", "ttl": true, "indexes": [] }
+  ]
 }
