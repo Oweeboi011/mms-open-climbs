@@ -68,6 +68,7 @@ vi.mock("firebase/auth", () => ({
   signOut: vi.fn(() => Promise.resolve()),
   updateProfile: vi.fn(() => Promise.resolve()),
   sendPasswordResetEmail: vi.fn(() => Promise.resolve()),
+  sendEmailVerification: vi.fn(() => Promise.resolve()),
   GoogleAuthProvider: vi.fn().mockImplementation(() => ({})),
 }));
 

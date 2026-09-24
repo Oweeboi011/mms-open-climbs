@@ -5275,3 +5275,198 @@ details[open] > .myreg-collapsible::before {
       0 0 0 6px var(--gold-pale);
   }
 }
+
+/* ── No-show marking (admin climb detail) ───────────────────────────────── */
+.noshow-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--white);
+  background: var(--danger);
+  border-radius: 99px;
+  padding: 2px 8px;
+}
+.noshow-history {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+/* ── Shared small form/modal helpers ────────────────────────────────────── */
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  margin: 0 16px 12px 0;
+  cursor: pointer;
+}
+.modal-heading {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ── Outreach donations ─────────────────────────────────────────────────── */
+.donation-beneficiary {
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+.donation-subhead {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 12px 0 4px;
+}
+.donation-tally {
+  font-weight: 600;
+  color: var(--green-light);
+  margin-top: 12px;
+}
+.donation-pledge-line {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.donations-card {
+  margin-bottom: 28px;
+}
+.donations-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 0.85rem;
+  margin-bottom: 14px;
+}
+.donations-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 14px;
+}
+.donations-items,
+.donations-by {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.donations-pending {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.donations-edit,
+.donations-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.donations-edit .form-input {
+  flex: 1 1 140px;
+  width: auto;
+}
+.donations-add .form-select {
+  flex: 1 1 220px;
+  width: auto;
+}
+
+/* ── Payment deadline & cancellation policy ─────────────────────────────── */
+.policy-info {
+  font-size: 0.88rem;
+  margin: 0 0 16px;
+}
+.policy-info.section-card {
+  padding: 16px 20px;
+}
+.policy-due {
+  margin: 0 0 8px;
+}
+.policy-heading {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 8px 0 4px;
+}
+.policy-text {
+  white-space: pre-line;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.policy-due-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  align-self: center;
+  color: var(--ink-soft);
+}
+.policy-due-chip.overdue {
+  color: var(--danger);
+}
+.btn-cancel-reg {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ── Privacy notice ─────────────────────────────────────────────────────── */
+.privacy-page {
+  background: var(--surface);
+  min-height: 100vh;
+}
+.privacy-content {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+  line-height: 1.6;
+}
+.privacy-content h1 {
+  font-family: var(--font-head);
+  margin-bottom: 4px;
+}
+.privacy-content h2 {
+  font-family: var(--font-head);
+  font-size: 1.2rem;
+  margin: 24px 0 8px;
+}
+.privacy-content ul {
+  padding-left: 20px;
+}
+.privacy-version {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.footer-link {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ── Email verification reminder ────────────────────────────────────────── */
+.verify-email-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  background: var(--surface-warning);
+  border-bottom: 1px solid var(--warning-border);
+  text-align: center;
+}
+.verify-email-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.fee-donation-row td {
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: var(--green-light);
+}
+.fee-donation-row td:last-child {
+  text-align: right;
+}

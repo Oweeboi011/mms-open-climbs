@@ -289,6 +289,68 @@ describe("onRegistrationCreated", () => {
     expect(docSets.some((s) => s.path.startsWith("climbInternal/"))).toBe(false);
   });
 
+  it("waitlists a registration that arrives after every seat is taken", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [], maxParticipants: 2 };
+    userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
+    regStore["r-a"] = { climbId: "climb-1", userId: "a", status: "confirmed" };
+    regStore["r-b"] = { climbId: "climb-1", userId: "b", status: "pending" };
+    regStore["r-c"] = { climbId: "climb-1", userId: "c", status: "waitlisted" };
+    regStore["reg-new"] = { climbId: "climb-1", userId: "user-1", status: "pending" };
+    await createdHandler({
+      data: {
+        data: () => ({
+          name: "Juan Cruz",
+          email: "juan@x.com",
+          climbId: "climb-1",
+          userId: "user-1",
+          status: "pending",
+        }),
+      },
+      params: { regId: "reg-new" },
+    });
+    expect(climbUpdates).toContainEqual({
+      path: "registrations/reg-new",
+      patch: { status: "waitlisted", autoWaitlisted: true, updatedAt: "SERVER_TS" },
+    });
+    // The member hears about the waitlist from onRegistrationUpdated, not a
+    // misleading "registration received" here.
+    const recipients = global.fetch.mock.calls.map(([, o]) => JSON.parse(o.body).to[0].email);
+    expect(recipients).not.toContain("juan@x.com");
+    expect(recipients).toContain("admin@mms.ph");
+    expect(docSets.some((d) => d.path.startsWith("climbInternal/"))).toBe(false);
+  });
+
+  it("keeps a registration pending while seats remain (waitlisted don't hold one)", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [], maxParticipants: 2 };
+    regStore["r-a"] = { climbId: "climb-1", userId: "a", status: "confirmed" };
+    regStore["r-c"] = { climbId: "climb-1", userId: "c", status: "waitlisted" };
+    await createdHandler({
+      data: {
+        data: () => ({ name: "Juan", email: "juan@x.com", climbId: "climb-1", userId: "user-1", status: "pending" }),
+      },
+      params: { regId: "reg-new" },
+    });
+    expect(climbUpdates.some((u) => u.path === "registrations/reg-new")).toBe(false);
+    const recipients = global.fetch.mock.calls.map(([, o]) => JSON.parse(o.body).to[0].email);
+    expect(recipients).toContain("juan@x.com");
+  });
+
+  it("publishes a short-name participant list to climbPrivate for registrants", async () => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
+    regStore["r-a"] = { climbId: "climb-1", name: "Ana Maria Reyes", memberType: "member", status: "confirmed" };
+    regStore["r-b"] = { climbId: "climb-1", name: "Ben", memberType: "joiner", status: "pending" };
+    regStore["r-c"] = { climbId: "climb-1", name: "Cara Lim", memberType: "joiner", status: "cancelled" };
+    regStore["r-d"] = { climbId: "climb-1", name: "Dan Cruz", memberType: "joiner", status: "waitlisted" };
+    await createdHandler({
+      data: { data: () => ({ name: "Ben", climbId: "climb-1", userId: "u-b", status: "pending" }) },
+      params: { regId: "r-b" },
+    });
+    expect(climbPrivateStore["climb-1"].participants).toEqual([
+      { name: "Ana R.", memberType: "member" },
+      { name: "Ben", memberType: "joiner" },
+    ]);
+  });
+
   it("allows re-registering after a cancelled registration", async () => {
     climbStore["climb-1"] = { title: "Mt. Pulag", officers: [] };
     regStore["reg-old"] = { climbId: "climb-1", userId: "user-1", status: "cancelled" };
@@ -1259,6 +1321,26 @@ describe("sendReminderNotifications — cancelled climbs", () => {
   });
 });
 
+describe("payment reminders with a due date", () => {
+  it("tells members when their payment is due", async () => {
+    regStore["reg-1"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      paymentStatus: "unpaid",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      status: "open",
+      paymentDueDate: "2026-10-05",
+      startDate: { toDate: () => new Date(Date.now() + 20 * 86400000) },
+    };
+    await scheduleHandler({});
+    expect(notifStore["payment_reg-1"].message).toMatch(/due by Oct 5, 2026/);
+  });
+});
+
 describe("syncAdminClaim", () => {
   const evt = (before, after) => ({
     params: { uid: "user-1" },
@@ -1858,9 +1940,17 @@ describe("sendReminderNotifications", () => {
       climbId: "climb-1",
       email: "cancelled@x.com",
     };
+    regStore["reg-noshow"] = {
+      status: "confirmed",
+      noShow: true,
+      userId: "user-3",
+      climbId: "climb-1",
+      name: "Absent",
+      email: "absent@x.com",
+    };
     climbStore["climb-1"] = {
       title: "Mt. Pulag",
-      endDate: { toDate: () => new Date(Date.now() - 86400000) },
+      endDate: { toDate: () => new Date(Date.now() - 2 * 86400000) },
     };
 
     await scheduleHandler({});
@@ -1883,6 +1973,48 @@ describe("sendReminderNotifications", () => {
       link: "/feedback/climb-1",
     });
     expect(Object.keys(notifStore)).not.toContain("feedback_climb-1_user-2");
+    // No-shows are confirmed but weren't there: no thank-you, no feedback ask.
+    expect(Object.keys(notifStore)).not.toContain("feedback_climb-1_user-3");
+  });
+
+  it("thanks donors for their donation in the post-climb email", async () => {
+    regStore["reg-donor"] = {
+      status: "confirmed",
+      userId: "user-1",
+      climbId: "climb-1",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+      donationReceived: { cash: 500, items: "", receivedBy: "Lead" },
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      endDate: { toDate: () => new Date(Date.now() - 2 * 86400000) },
+      donationDrive: { enabled: true, beneficiary: "Tanglag School" },
+    };
+    await scheduleHandler({});
+    const [, opts] = global.fetch.mock.calls[0];
+    expect(JSON.parse(opts.body).htmlContent).toMatch(/donation to <strong>Tanglag School<\/strong>/);
+  });
+
+  it("waits a day after the climb ends before thanking, so no-shows can be marked", async () => {
+    regStore["reg-done"] = {
+      status: "confirmed",
+      userId: "user-1",
+      climbId: "climb-1",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      endDate: { toDate: () => new Date(Date.now() - 6 * 60 * 60 * 1000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(
+      climbUpdates.some((u) => u.patch && "thankYouSentAt" in u.patch),
+    ).toBe(false);
   });
 
   it("skips the thank-you email for climbs that already have thankYouSentAt or haven't ended", async () => {

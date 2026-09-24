@@ -15,6 +15,12 @@ function controlByLabel(container, labelText) {
   return label.closest(".form-group")?.querySelector("input,select,textarea");
 }
 
+// The waiver agreement and the Data Privacy Act consent are both required.
+function agreeToWaiverAndPrivacy() {
+  fireEvent.click(screen.getByRole("checkbox", { name: /voluntarily agree/i }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /I consent/i }));
+}
+
 function render(authOverrides = {}) {
   return renderAtRoute(
     <Register />,
@@ -53,7 +59,7 @@ describe("Register page", () => {
     it("shows the waiver agreement checkbox", async () => {
       render();
       await waitFor(() =>
-        expect(screen.getByRole("checkbox")).toBeInTheDocument(),
+        expect(screen.getByRole("checkbox", { name: /voluntarily agree/i })).toBeInTheDocument(),
       );
     });
 
@@ -167,7 +173,7 @@ describe("Register page", () => {
       fireEvent.change(controlByLabel(container, "Relationship"), {
         target: { value: "Mother" },
       });
-      fireEvent.click(screen.getByRole("checkbox"));
+      agreeToWaiverAndPrivacy();
       fireEvent.change(
         screen.getByPlaceholderText("Type your complete legal name"),
         { target: { value: "Juan Cruz" } },
@@ -215,7 +221,7 @@ describe("Register page", () => {
       fireEvent.change(controlByLabel(container, "Relationship"), {
         target: { value: "Mother" },
       });
-      fireEvent.click(screen.getByRole("checkbox"));
+      agreeToWaiverAndPrivacy();
       fireEvent.change(
         screen.getByPlaceholderText("Type your complete legal name"),
         { target: { value: "Juan Cruz" } },
@@ -281,7 +287,7 @@ describe("Register page", () => {
       fireEvent.change(controlByLabel(container, "Relationship"), {
         target: { value: "Mother" },
       });
-      fireEvent.click(screen.getByRole("checkbox"));
+      agreeToWaiverAndPrivacy();
       fireEvent.change(
         screen.getByPlaceholderText("Type your complete legal name"),
         { target: { value: "Juan Cruz" } },
@@ -351,6 +357,119 @@ describe("Register page", () => {
         .map((li) => li.textContent);
       expect(items).toContain("Enter your mobile number.");
       expect(items).not.toContain("Upload your signed registration form.");
+    });
+  });
+
+  it("warns that a full climb registers onto the waitlist", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        status: "open",
+        maxParticipants: 10,
+        registrationCount: 10,
+      }),
+    );
+    getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    render();
+    expect(await screen.findByText(/currently full/i)).toBeInTheDocument();
+  });
+
+  it("requires privacy consent and records the notice version", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, { ...climbFixture, status: "open" }),
+    );
+    getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    const { container } = render();
+    await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
+    fireEvent.change(controlByLabel(container, "Mobile Number"), { target: { value: "09171234567" } });
+    fireEvent.change(controlByLabel(container, "Contact Name"), { target: { value: "Maria Cruz" } });
+    fireEvent.change(controlByLabel(container, "Contact Mobile"), { target: { value: "09179876543" } });
+    fireEvent.change(controlByLabel(container, "Relationship"), { target: { value: "Mother" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /voluntarily agree/i }));
+    fireEvent.change(screen.getByPlaceholderText("Type your complete legal name"), {
+      target: { value: "Juan Cruz" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+    expect(await screen.findAllByText(/agree to the Privacy Notice/i)).not.toHaveLength(0);
+    expect(addDoc).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /I consent/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Confirm & Submit/i }));
+    await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    expect(addDoc.mock.calls[0][1].privacyNoticeVersion).toBeTruthy();
+    expect(addDoc.mock.calls[0][1].privacyConsentAt).toBeTruthy();
+  });
+
+  describe("when the climb has a donation drive", () => {
+    const driveClimb = {
+      ...climbFixture,
+      status: "open",
+      fees: [{ label: "Climb Fee", amount: "1000" }],
+      donationDrive: {
+        enabled: true,
+        beneficiary: "Tanglag Elementary",
+        acceptsCash: true,
+        acceptsInKind: true,
+      },
+    };
+
+    beforeEach(() => {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, driveClimb));
+      getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    });
+
+    it("adds a with-fees pledge as its own line in the total", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Donation Pledge (Optional)")).toBeInTheDocument(),
+      );
+      fireEvent.change(controlByLabel(container, "Cash pledge"), {
+        target: { value: "250" },
+      });
+      expect(await screen.findByText("Donation — Tanglag Elementary")).toBeInTheDocument();
+    });
+
+    it("saves an optional pledge alongside, not inside, the fees", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Donation Pledge (Optional)")).toBeInTheDocument(),
+      );
+      fireEvent.change(controlByLabel(container, "Mobile Number"), {
+        target: { value: "09171234567" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Name"), {
+        target: { value: "Maria Cruz" },
+      });
+      fireEvent.change(controlByLabel(container, "Contact Mobile"), {
+        target: { value: "09179876543" },
+      });
+      fireEvent.change(controlByLabel(container, "Relationship"), {
+        target: { value: "Mother" },
+      });
+      fireEvent.change(controlByLabel(container, "Cash pledge"), {
+        target: { value: "500" },
+      });
+      fireEvent.change(controlByLabel(container, "Items you"), {
+        target: { value: "10 notebooks" },
+      });
+      agreeToWaiverAndPrivacy();
+      fireEvent.change(
+        screen.getByPlaceholderText("Type your complete legal name"),
+        { target: { value: "Juan Cruz" } },
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Submit Registration/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /Confirm & Submit/i }));
+
+      await waitFor(() => expect(addDoc).toHaveBeenCalled());
+      const payload = addDoc.mock.calls[0][1];
+      expect(payload.donation).toEqual({
+        cashPledge: 500,
+        inKind: "10 notebooks",
+        payWithFees: true,
+      });
+      // The donation line is derived from the pledge, never stored as a fee.
+      expect(payload.feeBreakdown.some((f) => /donat/i.test(f.label))).toBe(false);
     });
   });
 

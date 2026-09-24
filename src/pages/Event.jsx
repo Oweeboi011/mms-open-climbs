@@ -23,6 +23,8 @@ import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import { authLinkWithRedirect } from "@/utils/authRedirect";
 import { contactHref } from "@/data/orgContact";
+import DonationDriveInfo from "@/components/DonationDriveInfo";
+import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
 
 const TYPE_LABEL = {
   minor: "Minor Climb",
@@ -158,6 +160,134 @@ function getClimbCoords(climb) {
     : null;
 }
 
+// Who's joining. Registrants and admins see names (first name + last
+// initial, published to climbPrivate by syncParticipantList); other signed-in
+// members see only the count.
+function ParticipantsBody({
+  climb,
+  participants,
+  currentUser,
+  canSee,
+  onSignIn,
+}) {
+  return (
+    <>
+      {!currentUser ? (
+        <LockedCard
+          label="Sign in to view the participant list"
+          onUnlock={onSignIn}
+        />
+      ) : !canSee ? (
+        <p className="tbd-note participants-private">
+          Only registered participants can see who&rsquo;s joining.{" "}
+          {climb.registrationCount > 0 &&
+            `${climb.registrationCount} registered so far.`}
+        </p>
+      ) : (
+        (() => {
+          const members = participants.filter(
+            (p) => p.memberType === "member",
+          );
+          const joiners = participants.filter(
+            (p) => p.memberType === "joiner",
+          );
+          const renderList = (list) =>
+            list.length === 0 ? (
+              <p className="tbd-note" style={{ marginBottom: 0 }}>
+                None yet.
+              </p>
+            ) : (
+              <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.9 }}>
+                {list.map((p, i) => (
+                  <li key={i} style={{ fontSize: "0.9rem" }}>
+                    {p.name}
+                  </li>
+                ))}
+              </ol>
+            );
+          return (
+            <>
+              {climb.officers?.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div
+                    style={{
+                      fontSize: "0.68rem",
+                      fontWeight: 700,
+                      letterSpacing: 2,
+                      textTransform: "uppercase",
+                      color: "var(--ink-soft)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Climbing Officers
+                  </div>
+                  <ol
+                    style={{
+                      margin: 0,
+                      paddingLeft: 20,
+                      lineHeight: 1.9,
+                    }}
+                  >
+                    {climb.officers.map((o, i) => (
+                      <li key={i} style={{ fontSize: "0.9rem" }}>
+                        {o.name}{" "}
+                        <span
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "var(--ink-soft)",
+                          }}
+                        >
+                          ({o.role})
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              <div style={{ marginBottom: 20 }}>
+                <div
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "var(--ink-soft)",
+                    marginBottom: 8,
+                  }}
+                >
+                  MMS Members{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    ({members.length})
+                  </span>
+                </div>
+                {renderList(members)}
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "var(--ink-soft)",
+                    marginBottom: 8,
+                  }}
+                >
+                  Joiners{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    ({joiners.length})
+                  </span>
+                </div>
+                {renderList(joiners)}
+              </div>
+            </>
+          );
+        })()
+      )}
+    </>
+  );
+}
+
 function LockedCard({ label, onUnlock }) {
   return (
     <button
@@ -230,18 +360,6 @@ export default function Event() {
         setClimb({ id: snap.id, ...snap.data() });
 
         if (currentUser) {
-          try {
-            const pQ = query(
-              collection(db, "registrations"),
-              where("climbId", "==", climbId),
-              where("status", "in", ["confirmed", "pending"]),
-            );
-            const pSnap = await getDocs(pQ);
-            setParticipants(pSnap.docs.map((d) => d.data()));
-          } catch {
-            setParticipants([]);
-          }
-
           const regQ = query(
             collection(db, "registrations"),
             where("climbId", "==", climbId),
@@ -265,7 +383,12 @@ export default function Event() {
           if (isRegistered || isAdmin) {
             try {
               const privSnap = await getDoc(doc(db, "climbPrivate", climbId));
-              if (privSnap.exists()) setPrivateInfo(privSnap.data());
+              if (privSnap.exists()) {
+                setPrivateInfo(privSnap.data());
+                // Maintained server-side (syncParticipantList): members can't
+                // query other people's registrations directly.
+                setParticipants(privSnap.data().participants || []);
+              }
             } catch {
               setPrivateInfo(null);
             }
@@ -1699,48 +1822,57 @@ export default function Event() {
           </div>
         )}
 
-        {/* Itinerary */}
+        {/* Climb Officers */}
         <div className="section-card">
           <div className="section-header">
             <span className="icon">
-              <Icon name="map" size={17} />
+              <Icon name="users" size={17} />
             </span>
-            <h3>Itinerary</h3>
+            <h3>Climb Officers</h3>
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <LockedCard
-                label="Sign in to view the itinerary"
-                onUnlock={() => setShowSignInModal(true)}
-              />
-            ) : climb.itinerary?.length > 0 ? (
-              climb.itinerary.map((day, i) => (
-                <div className="day-block" key={i}>
-                  <div className="day-label">{day.day}</div>
-                  {day.entries?.map((e, j) => (
-                    <div className="time-entry" key={j}>
-                      <span className="time-label">{e.time}</span>
-                      <span className="time-activity">{e.activity}</span>
-                    </div>
-                  ))}
+              <>
+                <LockedCard
+                  label="Sign in to view the climb officers"
+                  onUnlock={() => setShowSignInModal(true)}
+                />
+                <p
+                  className="tbd-note"
+                  style={{ marginTop: 12, marginBottom: 0 }}
+                >
+                  Questions about this climb?{" "}
+                  {contactHref(`Question about ${climb.title}`) ? (
+                    <a href={contactHref(`Question about ${climb.title}`)}>
+                      Contact MMS Open Climbs
+                    </a>
+                  ) : (
+                    "Contact your MMS Open Climbs Coordinator."
+                  )}
+                </p>
+              </>
+            ) : climb.officers?.length > 0 ? (
+              climb.officers.map((o, i) => (
+                <div className="officer-row" key={i}>
+                  <div>
+                    <div className="officer-name">{o.name}</div>
+                    <div className="officer-role">{o.role}</div>
+                  </div>
+                  <div className="officer-contact">{o.contact}</div>
                 </div>
               ))
             ) : (
-              <p
-                className="tbd-note"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                }}
-              >
-                <Icon name="clock" size={14} />
-                Detailed itinerary will be available soon.
+              <p className="tbd-note">
+                Climb officers will be announced closer to the event date.
               </p>
             )}
           </div>
         </div>
+
+        <EventFeesCard climb={climb} onOpenGuide={() => setGuideOpen(true)} />
+        <RegistrationPolicyInfo climb={climb} className="policy-info section-card" />
+
+        <DonationDriveInfo climb={climb} />
 
         <div className="two-col">
           {/* Things to Bring */}
@@ -1819,50 +1951,44 @@ export default function Event() {
           </div>
         </div>
 
-        <EventFeesCard climb={climb} onOpenGuide={() => setGuideOpen(true)} />
-
-        {/* Climb Officers */}
+        {/* Itinerary */}
         <div className="section-card">
           <div className="section-header">
             <span className="icon">
-              <Icon name="users" size={17} />
+              <Icon name="map" size={17} />
             </span>
-            <h3>Climb Officers</h3>
+            <h3>Itinerary</h3>
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <>
-                <LockedCard
-                  label="Sign in to view the climb officers"
-                  onUnlock={() => setShowSignInModal(true)}
-                />
-                <p
-                  className="tbd-note"
-                  style={{ marginTop: 12, marginBottom: 0 }}
-                >
-                  Questions about this climb?{" "}
-                  {contactHref(`Question about ${climb.title}`) ? (
-                    <a href={contactHref(`Question about ${climb.title}`)}>
-                      Contact MMS Open Climbs
-                    </a>
-                  ) : (
-                    "Contact your MMS Open Climbs Coordinator."
-                  )}
-                </p>
-              </>
-            ) : climb.officers?.length > 0 ? (
-              climb.officers.map((o, i) => (
-                <div className="officer-row" key={i}>
-                  <div>
-                    <div className="officer-name">{o.name}</div>
-                    <div className="officer-role">{o.role}</div>
-                  </div>
-                  <div className="officer-contact">{o.contact}</div>
+              <LockedCard
+                label="Sign in to view the itinerary"
+                onUnlock={() => setShowSignInModal(true)}
+              />
+            ) : climb.itinerary?.length > 0 ? (
+              climb.itinerary.map((day, i) => (
+                <div className="day-block" key={i}>
+                  <div className="day-label">{day.day}</div>
+                  {day.entries?.map((e, j) => (
+                    <div className="time-entry" key={j}>
+                      <span className="time-label">{e.time}</span>
+                      <span className="time-activity">{e.activity}</span>
+                    </div>
+                  ))}
                 </div>
               ))
             ) : (
-              <p className="tbd-note">
-                Climb officers will be announced closer to the event date.
+              <p
+                className="tbd-note"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <Icon name="clock" size={14} />
+                Detailed itinerary will be available soon.
               </p>
             )}
           </div>
@@ -1877,112 +2003,14 @@ export default function Event() {
             <h3>Participants</h3>
           </div>
           <div className="section-body">
-            {!currentUser ? (
-              <LockedCard
-                label="Sign in to view the participant list"
-                onUnlock={() => setShowSignInModal(true)}
-              />
-            ) : (
-              (() => {
-                const members = participants.filter(
-                  (p) => p.memberType === "member",
-                );
-                const joiners = participants.filter(
-                  (p) => p.memberType === "joiner",
-                );
-                const renderList = (list) =>
-                  list.length === 0 ? (
-                    <p className="tbd-note" style={{ marginBottom: 0 }}>
-                      None yet.
-                    </p>
-                  ) : (
-                    <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.9 }}>
-                      {list.map((p, i) => (
-                        <li key={i} style={{ fontSize: "0.9rem" }}>
-                          {p.name}
-                        </li>
-                      ))}
-                    </ol>
-                  );
-                return (
-                  <>
-                    {climb.officers?.length > 0 && (
-                      <div style={{ marginBottom: 20 }}>
-                        <div
-                          style={{
-                            fontSize: "0.68rem",
-                            fontWeight: 700,
-                            letterSpacing: 2,
-                            textTransform: "uppercase",
-                            color: "var(--ink-soft)",
-                            marginBottom: 8,
-                          }}
-                        >
-                          Climbing Officers
-                        </div>
-                        <ol
-                          style={{
-                            margin: 0,
-                            paddingLeft: 20,
-                            lineHeight: 1.9,
-                          }}
-                        >
-                          {climb.officers.map((o, i) => (
-                            <li key={i} style={{ fontSize: "0.9rem" }}>
-                              {o.name}{" "}
-                              <span
-                                style={{
-                                  fontSize: "0.75rem",
-                                  color: "var(--ink-soft)",
-                                }}
-                              >
-                                ({o.role})
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-                    <div style={{ marginBottom: 20 }}>
-                      <div
-                        style={{
-                          fontSize: "0.68rem",
-                          fontWeight: 700,
-                          letterSpacing: 2,
-                          textTransform: "uppercase",
-                          color: "var(--ink-soft)",
-                          marginBottom: 8,
-                        }}
-                      >
-                        MMS Members{" "}
-                        <span style={{ fontWeight: 400 }}>
-                          ({members.length})
-                        </span>
-                      </div>
-                      {renderList(members)}
-                    </div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "0.68rem",
-                          fontWeight: 700,
-                          letterSpacing: 2,
-                          textTransform: "uppercase",
-                          color: "var(--ink-soft)",
-                          marginBottom: 8,
-                        }}
-                      >
-                        Joiners{" "}
-                        <span style={{ fontWeight: 400 }}>
-                          ({joiners.length})
-                        </span>
-                      </div>
-                      {renderList(joiners)}
-                    </div>
-                  </>
-                );
-              })()
-            )}
+            <ParticipantsBody
+              climb={climb}
+              participants={participants}
+              currentUser={currentUser}
+              canSee={alreadyReg || isAdmin}
+              onSignIn={() => setShowSignInModal(true)}
+            />
+
           </div>
         </div>
       </main>

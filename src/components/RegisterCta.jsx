@@ -77,11 +77,22 @@ export default function RegisterCta({
     );
   }
   if (isFull) {
+    // Registering now lands on the waitlist (onRegistrationCreated), and
+    // waitlisted members are emailed if a slot opens.
     return (
-      <div className="alert alert-warning" style={style}>
-        This climb is full. Slots occasionally open up &mdash; check back, or
-        watch the schedule for the next one.
-      </div>
+      <>
+        <div className="alert alert-warning" style={style}>
+          This climb is full. Join the waitlist and we&rsquo;ll let you know if
+          a slot opens.
+        </div>
+        <Link
+          to={`/register/${climbId}`}
+          className="btn btn-outline btn-lg"
+          style={style}
+        >
+          Join the Waitlist &#8594;
+        </Link>
+      </>
     );
   }
   return (

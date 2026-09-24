@@ -268,10 +268,11 @@ function tplReleaseNoteRaw({ title, body, appUrl }) {
     </p>`);
 }
 
-function tplThankYouRaw({ name, climbTitle, appUrl, feedbackUrl }) {
+function tplThankYouRaw({ name, climbTitle, appUrl, feedbackUrl, beneficiary }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Thank You, ${name}!</h2>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Congratulations on completing <strong>${climbTitle}</strong>! We hope it was an unforgettable journey.</p>
+    ${beneficiary ? `<p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Thank you too for your donation to <strong>${beneficiary}</strong> — it made a real difference.</p>` : ""}
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">MMS thanks you for joining us on this climb. We'd love to see you again — check out the upcoming schedule and join us on the next one!</p>
     <p style="margin:24px 0;">
       <a href="${feedbackUrl}" style="background:#c8a000;color:#0d2b12;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-right:10px;">Share Your Feedback</a>
@@ -338,6 +339,71 @@ function updateRoster(climbId, userId, add) {
 }
 
 const ACTIVE_REG_STATUSES = ["pending", "confirmed", "waitlisted"];
+
+// How long after a climb ends the thank-you email waits (see
+// sendReminderNotifications): time for leads to mark no-shows first.
+const NO_SHOW_GRACE_MS = 24 * 60 * 60 * 1000;
+
+// A climb's paymentDueDate ("YYYY-MM-DD") for reminder text, or "".
+// Mirrors formatDueDate in src/utils/registrationPolicy.js.
+function formatDueDate(value) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+// ── Helper: registrants-only participant list ───────────────────────────────
+// Who's joining, as first name + last initial, in climbPrivate/{climbId} —
+// readable only by the climb's registrants and admins (the full registrations
+// can't be: the rules only let members read their own). Rebuilt from the
+// climb's live registrations whenever one is created, changes status/name,
+// or is deleted.
+function shortName(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "Participant";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
+
+async function syncParticipantList(climbId) {
+  if (!climbId) return;
+  try {
+    const snap = await db
+      .collection("registrations")
+      .where("climbId", "==", climbId)
+      .get();
+    const participants = snap.docs
+      .map((d) => d.data())
+      .filter((r) => SEAT_HOLDING_STATUSES.includes(r.status))
+      .map((r) => ({ name: shortName(r.name), memberType: r.memberType || "" }));
+    await db
+      .doc(`climbPrivate/${climbId}`)
+      .set({ participants }, { merge: true });
+  } catch (err) {
+    logger.error("[syncParticipantList] failed", { climbId, err: err.message });
+  }
+}
+
+// Whether every seat is taken: pending + confirmed registrations (other than
+// `regId`) at or above the climb's maxParticipants. No limit set = never full.
+const SEAT_HOLDING_STATUSES = ["pending", "confirmed"];
+async function isClimbFull(climb, climbId, regId) {
+  const max = Number(climb?.maxParticipants);
+  if (!max || max <= 0) return false;
+  const snap = await db
+    .collection("registrations")
+    .where("climbId", "==", climbId)
+    .get();
+  const taken = snap.docs.filter(
+    (d) => d.id !== regId && SEAT_HOLDING_STATUSES.includes(d.data().status),
+  ).length;
+  return taken >= max;
+}
 
 // Another live registration by the same account for the same climb, if any.
 // The client checks before registering, but that check is advisory — a
@@ -500,12 +566,30 @@ exports.onRegistrationCreated = onDocumentCreated(
         }
       }
 
+      // Capacity: pending and confirmed registrations hold a seat. Past
+      // maxParticipants a new pending registration goes to the waitlist
+      // instead — the status change fires onRegistrationUpdated, which sends
+      // the member the "Added to Waitlist" email, so the "received" email
+      // below is skipped. The client only warns; this is the enforcement.
+      const autoWaitlisted =
+        reg.status === "pending" &&
+        (await isClimbFull(climb, climbId, event.params.regId));
+      if (autoWaitlisted) {
+        await db.doc(`registrations/${event.params.regId}`).update({
+          status: "waitlisted",
+          autoWaitlisted: true,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
       // Keep the roster in sync — it's what the climbPrivate security rule
       // checks to gate pre-climb meeting details and resource links to
       // actual registrants.
-      if (userId && isActive) {
+      if (userId && isActive && !autoWaitlisted) {
         await updateRoster(climbId, userId, true);
       }
+
+      await syncParticipantList(climbId);
 
       // Keep docsCompleteCount in sync for the climb card progress badge.
       if (isActive && regDocsComplete(climb, reg)) {
@@ -542,8 +626,10 @@ exports.onRegistrationCreated = onDocumentCreated(
       const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
       const { officerEmails, adminEmails } = await getNotifyLists(climb, climbId);
 
-      // 1. Confirmation to registrant (skip for admin-added walk-ins with no email on file)
-      if (email) {
+      // 1. Confirmation to registrant (skip for admin-added walk-ins with no
+      // email on file, and for the auto-waitlisted — they get the waitlist
+      // email from onRegistrationUpdated instead)
+      if (email && !autoWaitlisted) {
         await sendEmail({
           to: email,
           toName: name,
@@ -819,6 +905,14 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
       }
     }
 
+    if (
+      before.status !== after.status ||
+      before.name !== after.name ||
+      before.memberType !== after.memberType
+    ) {
+      await syncParticipantList(after.climbId);
+    }
+
     // Keep the roster in sync whenever status moves in or out of the
     // "active" set (pending/confirmed) — the list the climbPrivate rule
     // checks. Runs even for status changes that don't
@@ -974,6 +1068,7 @@ exports.onRegistrationDeleted = onDocumentDeleted(
   async (event) => {
     const reg = event.data.data();
     if (!reg.climbId) return;
+    await syncParticipantList(reg.climbId);
     try {
       // registrationCount mirrors the create trigger's non-cancelled rule — a
       // cancelled reg was already decremented when it was cancelled, so only
@@ -1276,10 +1371,11 @@ exports.sendReminderNotifications = onSchedule(
         outstanding > 0
       ) {
         const paidSoFar = getCountedTotal(reg);
+        const due = formatDueDate(climb?.paymentDueDate);
         const message =
           paidSoFar > 0 && outstanding > 0
-            ? `You've paid ₱${paidSoFar.toLocaleString("en-PH")} for ${reg.climbTitle || "your climb"} — ₱${outstanding.toLocaleString("en-PH")} still to go. You can send the balance anytime before the climb.`
-            : `Don't forget to submit your GCash payment proof for ${reg.climbTitle || "your climb"}.`;
+            ? `You've paid ₱${paidSoFar.toLocaleString("en-PH")} for ${reg.climbTitle || "your climb"} — ₱${outstanding.toLocaleString("en-PH")} still to go. ${due ? `Please settle it by ${due}.` : "You can send the balance anytime before the climb."}`
+            : `Don't forget to submit your GCash payment proof for ${reg.climbTitle || "your climb"}${due ? ` — due by ${due}` : ""}.`;
         await createNotification({
           userId: reg.userId,
           type: "payment_reminder",
@@ -1437,10 +1533,12 @@ exports.sendReminderNotifications = onSchedule(
       const climb = climbs[climbId];
       if (!climb || climb.thankYouSentAt || !climb.endDate?.toDate) continue;
       if (isClimbCancelled(climb) || isClimbPostponed(climb)) continue;
-      if (climb.endDate.toDate().getTime() > now) continue;
+      // A day's grace after the climb ends, so leads can mark no-shows
+      // before the thank-you goes out.
+      if (climb.endDate.toDate().getTime() + NO_SHOW_GRACE_MS > now) continue;
 
       const confirmedRegs = regs.filter(
-        (r) => r.climbId === climbId && r.status === "confirmed",
+        (r) => r.climbId === climbId && r.status === "confirmed" && !r.noShow,
       );
       const feedbackUrl = `${appUrl}/feedback/${climbId}`;
 
@@ -1456,6 +1554,9 @@ exports.sendReminderNotifications = onSchedule(
                 climbTitle: climb.title,
                 appUrl,
                 feedbackUrl,
+                beneficiary: reg.donationReceived
+                  ? climb.donationDrive?.beneficiary || "the outreach"
+                  : "",
               }),
             });
             thankYouEmails++;

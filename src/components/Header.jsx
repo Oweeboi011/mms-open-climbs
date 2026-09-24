@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useGuide } from "@/contexts/GuideContext";
 import { authLinkWithRedirect } from "@/utils/authRedirect";
 import NotificationBell from "@/components/NotificationBell";
+import VerifyEmailBanner from "@/components/VerifyEmailBanner";
 
 export default function Header() {
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
@@ -136,6 +137,7 @@ export default function Header() {
           <span aria-hidden="true" />
         </button>
       </header>
+      <VerifyEmailBanner />
 
       {/* Mobile slide-in drawer */}
       <div
