@@ -25,6 +25,7 @@ import WaiverText from "@/components/WaiverText";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 import { computeExpectedTotal, getClimbFeeModel } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { compressImage } from "@/utils/compressImage";
 
 // Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
@@ -274,7 +275,8 @@ export default function Register() {
         setPaymentUploading(true);
         const timestamp = Date.now();
         paymentProofs = await Promise.all(
-          paymentFiles.map(async (file) => {
+          paymentFiles.map(async (original) => {
+            const file = await compressImage(original);
             const fileRef = storageRef(
               storage,
               `payment-proofs/${climbId}/${currentUser.uid}/${timestamp}_${file.name}`,
@@ -287,7 +289,7 @@ export default function Register() {
         setPaymentUploading(false);
       }
       for (const docType of REQUIRED_DOC_TYPES) {
-        const file = docFiles[docType.key];
+        const file = await compressImage(docFiles[docType.key]);
         if (!file) continue;
         const timestamp = Date.now();
         const fileRef = storageRef(

@@ -14,7 +14,7 @@ export default defineConfig({
     setupFiles: ["./tests/setup.js"],
     css: false,
     // Exclude CommonJS Jest tests in functions/ — run those with `npm test` inside functions/
-    exclude: ["**/node_modules/**", "**/functions/**"],
+    exclude: ["**/node_modules/**", "**/functions/**", "**/rules-tests/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
@@ -43,7 +43,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           // Firebase SDK split by package
-          "firebase-app": ["firebase/app"],
+          "firebase-app": ["firebase/app", "firebase/app-check"],
           "firebase-auth": ["firebase/auth"],
           "firebase-firestore": ["firebase/firestore"],
           "firebase-functions": ["firebase/functions"],

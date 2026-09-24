@@ -469,9 +469,13 @@ describe("MyRegistrations page", () => {
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
     const patch = updateDoc.mock.calls.find((c) => c[1]?.paymentStatus)?.[1];
     expect(patch.amountPaid).toBe(800);
-    expect(patch.payments).toHaveLength(2);
-    expect(patch.payments[1].amount).toBe(300);
-    expect(patch.payments[1].note).toBe("balance for transportation");
+    // Appended with arrayUnion so the stored history is left exactly as it
+    // was — the security rules reject any rewrite of earlier entries.
+    expect(patch.payments._type).toBe("arrayUnion");
+    expect(patch.payments.values).toHaveLength(1);
+    expect(patch.payments.values[0].amount).toBe(300);
+    expect(patch.payments.values[0].status).toBe("submitted");
+    expect(patch.payments.values[0].note).toBe("balance for transportation");
     expect(patch.paymentProofs).toHaveLength(2);
   });
 

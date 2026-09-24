@@ -30,6 +30,7 @@ import {
   DIFFICULTY_DESCRIPTIONS,
   DIFFICULTY_VALUES,
 } from "@/utils/trailClass";
+import { splitOfficerEmails, mergeOfficerEmails } from "@/utils/officerContacts";
 
 const OFFICER_ROLES = [
   "Senior Team Leader",
@@ -194,7 +195,8 @@ export default function AdminClimbForm() {
     Promise.all([
       getDoc(doc(db, "climbs", id)),
       getDoc(doc(db, "climbPrivate", id)),
-    ]).then(([snap, privateSnap]) => {
+      getDoc(doc(db, "climbInternal", id)),
+    ]).then(([snap, privateSnap, internalSnap]) => {
       if (snap.exists()) {
         const data = snap.data();
         // Migrate the legacy single googleMapsUrl/allTrailsUrl fields into
@@ -212,6 +214,10 @@ export default function AdminClimbForm() {
                 ]
               : [];
         const priv = privateSnap.exists() ? privateSnap.data() : {};
+        const officers = mergeOfficerEmails(
+          data.officers,
+          internalSnap.exists() ? internalSnap.data().officerEmails : [],
+        );
         // Pre-climb meeting used to be a single object (climbPrivate, then
         // briefly the climb doc itself before that) — migrate either legacy
         // shape into the new repeatable list so nothing already saved is
@@ -234,6 +240,7 @@ export default function AdminClimbForm() {
         setForm({
           ...EMPTY_FORM,
           ...data,
+          officers,
           trailMaps,
           preClimbMeetings,
           resources: priv.resources ?? [],
@@ -437,6 +444,9 @@ export default function AdminClimbForm() {
       payload.officerIds = (form.officers || [])
         .map((o) => o.userId)
         .filter(Boolean);
+      const { publicOfficers, officerEmails } = splitOfficerEmails(form.officers);
+      payload.officers = publicOfficers;
+      const internalData = { officerEmails };
       // Keep the legacy single googleMapsUrl/allTrailsUrl fields in sync
       // with the first trail so older code paths (e.g. the weather forecast
       // location lookup) still resolve correctly.
@@ -463,6 +473,7 @@ export default function AdminClimbForm() {
       if (isEdit) {
         await updateDoc(doc(db, "climbs", id), payload);
         await setDoc(doc(db, "climbPrivate", id), privateData, { merge: true });
+        await setDoc(doc(db, "climbInternal", id), internalData, { merge: true });
         logAuditEvent({
           actorUid: currentUser?.uid,
           actorName: currentUser?.displayName || currentUser?.email,
@@ -477,6 +488,7 @@ export default function AdminClimbForm() {
         payload.registrationCount = 0;
         const ref = await addDoc(collection(db, "climbs"), payload);
         await setDoc(doc(db, "climbPrivate", ref.id), privateData, { merge: true });
+        await setDoc(doc(db, "climbInternal", ref.id), internalData, { merge: true });
         logAuditEvent({
           actorUid: currentUser?.uid,
           actorName: currentUser?.displayName || currentUser?.email,
