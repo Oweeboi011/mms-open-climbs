@@ -5376,3 +5376,38 @@ details[open] > .myreg-collapsible::before {
   flex: 1 1 220px;
   width: auto;
 }
+
+/* ── Payment deadline & cancellation policy ─────────────────────────────── */
+.policy-info {
+  font-size: 0.88rem;
+  margin: 0 0 16px;
+}
+.policy-info.section-card {
+  padding: 16px 20px;
+}
+.policy-due {
+  margin: 0 0 8px;
+}
+.policy-heading {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 8px 0 4px;
+}
+.policy-text {
+  white-space: pre-line;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.policy-due-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  align-self: center;
+  color: var(--ink-soft);
+}
+.policy-due-chip.overdue {
+  color: var(--danger);
+}
+.btn-cancel-reg {
+  color: var(--danger);
+  border-color: var(--danger);
+}

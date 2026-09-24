@@ -117,6 +117,20 @@ service cloud.firestore {
           p.get('inKind', '').size() <= 500);
     }
 
+    // A member withdrawing from a climb: only to "cancelled", only from a
+    // live status, marked as their own doing. Reinstating is an admin's call.
+    // The status-change trigger then emails, frees the roster and counters.
+    function memberIsCancellingOwn() {
+      return affected().hasOnly([
+          'status', 'cancelledByMember', 'cancellationReason', 'cancelledAt', 'updatedAt'
+        ]) &&
+        resource.data.status in ['pending', 'confirmed', 'waitlisted'] &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.cancelledByMember == true &&
+        request.resource.data.cancellationReason is string &&
+        request.resource.data.cancellationReason.size() <= 500;
+    }
+
     function memberIsUpdatingOwnPledge() {
       return affected().hasOnly(['donation', 'updatedAt']) &&
         pledgeIsValid(request.resource.data.donation);
@@ -246,6 +260,7 @@ service cloud.firestore {
         (isOwner(resource.data.userId) && memberIsSigningOwnWaiver()) ||
         (isOwner(resource.data.userId) && memberIsUpdatingOwnDetails()) ||
         (isOwner(resource.data.userId) && memberIsUpdatingOwnPledge()) ||
+        (isOwner(resource.data.userId) && memberIsCancellingOwn()) ||
         isAdmin();
       allow delete: if isAdmin();
     }

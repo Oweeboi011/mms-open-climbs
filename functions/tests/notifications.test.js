@@ -1305,6 +1305,26 @@ describe("sendReminderNotifications — cancelled climbs", () => {
   });
 });
 
+describe("payment reminders with a due date", () => {
+  it("tells members when their payment is due", async () => {
+    regStore["reg-1"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      paymentStatus: "unpaid",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      status: "open",
+      paymentDueDate: "2026-10-05",
+      startDate: { toDate: () => new Date(Date.now() + 20 * 86400000) },
+    };
+    await scheduleHandler({});
+    expect(notifStore["payment_reg-1"].message).toMatch(/due by Oct 5, 2026/);
+  });
+});
+
 describe("syncAdminClaim", () => {
   const evt = (before, after) => ({
     params: { uid: "user-1" },
