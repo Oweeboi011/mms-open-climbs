@@ -8,6 +8,7 @@ import {
   signOut,
   updateProfile,
   sendPasswordResetEmail,
+  sendEmailVerification,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -59,6 +60,8 @@ export function AuthProvider({ children }) {
       createdAt: serverTimestamp(),
       addedBy: "self",
     });
+    // Non-blocking: a failed send just leaves the banner's Resend to retry.
+    sendEmailVerification(cred.user).catch(() => {});
     return cred;
   }
 
@@ -125,6 +128,12 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
+  function resendVerification() {
+    return auth.currentUser
+      ? sendEmailVerification(auth.currentUser)
+      : Promise.resolve();
+  }
+
   function resetPassword(email) {
     return sendPasswordResetEmail(auth, email);
   }
@@ -172,6 +181,7 @@ export function AuthProvider({ children }) {
         loginWithGoogle,
         logout,
         resetPassword,
+        resendVerification,
       }}
     >
       {/* Rendered unconditionally: the public schedule and event pages must

@@ -26,14 +26,28 @@ import { logFailedRequest } from "@/utils/logFailedRequest";
 import { computeExpectedTotal, getClimbFeeModel } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { compressImage } from "@/utils/compressImage";
+import DonationPledgeFields from "@/components/DonationPledgeFields";
+import {
+  getDonationFeeItem,
+  isDonationDriveOn,
+  normalizePledge,
+} from "@/utils/donations";
+import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
+import { PRIVACY_NOTICE_VERSION } from "@/data/privacyNotice";
 
 // Used by the on-page Fee Breakdown card and the pre-submit confirmation
 // modal, so both always agree on the total.
-function expectedTotalFor(climb, form, optionalFeeSelections) {
-  return computeExpectedTotal(climb, {
+function expectedTotalFor(climb, form, optionalFeeSelections, pledge) {
+  const fees = computeExpectedTotal(climb, {
     isJoiner: form.memberType === "joiner",
     optionalSelections: optionalFeeSelections,
   });
+  // A cash pledge sent with the GCash payment is part of what they transfer.
+  const donation = getDonationFeeItem(
+    { donation: isDonationDriveOn(climb) ? normalizePledge(pledge) : null },
+    climb,
+  );
+  return donation ? { ...fees, total: fees.total + donation.amount, donation } : fees;
 }
 
 // Submit order, top to bottom. Drives which field the page scrolls to when
@@ -51,6 +65,7 @@ const FIELD_ORDER = [
   "waiverDoc",
   "waiverAgreed",
   "sigName",
+  "privacyConsent",
   "amountPaid",
   "paymentFiles",
 ];
@@ -90,6 +105,7 @@ export default function Register() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(INITIAL_FORM);
   const [waiverAgreed, setWaiverAgreed] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [sigName, setSigName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -101,6 +117,7 @@ export default function Register() {
   const [paymentFiles, setPaymentFiles] = useState([]);
   const [paymentPreviews, setPaymentPreviews] = useState([]);
   const [paymentNote, setPaymentNote] = useState("");
+  const [pledge, setPledge] = useState({ cashPledge: "", inKind: "", payWithFees: true });
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [optionalFeeSelections, setOptionalFeeSelections] = useState({});
@@ -209,6 +226,10 @@ export default function Register() {
     if (!waiverAgreed) {
       errors.waiverAgreed =
         "You must agree to the Waiver and Release of Liability.";
+    }
+    if (!privacyConsent) {
+      errors.privacyConsent =
+        "Please agree to the Privacy Notice so we can process your registration.";
     }
     if (!sigName.trim()) {
       errors.sigName = "Type your full name to sign the waiver.";
@@ -339,6 +360,9 @@ export default function Register() {
         medicalConditions: form.medicalConditions,
         experienceLevel: form.experienceLevel,
         memberType: form.memberType,
+        // Data Privacy Act consent, with the notice version it was given on
+        privacyConsentAt: serverTimestamp(),
+        privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         // Waiver
         waiverSigned: true,
         waiverSignedAt: serverTimestamp(),
@@ -393,6 +417,8 @@ export default function Register() {
             selected: !!optionalFeeSelections[exp.label],
           };
         }),
+        // Optional outreach pledge — separate from fees and payments.
+        ...(isDonationDriveOn(climb) ? { donation: normalizePledge(pledge) } : {}),
         // Status
         status: "pending",
         createdAt: serverTimestamp(),
@@ -659,6 +685,14 @@ export default function Register() {
             </div>
           </div>
         )}
+
+        {climb.maxParticipants > 0 &&
+          (climb.registrationCount ?? 0) >= climb.maxParticipants && (
+            <div className="alert alert-warning" role="status">
+              This climb is currently full. You can still register — you&rsquo;ll
+              be placed on the waitlist and notified if a slot opens.
+            </div>
+          )}
 
         <form onSubmit={handleSubmit} noValidate>
           {/* Personal Information */}
@@ -928,6 +962,29 @@ export default function Register() {
             </label>
             <FieldError message={fieldErrors.waiverAgreed} />
 
+            <label className="waiver-check">
+              <input
+                type="checkbox"
+                ref={bindField("privacyConsent")}
+                required
+                aria-invalid={!!fieldErrors.privacyConsent}
+                checked={privacyConsent}
+                onChange={(e) => {
+                  setPrivacyConsent(e.target.checked);
+                  clearFieldError("privacyConsent");
+                }}
+              />
+              <span className="waiver-check-label">
+                I consent to MMS collecting and processing my personal and
+                health information for this climb, as described in the{" "}
+                <Link to="/privacy" target="_blank" rel="noopener">
+                  Privacy Notice
+                </Link>
+                .
+              </span>
+            </label>
+            <FieldError message={fieldErrors.privacyConsent} />
+
             <div className="form-group">
               <label className="form-label required">
                 Digital Signature — Type your full name
@@ -967,11 +1024,11 @@ export default function Register() {
                 ...(isJoiner && guestFee ? [guestFee] : []),
               ];
               const optional = optionalFees;
-              const { total: expectedTotal, hasTba } = expectedTotalFor(
-                climb,
-                form,
-                optionalFeeSelections,
-              );
+              const {
+                total: expectedTotal,
+                hasTba,
+                donation: donationLine,
+              } = expectedTotalFor(climb, form, optionalFeeSelections, pledge);
               const totalDisplay = hasTba
                 ? `₱${expectedTotal.toLocaleString("en-PH")} + TBA`
                 : `₱${expectedTotal.toLocaleString("en-PH")}`;
@@ -1158,6 +1215,13 @@ export default function Register() {
                       })}
                     </tbody>
                     <tfoot>
+                      {donationLine && (
+                        <tr className="fee-donation-row">
+                          <td></td>
+                          <td>{donationLine.label}</td>
+                          <td>₱{donationLine.amount.toLocaleString("en-PH")}</td>
+                        </tr>
+                      )}
                       <tr style={{ borderTop: "2px solid var(--border)" }}>
                         <td></td>
                         <td
@@ -1205,6 +1269,28 @@ export default function Register() {
                 </div>
               );
             })()}
+
+          {(climb.paymentDueDate || climb.cancellationPolicy) && (
+            <div className="register-form-card">
+              <div className="form-section-title">Payment Deadline &amp; Cancellation</div>
+              <RegistrationPolicyInfo climb={climb} />
+            </div>
+          )}
+
+          {isDonationDriveOn(climb) && (
+            <div className="register-form-card">
+              <div className="form-section-title">Donation Pledge (Optional)</div>
+              <p className="form-hint">
+                This climb supports <strong>{climb.donationDrive.beneficiary}</strong>.
+                {climb.donationDrive.description ? ` ${climb.donationDrive.description}` : ""}
+              </p>
+              <DonationPledgeFields
+                drive={climb.donationDrive}
+                value={pledge}
+                onChange={setPledge}
+              />
+            </div>
+          )}
 
           {/* GCash Payment */}
           <div className="register-form-card">
@@ -1619,6 +1705,7 @@ export default function Register() {
             climb,
             form,
             optionalFeeSelections,
+            pledge,
           );
           const totalDisplay = hasTba
             ? `₱${total.toLocaleString("en-PH")} + TBA`

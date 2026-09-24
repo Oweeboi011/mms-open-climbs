@@ -1,0 +1,50 @@
+// A member's optional donation pledge — on the registration form and in the
+// My Climbs pledge editor. Only the kinds the drive accepts are offered.
+export default function DonationPledgeFields({ drive, value, onChange }) {
+  const set = (field, v) => onChange({ ...value, [field]: v });
+  return (
+    <>
+      {drive.acceptsCash && (
+        <div className="form-group">
+          <label className="form-label">Cash pledge (₱)</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            inputMode="decimal"
+            className="form-input"
+            value={value.cashPledge ?? ""}
+            onChange={(e) => set("cashPledge", e.target.value)}
+            placeholder="0"
+          />
+          <label className="form-check">
+            <input
+              type="checkbox"
+              checked={value.payWithFees !== false}
+              onChange={(e) => set("payWithFees", e.target.checked)}
+            />
+            Add it to my GCash payment
+          </label>
+          <p className="form-hint">
+            {value.payWithFees !== false
+              ? "It's added to your amount due as a separate donation line, so the leads can total it."
+              : "You'll hand it to the climb leads on the day."}
+          </p>
+        </div>
+      )}
+      {drive.acceptsInKind && (
+        <div className="form-group">
+          <label className="form-label">Items you&rsquo;ll carry up</label>
+          <textarea
+            className="form-input"
+            rows={2}
+            maxLength={500}
+            value={value.inKind ?? ""}
+            onChange={(e) => set("inKind", e.target.value)}
+            placeholder="e.g. 10 notebooks, 1 box of pencils"
+          />
+        </div>
+      )}
+    </>
+  );
+}

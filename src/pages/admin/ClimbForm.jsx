@@ -31,6 +31,8 @@ import {
   DIFFICULTY_VALUES,
 } from "@/utils/trailClass";
 import { splitOfficerEmails, mergeOfficerEmails } from "@/utils/officerContacts";
+import DonationDriveFields from "@/components/admin/DonationDriveFields";
+import RegistrationPolicyFields from "@/components/admin/RegistrationPolicyFields";
 
 const OFFICER_ROLES = [
   "Senior Team Leader",
@@ -1956,6 +1958,9 @@ export default function AdminClimbForm() {
               </div>
             ))}
           </div>
+
+          <RegistrationPolicyFields form={form} setForm={setForm} />
+          <DonationDriveFields form={form} setForm={setForm} />
 
           {/* ── GCash Payment ── */}
           <div className="admin-card">

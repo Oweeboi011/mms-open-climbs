@@ -89,6 +89,10 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `location` | string | Yes | Location description |
 | `type` | string | Yes | `minor` / `major` / `special` |
 | `status` | string | Yes | `draft` / `open` / `closed` / `completed` / `cancelled` |
+| `paymentDueDate` | string | No | `YYYY-MM-DD`. Shown on the event page, registration form and My Climbs (with an "Overdue" flag), and quoted in daily payment reminders |
+| `cancellationPolicy` | string | No | Club-written cancellation/refund policy, shown on the event page, registration form and the member cancel dialog |
+| `donationDrive` | object | No | Outreach donation drive: `{ enabled, beneficiary, description, acceptsCash, acceptsInKind, suggestedItems }` (`suggestedItems` one per line). Public — shown on the event page. Set in ClimbForm (`DonationDriveFields`) |
+| `donationTotals` | object | No | `{ receivedCash, donors, itemDonations }` — republished by ClimbDetail each time a donation is recorded, so the event page can show a running total without exposing donors |
 | `color` | string | No | Card color token, e.g. `c-slate` |
 | `maxParticipants` | number | Yes | Maximum allowed registrations |
 | `registrationCount` | number | Yes | Maintained by Cloud Functions — do not edit client-side |
@@ -175,6 +179,7 @@ This collection exists purely as a security boundary. `climbs` is publicly reada
 | --- | --- | --- |
 | `preClimbMeetings` | array | Meeting entries, each `{ date, time, location, notes, link, recordingLink }`. `date` is a `YYYY-MM-DD` string, not a Timestamp |
 | `resources` | array | Registrant-only resource links |
+| `participants` | array | `{ name, memberType }[]` — who's joining (pending + confirmed), names shortened to first name + last initial. Maintained by `syncParticipantList` on every registration create/status change/delete; the event page's participant list reads it (members can't query other people's registrations) |
 | `serviceGroups` | map | `{ [feeLabel]: { ids: string[] }[] }` — for a climb fee flagged `shareable`, the groups of registration IDs currently sharing one unit of that service (e.g. one porter split between three climbers). A registrant absent from every group for a label pays that fee's full amount, unchanged. Each group is wrapped as `{ ids }` because Firestore rejects nested arrays; `serviceGroupsFromDoc`/`serviceGroupsToDoc` convert to and from the in-memory `string[][]`. Written one label at a time (a merge on `serviceGroups`) from `src/components/admin/ServiceSharingCard.jsx` on ClimbDetail; read by `src/utils/registrationFees.js` (`getFeeItems`/`getExpectedTotal`/`getOutstanding`/`getAvailmentCounts`) to split the cost and the booking headcount |
 
 #### Access
@@ -282,6 +287,13 @@ Each document represents a single member's registration for a single climb.
 | `permitUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresPermit` is `true` |
 | `waiverDocUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresWaiverDoc` is `true` |
 | `adminNotes` | string | No | Admin-only internal notes |
+| `noShow` | boolean | No | `true` when a confirmed registrant didn't turn up on climb day. A flag, not a status — the registration stays `confirmed`, so payments, counters and status emails are untouched. Set by admins after the climb (`src/utils/noShow.js`); no-shows get no thank-you/feedback request, and ClimbDetail warns on members with earlier no-shows |
+| `noShowMarkedBy` / `noShowMarkedAt` | string / Timestamp | No | Who marked the no-show and when; cleared on undo |
+| `cancelledByMember` / `cancelledAt` | boolean / Timestamp | No | Set when the member cancelled from My Climbs (rules: `memberIsCancellingOwn` — only to `cancelled`, only from a live status). Reinstating is admin-only |
+| `privacyConsentAt` / `privacyNoticeVersion` | Timestamp / string | No | When the member consented to the Privacy Notice (Data Privacy Act, RA 10173) and which version (`src/data/privacyNotice.js`). Required on self-registration by the form; absent on admin-added walk-ins and pre-2026-09 registrations |
+| `autoWaitlisted` | boolean | No | `true` when `onRegistrationCreated` moved it to the waitlist because the climb was full |
+| `donation` | object \| null | No | Member's outreach pledge `{ cashPledge: number\|null, inKind: string, payWithFees: boolean }`. With `payWithFees` (the default for cash) the pledge is added to what they owe as a `Donation — {beneficiary}` line (`getDonationFeeItem`, mirrored in `functions/src/paymentMath.js`) and paid by GCash with their fees; the part of their payments beyond their fees, up to the pledge, is the donation and is kept out of net funds. Otherwise cash is handed to leads on climb day. Member-writable (rules: `pledgeIsValid`) |
+| `donationReceived` | object \| null | No | What leads actually received `{ cash, items, receivedBy, receivedAt }`. Admin-only; audit-logged as `donation_recorded` |
 | `cancellationReason` | string | No | Reason provided when `status = cancelled` |
 | `confirmedAt` | timestamp | No | Set when status changes to `confirmed` |
 | `createdAt` | timestamp | Yes | Firestore server timestamp on creation |

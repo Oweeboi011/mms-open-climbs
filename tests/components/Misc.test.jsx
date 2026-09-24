@@ -2,9 +2,15 @@
  * Tests for LoadingSpinner and Footer components.
  */
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Footer from "@/components/Footer";
+
+// Footer links to the privacy notice, so it needs a router.
+function render(ui) {
+  return rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 describe("LoadingSpinner", () => {
   it("renders with 'Loading' text by default", () => {
@@ -34,5 +40,12 @@ describe("Footer", () => {
   it("renders the year reference", () => {
     render(<Footer />);
     expect(screen.getByText(/Open Climbs 2026/i)).toBeInTheDocument();
+  });
+});
+
+describe("Footer privacy link", () => {
+  it("links to the privacy notice", () => {
+    render(<Footer />);
+    expect(screen.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacy");
   });
 });

@@ -24,6 +24,7 @@ import {
   PAYMENT_STYLE,
 } from "./registrantShared";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { canMarkNoShow } from "@/utils/noShow";
 
 const statusStyleWithLabel = Object.fromEntries(
   Object.entries(STATUS_STYLE).map(([k, v]) => [k, { ...v, label: k }]),
@@ -56,7 +57,10 @@ export default function RegistrantRow({
   savingNote,
   setLightboxUrl,
   getOutstanding,
+  onToggleNoShow,
+  priorNoShows = 0,
 }) {
+  const noShowMarkable = canMarkNoShow(reg, climb);
   return (
     <React.Fragment>
       <tr
@@ -113,6 +117,22 @@ export default function RegistrantRow({
                 }}
               >
                 {reg.memberType === "member" ? "Member" : "Joiner"}
+              </span>
+            )}
+            {reg.noShow && (
+              <span
+                className="noshow-badge"
+                title={reg.noShowMarkedBy ? `Marked by ${reg.noShowMarkedBy}` : undefined}
+              >
+                No-show
+              </span>
+            )}
+            {priorNoShows > 0 && (
+              <span
+                className="noshow-history"
+                title="Climbs this member was marked a no-show on before this one"
+              >
+                &#9888; {priorNoShows} earlier no-show{priorNoShows === 1 ? "" : "s"}
               </span>
             )}
             {reg.adminNotes && (
@@ -341,6 +361,22 @@ export default function RegistrantRow({
                 >
                   &#10005; Cancel
                 </button>
+                {(noShowMarkable || reg.noShow) && onToggleNoShow && (
+                  <button
+                    className={`btn btn-sm ${reg.noShow ? "btn-outline" : "btn-danger"}`}
+                    title={
+                      reg.noShow
+                        ? "They did attend — clear the no-show mark"
+                        : "Confirmed but didn't turn up on climb day"
+                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleNoShow(reg);
+                    }}
+                  >
+                    {reg.noShow ? "Undo no-show" : "Mark no-show"}
+                  </button>
+                )}
                 <span style={{ marginLeft: "auto" }}>
                   <StatusBadge
                     status={reg.status}

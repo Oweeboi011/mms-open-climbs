@@ -104,6 +104,39 @@ service cloud.firestore {
     // corrects their own from My Climbs. Unlike the waiver these stay
     // editable — a phone number changes, a condition develops — so there is
     // no sign-once constraint, only a limit on which fields can move.
+    // An outreach donation pledge: cash to hand the leads on climb day and/or
+    // items to carry up. Null withdraws it. What was actually *received*
+    // (donationReceived) is recorded by admins only.
+    function pledgeIsValid(p) {
+      return p == null ||
+        (p is map &&
+          p.keys().hasOnly(['cashPledge', 'inKind', 'payWithFees']) &&
+          p.get('payWithFees', false) is bool &&
+          (p.get('cashPledge', null) == null ||
+            (p.cashPledge is number && p.cashPledge > 0 && p.cashPledge <= 1000000)) &&
+          p.get('inKind', '') is string &&
+          p.get('inKind', '').size() <= 500);
+    }
+
+    // A member withdrawing from a climb: only to "cancelled", only from a
+    // live status, marked as their own doing. Reinstating is an admin's call.
+    // The status-change trigger then emails, frees the roster and counters.
+    function memberIsCancellingOwn() {
+      return affected().hasOnly([
+          'status', 'cancelledByMember', 'cancellationReason', 'cancelledAt', 'updatedAt'
+        ]) &&
+        resource.data.status in ['pending', 'confirmed', 'waitlisted'] &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.cancelledByMember == true &&
+        request.resource.data.cancellationReason is string &&
+        request.resource.data.cancellationReason.size() <= 500;
+    }
+
+    function memberIsUpdatingOwnPledge() {
+      return affected().hasOnly(['donation', 'updatedAt']) &&
+        pledgeIsValid(request.resource.data.donation);
+    }
+
     function memberIsUpdatingOwnDetails() {
       return affected().hasOnly([
         'mobile', 'emergencyContact', 'medicalConditions', 'updatedAt'
@@ -185,7 +218,11 @@ service cloud.firestore {
         d.get('paymentStatus', 'unpaid') in ['unpaid', 'submitted'] &&
         d.get('verifiedAt', null) == null &&
         d.get('verifiedBy', null) == null &&
-        !d.keys().hasAny(['refunds', 'adminNotes', 'recordedBy', 'serviceGroups']) &&
+        !d.keys().hasAny([
+          'refunds', 'adminNotes', 'recordedBy', 'serviceGroups',
+          'donationReceived', 'noShow', 'noShowMarkedBy', 'noShowMarkedAt'
+        ]) &&
+        pledgeIsValid(d.get('donation', null)) &&
         d.get('memberType', 'joiner') in ['member', 'joiner'] &&
         // Confirmation emails go to this address, so it must be the
         // account's own — otherwise the club's mail server sends to anyone.
@@ -223,6 +260,8 @@ service cloud.firestore {
           memberPaymentHistoryIsHonest()) ||
         (isOwner(resource.data.userId) && memberIsSigningOwnWaiver()) ||
         (isOwner(resource.data.userId) && memberIsUpdatingOwnDetails()) ||
+        (isOwner(resource.data.userId) && memberIsUpdatingOwnPledge()) ||
+        (isOwner(resource.data.userId) && memberIsCancellingOwn()) ||
         isAdmin();
       allow delete: if isAdmin();
     }
