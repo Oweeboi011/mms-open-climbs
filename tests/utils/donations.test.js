@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  getDonationFeeItem,
+  getDonationPaidWithFees,
   isDonationDriveOn,
   normalizePledge,
   normalizeReceived,
@@ -20,7 +22,13 @@ describe("normalizePledge", () => {
     expect(normalizePledge({ cashPledge: "500", inKind: "  notebooks " })).toEqual({
       cashPledge: 500,
       inKind: "notebooks",
+      payWithFees: true,
     });
+  });
+  it("remembers a cash pledge to hand over on the day", () => {
+    expect(
+      normalizePledge({ cashPledge: "500", inKind: "", payWithFees: false }).payWithFees,
+    ).toBe(false);
   });
   it("is null when nothing was pledged, so an empty form withdraws", () => {
     expect(normalizePledge({ cashPledge: "", inKind: "  " })).toBeNull();
@@ -30,6 +38,7 @@ describe("normalizePledge", () => {
     expect(normalizePledge({ cashPledge: "", inKind: "pencils" })).toEqual({
       cashPledge: null,
       inKind: "pencils",
+      payWithFees: false,
     });
   });
   it("caps runaway input to what the rules accept", () => {
@@ -70,5 +79,31 @@ describe("summarizeDonations", () => {
       itemPledges: 1,
       itemDonations: 1,
     });
+  });
+});
+
+describe("donations paid with fees", () => {
+  const climb = { donationDrive: { enabled: true, beneficiary: "Tanglag School" } };
+  const reg = { donation: { cashPledge: 300, inKind: "", payWithFees: true } };
+
+  it("adds a donation line to what the member owes", () => {
+    expect(getDonationFeeItem(reg, climb)).toEqual({
+      label: "Donation — Tanglag School",
+      amount: 300,
+      isDonation: true,
+    });
+  });
+
+  it("adds nothing for an on-the-day pledge or a climb without a drive", () => {
+    expect(getDonationFeeItem({ donation: { ...reg.donation, payWithFees: false } }, climb)).toBeNull();
+    expect(getDonationFeeItem(reg, {})).toBeNull();
+  });
+
+  it("counts as donated only what was paid beyond the fees, up to the pledge", () => {
+    // fees 1000: a 1100 payment is 100 donated; 1500 caps at the 300 pledge
+    expect(getDonationPaidWithFees(reg, 1000, 800)).toBe(0);
+    expect(getDonationPaidWithFees(reg, 1000, 1100)).toBe(100);
+    expect(getDonationPaidWithFees(reg, 1000, 1500)).toBe(300);
+    expect(getDonationPaidWithFees({ donation: { cashPledge: 300 } }, 1000, 1500)).toBe(0);
   });
 });

@@ -405,6 +405,7 @@ describe("Register page", () => {
     const driveClimb = {
       ...climbFixture,
       status: "open",
+      fees: [{ label: "Climb Fee", amount: "1000" }],
       donationDrive: {
         enabled: true,
         beneficiary: "Tanglag Elementary",
@@ -416,6 +417,17 @@ describe("Register page", () => {
     beforeEach(() => {
       getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, driveClimb));
       getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    });
+
+    it("adds a with-fees pledge as its own line in the total", async () => {
+      const { container } = render();
+      await waitFor(() =>
+        expect(screen.getByText("Donation Pledge (Optional)")).toBeInTheDocument(),
+      );
+      fireEvent.change(controlByLabel(container, "Cash pledge"), {
+        target: { value: "250" },
+      });
+      expect(await screen.findByText("Donation — Tanglag Elementary")).toBeInTheDocument();
     });
 
     it("saves an optional pledge alongside, not inside, the fees", async () => {
@@ -451,7 +463,12 @@ describe("Register page", () => {
 
       await waitFor(() => expect(addDoc).toHaveBeenCalled());
       const payload = addDoc.mock.calls[0][1];
-      expect(payload.donation).toEqual({ cashPledge: 500, inKind: "10 notebooks" });
+      expect(payload.donation).toEqual({
+        cashPledge: 500,
+        inKind: "10 notebooks",
+        payWithFees: true,
+      });
+      // The donation line is derived from the pledge, never stored as a fee.
       expect(payload.feeBreakdown.some((f) => /donat/i.test(f.label))).toBe(false);
     });
   });

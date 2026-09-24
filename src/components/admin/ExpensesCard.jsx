@@ -7,7 +7,7 @@ import { formatPeso } from "@/utils/feeSummary";
 // collections minus logged expenses — rather than only seeing what came in.
 // Admin-only data (see firestore.rules climbExpenses): registrants never see
 // this breakdown, only their own owed/paid figures elsewhere on the page.
-export default function ExpensesCard({ items, totalPaid, onSave }) {
+export default function ExpensesCard({ items, totalPaid, donationsExcluded = 0, onSave }) {
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -193,7 +193,10 @@ export default function ExpensesCard({ items, totalPaid, onSave }) {
           {formatPeso(net)}
         </strong>{" "}
         <span style={{ fontSize: "0.78rem", color: "var(--ink-soft)" }}>
-          ({formatPeso(totalPaid)} verified − {formatPeso(total)} expenses)
+          ({formatPeso(totalPaid)} verified − {formatPeso(total)} expenses
+          {donationsExcluded > 0 &&
+            `; excludes ${formatPeso(donationsExcluded)} of donations paid with fees`}
+          )
         </span>
       </p>
     </div>

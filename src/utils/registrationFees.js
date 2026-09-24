@@ -27,6 +27,7 @@ import {
   hasPaymentHistory,
 } from "./payments";
 import { sumFeeAmounts, parseFeeAmount } from "./feeSummary";
+import { getDonationFeeItem } from "@/utils/donations";
 
 // Sharing groups for shareable optional services (e.g. a porter split
 // between climbers), keyed by fee label: `{ [label]: string[][] }`, each
@@ -105,7 +106,8 @@ export function getFeeItems(reg, climb, serviceGroups = {}) {
         const stored = reg.feeBreakdown?.find((f) => f.label === fee.label);
         return !!stored?.selected;
       });
-  return items.map((item) => {
+  const donation = getDonationFeeItem(reg, climb);
+  const priced = items.map((item) => {
     if (!item.shareable) return item;
     const groupSize = getGroupSize(reg, serviceGroups, item.label);
     if (groupSize <= 1) return item;
@@ -118,6 +120,8 @@ export function getFeeItems(reg, climb, serviceGroups = {}) {
       groupSize,
     };
   });
+  // A cash pledge sent with the GCash payment is owed alongside the fees.
+  return donation ? [...priced, donation] : priced;
 }
 
 // Sum of the fees this registrant actually owes, at current amounts.
