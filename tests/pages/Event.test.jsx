@@ -260,6 +260,24 @@ describe("Event page", () => {
     expect(screen.getByText("Ben C.")).toBeInTheDocument();
   });
 
+  it("orders the planning sections: officers, fees, things to bring, itinerary", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        fees: [{ label: "Climb Fee", amount: "1000" }],
+      }),
+    );
+    getDocs.mockResolvedValue(makeQuerySnapshot([]));
+    renderAtRoute(<Event />, "/event/:climbId", "/event/climb-1", makeMemberAuth());
+    await screen.findByText("Climb Officers");
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    const at = (name) => headings.findIndex((h) => h.includes(name));
+    expect(at("Climb Officers")).toBeLessThan(at("Fees"));
+    expect(at("Fees")).toBeLessThan(at("Things to Bring"));
+    expect(at("Things to Bring")).toBeLessThan(at("Itinerary"));
+    expect(at("Itinerary")).toBeLessThan(at("Participants"));
+  });
+
   it("shows a non-registrant only that the list is private", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot("climb-1", { ...OPEN_CLIMB, registrationCount: 4 }),
