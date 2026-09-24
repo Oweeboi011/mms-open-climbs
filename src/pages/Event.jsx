@@ -1822,48 +1822,55 @@ export default function Event() {
           </div>
         )}
 
-        {/* Itinerary */}
+        {/* Climb Officers */}
         <div className="section-card">
           <div className="section-header">
             <span className="icon">
-              <Icon name="map" size={17} />
+              <Icon name="users" size={17} />
             </span>
-            <h3>Itinerary</h3>
+            <h3>Climb Officers</h3>
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <LockedCard
-                label="Sign in to view the itinerary"
-                onUnlock={() => setShowSignInModal(true)}
-              />
-            ) : climb.itinerary?.length > 0 ? (
-              climb.itinerary.map((day, i) => (
-                <div className="day-block" key={i}>
-                  <div className="day-label">{day.day}</div>
-                  {day.entries?.map((e, j) => (
-                    <div className="time-entry" key={j}>
-                      <span className="time-label">{e.time}</span>
-                      <span className="time-activity">{e.activity}</span>
-                    </div>
-                  ))}
+              <>
+                <LockedCard
+                  label="Sign in to view the climb officers"
+                  onUnlock={() => setShowSignInModal(true)}
+                />
+                <p
+                  className="tbd-note"
+                  style={{ marginTop: 12, marginBottom: 0 }}
+                >
+                  Questions about this climb?{" "}
+                  {contactHref(`Question about ${climb.title}`) ? (
+                    <a href={contactHref(`Question about ${climb.title}`)}>
+                      Contact MMS Open Climbs
+                    </a>
+                  ) : (
+                    "Contact your MMS Open Climbs Coordinator."
+                  )}
+                </p>
+              </>
+            ) : climb.officers?.length > 0 ? (
+              climb.officers.map((o, i) => (
+                <div className="officer-row" key={i}>
+                  <div>
+                    <div className="officer-name">{o.name}</div>
+                    <div className="officer-role">{o.role}</div>
+                  </div>
+                  <div className="officer-contact">{o.contact}</div>
                 </div>
               ))
             ) : (
-              <p
-                className="tbd-note"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                }}
-              >
-                <Icon name="clock" size={14} />
-                Detailed itinerary will be available soon.
+              <p className="tbd-note">
+                Climb officers will be announced closer to the event date.
               </p>
             )}
           </div>
         </div>
+
+        <EventFeesCard climb={climb} onOpenGuide={() => setGuideOpen(true)} />
+        <RegistrationPolicyInfo climb={climb} className="policy-info section-card" />
 
         <DonationDriveInfo climb={climb} />
 
@@ -1944,51 +1951,44 @@ export default function Event() {
           </div>
         </div>
 
-        <EventFeesCard climb={climb} onOpenGuide={() => setGuideOpen(true)} />
-        <RegistrationPolicyInfo climb={climb} className="policy-info section-card" />
-
-        {/* Climb Officers */}
+        {/* Itinerary */}
         <div className="section-card">
           <div className="section-header">
             <span className="icon">
-              <Icon name="users" size={17} />
+              <Icon name="map" size={17} />
             </span>
-            <h3>Climb Officers</h3>
+            <h3>Itinerary</h3>
           </div>
           <div className="section-body">
             {!currentUser ? (
-              <>
-                <LockedCard
-                  label="Sign in to view the climb officers"
-                  onUnlock={() => setShowSignInModal(true)}
-                />
-                <p
-                  className="tbd-note"
-                  style={{ marginTop: 12, marginBottom: 0 }}
-                >
-                  Questions about this climb?{" "}
-                  {contactHref(`Question about ${climb.title}`) ? (
-                    <a href={contactHref(`Question about ${climb.title}`)}>
-                      Contact MMS Open Climbs
-                    </a>
-                  ) : (
-                    "Contact your MMS Open Climbs Coordinator."
-                  )}
-                </p>
-              </>
-            ) : climb.officers?.length > 0 ? (
-              climb.officers.map((o, i) => (
-                <div className="officer-row" key={i}>
-                  <div>
-                    <div className="officer-name">{o.name}</div>
-                    <div className="officer-role">{o.role}</div>
-                  </div>
-                  <div className="officer-contact">{o.contact}</div>
+              <LockedCard
+                label="Sign in to view the itinerary"
+                onUnlock={() => setShowSignInModal(true)}
+              />
+            ) : climb.itinerary?.length > 0 ? (
+              climb.itinerary.map((day, i) => (
+                <div className="day-block" key={i}>
+                  <div className="day-label">{day.day}</div>
+                  {day.entries?.map((e, j) => (
+                    <div className="time-entry" key={j}>
+                      <span className="time-label">{e.time}</span>
+                      <span className="time-activity">{e.activity}</span>
+                    </div>
+                  ))}
                 </div>
               ))
             ) : (
-              <p className="tbd-note">
-                Climb officers will be announced closer to the event date.
+              <p
+                className="tbd-note"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <Icon name="clock" size={14} />
+                Detailed itinerary will be available soon.
               </p>
             )}
           </div>
