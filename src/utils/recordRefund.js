@@ -7,6 +7,7 @@ import {
 import { db, storage } from "@/firebase/config";
 import { logAuditEvent } from "@/utils/auditLog";
 import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
+import { compressImage } from "@/utils/compressImage";
 
 // Records money the club sent back to a registrant — typically the excess on
 // a payment that covered more than they owed. Refunds live in their own
@@ -26,7 +27,8 @@ export async function recordRefund(
   if (!(value > 0)) throw new Error("Enter the amount refunded.");
 
   const proofs = await Promise.all(
-    files.map(async (file) => {
+    files.map(async (original) => {
+      const file = await compressImage(original);
       const fileRef = storageRef(
         storage,
         `payment-proofs/${reg.climbId}/${reg.userId || reg.id}/${makeUploadTimestamp()}_refund_${file.name}`,

@@ -8,6 +8,7 @@ import { db, storage } from "@/firebase/config";
 import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
 import { logAuditEvent } from "@/utils/auditLog";
 import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
+import { compressImage } from "@/utils/compressImage";
 
 /**
  * Log a payment the club received outside the app — cash at the jump-off, a
@@ -30,7 +31,8 @@ export async function recordManualPayment(
   { currentUser, climbTitle } = {},
 ) {
   const proofs = await Promise.all(
-    files.map(async (file) => {
+    files.map(async (original) => {
+      const file = await compressImage(original);
       const fileRef = storageRef(
         storage,
         // A walk-in added by an admin has no userId, so the registration id

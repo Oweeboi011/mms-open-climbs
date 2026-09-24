@@ -11,6 +11,7 @@ import {
   updateDoc,
   serverTimestamp,
   Timestamp,
+  arrayUnion,
 } from "firebase/firestore";
 import {
   ref as storageRef,
@@ -34,6 +35,7 @@ import {
   getPaymentEntries,
   buildPaymentPatch,
   getNetPaid,
+  hasPaymentHistory,
 } from "@/utils/payments";
 import {
   getOutstanding,
@@ -42,6 +44,7 @@ import {
 } from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { compressImage } from "@/utils/compressImage";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -222,7 +225,8 @@ function PayPrompt({ reg, onClose, onSaved }) {
     try {
       const timestamp = Date.now();
       const paymentProofs = await Promise.all(
-        files.map(async (file) => {
+        files.map(async (original) => {
+          const file = await compressImage(original);
           const fileRef = storageRef(
             storage,
             `payment-proofs/${reg.climbId}/${reg.userId}/${timestamp}_${file.name}`,
@@ -250,22 +254,35 @@ function PayPrompt({ reg, onClose, onSaved }) {
       // downpayment's balance or an extra fee on top of an already-verified
       // payment, so the amount entered here adds to what's already recorded
       // rather than replacing it.
-      const payments = [
+      const newEntry = {
+        amount: parsedAmount,
+        proofs: paymentProofs,
+        submittedAt: Timestamp.now(),
+        status: "submitted",
+        ...(note.trim() ? { note: note.trim() } : {}),
+      };
+      const paymentPatch = buildPaymentPatch([
         ...getPaymentEntries(reg),
-        {
-          amount: parsedAmount,
-          proofs: paymentProofs,
-          submittedAt: Timestamp.now(),
-          status: "submitted",
-          ...(note.trim() ? { note: note.trim() } : {}),
-        },
-      ];
+        newEntry,
+      ]);
+      // Append rather than rewrite: the rules only let a member add one
+      // unreviewed entry and require every earlier one to stay exactly as
+      // stored, which a normalized copy of the history might not.
+      if (hasPaymentHistory(reg)) paymentPatch.payments = arrayUnion(newEntry);
+      // The rules let the recorded total grow by at most this payment. An
+      // admin may have corrected it by hand below the history's sum, so
+      // build on their figure rather than recomputing past it.
+      const previousPaid = Number(reg.amountPaid) || 0;
+      paymentPatch.amountPaid = Math.min(
+        paymentPatch.amountPaid,
+        previousPaid + parsedAmount,
+      );
       await updateDoc(doc(db, "registrations", reg.id), {
         paymentProofs: [...(reg.paymentProofs || []), ...paymentProofs],
         // Earlier payments keep whatever verdict they already had; only the
         // new one is unreviewed, and the registration's status follows from
         // the whole set.
-        ...buildPaymentPatch(payments),
+        ...paymentPatch,
         paymentSubmittedAt: serverTimestamp(),
         // Clear any prior verification/rejection so the OR always reflects
         // the review of this latest submission, not a stale one.
@@ -973,7 +990,7 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
     try {
       const patch = {};
       for (const docType of uploadableDocs) {
-        const file = docFiles[docType.key];
+        const file = await compressImage(docFiles[docType.key]);
         const fileRef = storageRef(
           storage,
           `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId}/${makeUploadTimestamp()}_${file.name}`,

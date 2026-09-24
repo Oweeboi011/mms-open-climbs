@@ -1,8 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Firestore's TTL policy on `expireAt` deletes views after this long, so the
+// collection (and every admin read of it) stops growing without bound.
+export const PAGE_VIEW_RETENTION_DAYS = 90;
 
 function getSessionId() {
   let id = sessionStorage.getItem("oc_session_id");
@@ -46,6 +55,9 @@ export function usePageTracking() {
       userRole,
       sessionId: getSessionId(),
       timestamp: serverTimestamp(),
+      expireAt: Timestamp.fromMillis(
+        Date.now() + PAGE_VIEW_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+      ),
     }).catch(() => {});
   }, [location.pathname, currentUser, userProfile]);
 }

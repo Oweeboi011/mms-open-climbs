@@ -184,7 +184,8 @@ flowchart TD
 | Effect | Condition | Details |
 | --- | --- | --- |
 | Increment `registrationCount` | Always | `FieldValue.increment(1)` on `climbs/{climbId}` — atomic, race-condition-safe |
-| Add to `registeredUserIds` | `userId` set and `status != cancelled` | `FieldValue.arrayUnion(userId)`. This denormalized array exists because Firestore rules cannot query `registrations` by `climbId` + `userId`; it is what gates member access to the climb's private briefing and resource links |
+| Drop duplicate | Another `pending`/`confirmed`/`waitlisted` registration exists for the same `userId` + `climbId` | Deletes the new registration and returns before any email (the count increment above is balanced by `onRegistrationDeleted`) |
+| Add to roster | `userId` set and `status != cancelled` | `climbInternal/{climbId}.registeredUserIds` `arrayUnion(userId)`. This denormalized array exists because Firestore rules cannot query `registrations` by `climbId` + `userId`; it gates member access to the climb's private briefing and resource links, and who may leave feedback |
 | Increment `docsCompleteCount` | Registration already satisfies every required doc type (`regDocsComplete`) | Feeds the compliance progress badge on the climb card |
 | `payment_reminder` notification | `paymentStatus == "unpaid"` and `userId` set | Id `payment_{regId}`, links to `/my-registrations` |
 | `document_reminder` notification | Per `REQUIRED_DOC_TYPES` entry the climb requires and the registration lacks | Id `{docType.notificationPrefix}_{regId}`, one per missing document |
@@ -287,7 +288,7 @@ A member paying in instalments can have one entry rejected while the rolled-up `
 | Effect | Condition |
 | --- | --- |
 | Mark `{prefix}_{regId}` read | A required document went from absent to present — clears the nag |
-| `registeredUserIds` arrayUnion/arrayRemove | `status` moved into or out of the active set (`pending`/`confirmed`). Runs even for transitions that send no email, e.g. `waitlisted` → `pending` |
+| `climbInternal` roster arrayUnion/arrayRemove | `status` moved into or out of the active set (`pending`/`confirmed`). Runs even for transitions that send no email, e.g. `waitlisted` → `pending` |
 | `docsCompleteCount` increment/decrement | Active-set membership or any required-document field changed, **and** the registration's computed compliance actually flipped. Compared by presence, not reference — before/after come from separate snapshots, so upload objects are never `===` even when unchanged |
 
 #### Stage 5 — status change email
@@ -345,7 +346,7 @@ flowchart TD
     C["No-op - return early\n(walk-in joiner with no account)"]
     D{"status was pending or confirmed?"}
     E["No-op - return early\n(already cancelled/waitlisted:\ncounters were settled then)"]
-    F["arrayRemove userId from climb.registeredUserIds"]
+    F["arrayRemove userId from climbInternal roster"]
     G{"Was this registration document-compliant?"}
     H["Decrement climb.docsCompleteCount by 1"]
     I["Done"]
@@ -363,7 +364,7 @@ flowchart TD
 
 | Effect | Condition | Details |
 | --- | --- | --- |
-| Remove from `registeredUserIds` | `status` was `pending`/`confirmed` and `userId` is set | `FieldValue.arrayRemove(userId)` on `climbs/{climbId}` |
+| Remove from roster | `status` was `pending`/`confirmed`, `userId` is set, and the user has no other live registration for the climb | `arrayRemove(userId)` on `climbInternal/{climbId}.registeredUserIds` |
 | Decrement `docsCompleteCount` | The deleted registration satisfied every required doc type for that climb (`regDocsComplete`) | `FieldValue.increment(-1)` |
 
 Compliance is evaluated against `REQUIRED_DOC_TYPES` (`functions/src/requiredDocTypes.js`) - for each doc type the climb has switched on via its `requiresField`, the registration must carry the matching `uploadField`.

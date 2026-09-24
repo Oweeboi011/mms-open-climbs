@@ -7,6 +7,7 @@
 - [Collections Reference](#collections-reference)
   - [climbs](#climbs)
   - [climbPrivate](#climbprivate)
+  - [climbInternal](#climbinternal)
   - [climbExpenses](#climbexpenses)
   - [registrations](#registrations)
   - [feedback](#feedback)
@@ -28,7 +29,7 @@
 
 ## Overview
 
-MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under eleven top-level collections: `climbs`, `climbPrivate`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, and `releaseNotes`.
+MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under twelve top-level collections: `climbs`, `climbPrivate`, `climbInternal`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, and `releaseNotes`.
 
 There is no SQL schema. Documents in the same collection can have varying fields, though the application follows a consistent structure as documented here.
 
@@ -151,21 +152,16 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
-#### Known exposure: officer contact details are public
+#### Officer contact details
 
-`climbs` is `allow read: if true` so unauthenticated visitors can browse the
-schedule, and `officers[]` — including each officer's `contact` number and
-`email` — sits on that same document. **Anyone can read them without an
-account.**
-
-The event page shows a "Sign in to view the climb officers" lock over this
-section, which implies a protection that does not exist: the data is one
-`getDoc` away regardless. Officer *names* are public by design (they appear on
-climb cards), so the fix is to move `contact`/`email` into `climbPrivate` and
-leave `name`/`role`/`userId` on the public document. That change also has to
-update `getNotifyLists` in `functions/src/index.js`, which currently reads the
-addresses straight off `climb.officers`.
-
+`climbs` is `allow read: if true`, so nothing private may sit on it. Officer
+**emails** are kept in admin-only [`climbInternal`](#climbinternal) and
+stripped from `officers[]` on every save (`splitOfficerEmails` in
+`src/utils/officerContacts.js`). `name`, `role`, `userId` and the phone
+`contact` stay public: the event page shows the phone number behind a "Sign in
+to view the climb officers" lock, but that lock is presentational and the
+number is still one `getDoc` away. Moving `contact` too would need a doc every
+signed-in member can read, which does not exist yet.
 
 ---
 
@@ -185,10 +181,10 @@ This collection exists purely as a security boundary. `climbs` is publicly reada
 
 | Operation | Who |
 | --- | --- |
-| read | Admins, and members whose `userId` appears in the parent climb's `registeredUserIds` (`isRegisteredFor(climbId)`) |
+| read | Admins, and members whose `userId` appears in `climbInternal/{climbId}.registeredUserIds` (`isRegisteredFor(climbId)`) |
 | write | Admins only |
 
-The `registeredUserIds` array on the climb is what the rule checks, which is why the registration triggers keep it in sync — see [API.md](API.md#onregistrationcreated).
+The roster in [`climbInternal`](#climbinternal) is what the rule checks, which is why the registration triggers keep it in sync — see [API.md](API.md#onregistrationcreated).
 
 #### Written and read by
 
@@ -201,6 +197,25 @@ The `registeredUserIds` array on the climb is what the rule checks, which is why
 #### Legacy fields
 
 Pre-climb meeting details were once a single object on the climb, then a single object here, before becoming the `preClimbMeetings` list. Both writers explicitly null out `preClimbMeetingDate`, `preClimbMeetingTime`, `preClimbMeetingLocation`, `preClimbMeetingNotes`, `preClimbMeetingLink`, and `preClimbMeetingRecordingLink` so the old shape can't linger beside the new list. Expect to see these as `null` on older documents.
+
+---
+
+### climbInternal
+
+Admin-only data about a climb that must never be public. **The document ID is the climb ID.**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `registeredUserIds` | string[] | uids of the climb's active (`pending`/`confirmed`) registrants. Maintained by `onRegistrationCreated`/`Updated`/`Deleted` via `updateRoster`. Checked by the `climbPrivate` read rule and the `feedback` create rule. It used to live on the public climb doc, where anyone could enumerate every registrant |
+| `officerEmails` | object[] | `{ name, email, userId }`, index-aligned with `climbs/{id}.officers`. Written by ClimbForm; read by `getOfficerContacts` in the functions for officer notifications |
+
+#### Access
+
+| Operation | Who |
+| --- | --- |
+| read, write | Admins only (Cloud Functions write via the Admin SDK) |
+
+`scripts/backfill-climb-denorm.mjs --apply` rebuilds the roster and moves any officer emails still on climb docs into this collection.
 
 ---
 

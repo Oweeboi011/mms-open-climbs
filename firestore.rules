@@ -20,9 +20,20 @@ service cloud.firestore {
     function climbIsOpen(climbId) {
       return get(/databases/$(database)/documents/climbs/$(climbId)).data.status == 'open';
     }
+    // The roster lives in admin-only climbInternal/, not on the public climb
+    // doc: a public list of uids let anyone enumerate every registrant.
+    //
+    // Until scripts/backfill-climb-denorm.mjs has moved a climb's roster, the
+    // legacy list on the climb doc still counts, so registrants aren't locked
+    // out in between.
     function isRegisteredFor(climbId) {
-      return isSignedIn() && request.auth.uid in
-        get(/databases/$(database)/documents/climbs/$(climbId)).data.registeredUserIds;
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/climbInternal/$(climbId)) &&
+          request.auth.uid in
+            get(/databases/$(database)/documents/climbInternal/$(climbId)).data.get('registeredUserIds', [])) ||
+        request.auth.uid in
+          get(/databases/$(database)/documents/climbs/$(climbId)).data.get('registeredUserIds', [])
+      );
     }
 
     // Which fields an update actually touches.
@@ -99,12 +110,102 @@ service cloud.firestore {
       ]);
     }
 
+    // A member-submitted payment entry: an unreviewed claim and nothing more.
+    // Reviewer, split and admin-recording fields are admin territory.
+    function isMemberPaymentEntry(p) {
+      return p.keys().hasOnly(['amount', 'proofs', 'submittedAt', 'status', 'note']) &&
+        p.status == 'submitted' &&
+        p.amount is number && p.amount > 0;
+    }
+
+    // Rules cannot iterate arrays, so the payment history is protected by
+    // shape instead: a member may only append exactly one new, unreviewed
+    // entry and must leave every earlier entry byte-for-byte as it was.
+    // Without this a member could write `status: "verified"` into their own
+    // history, or raise the amount on a payment an admin already accepted.
+    //
+    // amountPaid is bounded by the same append: it can grow by at most the
+    // new entry's amount.
+    // The recorded total before this write. Unpaid registrations store null
+    // here, and arithmetic on null is an error that denies the whole rule.
+    function previousAmountPaid() {
+      return resource.data.get('amountPaid', 0) is number
+        ? resource.data.get('amountPaid', 0)
+        : 0;
+    }
+
+    function memberAppendsOnePayment() {
+      let before = resource.data.get('payments', []);
+      let after = request.resource.data.get('payments', []);
+      let n = before.size();
+      return after.size() == n + 1 &&
+        // Slicing an empty range is an error in rules, hence the n == 0 case.
+        (n == 0 || after[0:n] == before) &&
+        isMemberPaymentEntry(after[n]) &&
+        request.resource.data.get('amountPaid', 0) is number &&
+        request.resource.data.get('amountPaid', 0) <=
+          previousAmountPaid() + after[n].amount;
+    }
+
+    // Registrations from before the payment history existed have no
+    // `payments` array; the client folds the old single payment in as the
+    // first entry on its first new submission. That legacy entry must match
+    // what was already recorded.
+    function memberMigratesLegacyPayment() {
+      let after = request.resource.data.get('payments', []);
+      return resource.data.get('payments', []).size() == 0 &&
+        after.size() == 2 &&
+        after[0].keys().hasOnly(['amount', 'proofs', 'submittedAt', 'status']) &&
+        after[0].amount == previousAmountPaid() &&
+        // The legacy entry carries the registration's own verdict (see
+        // getPaymentEntries in src/utils/payments.js) — never a new one.
+        ((resource.data.get('paymentStatus', '') in ['submitted', 'verified', 'rejected'] &&
+            after[0].status == resource.data.paymentStatus) ||
+          (!(resource.data.get('paymentStatus', '') in ['submitted', 'verified', 'rejected']) &&
+            after[0].status == 'submitted')) &&
+        isMemberPaymentEntry(after[1]) &&
+        request.resource.data.get('amountPaid', 0) is number &&
+        request.resource.data.get('amountPaid', 0) <=
+          previousAmountPaid() + after[1].amount;
+    }
+
+    function memberPaymentHistoryIsHonest() {
+      return (!affected().hasAny(['payments', 'amountPaid'])) ||
+        memberAppendsOnePayment() ||
+        memberMigratesLegacyPayment();
+    }
+
+    // What a member may put on a registration they create for themselves.
+    // Status, verification and money fields start at their unreviewed
+    // values; anything else is an admin's to set.
+    function memberRegistrationIsHonest() {
+      let d = request.resource.data;
+      let payments = d.get('payments', []);
+      return d.get('status', 'pending') == 'pending' &&
+        d.get('paymentStatus', 'unpaid') in ['unpaid', 'submitted'] &&
+        d.get('verifiedAt', null) == null &&
+        d.get('verifiedBy', null) == null &&
+        !d.keys().hasAny(['refunds', 'adminNotes', 'recordedBy', 'serviceGroups']) &&
+        d.get('memberType', 'joiner') in ['member', 'joiner'] &&
+        // Confirmation emails go to this address, so it must be the
+        // account's own — otherwise the club's mail server sends to anyone.
+        d.email == request.auth.token.email &&
+        d.name is string && d.name.size() > 0 && d.name.size() <= 120 &&
+        (d.get('waiverSigned', false) != true ||
+          (d.waiverSignedName is string && d.waiverSignedName.size() >= 3)) &&
+        payments.size() <= 1 &&
+        (payments.size() == 0 ||
+          (isMemberPaymentEntry(payments[0]) && d.get('amountPaid', 0) == payments[0].amount)) &&
+        (payments.size() == 1 || d.get('amountPaid', null) in [null, 0]);
+    }
+
     match /registrations/{regId} {
       allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
       allow create: if isAdmin() ||
         (isSignedIn() &&
           isOwner(request.resource.data.userId) &&
-          climbIsOpen(request.resource.data.climbId));
+          climbIsOpen(request.resource.data.climbId) &&
+          memberRegistrationIsHonest());
       // Members do three things to their own registration: submit a payment,
       // upload the documents a climb requires, and sign the waiver once.
       // Everything else — status, admin notes, an already-signed waiver — is
@@ -118,7 +219,8 @@ service cloud.firestore {
             'registrationFormUpload', 'medicalCertUpload', 'permitUpload',
             'waiverDocUpload', 'updatedAt'
           ]) &&
-          memberPaymentClaimIsHonest()) ||
+          memberPaymentClaimIsHonest() &&
+          memberPaymentHistoryIsHonest()) ||
         (isOwner(resource.data.userId) && memberIsSigningOwnWaiver()) ||
         (isOwner(resource.data.userId) && memberIsUpdatingOwnDetails()) ||
         isAdmin();
@@ -135,10 +237,21 @@ service cloud.firestore {
       return request.resource.data.userId == null ||
         (request.auth != null && request.resource.data.userId == request.auth.uid);
     }
+    // `expireAt` drives the Firestore TTL policy that deletes old analytics
+    // and error logs. Optional, but when present it must be a real date no
+    // more than ~a year out, so a client can't pin its rows forever.
+    function expireAtIsBounded() {
+      return !('expireAt' in request.resource.data) ||
+        (request.resource.data.expireAt is timestamp &&
+          request.resource.data.expireAt < request.time + duration.value(400, 'd'));
+    }
+
     match /pageViews/{viewId} {
       allow create: if request.resource.data.keys().hasOnly([
-          'path', 'climbId', 'userId', 'userRole', 'sessionId', 'timestamp'
+          'path', 'climbId', 'userId', 'userRole', 'sessionId', 'timestamp',
+          'expireAt'
         ]) &&
+        expireAtIsBounded() &&
         request.resource.data.path is string &&
         request.resource.data.path.size() <= 300 &&
         request.resource.data.userRole in ['guest', 'member', 'admin'] &&
@@ -158,8 +271,9 @@ service cloud.firestore {
     match /failedRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly([
           'type', 'source', 'message', 'path', 'userId', 'userRole',
-          'climbId', 'registrationId', 'createdAt'
+          'climbId', 'registrationId', 'createdAt', 'expireAt'
         ]) &&
+        expireAtIsBounded() &&
         // Keep in step with the writers in src/utils/logFailedRequest.js
         // callers and DATA.md — a type missing from this list is rejected
         // silently, which loses exactly the diagnostic someone needed.
@@ -186,6 +300,12 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /climbInternal/{climbId} {
+      // Registrant uids (maintained by the registration triggers) and officer
+      // email addresses. Admin-only: neither belongs on the public climb doc.
+      allow read, write: if isAdmin();
+    }
+
     match /climbPrivate/{climbId} {
       // Pre-climb meeting details and resource links — genuinely restricted
       // to admins and actual registrants (climbs is publicly readable, so
@@ -203,15 +323,28 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    function feedbackTextIsBounded(d) {
+      return d.keys().hasOnly([
+          'climbId', 'climbTitle', 'userId', 'name', 'rating', 'comments', 'createdAt'
+        ]) &&
+        d.get('comments', '') is string && d.get('comments', '').size() <= 2000 &&
+        d.get('name', '') is string && d.get('name', '').size() <= 120 &&
+        d.get('climbTitle', '') is string && d.get('climbTitle', '').size() <= 200;
+    }
+
     match /feedback/{feedbackId} {
       // Doc ID is deterministic (`${climbId}_${userId}`, enforced client-side)
       // so a duplicate submission hits this same create rule as an update,
       // which is denied below — one feedback entry per member per climb.
+      // Only people who were on the climb, and bounded in size.
       allow create: if isSignedIn() &&
         isOwner(request.resource.data.userId) &&
         request.resource.data.climbId is string &&
+        feedbackId == request.resource.data.climbId + '_' + request.auth.uid &&
+        isRegisteredFor(request.resource.data.climbId) &&
         request.resource.data.rating is int &&
-        request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        feedbackTextIsBounded(request.resource.data);
       allow read: if isAdmin() || isOwner(resource.data.userId);
       allow update, delete: if false;
     }

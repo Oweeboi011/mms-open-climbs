@@ -300,6 +300,21 @@ describe("createUser callable — auth guard", () => {
     ).rejects.toMatchObject({ code: "invalid-argument" });
   });
 
+  it("throws invalid-argument for a role other than member or admin", async () => {
+    mockDb.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ role: "admin" }),
+    });
+    const handler = require("../src/index").createUser;
+    await expect(
+      handler({
+        auth: { uid: "admin-1" },
+        data: { email: "x@y.com", displayName: "X", role: "superadmin" },
+      }),
+    ).rejects.toMatchObject({ code: "invalid-argument" });
+    expect(mockAdminAuth.createUser).not.toHaveBeenCalled();
+  });
+
   it("creates a user and returns the uid on success", async () => {
     mockDb.get.mockResolvedValueOnce({
       exists: true,

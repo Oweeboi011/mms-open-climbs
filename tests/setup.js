@@ -106,8 +106,10 @@ vi.mock("firebase/firestore", () => ({
       seconds: Math.floor(d.getTime() / 1000),
       nanoseconds: 0,
     }),
+    fromMillis: (ms) => ({ seconds: Math.floor(ms / 1000), nanoseconds: 0 }),
     now: () => ({ seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }),
   },
+  arrayUnion: vi.fn((...values) => ({ _type: "arrayUnion", values })),
   FieldValue: { increment: vi.fn((n) => ({ _type: "increment", n })) },
 }));
 

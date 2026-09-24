@@ -10,7 +10,8 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db, googleProvider } from "@/firebase/config";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions, googleProvider } from "@/firebase/config";
 
 export const AuthContext = createContext(null);
 
@@ -20,10 +21,17 @@ export const AuthContext = createContext(null);
 // hourly on its own — so an admin promoted mid-session would be denied their
 // own files until then. Force the refresh once when the claim is behind the
 // profile. Failure is non-fatal: the token refreshes on its own eventually.
+//
+// An admin whose claim was never issued (promoted before syncAdminClaim
+// existed) asks the server to issue it from their users/ role first, so no
+// admin depends on a manual backfill to see members' files.
 async function syncAdminToken(user, profile) {
   try {
     const { claims } = await user.getIdTokenResult();
     if ((profile?.role === "admin") !== (claims.admin === true)) {
+      if (profile?.role === "admin") {
+        await httpsCallable(functions, "ensureAdminClaim")();
+      }
       await user.getIdToken(true);
     }
   } catch {
