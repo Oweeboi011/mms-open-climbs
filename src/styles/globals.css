@@ -5784,3 +5784,20 @@ details[open] > .myreg-collapsible::before {
     gap: 2px;
   }
 }
+
+/* ── Climbs list: needs-attention chips ─────────────────────────────────── */
+.attention-pill {
+  font-size: 0.62rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border-radius: 99px;
+  padding: 1px 7px;
+  text-decoration: none;
+  border: 1px solid currentColor;
+}
+.attention-review {
+  color: var(--accent);
+}
+.attention-settle {
+  color: var(--danger);
+}

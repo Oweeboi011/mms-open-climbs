@@ -18,6 +18,24 @@ function verifiedAmount(reg) {
 
 const round = (n) => Math.round(n * 100) / 100;
 
+// What on a climb needs an admin's hand, for the climbs list: payments
+// waiting for review, and money to settle (overpayments and money kept from
+// cancelled registrations — each needs a split, a refund, or a decision).
+export function getClimbAttention(regs = [], climb = {}, serviceGroups = {}) {
+  const r = reconcileClimbMoney(regs, climb, serviceGroups);
+  // Centavo-level differences aren't worth an admin's attention.
+  const toSettle = [...r.overpaid.entries, ...r.keptFromCancelled.entries].filter(
+    (e) => Math.abs(e.amount) >= 1,
+  );
+  return {
+    toReview: regs.filter(
+      (reg) => reg.status !== "cancelled" && reg.paymentStatus === "submitted",
+    ).length,
+    toSettleCount: toSettle.length,
+    toSettleTotal: round(toSettle.reduce((s, e) => s + e.amount, 0)),
+  };
+}
+
 export function reconcileClimbMoney(regs = [], climb = {}, serviceGroups = {}) {
   const buckets = {
     awaitingReview: [],
