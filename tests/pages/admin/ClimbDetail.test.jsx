@@ -98,6 +98,17 @@ describe("Admin ClimbDetail", () => {
     );
   });
 
+  it("summarises the climb's set-up and what's still missing", async () => {
+    render();
+    expect(await screen.findByText("Climb at a Glance")).toBeInTheDocument();
+    expect(screen.getByText("Still to set up")).toBeInTheDocument();
+    expect(screen.getByText(/cancellation & refund policy/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View public event page/i })).toHaveAttribute(
+      "href",
+      `/event/${climbFixture.id}`,
+    );
+  });
+
   it("lists registrant names after data loads", async () => {
     render();
     await waitFor(() =>
