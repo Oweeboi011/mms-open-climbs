@@ -5801,3 +5801,39 @@ details[open] > .myreg-collapsible::before {
 .attention-settle {
   color: var(--danger);
 }
+
+/* ── Member profile (admin) ─────────────────────────────────────────────── */
+.member-safety {
+  margin-bottom: 20px;
+}
+.member-climbs td,
+.member-climbs th {
+  white-space: nowrap;
+}
+.member-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+.member-profile-section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 2px solid var(--border);
+}
+.member-profile-title {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.member-profile-meta {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin: 0 0 12px;
+}
+.member-profile .admin-card {
+  box-shadow: none;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}

@@ -232,4 +232,10 @@ describe("Admin UsersManage", () => {
       screen.queryByRole("button", { name: /Delete Account/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("shows the user's climbs & activity in the same modal", async () => {
+    renderWithProviders(<AdminUsersManage />, makeAdminAuth());
+    fireEvent.click(await screen.findByText("Juan Cruz"));
+    expect(await screen.findByText("Climbs & Activity")).toBeInTheDocument();
+  });
 });
