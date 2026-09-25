@@ -12,7 +12,7 @@ export default function Footer() {
         </svg>
       </div>
       <div className="footer-content">
-        <p><strong>Metropolitan Mountaineering Society</strong> &bull; Open Climbs 2026</p>
+        <p><strong>Metropolitan Mountaineering Society</strong> &bull; Open Climbs</p>
         <p>
           For inquiries, contact{" "}
           {href ? (

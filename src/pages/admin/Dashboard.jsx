@@ -8,16 +8,12 @@ import {
   onSnapshot,
   where,
   getCountFromServer,
-  addDoc,
-  serverTimestamp,
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
-import { SCHEDULE_2026 } from "@/data/schedule2026";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { logFailedRequest } from "@/utils/logFailedRequest";
 import { getMissingFields } from "@/utils/climbCompleteness";
 import { getFeeSummary } from "@/utils/feeSummary";
 import { getEffectiveStatus } from "@/utils/climbStatus";
@@ -132,8 +128,6 @@ export default function AdminDashboard() {
   const [climbs, setClimbs] = useState([]);
   const [climbRegStats, setClimbRegStats] = useState({});
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
-  const [seedResult, setSeedResult] = useState("");
   const [expandedIds, setExpandedIds] = useState(() => new Set());
 
   function toggleExpanded(id) {
@@ -143,42 +137,6 @@ export default function AdminDashboard() {
       else next.add(id);
       return next;
     });
-  }
-
-  async function handleSeed() {
-    if (
-      !window.confirm(
-        `Import all ${SCHEDULE_2026.length} climbs from the 2026 schedule? This cannot be undone.`,
-      )
-    )
-      return;
-    setSeeding(true);
-    setSeedResult("");
-    let ok = 0;
-    let fail = 0;
-    for (const climb of SCHEDULE_2026) {
-      try {
-        await addDoc(collection(db, "climbs"), {
-          ...climb,
-          registrationCount: 0,
-          createdAt: serverTimestamp(),
-        });
-        ok++;
-      } catch (err) {
-        fail++;
-        logFailedRequest({
-          type: "firestore",
-          source: "Dashboard.jsx:seedSchedule",
-          message: err?.message,
-          path: window.location.pathname,
-          userRole: "admin",
-        });
-      }
-    }
-    setSeeding(false);
-    setSeedResult(
-      `Done — ${ok} climbs added${fail ? `, ${fail} failed` : ""}.`,
-    );
   }
 
   useEffect(() => {
@@ -286,23 +244,13 @@ export default function AdminDashboard() {
           <div>
             <div className="admin-page-title">Dashboard</div>
             <div className="admin-page-subtitle">
-              MMS Open Climbs 2026 — Admin Portal
+              MMS Open Climbs — Admin Portal
             </div>
           </div>
           {!loading && stats.climbs === 0 && (
-            <button
-              className="btn btn-gold btn-sm"
-              onClick={handleSeed}
-              disabled={seeding}
-              title="One-click import all climbs from the 2026 schedule into Firestore"
-            >
-              {seeding ? "Importing…" : "⬇ Import 2026 Schedule"}
-            </button>
-          )}
-          {seedResult && (
-            <div className="alert alert-success" style={{ marginTop: 10 }}>
-              {seedResult}
-            </div>
+            <Link to="/admin/climbs/new" className="btn btn-gold btn-sm">
+              + Add First Climb
+            </Link>
           )}
         </div>
 
