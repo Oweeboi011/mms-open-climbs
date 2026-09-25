@@ -1,17 +1,16 @@
 import Icon from "@/components/Icon";
-import { isDonationDriveOn } from "@/utils/donations";
+import { getNeededItems, isDonationDriveOn } from "@/utils/donations";
 
-// Event page section describing a climb's outreach donation drive, with the
-// running total leads have recorded (published to the climb doc as
-// `donationTotals` — individual donors are never shown).
+// Event page section describing a climb's outreach donation drive: what it
+// needs and how much of each is still missing, from the totals leads publish
+// to the climb doc (`donationTotals`) — never who gave what.
 export default function DonationDriveInfo({ climb }) {
   if (!isDonationDriveOn(climb)) return null;
   const drive = climb.donationDrive;
-  const items = String(drive.suggestedItems || "")
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const totals = climb.donationTotals;
+  const needed = getNeededItems(drive);
+  const totals = climb.donationTotals || {};
+  const progress = Object.fromEntries((totals.items || []).map((i) => [i.name, i]));
+  const goal = Number(drive.cashGoal) || 0;
 
   return (
     <div className="section-card">
@@ -31,23 +30,39 @@ export default function DonationDriveInfo({ climb }) {
             <li>
               Cash donations can be added to your GCash payment with your fees,
               or handed to the climb leads on the day.
+              {goal > 0 &&
+                ` Goal: ₱${goal.toLocaleString("en-PH")} — ₱${Number(totals.receivedCash || 0).toLocaleString("en-PH")} received so far.`}
             </li>
           )}
           {drive.acceptsInKind && (
             <li>Carry-on donations: bring the items with you on the climb.</li>
           )}
         </ul>
-        {drive.acceptsInKind && items.length > 0 && (
+        {drive.acceptsInKind && needed.length > 0 && (
           <>
-            <p className="donation-subhead">Suggested items</p>
-            <ul className="info-list">
-              {items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
+            <p className="donation-subhead">What&rsquo;s needed</p>
+            <ul className="donation-needs">
+              {needed.map((item) => {
+                const p = progress[item.name];
+                const covered = Math.max(p?.pledged || 0, p?.received || 0);
+                const left = item.target ? Math.max(0, item.target - covered) : null;
+                return (
+                  <li key={item.name}>
+                    <span>{item.name}</span>
+                    {item.target > 0 && (
+                      <span className={left === 0 ? "donation-need-met" : "donation-need-open"}>
+                        {left === 0
+                          ? "Covered — thank you!"
+                          : `${left} of ${item.target} ${item.unit || ""} still needed`}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}
-        {totals?.donors > 0 && (
+        {totals.donors > 0 && !goal && (
           <p className="donation-tally">
             {totals.receivedCash > 0 &&
               `₱${Number(totals.receivedCash).toLocaleString("en-PH")} `}

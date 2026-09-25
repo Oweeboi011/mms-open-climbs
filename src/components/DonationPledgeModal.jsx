@@ -3,15 +3,21 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import Modal from "@/components/Modal";
 import DonationPledgeFields from "@/components/DonationPledgeFields";
-import { normalizePledge } from "@/utils/donations";
+import {
+  getNeededItems,
+  itemQtyMap,
+  normalizePledge,
+  stillNeededFromTotals,
+} from "@/utils/donations";
 import { logFailedRequest } from "@/utils/logFailedRequest";
 
 // My Climbs: add, change or withdraw a donation pledge after registering.
-export default function DonationPledgeModal({ reg, drive, currentUser, onClose }) {
+export default function DonationPledgeModal({ reg, drive, climb, currentUser, onClose }) {
   const [value, setValue] = useState({
     cashPledge: reg.donation?.cashPledge ?? "",
     inKind: reg.donation?.inKind ?? "",
     payWithFees: reg.donation?.payWithFees ?? true,
+    itemQty: itemQtyMap(reg.donation?.itemPledges),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +29,7 @@ export default function DonationPledgeModal({ reg, drive, currentUser, onClose }
     try {
       // Exactly the fields the firestore rule lets an owner write here.
       await updateDoc(doc(db, "registrations", reg.id), {
-        donation: normalizePledge(value),
+        donation: normalizePledge(value, getNeededItems(drive)),
         updatedAt: serverTimestamp(),
       });
       onClose();
@@ -58,7 +64,12 @@ export default function DonationPledgeModal({ reg, drive, currentUser, onClose }
         </div>
       )}
       <form onSubmit={save}>
-        <DonationPledgeFields drive={drive} value={value} onChange={setValue} />
+        <DonationPledgeFields
+          drive={drive}
+          value={value}
+          onChange={setValue}
+          stillNeeded={stillNeededFromTotals(climb)}
+        />
         <div className="modal-actions">
           <button type="button" className="btn btn-outline" onClick={onClose}>
             Cancel

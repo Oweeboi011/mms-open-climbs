@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildDonationCollection,
+  getNeededItems,
+  publicDonationTotals,
+  stillNeededFromTotals,
   getDonationFeeItem,
   getDonationPaidWithFees,
   isDonationDriveOn,
@@ -107,3 +111,70 @@ describe("donations paid with fees", () => {
     expect(getDonationPaidWithFees({ donation: { cashPledge: 300 } }, 1000, 1500)).toBe(0);
   });
 });
+
+describe("donation collection process", () => {
+  const climb = {
+    donationDrive: {
+      enabled: true,
+      beneficiary: "School",
+      cashGoal: 1000,
+      neededItems: [
+        { name: "Notebooks", target: 60, unit: "pcs" },
+        { name: "Rice", target: 30, unit: "kg" },
+      ],
+    },
+  };
+  const regs = [
+    { id: "a", name: "Ana", status: "confirmed", donation: { cashPledge: 300, payWithFees: false, itemPledges: [{ name: "Notebooks", qty: 20 }] } },
+    { id: "b", name: "Ben", status: "pending", donation: { cashPledge: 200, payWithFees: true, itemPledges: [{ name: "Rice", qty: 10 }] },
+      donationReceived: { cash: 0, items: "", itemQuantities: [{ name: "Rice", qty: 12 }], receivedBy: "Lead" } },
+    { id: "c", name: "Cara", status: "cancelled", donation: { cashPledge: 999, payWithFees: false, itemPledges: [{ name: "Notebooks", qty: 50 }] } },
+  ];
+  const paidWithFees = (r) => (r.id === "b" ? 200 : 0);
+  const c = buildDonationCollection(regs, climb, paidWithFees);
+
+  it("tracks each needed item: pledged, received, still needed, unpledged", () => {
+    expect(c.items).toEqual([
+      { name: "Notebooks", target: 60, unit: "pcs", pledged: 20, received: 0, stillNeeded: 60, unpledged: 40 },
+      { name: "Rice", target: 30, unit: "kg", pledged: 10, received: 12, stillNeeded: 18, unpledged: 18 },
+    ]);
+  });
+
+  it("splits cash into with-fees and on-the-day, and what leads still collect", () => {
+    expect(c.cash).toEqual({
+      goal: 1000,
+      pledgedWithFees: 200,
+      pledgedOnDay: 300,
+      receivedViaGcash: 200,
+      receivedOnDay: 0,
+      received: 200,
+      toCollectOnDay: 300,
+      stillNeeded: 800,
+    });
+  });
+
+  it("lists who to collect from, uncollected first, cancelled pledges excluded", () => {
+    expect(c.people.map((p) => [p.reg.id, p.collected])).toEqual([["a", false], ["b", true]]);
+  });
+
+  it("publishes totals without naming anyone", () => {
+    const pub = publicDonationTotals(c);
+    expect(JSON.stringify(pub)).not.toMatch(/Ana|Ben/);
+    expect(pub.items[1]).toEqual({ name: "Rice", unit: "kg", target: 30, pledged: 10, received: 12 });
+    expect(stillNeededFromTotals({ donationTotals: pub })).toEqual({ Notebooks: 40, Rice: 18 });
+  });
+
+  it("reads old free-text suggestions as items with no target", () => {
+    expect(getNeededItems({ suggestedItems: "Pencils" + String.fromCharCode(10, 10) + "Crayons" })).toEqual([
+      { name: "Pencils", target: 0, unit: "" },
+      { name: "Crayons", target: 0, unit: "" },
+    ]);
+  });
+
+  it("pledges only positive quantities of items the drive asks for", () => {
+    expect(
+      normalizePledge({ itemQty: { Notebooks: "5", Rice: "0", Bogus: "9" } }, getNeededItems(climb.donationDrive)),
+    ).toEqual({ cashPledge: null, inKind: "", payWithFees: false, itemPledges: [{ name: "Notebooks", qty: 5 }] });
+  });
+});
+

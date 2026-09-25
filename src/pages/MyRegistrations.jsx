@@ -1773,6 +1773,7 @@ export default function MyRegistrations() {
         <DonationPledgeModal
           reg={pledgeReg}
           drive={climbsMap[pledgeReg.climbId].donationDrive}
+          climb={climbsMap[pledgeReg.climbId]}
           currentUser={currentUser}
           onClose={() => setPledgeReg(null)}
         />
