@@ -15,6 +15,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import MemberProfile from "@/components/admin/MemberProfile";
 
 const createUserFn = httpsCallable(functions, "createUser");
 const updateUserProfileFn = httpsCallable(functions, "updateUserProfile");
@@ -525,7 +526,10 @@ export default function AdminUsersManage() {
                 borderRadius: "var(--radius-lg)",
                 padding: 32,
                 width: "100%",
-                maxWidth: 460,
+                // Wide enough for the member's climbs table below the edit form.
+                maxWidth: 960,
+                maxHeight: "90vh",
+                overflowY: "auto",
                 boxShadow: "var(--shadow-lg)",
               }}
               onClick={(e) => e.stopPropagation()}
@@ -873,6 +877,11 @@ export default function AdminUsersManage() {
                     {deleting ? "Deleting…" : "🗑 Delete Account"}
                   </button>
                 )}
+              </div>
+
+              <div className="member-profile-section">
+                <div className="member-profile-title">Climbs &amp; Activity</div>
+                <MemberProfile key={selectedUser.id} uid={selectedUser.id} />
               </div>
             </div>
           </div>
