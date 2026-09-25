@@ -32,6 +32,7 @@ const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
 const AdminClimbsManage = lazy(() => import("@/pages/admin/ClimbsManage"));
 const AdminClimbForm = lazy(() => import("@/pages/admin/ClimbForm"));
 const AdminClimbDetail = lazy(() => import("@/pages/admin/ClimbDetail"));
+const AdminClimbDaySheet = lazy(() => import("@/pages/admin/ClimbDaySheet"));
 const AdminUsersManage = lazy(() => import("@/pages/admin/UsersManage"));
 const AllRegistrations = lazy(() => import("@/pages/admin/AllRegistrations"));
 const ManagePayments = lazy(() => import("@/pages/admin/ManagePayments"));
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="/admin/climbs/new" element={<AdminClimbForm />} />
             <Route path="/admin/climbs/:id/edit" element={<AdminClimbForm />} />
             <Route path="/admin/climbs/:id" element={<AdminClimbDetail />} />
+            <Route path="/admin/climbs/:id/sheet" element={<AdminClimbDaySheet />} />
             <Route path="/admin/users" element={<AdminUsersManage />} />
             <Route path="/admin/registrations" element={<AllRegistrations />} />
             <Route path="/admin/payments" element={<ManagePayments />} />

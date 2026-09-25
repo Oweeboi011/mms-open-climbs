@@ -889,6 +889,13 @@ export default function AdminClimbDetail() {
               + Add Participant
             </button>
             <Link
+              to={`/admin/climbs/${id}/sheet`}
+              className="btn btn-outline btn-sm"
+              title="Printable roster for the trail: contacts, emergency and medical details, balances, donations"
+            >
+              Climb-Day Sheet
+            </Link>
+            <Link
               to={`/admin/climbs/${id}/edit`}
               className="btn btn-accent btn-sm"
               title="Edit climb details, officers, itinerary, and settings"
