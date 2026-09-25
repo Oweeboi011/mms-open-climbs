@@ -49,6 +49,7 @@ body {
   background: var(--surface);
   color: var(--ink);
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
 }
 a {
@@ -303,6 +304,14 @@ textarea {
 }
 
 /* ── STATS BAR ─────────────────────────────────────────────────────────────── */
+.season-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  padding: 14px 16px 0;
+  background: var(--white);
+}
 .stats-bar {
   display: flex;
   justify-content: center;
@@ -1553,6 +1562,7 @@ textarea {
 /* ── AUTH PAGES ────────────────────────────────────────────────────────────── */
 .auth-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -1728,6 +1738,7 @@ textarea {
 /* ── ADMIN LAYOUT ──────────────────────────────────────────────────────────── */
 .admin-layout {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -2123,6 +2134,7 @@ textarea {
 /* ── REGISTRATION PAGE ─────────────────────────────────────────────────────── */
 .register-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -3333,6 +3345,7 @@ textarea {
   justify-content: center;
   padding: 0;
   min-height: calc(100vh - 68px);
+  min-height: calc(100dvh - 68px);
 }
 .auth-panel {
   display: none; /* mobile: hidden */
@@ -3452,6 +3465,7 @@ textarea {
 /* ── MOUNTAIN LOADER ───────────────────────────────────────────────────────── */
 .loader-fullpage {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3551,6 +3565,7 @@ textarea {
 /* ── MY REGISTRATIONS PAGE ─────────────────────────────────────────────────── */
 .myreg-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -3722,6 +3737,7 @@ details[open] > .myreg-collapsible::before {
 /* ── 404 NOT FOUND PAGE ────────────────────────────────────────────────────── */
 .notfound-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -5424,6 +5440,7 @@ details[open] > .myreg-collapsible::before {
 .privacy-page {
   background: var(--surface);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 .privacy-content {
   max-width: 760px;

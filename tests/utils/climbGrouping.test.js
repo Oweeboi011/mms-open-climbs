@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  climbMonthKey,
+  defaultSeason,
   groupClimbsByCompletion,
+  groupClimbsByMonth,
   isClimbCompleted,
+  monthKeyLabel,
+  seasonYears,
 } from "@/utils/climbGrouping";
 
 const now = new Date("2026-08-07T12:00:00");
@@ -66,5 +71,49 @@ describe("groupClimbsByCompletion", () => {
       upcoming: [],
       completed: [],
     });
+  });
+});
+
+describe("month sections", () => {
+  it("keys on the start date's year and month, any month of the year", () => {
+    expect(climbMonthKey({ startDate: ts("2027-03-14") })).toBe("2027-03");
+    expect(climbMonthKey({ startDate: "2027-01-02" })).toBe("2027-01");
+    expect(climbMonthKey({ month: "jul" })).toBe("0000-07");
+    expect(climbMonthKey({})).toBe("0000-00");
+  });
+
+  it("labels keys with or without the year", () => {
+    expect(monthKeyLabel("2027-03")).toBe("March 2027");
+    expect(monthKeyLabel("2027-03", { withYear: false })).toBe("March");
+    expect(monthKeyLabel("0000-07")).toBe("July");
+    expect(monthKeyLabel("0000-00")).toBe("Date to be announced");
+  });
+
+  it("groups in calendar order across years, undated last", () => {
+    const a = { id: "a", startDate: ts("2027-01-10") };
+    const b = { id: "b", startDate: ts("2026-12-05") };
+    const c = { id: "c", startDate: ts("2026-12-01") };
+    const d = { id: "d" };
+    const sections = groupClimbsByMonth([a, b, d, c]);
+    expect(sections.map((s) => s.key)).toEqual(["2026-12", "2027-01", "0000-00"]);
+    expect(sections[0].climbs.map((x) => x.id)).toEqual(["c", "b"]);
+  });
+});
+
+describe("seasons", () => {
+  const past = { status: "completed", startDate: ts("2026-07-04") };
+  const next = { status: "open", startDate: ts("2027-02-06") };
+  const later = { status: "open", startDate: ts("2028-03-01") };
+
+  it("lists the distinct years", () => {
+    expect(seasonYears([later, past, next, {}])).toEqual(["2026", "2027", "2028"]);
+  });
+
+  it("opens on the season of the next climb still ahead", () => {
+    expect(defaultSeason([past, next, later], undefined, now)).toBe("2027");
+  });
+
+  it("falls back to the latest season when everything is done", () => {
+    expect(defaultSeason([past], undefined, now)).toBe("2026");
   });
 });
