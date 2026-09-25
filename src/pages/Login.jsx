@@ -71,7 +71,7 @@ export default function Login() {
             <br />
             Society
           </p>
-          <p className="auth-panel-year">Open Climbs 2026</p>
+          <p className="auth-panel-year">Open Climbs</p>
           <div className="auth-panel-mountains">
             <svg viewBox="0 0 400 160" preserveAspectRatio="none">
               <path
@@ -100,7 +100,7 @@ export default function Login() {
             <img src="/MMS.png" alt="MMS Logo" />
           </div>
           <h1 className="auth-title">Sign In</h1>
-          <p className="auth-subtitle">MMS Open Climbs 2026</p>
+          <p className="auth-subtitle">MMS Open Climbs</p>
 
           {inAppBrowser && (
             <div

@@ -62,10 +62,10 @@ describe("makeMetaBlock", () => {
     const block = makeMetaBlock(CLIMB, URL, ORIGIN);
 
     expect(block).toContain(
-      "<title>Mt. Pulag — Aug 1-3 | MMS Open Climbs 2026</title>",
+      "<title>Mt. Pulag — Aug 1-3 | MMS Open Climbs</title>",
     );
     expect(contentOf(block, "property", "og:title")).toBe(
-      "Mt. Pulag — Aug 1-3 | MMS Open Climbs 2026",
+      "Mt. Pulag — Aug 1-3 | MMS Open Climbs",
     );
     expect(contentOf(block, "property", "og:url")).toBe(URL);
     expect(contentOf(block, "property", "og:type")).toBe("article");
@@ -80,7 +80,7 @@ describe("makeMetaBlock", () => {
 
   it("falls back to the site title when the climb has no title", () => {
     const block = makeMetaBlock({}, URL, ORIGIN);
-    expect(block).toContain("<title>MMS Open Climbs 2026</title>");
+    expect(block).toContain("<title>MMS Open Climbs</title>");
   });
 });
 

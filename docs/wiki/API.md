@@ -1000,7 +1000,7 @@ the marked og region of the shell"]
 
 #### Injected tags
 
-`<title>`, `description`, `canonical`, `og:type`, `og:site_name`, `og:title`, `og:description`, `og:url`, `og:image`, and the `twitter:*` equivalents. The title reads `{title} — {dateLabel} | MMS Open Climbs 2026`; the description is built from the climb and capped at 200 characters. A climb with a trail photo gets that photo plus `twitter:card = summary_large_image`; without one it falls back to `/MMS.png` and `summary`, because a square logo letterboxes badly in a large card.
+`<title>`, `description`, `canonical`, `og:type`, `og:site_name`, `og:title`, `og:description`, `og:url`, `og:image`, and the `twitter:*` equivalents. The title reads `{title} — {dateLabel} | MMS Open Climbs`; the description is built from the climb and capped at 200 characters. A climb with a trail photo gets that photo plus `twitter:card = summary_large_image`; without one it falls back to `/MMS.png` and `summary`, because a square logo letterboxes badly in a large card.
 
 #### Design constraints worth knowing
 
