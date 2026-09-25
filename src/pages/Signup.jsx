@@ -47,7 +47,7 @@ export default function Signup() {
   return (
     <div className="auth-page">
       <Header />
-      <div className="auth-container">
+      <main className="auth-container">
 
         <div className="auth-panel" aria-hidden="true">
           <div className="auth-panel-logo">
@@ -136,7 +136,7 @@ export default function Signup() {
             <Link to={authLinkWithRedirect('/login', from)}>Sign in</Link>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
     </div>
   );
