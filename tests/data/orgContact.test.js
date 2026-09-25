@@ -31,16 +31,20 @@ describe("orgContact resolver", () => {
       "hi@example.org",
     );
     expect(resolveContactLabel({ url: "https://fb.com/mms" })).toBe(
-      "https://fb.com/mms",
+      "MMS on Facebook",
+    );
+    expect(resolveContactLabel({ url: "https://forms.example.org/mms" })).toBe(
+      "https://forms.example.org/mms",
     );
     expect(resolveContactLabel({})).toBe("your MMS Open Climbs Coordinator");
   });
 });
 
-// Ships with both constants blank — the UI must degrade to plain text.
-describe("orgContact (unconfigured)", () => {
-  it("returns no href and the plain coordinator label", () => {
-    expect(contactHref("anything")).toBeNull();
-    expect(contactLabel()).toBe("your MMS Open Climbs Coordinator");
+describe("orgContact (configured)", () => {
+  it("points to the club's Facebook page with a readable label", () => {
+    expect(contactHref("anything")).toBe(
+      "https://www.facebook.com/metropolitanmountaineeringsociety/",
+    );
+    expect(contactLabel()).toBe("MMS on Facebook");
   });
 });
