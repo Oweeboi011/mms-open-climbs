@@ -401,6 +401,22 @@ async function syncParticipantList(climbId) {
   }
 }
 
+// The climb's own due date, else 5 days before it starts ("YYYY-MM-DD" in
+// Manila time). Mirrors getPaymentDueDate in src/utils/registrationPolicy.js.
+const DEFAULT_DUE_DAYS_BEFORE = 5;
+function getPaymentDueDate(climb) {
+  if (climb?.paymentDueDate) return climb.paymentDueDate;
+  const raw = climb?.startDate;
+  const start = raw?.toDate
+    ? raw.toDate()
+    : typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)
+      ? new Date(`${raw}T00:00:00+08:00`)
+      : null;
+  if (!start || isNaN(start.getTime())) return "";
+  const due = new Date(start.getTime() - DEFAULT_DUE_DAYS_BEFORE * 86400000);
+  return due.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+}
+
 // Whether every seat is taken: pending + confirmed registrations (other than
 // `regId`) at or above the climb's maxParticipants. No limit set = never full.
 const SEAT_HOLDING_STATUSES = ["pending", "confirmed"];
@@ -1476,6 +1492,28 @@ exports.sendReminderNotifications = onSchedule(
       }),
     );
 
+    // Daily safety net for the registrants-only participant list: the
+    // registration triggers keep it current, but a climb whose registrations
+    // haven't changed since it was introduced would otherwise have none.
+    await Promise.all(
+      climbIds.map(async (climbId) => {
+        const participants = regs
+          .filter((r) => r.climbId === climbId)
+          .map((r) => ({ name: shortName(r.name), memberType: r.memberType || "" }));
+        const stored = climbPrivates[climbId]?.participants;
+        if (JSON.stringify(stored || null) === JSON.stringify(participants)) return;
+        await db
+          .doc(`climbPrivate/${climbId}`)
+          .set({ participants }, { merge: true })
+          .catch((err) =>
+            logger.error("[sendReminderNotifications] participant list", {
+              climbId,
+              err: err.message,
+            }),
+          );
+      }),
+    );
+
     const now = Date.now();
     let paymentReminders = 0;
     let upcomingReminders = 0;
@@ -1498,7 +1536,7 @@ exports.sendReminderNotifications = onSchedule(
         outstanding > 0
       ) {
         const paidSoFar = getCountedTotal(reg);
-        const due = formatDueDate(climb?.paymentDueDate);
+        const due = formatDueDate(getPaymentDueDate(climb));
         const message =
           paidSoFar > 0 && outstanding > 0
             ? `You've paid ₱${paidSoFar.toLocaleString("en-PH")} for ${reg.climbTitle || "your climb"} — ₱${outstanding.toLocaleString("en-PH")} still to go. ${due ? `Please settle it by ${due}.` : "You can send the balance anytime before the climb."}`

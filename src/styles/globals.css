@@ -5747,3 +5747,40 @@ details[open] > .myreg-collapsible::before {
   margin-top: 14px;
   font-size: 0.85rem;
 }
+
+/* ── Climb history (admin climb detail) ─────────────────────────────────── */
+.history-card {
+  margin-top: 24px;
+}
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.history-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  font-size: 0.84rem;
+}
+.history-list li {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.history-list time {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.history-detail {
+  color: var(--ink-soft);
+}
+@media (max-width: 600px) {
+  .history-list li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
