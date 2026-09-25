@@ -5660,3 +5660,33 @@ details[open] > .myreg-collapsible::before {
 .money-after {
   margin-top: 12px;
 }
+.daysheet-check input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+.daysheet-row-alert td {
+  background: var(--surface-warning);
+}
+.daysheet-present-flag {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--danger);
+}
+@media print {
+  .daysheet-row-alert td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+.present-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--white);
+  background: var(--green-light);
+  border-radius: 99px;
+  padding: 2px 8px;
+}
