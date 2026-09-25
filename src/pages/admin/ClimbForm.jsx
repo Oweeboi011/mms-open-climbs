@@ -33,6 +33,7 @@ import {
 import { splitOfficerEmails, mergeOfficerEmails } from "@/utils/officerContacts";
 import DonationDriveFields from "@/components/admin/DonationDriveFields";
 import RegistrationPolicyFields from "@/components/admin/RegistrationPolicyFields";
+import ReorderButtons, { moveItem } from "@/components/admin/ReorderButtons";
 
 const OFFICER_ROLES = [
   "Senior Team Leader",
@@ -263,6 +264,9 @@ export default function AdminClimbForm() {
   function removeListItem(field, i) {
     setForm((p) => ({ ...p, [field]: p[field].filter((_, idx) => idx !== i) }));
   }
+  function moveListItem(field, from, to) {
+    setForm((p) => ({ ...p, [field]: moveItem(p[field], from, to) }));
+  }
   function updateListItem(field, i, val) {
     setForm((p) => {
       const arr = [...p[field]];
@@ -386,6 +390,14 @@ export default function AdminClimbForm() {
         i === dayIdx
           ? { ...d, entries: d.entries.filter((_, j) => j !== entryIdx) }
           : d,
+      );
+      return { ...p, itinerary };
+    });
+  }
+  function moveEntry(dayIdx, from, to) {
+    setForm((p) => {
+      const itinerary = p.itinerary.map((d, i) =>
+        i === dayIdx ? { ...d, entries: moveItem(d.entries, from, to) } : d,
       );
       return { ...p, itinerary };
     });
@@ -1533,6 +1545,12 @@ export default function AdminClimbForm() {
                     onChange={(e) => updateDay(dayIdx, e.target.value)}
                     style={{ flex: 1 }}
                   />
+                  <ReorderButtons
+                    index={dayIdx}
+                    count={form.itinerary.length}
+                    onMove={(from, to) => moveListItem("itinerary", from, to)}
+                    label="day"
+                  />
                   <button
                     type="button"
                     className="btn btn-danger btn-sm"
@@ -1570,6 +1588,12 @@ export default function AdminClimbForm() {
                         )
                       }
                       style={{ flex: 1 }}
+                    />
+                    <ReorderButtons
+                      index={entryIdx}
+                      count={day.entries.length}
+                      onMove={(from, to) => moveEntry(dayIdx, from, to)}
+                      label="entry"
                     />
                     <button
                       type="button"
@@ -1623,6 +1647,12 @@ export default function AdminClimbForm() {
                   onChange={(e) =>
                     updateListItem("thingsToBring", i, e.target.value)
                   }
+                />
+                <ReorderButtons
+                  index={i}
+                  count={form.thingsToBring.length}
+                  onMove={(from, to) => moveListItem("thingsToBring", from, to)}
+                  label="item"
                 />
                 <button
                   type="button"
@@ -1787,6 +1817,12 @@ export default function AdminClimbForm() {
                   />
                   Guest Fee
                 </label>
+                <ReorderButtons
+                  index={i}
+                  count={form.fees.length}
+                  onMove={(from, to) => moveListItem("fees", from, to)}
+                  label="fee"
+                />
                 <button
                   type="button"
                   className="btn btn-danger btn-sm"
@@ -1947,6 +1983,12 @@ export default function AdminClimbForm() {
                     })
                   }
                   style={{ flex: "2 1 160px" }}
+                />
+                <ReorderButtons
+                  index={i}
+                  count={form.officers.length}
+                  onMove={(from, to) => moveListItem("officers", from, to)}
+                  label="officer"
                 />
                 <button
                   type="button"
