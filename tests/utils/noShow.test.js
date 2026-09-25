@@ -17,6 +17,9 @@ describe("canMarkNoShow", () => {
       expect(canMarkNoShow({ status }, past, now)).toBe(false);
     }
   });
+  it("not for someone ticked present on the climb-day sheet", () => {
+    expect(canMarkNoShow({ status: "confirmed", attended: true }, past, now)).toBe(false);
+  });
   it("allows it on a climb an admin marked completed early", () => {
     expect(canMarkNoShow({ status: "confirmed" }, { ...future, status: "completed" }, now)).toBe(true);
   });
