@@ -172,6 +172,12 @@ describe("Admin ClimbsManage", () => {
 
     renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
     await waitFor(() => expect(screen.getByText("Open")).toBeInTheDocument());
+
+    // The two climbs are in different seasons; it opens on the upcoming one.
+    expect(screen.queryByText("Mt. Done")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: /Season/i }), {
+      target: { value: "all" },
+    });
     expect(screen.getByText("Completed")).toBeInTheDocument();
 
     // Group header rows bracket their climbs in document order.

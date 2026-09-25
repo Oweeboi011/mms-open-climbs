@@ -21,6 +21,11 @@ import RegisterCta from "@/components/RegisterCta";
 import { TRAIL_CLASS_LABELS, TRAIL_CLASS_DESCRIPTIONS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { getEffectiveStatus } from "@/utils/climbStatus";
+import { isClimbCompleted } from "@/utils/climbGrouping";
+
+// "N slots remaining" only means something while the climb can still fill.
+const stillTakingPlaces = (climb) =>
+  getEffectiveStatus(climb) !== "cancelled" && !isClimbCompleted(climb);
 import { authLinkWithRedirect } from "@/utils/authRedirect";
 import { contactHref } from "@/data/orgContact";
 import DonationDriveInfo from "@/components/DonationDriveInfo";
@@ -691,7 +696,7 @@ export default function Event() {
             )}
           </div>
 
-          {climb.maxParticipants && (
+          {climb.maxParticipants && stillTakingPlaces(climb) && (
             <div className="seats-bar" style={{ maxWidth: 280, marginTop: 16 }}>
               <div className="seats-bar-label">
                 {isFull

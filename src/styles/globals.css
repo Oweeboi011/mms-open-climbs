@@ -5951,3 +5951,14 @@ details[open] > .myreg-collapsible::before {
     grid-template-columns: 1fr 70px;
   }
 }
+.season-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.season-select .form-label {
+  margin: 0;
+}
+.season-select .form-select {
+  width: auto;
+}

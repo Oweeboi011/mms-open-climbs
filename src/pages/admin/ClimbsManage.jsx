@@ -10,6 +10,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import Header from "@/components/Header";
+import SeasonSelect from "@/components/admin/SeasonSelect";
+import useSeason from "@/hooks/useSeason";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import DetailCell from "@/components/DetailCell";
@@ -134,10 +136,12 @@ export default function AdminClimbsManage() {
     });
   }
 
+  const { season, seasons, setSeason, climbInSeason } = useSeason(climbs);
   const filtered = climbs.filter(
     (c) =>
-      c.title?.toLowerCase().includes(search.toLowerCase()) ||
-      c.location?.toLowerCase().includes(search.toLowerCase()),
+      climbInSeason(c) &&
+      (c.title?.toLowerCase().includes(search.toLowerCase()) ||
+        c.location?.toLowerCase().includes(search.toLowerCase())),
   );
 
   // Group by status for clear auditing — ordered by urgency/relevance.
@@ -184,7 +188,8 @@ export default function AdminClimbsManage() {
               {climbs.length} climb{climbs.length !== 1 ? "s" : ""} total
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <SeasonSelect season={season} seasons={seasons} onChange={setSeason} />
             <Link to="/admin" className="btn btn-outline btn-sm">
               &larr; Back to Admin
             </Link>

@@ -14,6 +14,8 @@ import {
 import { db } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
+import SeasonSelect from "@/components/admin/SeasonSelect";
+import useSeason from "@/hooks/useSeason";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EditRegistrationModal from "@/components/EditRegistrationModal";
@@ -302,6 +304,7 @@ export default function AllRegistrations() {
     });
     setManagingDocsFor(null);
   }
+  const { season, seasons, setSeason, climbInSeason } = useSeason(climbs);
   const climbStatusById = useMemo(() => {
     const map = {};
     for (const c of climbs) map[c.id] = c.status;
@@ -314,8 +317,15 @@ export default function AllRegistrations() {
   );
 
   const scoped = useMemo(
-    () => regs.filter((r) => (scope === "past" ? isPastReg(r) : !isPastReg(r))),
-    [regs, isPastReg, scope],
+    () =>
+      regs.filter(
+        (r) =>
+          climbInSeason(climbById[r.climbId]) &&
+          (scope === "past" ? isPastReg(r) : !isPastReg(r)),
+      ),
+    // climbInSeason is rebuilt each render; season is its only input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [regs, isPastReg, scope, season, climbById],
   );
 
   const filtered = useMemo(() => {
@@ -378,12 +388,18 @@ export default function AllRegistrations() {
   );
 
   const activeCount = useMemo(
-    () => regs.filter((r) => !isPastReg(r)).length,
-    [regs, isPastReg],
+    () =>
+      regs.filter((r) => climbInSeason(climbById[r.climbId]) && !isPastReg(r))
+        .length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [regs, isPastReg, season, climbById],
   );
   const pastCount = useMemo(
-    () => regs.filter((r) => isPastReg(r)).length,
-    [regs, isPastReg],
+    () =>
+      regs.filter((r) => climbInSeason(climbById[r.climbId]) && isPastReg(r))
+        .length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [regs, isPastReg, season, climbById],
   );
 
   function exportCSV() {
@@ -448,7 +464,8 @@ export default function AllRegistrations() {
               Across all climbs — upcoming and past events
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <SeasonSelect season={season} seasons={seasons} onChange={setSeason} />
             <Link to="/admin" className="btn btn-outline btn-sm">
               &larr; Back to Admin
             </Link>
