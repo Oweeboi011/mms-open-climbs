@@ -5470,3 +5470,101 @@ details[open] > .myreg-collapsible::before {
 .fee-donation-row td:last-child {
   text-align: right;
 }
+
+/* ── Climb-day sheet (printable) ────────────────────────────────────────── */
+.daysheet-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+.daysheet-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.daysheet-header h1 {
+  font-family: var(--font-head);
+  margin: 0;
+}
+.daysheet-header p {
+  margin: 2px 0;
+}
+.daysheet-confidential {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.daysheet-officers h2 {
+  font-size: 0.95rem;
+  margin: 12px 0 4px;
+}
+.daysheet-officers ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.daysheet-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 12px 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.daysheet-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.daysheet-table th,
+.daysheet-table td {
+  border: 1px solid #bbb;
+  padding: 4px 6px;
+  vertical-align: top;
+  text-align: left;
+}
+.daysheet-table th {
+  background: var(--surface);
+  font-size: 0.75rem;
+}
+.daysheet-check {
+  font-size: 1.2rem;
+  text-align: center !important;
+}
+.daysheet-flag {
+  font-weight: 700;
+  color: var(--danger);
+}
+.daysheet-medical {
+  font-weight: 600;
+}
+.daysheet-muted {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+@media screen and (max-width: 760px) {
+  .daysheet-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .daysheet-page {
+    max-width: none;
+    padding: 0;
+    font-size: 9pt;
+  }
+  .daysheet-table tr {
+    break-inside: avoid;
+  }
+  .daysheet-table thead {
+    display: table-header-group;
+  }
+}
