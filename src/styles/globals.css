@@ -5837,3 +5837,92 @@ details[open] > .myreg-collapsible::before {
   border: 1px solid var(--border);
   margin-bottom: 16px;
 }
+
+/* ── Donation collection process ────────────────────────────────────────── */
+.needed-item-row {
+  display: grid;
+  grid-template-columns: 2fr 90px 1fr auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.donation-goal {
+  max-width: 260px;
+}
+.pledge-item-row {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+}
+.donation-needs {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+}
+.donation-needs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.donation-need-open {
+  color: var(--ink-soft);
+}
+.donation-need-met {
+  color: var(--green-light);
+  font-weight: 600;
+}
+.donation-summary {
+  display: grid;
+  gap: 16px;
+  margin: 12px 0 20px;
+}
+.donation-cash th {
+  width: 200px;
+}
+.donation-list-title {
+  font-size: 1rem;
+  margin: 8px 0;
+}
+.donation-row-done td {
+  background: var(--green-pale);
+}
+.donation-record-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: flex-end;
+  padding: 8px 0;
+}
+.donation-record-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  gap: 2px;
+}
+.donation-record-form .form-input {
+  width: 110px;
+}
+.donation-record-other .form-input {
+  width: 220px;
+}
+.donation-record-actions {
+  display: flex;
+  gap: 6px;
+}
+.donation-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+.daysheet-check-empty {
+  font-size: 1.2rem;
+}
+@media (max-width: 600px) {
+  .needed-item-row {
+    grid-template-columns: 1fr 70px;
+  }
+}

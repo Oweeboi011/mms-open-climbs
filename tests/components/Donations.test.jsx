@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { updateDoc } from "firebase/firestore";
 import DonationDriveInfo from "@/components/DonationDriveInfo";
 import DonationPledgeModal from "@/components/DonationPledgeModal";
@@ -11,7 +12,11 @@ const drive = {
   description: "School supplies",
   acceptsCash: true,
   acceptsInKind: true,
-  suggestedItems: "Notebooks\nPencils",
+  cashGoal: 5000,
+  neededItems: [
+    { name: "Notebooks", target: 60, unit: "pcs" },
+    { name: "Rice", target: 30, unit: "kg" },
+  ],
 };
 
 describe("DonationDriveInfo", () => {
@@ -20,75 +25,83 @@ describe("DonationDriveInfo", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the beneficiary, how to give and suggested items", () => {
-    render(<DonationDriveInfo climb={{ donationDrive: drive }} />);
-    expect(screen.getByText("Tanglag Elementary")).toBeInTheDocument();
-    expect(screen.getByText(/handed to the climb leads/i)).toBeInTheDocument();
-    expect(screen.getByText("Pencils")).toBeInTheDocument();
-  });
-
-  it("shows the running total without naming donors", () => {
+  it("shows the beneficiary, how to give, and what is still needed per item", () => {
     render(
       <DonationDriveInfo
-        climb={{ donationDrive: drive, donationTotals: { receivedCash: 1500, donors: 3, itemDonations: 2 } }}
+        climb={{
+          donationDrive: drive,
+          donationTotals: {
+            receivedCash: 1500,
+            items: [
+              { name: "Notebooks", target: 60, pledged: 45, received: 10 },
+              { name: "Rice", target: 30, pledged: 30, received: 0 },
+            ],
+          },
+        }}
       />,
     );
-    expect(screen.getByText(/₱1,500/)).toBeInTheDocument();
-    expect(screen.getByText(/received so far/i)).toBeInTheDocument();
+    expect(screen.getByText("Tanglag Elementary")).toBeInTheDocument();
+    expect(screen.getByText(/handed to the climb leads/i)).toBeInTheDocument();
+    expect(screen.getByText("15 of 60 pcs still needed")).toBeInTheDocument();
+    expect(screen.getByText(/Covered/)).toBeInTheDocument();
+    expect(screen.getByText(/₱1,500 received so far/)).toBeInTheDocument();
+  });
+
+  it("still lists a legacy free-text suggestion list", () => {
+    render(
+      <DonationDriveInfo
+        climb={{ donationDrive: { enabled: true, beneficiary: "S", acceptsInKind: true, suggestedItems: "Pencils\nCrayons" } }}
+      />,
+    );
+    expect(screen.getByText("Crayons")).toBeInTheDocument();
   });
 });
 
 describe("DonationPledgeModal", () => {
-  it("saves a normalized pledge and nothing else", async () => {
+  it("saves cash and item quantities against the drive's needs", async () => {
     const onClose = vi.fn();
     render(
       <DonationPledgeModal
         reg={{ id: "r1", climbId: "c1", climbTitle: "Pulag" }}
         drive={drive}
+        climb={{ donationDrive: drive }}
         currentUser={{ uid: "u1" }}
         onClose={onClose}
       />,
     );
-    fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "300" } });
+    fireEvent.change(screen.getByLabelText(/Cash pledge/), { target: { value: "300" } });
+    fireEvent.change(screen.getByLabelText("How many Notebooks"), { target: { value: "20" } });
     fireEvent.click(screen.getByRole("button", { name: /Save pledge/i }));
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
     const patch = updateDoc.mock.calls.at(-1)[1];
     expect(Object.keys(patch).sort()).toEqual(["donation", "updatedAt"]);
-    expect(patch.donation).toEqual({ cashPledge: 300, inKind: "", payWithFees: true });
+    expect(patch.donation).toEqual({
+      cashPledge: 300,
+      inKind: "",
+      payWithFees: true,
+      itemPledges: [{ name: "Notebooks", qty: 20 }],
+    });
     expect(onClose).toHaveBeenCalled();
   });
 });
 
-describe("DonationsCard", () => {
-  const regs = [
-    { id: "a", name: "Ana", status: "confirmed", donation: { cashPledge: 500, inKind: "" } },
-    { id: "b", name: "Ben", status: "confirmed", donationReceived: { cash: 200, items: "rice", receivedBy: "Lead" } },
-    { id: "c", name: "Cara", status: "confirmed" },
-  ];
-
-  it("shows pledged vs received totals", () => {
-    render(<DonationsCard climb={{ donationDrive: drive }} regs={regs} onRecord={vi.fn()} />);
-    expect(screen.getByText(/Pledged:/).textContent).toMatch(/500/);
-    expect(screen.getByText(/Received:/).textContent).toMatch(/200/);
-    expect(screen.getByText("by Lead")).toBeInTheDocument();
-  });
-
-  it("records what a pledger actually handed over", async () => {
-    const onRecord = vi.fn(() => Promise.resolve());
-    render(<DonationsCard climb={{ donationDrive: drive }} regs={regs} onRecord={onRecord} />);
-    fireEvent.click(screen.getByRole("button", { name: /Record received/i }));
-    fireEvent.change(screen.getByLabelText("Cash received"), { target: { value: "450" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(onRecord).toHaveBeenCalled());
-    expect(onRecord.mock.calls[0][0].id).toBe("a");
-    expect(onRecord.mock.calls[0][1]).toEqual({ cash: "450", items: "" });
-  });
-
-  it("can record a donation from someone who never pledged", () => {
-    render(<DonationsCard climb={{ donationDrive: drive }} regs={regs} onRecord={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText(/another participant/i), { target: { value: "c" } });
-    fireEvent.click(screen.getByRole("button", { name: "Record" }));
-    expect(screen.getByLabelText("Cash received")).toBeInTheDocument();
-    expect(screen.getByText("Cara")).toBeInTheDocument();
+describe("DonationsCard (climb page summary)", () => {
+  it("summarises progress and links to the Donations page", () => {
+    const regs = [
+      { id: "a", name: "Ana", status: "confirmed", donation: { cashPledge: 500, payWithFees: false, itemPledges: [{ name: "Notebooks", qty: 20 }] } },
+      { id: "b", name: "Ben", status: "confirmed", donationReceived: { cash: 200, items: "", itemQuantities: [{ name: "Rice", qty: 30 }], receivedBy: "Lead" } },
+    ];
+    render(
+      <MemoryRouter>
+        <DonationsCard climb={{ id: "c1", donationDrive: drive }} regs={regs} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Cash received:/).textContent).toMatch(/₱200 of ₱5,000/);
+    expect(screen.getByText(/To collect on the day:/).textContent).toMatch(/₱500/);
+    expect(screen.getByText(/Still needed: 60 pcs Notebooks/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open Donations/ })).toHaveAttribute(
+      "href",
+      "/admin/climbs/c1/donations",
+    );
   });
 });

@@ -110,7 +110,8 @@ service cloud.firestore {
     function pledgeIsValid(p) {
       return p == null ||
         (p is map &&
-          p.keys().hasOnly(['cashPledge', 'inKind', 'payWithFees']) &&
+          p.keys().hasOnly(['cashPledge', 'inKind', 'payWithFees', 'itemPledges']) &&
+          (!('itemPledges' in p) || (p.itemPledges is list && p.itemPledges.size() <= 50)) &&
           p.get('payWithFees', false) is bool &&
           (p.get('cashPledge', null) == null ||
             (p.cashPledge is number && p.cashPledge > 0 && p.cashPledge <= 1000000)) &&
