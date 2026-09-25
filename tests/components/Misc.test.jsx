@@ -37,9 +37,9 @@ describe("Footer", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the year reference", () => {
+  it("renders the programme name", () => {
     render(<Footer />);
-    expect(screen.getByText(/Open Climbs 2026/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Open Climbs/i).length).toBeGreaterThan(0);
   });
 });
 

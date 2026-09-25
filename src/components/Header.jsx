@@ -54,7 +54,7 @@ export default function Header() {
             <h1>
               Metropolitan <em>Mountaineering</em> Society
             </h1>
-            <p>Open Climbs 2026</p>
+            <p>Open Climbs</p>
           </div>
         </Link>
 

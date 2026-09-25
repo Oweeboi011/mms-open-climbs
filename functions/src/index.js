@@ -101,12 +101,12 @@ function tplBase(content) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f7f9f5;">
       <div style="background:#0d2b12;padding:24px;text-align:center;border-bottom:3px solid #c8a000;">
-        <h1 style="color:#f0c800;font-size:22px;margin:0;letter-spacing:3px;text-transform:uppercase;">MMS Open Climbs 2026</h1>
+        <h1 style="color:#f0c800;font-size:22px;margin:0;letter-spacing:3px;text-transform:uppercase;">MMS Open Climbs</h1>
         <p style="color:rgba(255,255,255,0.55);font-size:11px;letter-spacing:2px;margin:8px 0 0;text-transform:uppercase;">Metropolitan Mountaineering Society</p>
       </div>
       <div style="padding:32px 28px;background:#fff;">${content}</div>
       <div style="background:#0d2b12;padding:16px;text-align:center;">
-        <p style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin:0;">Metropolitan Mountaineering Society &bull; Open Climbs 2026</p>
+        <p style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin:0;">Metropolitan Mountaineering Society &bull; Open Climbs</p>
       </div>
     </div>`;
 }
@@ -210,7 +210,7 @@ function tplOfficerClimbCancellationRaw({
 function tplWelcomeRaw({ displayName, setupLink }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">Welcome, ${displayName}!</h2>
-    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">An account has been created for you on the MMS Open Climbs 2026 portal.</p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">An account has been created for you on the MMS Open Climbs portal.</p>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Click the button below to set your password and access your account:</p>
     <p style="margin:24px 0;">
       <a href="${setupLink}" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">Set Up Your Account</a>
@@ -496,7 +496,7 @@ async function promoteFromWaitlist(climbId) {
           await sendEmail({
             to: reg.email,
             toName: reg.name || "",
-            subject: `A slot opened — ${climb.title} | MMS Open Climbs 2026`,
+            subject: `A slot opened — ${climb.title} | MMS Open Climbs`,
             html: tplWaitlistPromoted({ name: reg.name || "there", climbTitle: climb.title || "your climb", appUrl }),
           });
         }
@@ -757,7 +757,7 @@ exports.onRegistrationCreated = onDocumentCreated(
         await sendEmail({
           to: email,
           toName: name,
-          subject: `Registration Received — ${climb.title} | MMS Open Climbs 2026`,
+          subject: `Registration Received — ${climb.title} | MMS Open Climbs`,
           html: tplRegistrationConfirmation({
             name,
             climbTitle: climb.title,
@@ -773,7 +773,7 @@ exports.onRegistrationCreated = onDocumentCreated(
         await sendEmail({
           to: officer.email,
           toName: officer.name,
-          subject: `[New Registration] ${name} — ${climb.title} | MMS Open Climbs 2026`,
+          subject: `[New Registration] ${name} — ${climb.title} | MMS Open Climbs`,
           html: tplOfficerNewRegistration({
             registrantName: name,
             registrantEmail: email,
@@ -793,7 +793,7 @@ exports.onRegistrationCreated = onDocumentCreated(
         await sendEmail({
           to: first.email,
           toName: first.name,
-          subject: `[New Registration] ${name} — ${climb.title} | MMS Open Climbs 2026`,
+          subject: `[New Registration] ${name} — ${climb.title} | MMS Open Climbs`,
           html: tplOfficerNewRegistration({
             registrantName: name,
             registrantEmail: email,
@@ -1110,7 +1110,7 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
         await sendEmail({
           to: after.email,
           toName: after.name,
-          subject: `Registration Update — ${climb.title} | MMS Open Climbs 2026`,
+          subject: `Registration Update — ${climb.title} | MMS Open Climbs`,
           html: tplStatusUpdate({
             name: after.name,
             climbTitle: climb.title,
@@ -1713,7 +1713,7 @@ exports.sendReminderNotifications = onSchedule(
             await sendEmail({
               to: reg.email,
               toName: reg.name,
-              subject: `Thank You for Climbing With Us — ${climb.title} | MMS Open Climbs 2026`,
+              subject: `Thank You for Climbing With Us — ${climb.title} | MMS Open Climbs`,
               html: tplThankYou({
                 name: reg.name,
                 climbTitle: climb.title,
@@ -1947,7 +1947,7 @@ exports.createUser = onCall(
         await sendEmail({
           to: email,
           toName: displayName,
-          subject: "Welcome to MMS Open Climbs 2026 — Set Up Your Account",
+          subject: "Welcome to MMS Open Climbs — Set Up Your Account",
           html: tplWelcome({ displayName, setupLink }),
         });
       } catch (emailErr) {

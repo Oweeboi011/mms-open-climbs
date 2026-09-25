@@ -58,13 +58,13 @@ describe("Admin Dashboard", () => {
     );
   });
 
-  it("shows the Import Schedule button when there are no climbs", async () => {
+  it("points to the climb form when there are no climbs", async () => {
     getDocs.mockResolvedValue(makeQuerySnapshot([]));
     renderWithProviders(<Dashboard />, makeAdminAuth());
     await waitFor(
       () =>
         expect(
-          screen.getByRole("button", { name: /Import 2026 Schedule/i }),
+          screen.getByRole("link", { name: /Add First Climb/i }),
         ).toBeInTheDocument(),
       { timeout: 3000 },
     );

@@ -56,7 +56,7 @@ export default function WaiverPrint() {
             <strong>{reg.climbTitle}</strong> &bull; {reg.climbDate} &bull; {reg.climbLocation}
           </div>
           <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--ink-soft)', letterSpacing: 1 }}>
-            Open Climbs 2026 &bull; Registration ID: {registrationId}
+            Open Climbs &bull; Registration ID: {registrationId}
           </div>
         </div>
 
@@ -107,7 +107,7 @@ export default function WaiverPrint() {
         </div>
 
         <div style={{ marginTop: 32, fontSize: '0.72rem', color: 'var(--ink-soft)', textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-          This document constitutes a legally binding waiver. Metropolitan Mountaineering Society &bull; Open Climbs 2026
+          This document constitutes a legally binding waiver. Metropolitan Mountaineering Society &bull; Open Climbs
         </div>
       </div>
     </div>
