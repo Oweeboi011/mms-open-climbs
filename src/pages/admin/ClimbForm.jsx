@@ -33,6 +33,7 @@ import {
 import { splitOfficerEmails, mergeOfficerEmails } from "@/utils/officerContacts";
 import DonationDriveFields from "@/components/admin/DonationDriveFields";
 import RegistrationPolicyFields from "@/components/admin/RegistrationPolicyFields";
+import ThingsToBringFields from "@/components/admin/ThingsToBringFields";
 import ReorderButtons, { moveItem } from "@/components/admin/ReorderButtons";
 
 const OFFICER_ROLES = [
@@ -1616,54 +1617,7 @@ export default function AdminClimbForm() {
             ))}
           </div>
 
-          {/* ── Things to Bring ── */}
-          <div className="admin-card">
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 16,
-              }}
-            >
-              <div className="admin-card-title" style={{ marginBottom: 0 }}>
-                Things to Bring
-              </div>
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                onClick={() => addListItem("thingsToBring", "")}
-              >
-                + Add Item
-              </button>
-            </div>
-            {form.thingsToBring.map((item, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Item"
-                  value={item}
-                  onChange={(e) =>
-                    updateListItem("thingsToBring", i, e.target.value)
-                  }
-                />
-                <ReorderButtons
-                  index={i}
-                  count={form.thingsToBring.length}
-                  onMove={(from, to) => moveListItem("thingsToBring", from, to)}
-                  label="item"
-                />
-                <button
-                  type="button"
-                  className="btn btn-danger btn-sm"
-                  onClick={() => removeListItem("thingsToBring", i)}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
+          <ThingsToBringFields form={form} setForm={setForm} />
 
           {/* ── Fees ── */}
           <div className="admin-card">
