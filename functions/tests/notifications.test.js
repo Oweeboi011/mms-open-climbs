@@ -2157,3 +2157,74 @@ describe("ensureAdminClaim", () => {
     await expect(handler()({})).rejects.toMatchObject({ code: "unauthenticated" });
   });
 });
+
+describe("waitlist promotion", () => {
+  const ts = (ms) => ({ toMillis: () => ms });
+  const seedFullClimb = (extra = {}) => {
+    climbStore["climb-1"] = { title: "Mt. Pulag", officers: [], maxParticipants: 2, ...extra };
+    userStore["admin-1"] = { role: "admin", email: "admin@mms.ph", displayName: "Admin" };
+    regStore["r-a"] = { climbId: "climb-1", userId: "a", status: "confirmed", createdAt: ts(1) };
+    regStore["r-b"] = { climbId: "climb-1", userId: "b", status: "cancelled", createdAt: ts(2) };
+    regStore["w-new"] = { climbId: "climb-1", userId: "w2", name: "Newer", email: "w2@x.com", status: "waitlisted", createdAt: ts(9) };
+    regStore["w-old"] = { climbId: "climb-1", userId: "w1", name: "Older", email: "w1@x.com", status: "waitlisted", createdAt: ts(5) };
+  };
+  const cancelB = () =>
+    updatedHandler({
+      data: {
+        before: { data: () => ({ status: "confirmed", climbId: "climb-1", userId: "b" }) },
+        after: { data: () => ({ status: "cancelled", climbId: "climb-1", userId: "b" }) },
+      },
+      params: { regId: "r-b" },
+    });
+  const promotedIds = () =>
+    climbUpdates
+      .filter((u) => u.path.startsWith("registrations/") && u.patch.status === "pending")
+      .map((u) => u.path.split("/")[1]);
+
+  it("offers a freed seat to the longest-waiting registration", async () => {
+    seedFullClimb();
+    await cancelB();
+    expect(promotedIds()).toEqual(["w-old"]);
+    expect(notifStore["waitlist_promoted_w-old"]).toMatchObject({ userId: "w1", type: "waitlist_promoted" });
+    const recipients = global.fetch.mock.calls.map(([, o]) => JSON.parse(o.body).to[0].email);
+    expect(recipients).toContain("w1@x.com");
+    expect(recipients).not.toContain("w2@x.com");
+  });
+
+  it("leaves the waitlist alone when the climb turned auto-promotion off", async () => {
+    seedFullClimb({ waitlistAutoPromote: false });
+    await cancelB();
+    expect(promotedIds()).toEqual([]);
+  });
+
+  it("does not promote for a cancelled climb", async () => {
+    seedFullClimb({ status: "cancelled" });
+    await cancelB();
+    expect(promotedIds()).toEqual([]);
+  });
+
+  it("fills every new seat when an admin raises the limit", async () => {
+    seedFullClimb({ maxParticipants: 3 });
+    regStore["r-b"].status = "confirmed";
+    await climbUpdatedHandler({
+      data: {
+        before: { data: () => ({ title: "Mt. Pulag", maxParticipants: 2 }) },
+        after: { data: () => ({ title: "Mt. Pulag", maxParticipants: 3 }) },
+      },
+      params: { climbId: "climb-1" },
+    });
+    expect(promotedIds()).toEqual(["w-old"]);
+  });
+
+  it("frees a seat when a seat-holder's registration is deleted", async () => {
+    seedFullClimb();
+    delete regStore["r-b"];
+    regStore["r-c"] = { climbId: "climb-1", userId: "c", status: "confirmed", createdAt: ts(3) };
+    delete regStore["r-c"];
+    await deletedHandler({
+      data: { data: () => ({ climbId: "climb-1", userId: "c", status: "confirmed" }) },
+      params: { regId: "r-c" },
+    });
+    expect(promotedIds()).toEqual(["w-old"]);
+  });
+});
