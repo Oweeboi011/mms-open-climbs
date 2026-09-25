@@ -1,11 +1,7 @@
 // The privacy notice members agree to when registering. Bump the version
 // whenever the substance changes: each registration records the version it
 // was given, so the club can show what a member actually consented to.
-//
-// DRAFT for the club to review. It describes what this app actually does
-// (fields collected, who can see them, where they're stored, how long they're
-// kept); the club should confirm it and name its data protection contact.
-export const PRIVACY_NOTICE_VERSION = "2026-09-draft";
+export const PRIVACY_NOTICE_VERSION = "2026-09-26";
 
 export const PRIVACY_NOTICE_SECTIONS = [
   {
@@ -26,6 +22,7 @@ export const PRIVACY_NOTICE_SECTIONS = [
       "Payment records: amounts, GCash receipts you upload, and their review status. We never see or store your GCash login or card details.",
       "Your typed waiver signature, and optional donation pledges.",
       "Basic usage data: pages visited and errors, used to keep the site working. It is deleted after 90 days.",
+      "Anti-abuse checks: Google reCAPTCHA looks at how your browser interacts with the site to confirm requests come from a real visitor. Google's Privacy Policy (policies.google.com/privacy) and Terms (policies.google.com/terms) apply.",
     ],
   },
   {
