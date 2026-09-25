@@ -105,8 +105,8 @@ function heroImageFor(climb) {
  */
 function makeMetaBlock(climb, url, origin) {
   const title = climb.title
-    ? `${climb.title}${climb.dateLabel ? ` — ${climb.dateLabel}` : ""} | MMS Open Climbs 2026`
-    : "MMS Open Climbs 2026";
+    ? `${climb.title}${climb.dateLabel ? ` — ${climb.dateLabel}` : ""} | MMS Open Climbs`
+    : "MMS Open Climbs";
   const description = buildDescription(climb);
   const hero = heroImageFor(climb);
   const image = hero || `${origin}/MMS.png`;

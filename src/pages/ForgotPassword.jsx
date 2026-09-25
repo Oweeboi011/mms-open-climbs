@@ -42,7 +42,7 @@ export default function ForgotPassword() {
             <br />
             Society
           </p>
-          <p className="auth-panel-year">Open Climbs 2026</p>
+          <p className="auth-panel-year">Open Climbs</p>
           <div className="auth-panel-mountains">
             <svg viewBox="0 0 400 160" preserveAspectRatio="none">
               <path
@@ -71,7 +71,7 @@ export default function ForgotPassword() {
             <img src="/MMS.png" alt="MMS Logo" />
           </div>
           <h1 className="auth-title">Reset Password</h1>
-          <p className="auth-subtitle">MMS Open Climbs 2026</p>
+          <p className="auth-subtitle">MMS Open Climbs</p>
 
           {error && <div className="alert alert-error">{error}</div>}
           {message && <div className="alert alert-success">{message}</div>}

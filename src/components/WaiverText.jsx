@@ -1,5 +1,5 @@
 /**
- * MMS Open Climbs 2026 — Standard Liability Waiver
+ * MMS Open Climbs — Standard Liability Waiver
  * Displayed during registration and printed from the waiver page.
  */
 export default function WaiverText({ climbTitle, climbDate, climbLocation }) {
@@ -10,7 +10,7 @@ export default function WaiverText({ climbTitle, climbDate, climbLocation }) {
       <h4>Activity Description</h4>
       <p>
         This waiver pertains to participation in <strong>{eventDesc || 'the MMS Open Climb activity'}</strong>,
-        organised by the Metropolitan Mountaineering Society (MMS) as part of the Open Climbs 2026 programme.
+        organised by the Metropolitan Mountaineering Society (MMS) as part of the Open Climbs programme.
       </p>
 
       <h4>Acknowledgment of Risk</h4>

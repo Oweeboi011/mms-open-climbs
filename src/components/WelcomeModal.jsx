@@ -183,7 +183,7 @@ export default function WelcomeModal() {
               !
             </div>
             <div className="welcome-subtitle">
-              MMS Open Climbs 2026 —{" "}
+              MMS Open Climbs —{" "}
               {isAdmin ? "Member & Admin Guide" : "Quick Guide"}
             </div>
           </div>
