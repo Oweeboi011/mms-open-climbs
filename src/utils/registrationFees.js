@@ -70,6 +70,21 @@ export function getGroupSize(reg, serviceGroups, label) {
   return group ? group.length : 1;
 }
 
+// One member's share of a split service, in pesos. Worked in centavos so the
+// shares add back up to exactly the unit price: ₱3,500 ÷ 3 is 1,166.67 +
+// 1,166.67 + 1,166.66, not three 1,166.67s (which over-collect a centavo and
+// left totals like ₱207,940.01). The leftover centavos go to the members
+// listed first in the group, so everyone's share is stable across renders.
+export function getSplitShare(unitAmount, reg, serviceGroups, label) {
+  const group = serviceGroups?.[label]?.find((ids) => ids.includes(reg.id));
+  if (!group || group.length <= 1) return unitAmount;
+  const unitCents = Math.round(unitAmount * 100);
+  const base = Math.floor(unitCents / group.length);
+  const remainder = unitCents - base * group.length;
+  const position = group.indexOf(reg.id);
+  return (base + (position < remainder ? 1 : 0)) / 100;
+}
+
 // The other registrants (resolved from `regs`) sharing this service with reg,
 // for display — e.g. "Sharing Porter with Juan, Maria". Empty when solo.
 export function getGroupmates(reg, regs, serviceGroups, label) {
@@ -115,7 +130,7 @@ export function getFeeItems(reg, climb, serviceGroups = {}) {
     if (unitAmount === null) return item; // TBA fees can't be split numerically yet
     return {
       ...item,
-      amount: Math.round((unitAmount / groupSize) * 100) / 100,
+      amount: getSplitShare(unitAmount, reg, serviceGroups, item.label),
       unitAmount: item.amount,
       groupSize,
     };
