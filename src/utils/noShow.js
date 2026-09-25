@@ -6,9 +6,12 @@ import { isClimbCompleted } from "@/utils/climbGrouping";
 // "confirmed", so payments, balances, counters and status emails are
 // untouched, and marking it by mistake is a one-click undo.
 
-// Only once the climb is over, and only for people who were expected.
+// Only once the climb is over, only for people who were expected, and never
+// for someone ticked present on the climb-day sheet.
 export function canMarkNoShow(reg, climb, now = new Date()) {
-  return reg?.status === "confirmed" && isClimbCompleted(climb, now);
+  return (
+    reg?.status === "confirmed" && !reg.attended && isClimbCompleted(climb, now)
+  );
 }
 
 // How many *other* climbs each member was a no-show on, keyed by userId.

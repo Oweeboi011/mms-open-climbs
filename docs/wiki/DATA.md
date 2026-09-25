@@ -288,6 +288,7 @@ Each document represents a single member's registration for a single climb.
 | `permitUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresPermit` is `true` |
 | `waiverDocUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresWaiverDoc` is `true` |
 | `adminNotes` | string | No | Admin-only internal notes |
+| `attended` / `attendedMarkedBy` / `attendedMarkedAt` | boolean / string / Timestamp | No | Ticked Present on the climb-day sheet (`/admin/climbs/:id/sheet`). Ticking also clears any no-show; a present registrant who isn't `confirmed` is flagged there with an on-the-spot Confirm |
 | `noShow` | boolean | No | `true` when a confirmed registrant didn't turn up on climb day. A flag, not a status — the registration stays `confirmed`, so payments, counters and status emails are untouched. Set by admins after the climb (`src/utils/noShow.js`); no-shows get no thank-you/feedback request, and ClimbDetail warns on members with earlier no-shows |
 | `noShowMarkedBy` / `noShowMarkedAt` | string / Timestamp | No | Who marked the no-show and when; cleared on undo |
 | `cancelledByMember` / `cancelledAt` | boolean / Timestamp | No | Set when the member cancelled from My Climbs (rules: `memberIsCancellingOwn` — only to `cancelled`, only from a live status). Reinstating is admin-only |

@@ -30,6 +30,9 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
       name: r.name || "(no name)",
       status: r.status,
       expected: expectedOnTrail,
+      attended: !!r.attended,
+      // Turned up without a confirmed slot — leads need to sort it out.
+      presentNotConfirmed: !!r.attended && r.status !== "confirmed",
       pending: r.status === "pending",
       memberType: r.memberType === "member" ? "Member" : r.memberType ? "Joiner" : "",
       mobile: r.mobile || "",
@@ -61,6 +64,10 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
     pending: rows.filter((r) => r.status === "pending").length,
     waitlisted: rows.filter((r) => r.status === "waitlisted").length,
     cancelled: rows.filter((r) => r.status === "cancelled").length,
+    present: rows.filter((r) => r.attended).length,
+    expectedPresent: onTrail.filter((r) => r.attended).length,
+    expectedCount: onTrail.length,
+    presentNotConfirmed: rows.filter((r) => r.presentNotConfirmed).length,
     balanceDue: rows.reduce((s, r) => s + r.balanceDue, 0),
     owing: rows.filter((r) => r.balanceDue > 0).length,
     cashOnTheDay: rows.reduce((s, r) => s + r.cashOnTheDay, 0),
@@ -69,4 +76,19 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
     withMedical: onTrail.filter((r) => r.medical && !/^(none|n\/?a|no)\.?$/i.test(r.medical)).length,
   };
   return { rows, totals };
+}
+
+// The Firestore patch for ticking or unticking someone present. Being there
+// also settles any no-show mark.
+export function buildAttendancePatch(present, markedBy, timestamp) {
+  return present
+    ? {
+        attended: true,
+        attendedMarkedBy: markedBy,
+        attendedMarkedAt: timestamp,
+        noShow: false,
+        noShowMarkedBy: null,
+        noShowMarkedAt: null,
+      }
+    : { attended: false, attendedMarkedBy: null, attendedMarkedAt: null };
 }

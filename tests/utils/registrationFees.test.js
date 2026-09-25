@@ -395,6 +395,18 @@ describe("service sharing", () => {
     expect(porter.groupSize).toBe(3);
   });
 
+  it("splits so the shares add back up to exactly the unit price", () => {
+    const climb = { fees: [{ label: "Porter", amount: "3500", optional: true, shareable: true }] };
+    const groups = { Porter: [["x", "y", "z"]] };
+    const shares = ["x", "y", "z"].map(
+      (id) =>
+        getFeeItems({ id, feeBreakdown: [{ label: "Porter", selected: true }] }, climb, groups)
+          .find((i) => i.label === "Porter").amount,
+    );
+    expect(shares).toEqual([1166.67, 1166.67, 1166.66]);
+    expect(Math.round(shares.reduce((s, n) => s + n, 0) * 100) / 100).toBe(3500);
+  });
+
   it("leaves a solo registrant's amount unsplit", () => {
     const items = getFeeItems(solo, shareableClimb, serviceGroups);
     const porter = items.find((i) => i.label === "Porter");

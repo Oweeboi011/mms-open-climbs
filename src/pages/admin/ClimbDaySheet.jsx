@@ -1,17 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { useAuth } from "@/contexts/AuthContext";
+import { logAuditEvent } from "@/utils/auditLog";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { formatPeso } from "@/utils/feeSummary";
-import { buildClimbDaySheet } from "@/utils/climbDaySheet";
+import { buildAttendancePatch, buildClimbDaySheet } from "@/utils/climbDaySheet";
 import { readClimbPrivate } from "@/utils/registrationFees";
 
 // Printable roster for climb day. Loaded once (not live) so what's printed
 // matches what's on screen. Contains medical and emergency details — admins
 // only (AdminRoute), and the print says so.
+//
+// Ticking Present saves (`attended`), so every admin sees the same
+// attendance. Anyone ticked present who isn't confirmed — a walk-up, someone
+// off the waitlist, someone who cancelled and came anyway — is flagged with
+// a Confirm button so leads can settle their slot on the spot.
 export default function ClimbDaySheet() {
   const { id } = useParams();
+  const { currentUser } = useAuth();
+  const [savingId, setSavingId] = useState(null);
   const [climb, setClimb] = useState(null);
   const [regs, setRegs] = useState([]);
   const [serviceGroups, setServiceGroups] = useState({});
@@ -56,6 +74,45 @@ export default function ClimbDaySheet() {
   }
 
   const { rows, totals } = sheet;
+  const actor = currentUser?.displayName || currentUser?.email || "admin";
+
+  function patchLocal(regId, patch) {
+    setRegs((list) => list.map((r) => (r.id === regId ? { ...r, ...patch } : r)));
+  }
+
+  async function togglePresent(row) {
+    setSavingId(row.id);
+    try {
+      const patch = buildAttendancePatch(!row.attended, actor, serverTimestamp());
+      await updateDoc(doc(db, "registrations", row.id), { ...patch, updatedAt: serverTimestamp() });
+      patchLocal(row.id, { ...patch, attendedMarkedAt: new Date() });
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function confirmOnSite(row) {
+    setSavingId(row.id);
+    try {
+      await updateDoc(doc(db, "registrations", row.id), {
+        status: "confirmed",
+        confirmedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      patchLocal(row.id, { status: "confirmed" });
+      logAuditEvent({
+        actorUid: currentUser?.uid,
+        actorName: actor,
+        action: "registration_status_confirmed",
+        targetType: "registration",
+        targetId: row.id,
+        targetLabel: row.name,
+        details: `Confirmed on climb day (was ${row.status}, present) for ${climb.title}`,
+      });
+    } finally {
+      setSavingId(null);
+    }
+  }
   const printedAt = new Date().toLocaleString("en-PH", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -106,6 +163,15 @@ export default function ClimbDaySheet() {
           {totals.cancelled > 0 && `, ${totals.cancelled} cancelled`}
         </span>
         <span>
+          <strong>{totals.expectedPresent}</strong> of {totals.expectedCount} expected
+          present
+        </span>
+        {totals.presentNotConfirmed > 0 && (
+          <span className="daysheet-flag">
+            {totals.presentNotConfirmed} present but not confirmed
+          </span>
+        )}
+        <span>
           <strong>{totals.withMedical}</strong> with medical notes
         </span>
         {totals.unsignedWaivers > 0 && (
@@ -148,11 +214,23 @@ export default function ClimbDaySheet() {
             {rows.map((r, i) => (
               <tr
                 key={r.id}
-                className={r.status === "cancelled" ? "daysheet-row-cancelled" : undefined}
+                className={
+                  r.presentNotConfirmed
+                    ? "daysheet-row-alert"
+                    : r.status === "cancelled"
+                      ? "daysheet-row-cancelled"
+                      : undefined
+                }
               >
                 <td>{i + 1}</td>
-                <td className="daysheet-check" aria-label="Present">
-                  &#9744;
+                <td className="daysheet-check">
+                  <input
+                    type="checkbox"
+                    aria-label={`Present: ${r.name}`}
+                    checked={r.attended}
+                    disabled={savingId === r.id}
+                    onChange={() => togglePresent(r)}
+                  />
                 </td>
                 <td>
                   <strong>{r.name}</strong>
@@ -160,6 +238,18 @@ export default function ClimbDaySheet() {
                     <span className={`daysheet-status daysheet-status-${r.status}`}>
                       {r.status.toUpperCase()}
                     </span>
+                  )}
+                  {r.presentNotConfirmed && (
+                    <div className="daysheet-present-flag">
+                      PRESENT — NOT CONFIRMED{" "}
+                      <button
+                        className="btn btn-outline btn-sm no-print"
+                        disabled={savingId === r.id}
+                        onClick={() => confirmOnSite(r)}
+                      >
+                        Confirm
+                      </button>
+                    </div>
                   )}
                   <div>{r.mobile}</div>
                   <div className="daysheet-muted">{r.memberType}</div>
