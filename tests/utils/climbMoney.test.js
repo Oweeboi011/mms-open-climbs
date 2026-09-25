@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { reconcileClimbMoney } from "@/utils/climbMoney";
+import { getClimbAttention, reconcileClimbMoney } from "@/utils/climbMoney";
 
 const climb = { fees: [{ label: "Hike Package", amount: "1000" }] };
 const pay = (amount, status = "verified") => ({ amount, status, proofs: [] });
@@ -49,5 +49,19 @@ describe("reconcileClimbMoney", () => {
     const rebuilt =
       r.expected - r.awaitingReview.total - r.stillOwed.total + r.overpaid.total + r.keptFromCancelled.total;
     expect(Math.round(rebuilt * 100) / 100).toBe(r.verified);
+  });
+});
+
+describe("getClimbAttention", () => {
+  it("counts payments to review and money to settle, ignoring centavos", () => {
+    const extra = [
+      ...regs,
+      { id: "h", name: "Hal", status: "confirmed", paymentStatus: "verified", amountPaid: 1000.33, payments: [pay(1000.33)] },
+    ];
+    expect(getClimbAttention(extra, climb)).toEqual({
+      toReview: 1,
+      toSettleCount: 2,
+      toSettleTotal: 1550,
+    });
   });
 });
