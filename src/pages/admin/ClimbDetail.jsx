@@ -71,8 +71,6 @@ import {
   getDonationFeeItem,
   getDonationPaidWithFees,
   isDonationDriveOn,
-  normalizeReceived,
-  summarizeDonations,
 } from "@/utils/donations";
 import MoneyReconciliationCard from "@/components/admin/MoneyReconciliationCard";
 import { sumExpenses } from "@/utils/climbExpenses";
@@ -211,50 +209,7 @@ export default function AdminClimbDetail() {
     [noShowRegs, id],
   );
 
-  // What the leads actually received from one registrant. The climb doc's
-  // `donationTotals` is republished from every registration so the event
-  // page can show a running total without exposing who gave what.
-  async function recordDonation(reg, received) {
-    const actor = currentUser?.displayName || currentUser?.email || "admin";
-    const donationReceived = normalizeReceived(received, actor, Timestamp.now());
-    await updateDoc(doc(db, "registrations", reg.id), {
-      donationReceived,
-      updatedAt: serverTimestamp(),
-    });
-    const next = regs.map((r) => (r.id === reg.id ? { ...r, donationReceived } : r));
-    const { receivedCash, donors, itemDonations } = summarizeDonations(
-      next,
-      donationPaidWithFees,
-    );
-    await updateDoc(doc(db, "climbs", id), {
-      donationTotals: { receivedCash, donors, itemDonations },
-    });
-    logAuditEvent({
-      actorUid: currentUser?.uid,
-      actorName: actor,
-      action: donationReceived ? "donation_recorded" : "donation_cleared",
-      targetType: "registration",
-      targetId: reg.id,
-      targetLabel: reg.name || reg.id,
-      details: donationReceived
-        ? `Received ₱${donationReceived.cash.toLocaleString("en-PH")}` +
-          `${donationReceived.items ? ` + items (${donationReceived.items})` : ""}` +
-          ` for ${climb?.donationDrive?.beneficiary || climb?.title || "outreach"}`
-        : `Cleared donation record for ${climb?.title || "climb"}`,
-    });
-  }
 
-  // Refresh the event page's public tally — with-fees donations change as
-  // payments are verified, not only when leads record something.
-  async function publishDonationTotals() {
-    const { receivedCash, donors, itemDonations } = summarizeDonations(
-      regs,
-      donationPaidWithFees,
-    );
-    await updateDoc(doc(db, "climbs", id), {
-      donationTotals: { receivedCash, donors, itemDonations },
-    });
-  }
 
   async function toggleNoShow(reg) {
     const next = !reg.noShow;
@@ -919,6 +874,15 @@ export default function AdminClimbDetail() {
             >
               + Add Participant
             </button>
+            {isDonationDriveOn(climb) && (
+              <Link
+                to={`/admin/climbs/${id}/donations`}
+                className="btn btn-outline btn-sm"
+                title="What the donation drive needs, who brings what, and what has been collected"
+              >
+                Donations
+              </Link>
+            )}
             <Link
               to={`/admin/climbs/${id}/sheet`}
               className="btn btn-outline btn-sm"
@@ -1067,13 +1031,7 @@ export default function AdminClimbDetail() {
             />
 
             {isDonationDriveOn(climb) && (
-              <DonationsCard
-                climb={climb}
-                regs={regs}
-                onRecord={recordDonation}
-                paidWithFees={donationPaidWithFees}
-                onPublish={publishDonationTotals}
-              />
+              <DonationsCard climb={climb} regs={regs} paidWithFees={donationPaidWithFees} />
             )}
 
             {/* Required documents progress — how much of the paperwork this

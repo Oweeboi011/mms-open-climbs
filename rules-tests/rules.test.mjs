@@ -92,6 +92,7 @@ await ok("member signs own waiver", () => m1().doc("registrations/r_unpaid").upd
 await ok("member updates own details", () => m1().doc("registrations/r_hist").update({ mobile: "0917" }));
 await ok("member pledges a donation", () => m1().doc("registrations/r_hist").update({ donation: { cashPledge: 500, inKind: "10 notebooks" }, updatedAt: FV.serverTimestamp() }));
 await ok("member pledges cash with their GCash payment", () => m1().doc("registrations/r_hist").update({ donation: { cashPledge: 300, inKind: "", payWithFees: true } }));
+await ok("member pledges item quantities", () => m1().doc("registrations/r_hist").update({ donation: { cashPledge: null, inKind: "", payWithFees: false, itemPledges: [{ name: "Notebooks", qty: 10 }] } }));
 await ok("member withdraws a pledge", () => m1().doc("registrations/r_hist").update({ donation: null }));
 await no("member cannot record their own donation as received", () => m1().doc("registrations/r_hist").update({ donationReceived: { cash: 500, items: "", receivedBy: "me" } }));
 await no("member cannot clear a no-show mark", () => m1().doc("registrations/r_hist").update({ noShow: false }));
