@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
-import { getDoc, getDocs } from "firebase/firestore";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { getDoc, getDocs, updateDoc } from "firebase/firestore";
 import { renderAtRoute, makeAdminAuth } from "@tests/helpers";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 import ClimbDaySheet from "@/pages/admin/ClimbDaySheet";
@@ -55,7 +55,7 @@ describe("Climb-day sheet", () => {
     expect(screen.getByText("WAITLISTED")).toBeInTheDocument();
     expect(screen.getByText("Cara Cancelled").closest("tr")).toHaveClass("daysheet-row-cancelled");
     expect(screen.getByText("CANCELLED")).toBeInTheDocument();
-    expect(screen.getAllByLabelText("Present")).toHaveLength(3);
+    expect(screen.getAllByLabelText(/^Present:/)).toHaveLength(3);
     // Nothing paid yet against the ₱1,000 fee.
     expect(screen.getAllByText("₱1,000").length).toBeGreaterThan(0);
     expect(screen.getByText(/Confidential/)).toBeInTheDocument();
@@ -67,5 +67,27 @@ describe("Climb-day sheet", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Print/i }));
     expect(print).toHaveBeenCalled();
     print.mockRestore();
+  });
+
+  it("saves a Present tick", async () => {
+    render();
+    fireEvent.click(await screen.findByLabelText("Present: Ben Cruz"));
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.at(-1)[1];
+    expect(patch).toMatchObject({ attended: true, noShow: false });
+    expect(patch.attendedMarkedBy).toBeTruthy();
+    expect(screen.getByLabelText("Present: Ben Cruz")).toBeChecked();
+  });
+
+  it("flags someone present who isn't confirmed and lets a lead confirm them", async () => {
+    render();
+    fireEvent.click(await screen.findByLabelText("Present: Wait Listed"));
+    expect(await screen.findByText(/PRESENT — NOT CONFIRMED/)).toBeInTheDocument();
+    expect(screen.getByText(/1 present but not confirmed/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() =>
+      expect(updateDoc.mock.calls.some((c) => c[1].status === "confirmed")).toBe(true),
+    );
+    await waitFor(() => expect(screen.queryByText(/PRESENT — NOT CONFIRMED/)).toBeNull());
   });
 });

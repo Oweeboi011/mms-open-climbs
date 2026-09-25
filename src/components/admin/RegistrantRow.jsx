@@ -119,6 +119,14 @@ export default function RegistrantRow({
                 {reg.memberType === "member" ? "Member" : "Joiner"}
               </span>
             )}
+            {reg.attended && (
+              <span
+                className="present-badge"
+                title={reg.attendedMarkedBy ? `Ticked by ${reg.attendedMarkedBy}` : undefined}
+              >
+                Present
+              </span>
+            )}
             {reg.noShow && (
               <span
                 className="noshow-badge"

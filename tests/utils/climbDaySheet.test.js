@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildClimbDaySheet } from "@/utils/climbDaySheet";
+import { buildAttendancePatch, buildClimbDaySheet } from "@/utils/climbDaySheet";
 
 const climb = {
   fees: [{ label: "Climb Fee", amount: "1000" }],
@@ -104,5 +104,23 @@ describe("buildClimbDaySheet", () => {
     );
     expect(withFees.rows[0].cashOnTheDay).toBe(0);
     expect(withFees.rows[0].balanceDue).toBe(1300);
+  });
+});
+
+describe("attendance", () => {
+  it("flags anyone present who isn't confirmed and counts expected presence", () => {
+    const { rows, totals } = buildClimbDaySheet([
+      { id: "a", name: "A", status: "confirmed", attended: true },
+      { id: "b", name: "B", status: "confirmed" },
+      { id: "p", name: "P", status: "pending", attended: true },
+      { id: "c", name: "C", status: "cancelled", attended: true },
+    ]);
+    expect(rows.filter((r) => r.presentNotConfirmed).map((r) => r.id)).toEqual(["p", "c"]);
+    expect(totals).toMatchObject({ present: 3, expectedPresent: 2, expectedCount: 3, presentNotConfirmed: 2 });
+  });
+
+  it("ticking present also settles a no-show; unticking only clears attendance", () => {
+    expect(buildAttendancePatch(true, "Lead", "TS")).toMatchObject({ attended: true, attendedMarkedBy: "Lead", noShow: false });
+    expect(buildAttendancePatch(false, "Lead", "TS")).toEqual({ attended: false, attendedMarkedBy: null, attendedMarkedAt: null });
   });
 });
