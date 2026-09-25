@@ -14,18 +14,16 @@ import Footer from "@/components/Footer";
 import ClimbCard from "@/components/ClimbCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import MountaineeringGuideModal from "@/components/MountaineeringGuideModal";
+import {
+  climbMonthKey,
+  defaultSeason,
+  groupClimbsByMonth,
+  monthKeyLabel,
+  seasonYears,
+} from "@/utils/climbGrouping";
 
-const MONTHS = ["jul", "aug", "sep", "oct", "nov", "dec"];
-const MONTH_LABEL = {
-  jul: "July 2026",
-  aug: "August 2026",
-  sep: "September 2026",
-  oct: "October 2026",
-  nov: "November 2026",
-  dec: "December 2026",
-};
 // The stats bar doubles as a filter: each tile selects the same key as
-// its counterpart in FILTERS below, so the two controls stay in step.
+// its counterpart in TYPE_FILTERS below, so the two controls stay in step.
 const STAT_FILTERS = [
   { key: "all", stat: "total", label: "Total Climbs" },
   { key: "major", stat: "major", label: "Major" },
@@ -33,17 +31,11 @@ const STAT_FILTERS = [
   { key: "special", stat: "special", label: "Special" },
 ];
 
-const FILTERS = [
+const TYPE_FILTERS = [
   { key: "all", label: "All" },
   { key: "minor", label: "Minor" },
   { key: "major", label: "Major" },
   { key: "special", label: "Special" },
-  { key: "jul", label: "July" },
-  { key: "aug", label: "August" },
-  { key: "sep", label: "September" },
-  { key: "oct", label: "October" },
-  { key: "nov", label: "November" },
-  { key: "dec", label: "December" },
 ];
 
 export default function Schedule() {
@@ -51,6 +43,7 @@ export default function Schedule() {
   const [climbs, setClimbs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [selectedYear, setSelectedYear] = useState(null);
   const filtersRef = useRef(null);
   const filtersWrapRef = useRef(null);
   const [showTop, setShowTop] = useState(false);
@@ -132,37 +125,47 @@ export default function Schedule() {
     return () => observer.disconnect();
   });
 
-  // Filter
-  const filtered = climbs.filter((c) => {
+  // Each year is its own season of climbs. Show one at a time, opening on
+  // the season with the next climb still ahead (or the latest one).
+  const seasons = seasonYears(climbs);
+  const season = selectedYear && seasons.includes(selectedYear)
+    ? selectedYear
+    : defaultSeason(climbs, seasons);
+  const seasonClimbs = seasons.length > 1
+    ? climbs.filter((c) => climbMonthKey(c).slice(0, 4) === season)
+    : climbs;
+
+  // Month buttons come from the season's climbs, so any month gets a section.
+  const monthSections = groupClimbsByMonth(seasonClimbs);
+  const filters = [
+    ...TYPE_FILTERS,
+    ...monthSections.map((sec) => ({
+      key: sec.key,
+      label: monthKeyLabel(sec.key, { withYear: false }),
+    })),
+  ];
+
+  const filtered = seasonClimbs.filter((c) => {
     if (activeFilter === "all") return true;
     if (["minor", "major", "special"].includes(activeFilter))
       return c.type === activeFilter;
-    return c.month === activeFilter;
+    return climbMonthKey(c) === activeFilter;
   });
 
   // Build flat list of section headers + cards for the CSS grid
   const flatItems = [];
-  MONTHS.forEach((month) => {
-    const monthClimbs = filtered
-      .filter((c) => c.month === month)
-      .sort((a, b) => {
-        const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
-        const db_ = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
-        return da - db_;
-      });
-    if (monthClimbs.length > 0) {
-      flatItems.push({ type: "header", id: `hdr-${month}`, month });
-      monthClimbs.forEach((c) =>
-        flatItems.push({ type: "climb", id: c.id, climb: c }),
-      );
-    }
+  groupClimbsByMonth(filtered).forEach(({ key, climbs: monthClimbs }) => {
+    flatItems.push({ type: "header", id: `hdr-${key}`, month: key });
+    monthClimbs.forEach((c) =>
+      flatItems.push({ type: "climb", id: c.id, climb: c }),
+    );
   });
 
   const stats = {
-    total: climbs.length,
-    major: climbs.filter((c) => c.type === "major").length,
-    minor: climbs.filter((c) => c.type === "minor").length,
-    special: climbs.filter((c) => c.type === "special").length,
+    total: seasonClimbs.length,
+    major: seasonClimbs.filter((c) => c.type === "major").length,
+    minor: seasonClimbs.filter((c) => c.type === "minor").length,
+    special: seasonClimbs.filter((c) => c.type === "special").length,
   };
 
   return (
@@ -183,7 +186,7 @@ export default function Schedule() {
           Welcome Participation from Interested Guests
         </p>
         <p className="hero-subtitle">
-          &#9678; {stats.total} Summits &middot; 6 Months &middot; 1 Community
+          &#9678; {stats.total} Summits &middot; {monthSections.length} Months &middot; 1 Community
           &#9678;
         </p>
         <div className="hero-cta">
@@ -264,6 +267,25 @@ export default function Schedule() {
         </div>
       )}
 
+      {seasons.length > 1 && (
+        <div className="season-tabs" role="group" aria-label="Season">
+          {seasons.map((y) => (
+            <button
+              key={y}
+              type="button"
+              className={`filter-btn${season === y ? " active" : ""}`}
+              aria-pressed={season === y}
+              onClick={() => {
+                setSelectedYear(y);
+                setActiveFilter("all");
+              }}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="stats-bar">
         {STAT_FILTERS.map((s) => (
           <button
@@ -281,7 +303,7 @@ export default function Schedule() {
 
       <div className="filters-wrap" ref={filtersWrapRef}>
         <div className="filters" ref={filtersRef}>
-          {FILTERS.map((f) => (
+          {filters.map((f) => (
             <button
               key={f.key}
               className={`filter-btn${activeFilter === f.key ? " active" : ""}`}
@@ -362,7 +384,7 @@ export default function Schedule() {
           {flatItems.map((item) =>
             item.type === "header" ? (
               <div key={item.id} className="section-month">
-                {MONTH_LABEL[item.month]}
+                {monthKeyLabel(item.month)}
               </div>
             ) : (
               <ClimbCard key={item.id} climb={item.climb} />
