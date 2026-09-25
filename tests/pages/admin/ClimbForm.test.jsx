@@ -275,4 +275,40 @@ describe("Admin ClimbForm", () => {
     expect(payload.requiresPermit).toBe(true);
     expect(payload.requiresWaiverDoc).toBe(true);
   });
+  it("reorders Things to Bring items and submits them in the new order", async () => {
+    renderAtRoute(
+      <AdminClimbForm />,
+      "/admin/climbs/new",
+      "/admin/climbs/new",
+      makeAdminAuth(),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("New Climb", { selector: ".admin-page-title" }),
+      ).toBeInTheDocument(),
+    );
+
+    const downButtons = screen.getAllByRole("button", { name: "Move item down" });
+    const upButtons = screen.getAllByRole("button", { name: "Move item up" });
+    expect(upButtons[0]).toBeDisabled();
+    expect(downButtons[downButtons.length - 1]).toBeDisabled();
+
+    fireEvent.click(downButtons[0]);
+
+    fireEvent.change(controlByLabel("Climb Title"), { target: { value: "Mt. Sample" } });
+    fireEvent.change(controlByLabel("Date Label"), { target: { value: "Jul 1-2" } });
+    fireEvent.change(controlByLabel("Start Date"), { target: { value: "2026-07-01" } });
+    fireEvent.change(controlByLabel("End Date"), { target: { value: "2026-07-02" } });
+    fireEvent.change(controlByLabel("Location"), { target: { value: "Benguet" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Create Climb/i }));
+
+    await waitFor(() => expect(addDoc).toHaveBeenCalled());
+    const payload = addDoc.mock.calls[0][1];
+    expect(payload.thingsToBring.slice(0, 2)).toEqual([
+      "Water, 2–3 litres per day",
+      "Day pack / Overnight pack",
+    ]);
+  });
 });
