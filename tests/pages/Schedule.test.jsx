@@ -156,4 +156,28 @@ describe("Schedule page", () => {
       screen.getByRole("button", { name: /Browse Climbs/i }),
     ).toBeInTheDocument();
   });
+
+  it("shows climbs from any month, one season at a time", async () => {
+    const ts = (iso) => ({ toDate: () => new Date(iso) });
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(
+        makeQuerySnapshot([
+          { id: "a", data: { ...climbFixture, title: "Mt. Batulao", status: "open", startDate: ts("2098-12-05") } },
+          { id: "b", data: { ...climbFixture, title: "Mt. Apo", status: "open", startDate: ts("2099-03-14"), month: "mar" } },
+        ]),
+      );
+      return vi.fn();
+    });
+    renderWithProviders(<Schedule />, makeGuestAuth());
+
+    await waitFor(() => screen.getByText("Mt. Batulao"));
+    expect(screen.getByText("December 2098")).toBeInTheDocument();
+    expect(screen.queryByText("Mt. Apo")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "2099" }));
+    expect(screen.getByText("Mt. Apo")).toBeInTheDocument();
+    expect(screen.getByText("March 2099")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "March" })).toBeInTheDocument();
+    expect(screen.queryByText("Mt. Batulao")).not.toBeInTheDocument();
+  });
 });
