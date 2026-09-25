@@ -1270,12 +1270,10 @@ export default function Register() {
               );
             })()}
 
-          {(climb.paymentDueDate || climb.cancellationPolicy) && (
-            <div className="register-form-card">
-              <div className="form-section-title">Payment Deadline &amp; Cancellation</div>
-              <RegistrationPolicyInfo climb={climb} />
-            </div>
-          )}
+          <div className="register-form-card">
+            <div className="form-section-title">Payment Deadline &amp; Cancellation</div>
+            <RegistrationPolicyInfo climb={climb} />
+          </div>
 
           {isDonationDriveOn(climb) && (
             <div className="register-form-card">

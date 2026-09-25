@@ -1,5 +1,9 @@
+import { DEFAULT_CANCELLATION_POLICY } from "@/data/defaultCancellationPolicy";
+import { DEFAULT_DUE_DAYS_BEFORE } from "@/utils/registrationPolicy";
+
 // ClimbForm section: payment due date and the cancellation / refund policy.
 // Both are public — members see them before registering and on My Climbs.
+// Left blank, each falls back to the club default.
 export default function RegistrationPolicyFields({ form, setForm }) {
   const set = (field, value) => setForm((p) => ({ ...p, [field]: value }));
   return (
@@ -25,7 +29,8 @@ export default function RegistrationPolicyFields({ form, setForm }) {
           />
           <p className="form-hint">
             Shown to members and included in their daily payment reminders.
-            Leave blank for &ldquo;before the climb&rdquo;.
+            Leave blank for the default: {DEFAULT_DUE_DAYS_BEFORE} days before
+            the climb starts.
           </p>
         </div>
       </div>
@@ -37,11 +42,21 @@ export default function RegistrationPolicyFields({ form, setForm }) {
           maxLength={2000}
           value={form.cancellationPolicy || ""}
           onChange={(e) => set("cancellationPolicy", e.target.value)}
-          placeholder="e.g. Full refund up to 14 days before the climb, less the non-refundable permit fee. No refunds within 7 days."
+          placeholder={DEFAULT_CANCELLATION_POLICY}
         />
         <p className="form-hint">
           Shown on the event page, the registration form, and when a member
-          cancels from My Climbs.
+          cancels from My Climbs. Leave blank to use the club default (shown
+          above in grey).{" "}
+          {!form.cancellationPolicy && (
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => set("cancellationPolicy", DEFAULT_CANCELLATION_POLICY)}
+            >
+              Start from the default
+            </button>
+          )}
         </p>
       </div>
     </div>

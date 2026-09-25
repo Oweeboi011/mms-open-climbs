@@ -6,11 +6,31 @@ import CancelRegistrationModal from "@/components/CancelRegistrationModal";
 import {
   canMemberCancel,
   formatDueDate,
+  getCancellationPolicy,
+  getPaymentDueDate,
   isPaymentOverdue,
   buildMemberCancelPatch,
 } from "@/utils/registrationPolicy";
 
 describe("registrationPolicy utils", () => {
+  it("defaults the due date to 5 days before the climb starts", () => {
+    expect(getPaymentDueDate({ startDate: "2026-10-10" })).toBe("2026-10-05");
+    expect(getPaymentDueDate({ startDate: new Date(2026, 0, 3) })).toBe("2025-12-29");
+    expect(getPaymentDueDate({ startDate: "2026-10-10", paymentDueDate: "2026-09-30" })).toBe("2026-09-30");
+    expect(getPaymentDueDate({})).toBe("");
+  });
+
+  it("uses the club default policy unless the climb has its own", () => {
+    expect(getCancellationPolicy({})).toMatch(/15 days or more/);
+    expect(getCancellationPolicy({ cancellationPolicy: "  Own policy " })).toBe("Own policy");
+  });
+
+  it("is overdue against the default due date too", () => {
+    const climb = { startDate: "2026-10-10" };
+    expect(isPaymentOverdue(climb, 100, new Date(2026, 9, 6, 1))).toBe(true);
+    expect(isPaymentOverdue(climb, 100, new Date(2026, 9, 5, 12))).toBe(false);
+  });
+
   it("formats the stored YYYY-MM-DD due date", () => {
     expect(formatDueDate("2026-10-05")).toMatch(/Oct 5, 2026/);
     expect(formatDueDate("")).toBe("");
@@ -42,9 +62,10 @@ describe("registrationPolicy utils", () => {
 });
 
 describe("RegistrationPolicyInfo", () => {
-  it("renders nothing when the climb sets neither", () => {
-    const { container } = render(<RegistrationPolicyInfo climb={{}} />);
-    expect(container).toBeEmptyDOMElement();
+  it("falls back to the club defaults when the climb sets neither", () => {
+    render(<RegistrationPolicyInfo climb={{ startDate: "2026-10-10" }} />);
+    expect(screen.getByText(/Oct 5, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/15 days or more before the climb/)).toBeInTheDocument();
   });
 
   it("shows the due date and the policy text", () => {

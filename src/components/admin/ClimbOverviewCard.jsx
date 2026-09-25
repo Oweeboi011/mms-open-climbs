@@ -1,7 +1,12 @@
 import { Link } from "react-router-dom";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import { getFeeSummary } from "@/utils/feeSummary";
-import { formatDueDate } from "@/utils/registrationPolicy";
+import {
+  formatDueDate,
+  getPaymentDueDate,
+  isDefaultDueDate,
+  isDefaultPolicy,
+} from "@/utils/registrationPolicy";
 import { getSetupGaps, nextMeeting, requiredDocLabels } from "@/utils/climbSetup";
 
 // The climb itself, at a glance, on the admin climb page — so checking a
@@ -15,10 +20,10 @@ function Fact({ label, children }) {
   );
 }
 
-export default function ClimbOverviewCard({ climb, climbPrivate, stats }) {
+export default function ClimbOverviewCard({ climb, climbPrivate, officerEmails, stats }) {
   if (!climb) return null;
   const status = getEffectiveStatus(climb);
-  const gaps = getSetupGaps(climb, climbPrivate || {});
+  const gaps = getSetupGaps(climb, climbPrivate || {}, officerEmails);
   const meeting = nextMeeting(climbPrivate?.preClimbMeetings || []);
   const docs = requiredDocLabels(climb);
   const max = Number(climb.maxParticipants) || 0;
@@ -44,13 +49,15 @@ export default function ClimbOverviewCard({ climb, climbPrivate, stats }) {
         </Fact>
         <Fact label="Fees">{getFeeSummary(climb) || "—"}</Fact>
         <Fact label="Payment due">
-          {climb.paymentDueDate ? formatDueDate(climb.paymentDueDate) : "Before the climb"}
+          {getPaymentDueDate(climb)
+            ? `${formatDueDate(getPaymentDueDate(climb))}${isDefaultDueDate(climb) ? " (default: 5 days before)" : ""}`
+            : "Set climb dates first"}
         </Fact>
         <Fact label="Cancellation policy">
-          {climb.cancellationPolicy?.trim() ? (
-            <span className="overview-clamp">{climb.cancellationPolicy}</span>
+          {isDefaultPolicy(climb) ? (
+            "Club default"
           ) : (
-            "Not set"
+            <span className="overview-clamp">{climb.cancellationPolicy}</span>
           )}
         </Fact>
         <Fact label="Required documents">{docs.length ? docs.join(", ") : "None"}</Fact>

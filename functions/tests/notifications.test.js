@@ -1321,7 +1321,37 @@ describe("sendReminderNotifications — cancelled climbs", () => {
   });
 });
 
+describe("daily participant list repair", () => {
+  it("rebuilds a climb's missing participant list", async () => {
+    regStore["r1"] = { climbId: "climb-1", userId: "u1", name: "Ana Maria Reyes", memberType: "member", status: "confirmed" };
+    regStore["r2"] = { climbId: "climb-1", userId: "u2", name: "Ben", memberType: "joiner", status: "pending" };
+    climbStore["climb-1"] = { title: "Mt. Pulag", status: "open" };
+    await scheduleHandler({});
+    expect(climbPrivateStore["climb-1"].participants).toEqual([
+      { name: "Ana R.", memberType: "member" },
+      { name: "Ben", memberType: "joiner" },
+    ]);
+  });
+});
+
 describe("payment reminders with a due date", () => {
+  it("defaults the due date to 5 days before the climb", async () => {
+    regStore["reg-1"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      paymentStatus: "unpaid",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      status: "open",
+      startDate: { toDate: () => new Date("2099-10-10T00:00:00+08:00") },
+    };
+    await scheduleHandler({});
+    expect(notifStore["payment_reg-1"].message).toMatch(/due by Oct 5, 2099/);
+  });
+
   it("tells members when their payment is due", async () => {
     regStore["reg-1"] = {
       climbId: "climb-1",
