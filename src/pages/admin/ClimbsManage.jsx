@@ -30,6 +30,8 @@ import ClimbRatingCells from "@/components/admin/ClimbRatingCells";
 import { TRAIL_CLASS_LABELS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { getEffectiveStatus } from "@/utils/climbStatus";
+import { getClimbAttention } from "@/utils/climbMoney";
+import { getSetupGaps } from "@/utils/climbSetup";
 
 const STATUS_OPTIONS = ["draft", "open", "closed", "completed", "cancelled"];
 
@@ -86,6 +88,23 @@ export default function AdminClimbsManage() {
               climb,
               climbPrivateMap[climb.id]?.serviceGroups,
             );
+    });
+    return map;
+  }, [regs, climbs, climbPrivateMap]);
+
+  // Payments to review and money to settle, per climb (see getClimbAttention).
+  const attentionByClimb = useMemo(() => {
+    const regsByClimb = {};
+    regs.forEach((reg) => {
+      (regsByClimb[reg.climbId] ||= []).push(reg);
+    });
+    const map = {};
+    climbs.forEach((climb) => {
+      map[climb.id] = getClimbAttention(
+        regsByClimb[climb.id] || [],
+        climb,
+        climbPrivateMap[climb.id]?.serviceGroups,
+      );
     });
     return map;
   }, [regs, climbs, climbPrivateMap]);
@@ -276,7 +295,18 @@ export default function AdminClimbsManage() {
                               climb.maxParticipants -
                               (climb.registrationCount ?? 0);
                             const isOpen = expandedIds.has(climb.id);
-                            const missing = getMissingFields(climb);
+                            const settled = ["completed", "cancelled"].includes(
+                              getEffectiveStatus(climb),
+                            );
+                            // Content gaps plus the set-up checks from the
+                            // climb page's "Still to set up" list.
+                            const missing = settled
+                              ? []
+                              : [
+                                  ...getMissingFields(climb),
+                                  ...getSetupGaps(climb, climbPrivateMap[climb.id] || {}),
+                                ];
+                            const attention = attentionByClimb[climb.id] || {};
                             const balances = balancesByClimb[climb.id] || [];
                             return (
                               <React.Fragment key={climb.id}>
@@ -346,6 +376,24 @@ export default function AdminClimbsManage() {
                                             >
                                               &#9888; {missing.length}
                                             </span>
+                                          )}
+                                          {attention.toReview > 0 && (
+                                            <Link
+                                              to={`/admin/climbs/${climb.id}`}
+                                              className="attention-pill attention-review"
+                                              title="Payments submitted and waiting for review"
+                                            >
+                                              {attention.toReview} to review
+                                            </Link>
+                                          )}
+                                          {attention.toSettleCount > 0 && (
+                                            <Link
+                                              to={`/admin/climbs/${climb.id}`}
+                                              className="attention-pill attention-settle"
+                                              title="Overpayments and money kept from cancelled registrations — split, refund or confirm on the climb page (Where the Money Stands)"
+                                            >
+                                              {formatPeso(attention.toSettleTotal)} to settle
+                                            </Link>
                                           )}
                                           {balances.length > 0 && (
                                             <span
