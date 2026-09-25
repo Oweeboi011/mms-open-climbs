@@ -8,7 +8,6 @@ import { formatPeso } from "@/utils/feeSummary";
 export default function CollectionBreakdown({
   regs,
   climb,
-  totalPaid,
   serviceGroups = {},
 }) {
   const { items, grandTotal, hasTba } = getFeeItemAggregates(
@@ -19,7 +18,6 @@ export default function CollectionBreakdown({
 
   if (items.length === 0) return null;
 
-  const pctCollected = grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
 
   return (
     <div className="admin-card" style={{ marginBottom: 28 }}>
@@ -152,9 +150,9 @@ export default function CollectionBreakdown({
           margin: "12px 0 0",
         }}
       >
-        Verified so far: <strong>{formatPeso(totalPaid)}</strong> of{" "}
-        {formatPeso(grandTotal)} expected
-        {grandTotal > 0 && <> ({pctCollected}%)</>}.
+        Expected in total: <strong>{formatPeso(grandTotal)}</strong>. What has
+        actually been collected, and why it differs, is under &ldquo;Where the
+        Money Stands&rdquo;.
       </p>
     </div>
   );

@@ -5601,3 +5601,62 @@ details[open] > .myreg-collapsible::before {
     print-color-adjust: exact;
   }
 }
+
+/* ── Where the money stands (admin climb detail) ────────────────────────── */
+.money-card {
+  margin-bottom: 28px;
+}
+.money-row,
+.money-step summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 0.88rem;
+}
+.money-step summary {
+  cursor: pointer;
+  list-style: none;
+}
+.money-step summary::-webkit-details-marker {
+  display: none;
+}
+.money-step summary .money-label::after {
+  content: " ▸";
+  color: var(--ink-soft);
+}
+.money-step[open] summary .money-label::after {
+  content: " ▾";
+}
+.money-step {
+  border-top: 1px dashed var(--border);
+}
+.money-count,
+.money-detail {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+.money-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.money-start,
+.money-total {
+  font-weight: 700;
+}
+.money-total {
+  border-top: 2px solid var(--border);
+}
+.money-people {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 0.82rem;
+}
+.money-people li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.money-after {
+  margin-top: 12px;
+}

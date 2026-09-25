@@ -536,8 +536,8 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Juan Cruz")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Juan Cruz"));
+    await waitFor(() => expect(screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE)).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Juan Cruz", IN_REGISTRANTS_TABLE));
 
     await waitFor(() =>
       expect(screen.getByText(/Payment 2 of 2/)).toBeInTheDocument(),

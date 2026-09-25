@@ -73,6 +73,8 @@ import {
   normalizeReceived,
   summarizeDonations,
 } from "@/utils/donations";
+import MoneyReconciliationCard from "@/components/admin/MoneyReconciliationCard";
+import { sumExpenses } from "@/utils/climbExpenses";
 
 // What the Compliance column of the registrants table shows, as a list of the
 // gaps rather than ticks — the waiver, the participant's own details, and each
@@ -986,10 +988,17 @@ export default function AdminClimbDetail() {
               )}
             </div>
 
+            <MoneyReconciliationCard
+              regs={regs}
+              climb={climb}
+              serviceGroups={serviceGroups}
+              donationsInPayments={stats.donationsInPayments}
+              expensesTotal={sumExpenses(climbExpenses?.items || [])}
+            />
+
             <CollectionBreakdown
               regs={regs}
               climb={climb}
-              totalPaid={stats.totalPaid}
               serviceGroups={serviceGroups}
             />
 
