@@ -5568,3 +5568,36 @@ details[open] > .myreg-collapsible::before {
     display: table-header-group;
   }
 }
+.daysheet-status {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+}
+.daysheet-status-pending {
+  color: var(--gold);
+}
+.daysheet-status-waitlisted {
+  color: var(--accent);
+}
+.daysheet-status-cancelled {
+  color: var(--danger);
+}
+.daysheet-row-cancelled td {
+  color: var(--ink-soft);
+  background: var(--surface);
+}
+.daysheet-row-cancelled td strong {
+  text-decoration: line-through;
+}
+@media print {
+  .daysheet-row-cancelled td {
+    background: #eee;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

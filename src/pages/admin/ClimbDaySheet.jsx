@@ -102,6 +102,8 @@ export default function ClimbDaySheet() {
         <span>
           <strong>{totals.confirmed}</strong> confirmed
           {totals.pending > 0 && `, ${totals.pending} pending`}
+          {totals.waitlisted > 0 && `, ${totals.waitlisted} waitlisted`}
+          {totals.cancelled > 0 && `, ${totals.cancelled} cancelled`}
         </span>
         <span>
           <strong>{totals.withMedical}</strong> with medical notes
@@ -127,7 +129,7 @@ export default function ClimbDaySheet() {
       </section>
 
       {rows.length === 0 ? (
-        <p>No confirmed or pending participants.</p>
+        <p>No one has registered yet.</p>
       ) : (
         <table className="daysheet-table">
           <thead>
@@ -144,14 +146,21 @@ export default function ClimbDaySheet() {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.id}>
+              <tr
+                key={r.id}
+                className={r.status === "cancelled" ? "daysheet-row-cancelled" : undefined}
+              >
                 <td>{i + 1}</td>
                 <td className="daysheet-check" aria-label="Present">
                   &#9744;
                 </td>
                 <td>
                   <strong>{r.name}</strong>
-                  {r.pending && <span className="daysheet-flag"> PENDING</span>}
+                  {r.status !== "confirmed" && (
+                    <span className={`daysheet-status daysheet-status-${r.status}`}>
+                      {r.status.toUpperCase()}
+                    </span>
+                  )}
                   <div>{r.mobile}</div>
                   <div className="daysheet-muted">{r.memberType}</div>
                 </td>

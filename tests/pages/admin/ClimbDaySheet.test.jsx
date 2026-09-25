@@ -34,6 +34,7 @@ describe("Climb-day sheet", () => {
           },
         },
         { id: "r2", data: { name: "Wait Listed", status: "waitlisted" } },
+        { id: "r3", data: { name: "Cara Cancelled", status: "cancelled" } },
       ]),
     );
   });
@@ -49,7 +50,12 @@ describe("Climb-day sheet", () => {
     expect(screen.getByText("Asthma")).toBeInTheDocument();
     expect(screen.getByText("Lead Ana")).toBeInTheDocument();
     expect(screen.getByText(/0917 111 2222/)).toBeInTheDocument();
-    expect(screen.queryByText("Wait Listed")).toBeNull();
+    // Everyone is listed; the ones not expected are flagged.
+    expect(screen.getByText("Wait Listed")).toBeInTheDocument();
+    expect(screen.getByText("WAITLISTED")).toBeInTheDocument();
+    expect(screen.getByText("Cara Cancelled").closest("tr")).toHaveClass("daysheet-row-cancelled");
+    expect(screen.getByText("CANCELLED")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Present")).toHaveLength(3);
     // Nothing paid yet against the ₱1,000 fee.
     expect(screen.getAllByText("₱1,000").length).toBeGreaterThan(0);
     expect(screen.getByText(/Confidential/)).toBeInTheDocument();

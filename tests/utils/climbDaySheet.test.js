@@ -44,9 +44,25 @@ const regs = [
 describe("buildClimbDaySheet", () => {
   const { rows, totals } = buildClimbDaySheet(regs, climb);
 
-  it("lists only people expected on the trail, confirmed first, then by name", () => {
-    expect(rows.map((r) => r.id)).toEqual(["a", "b", "p"]);
-    expect(rows[2].pending).toBe(true);
+  it("lists everyone registered: confirmed, pending, waitlisted, cancelled", () => {
+    expect(rows.map((r) => r.id)).toEqual(["a", "b", "p", "w", "c"]);
+    expect(rows.map((r) => r.status)).toEqual([
+      "confirmed",
+      "confirmed",
+      "pending",
+      "waitlisted",
+      "cancelled",
+    ]);
+    expect(rows.find((r) => r.id === "c").expected).toBe(false);
+  });
+
+  it("never chases money from someone who isn't coming", () => {
+    const sheet = buildClimbDaySheet(
+      [{ id: "x", name: "X", status: "cancelled", donation: { cashPledge: 200, inKind: "rice", payWithFees: false } }],
+      climb,
+    );
+    expect(sheet.rows[0]).toMatchObject({ balanceDue: 0, cashOnTheDay: 0, items: "" });
+    expect(sheet.totals).toMatchObject({ cancelled: 1, balanceDue: 0, owing: 0 });
   });
 
   it("carries the safety details leads need", () => {
@@ -70,6 +86,8 @@ describe("buildClimbDaySheet", () => {
     expect(totals).toMatchObject({
       confirmed: 2,
       pending: 1,
+      waitlisted: 1,
+      cancelled: 1,
       balanceDue: 1000,
       owing: 1,
       cashOnTheDay: 500,
