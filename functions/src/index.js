@@ -322,6 +322,18 @@ const tplReleaseNote = escaped(tplReleaseNoteRaw);
 const tplThankYou = escaped(tplThankYouRaw);
 const tplOfficerOutstandingSummary = escaped(tplOfficerOutstandingSummaryRaw);
 
+function tplWaitlistPromotedRaw({ name, climbTitle, appUrl }) {
+  return tplBase(`
+    <h2 style="color:#2e7d32;font-size:20px;margin:0 0 16px;">A slot opened up!</h2>
+    <p style="color:#4a4a4a;font-size:15px;">Hi <strong>${name}</strong>,</p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Good news — a seat opened on <strong>${climbTitle}</strong> and you're off the waitlist. Your registration is now <strong>pending confirmation</strong> by the climb officers.</p>
+    <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">Please settle your fees and upload any required documents from My Climbs so they can confirm you.</p>
+    <p style="margin:24px 0;">
+      <a href="${appUrl}/my-registrations" style="background:#0d2b12;color:#f0c800;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:inline-block;">Open My Climbs</a>
+    </p>`);
+}
+const tplWaitlistPromoted = escaped(tplWaitlistPromotedRaw);
+
 // ── Helper: registrant roster ─────────────────────────────────────────────────
 // The uids of a climb's active registrants, kept in admin-only
 // climbInternal/{climbId}. The climbPrivate and feedback rules check it
@@ -403,6 +415,102 @@ async function isClimbFull(climb, climbId, regId) {
     (d) => d.id !== regId && SEAT_HOLDING_STATUSES.includes(d.data().status),
   ).length;
   return taken >= max;
+}
+
+// ── Helper: fill freed seats from the waitlist ──────────────────────────────
+// When a seat-holder leaves (cancelled, deleted or moved to the waitlist) or
+// an admin raises maxParticipants, the longest-waiting registrations move
+// back to "pending" — still subject to an officer's confirmation — and the
+// member and officers are told. Off per climb with waitlistAutoPromote:false,
+// and never for a cancelled, postponed or finished climb.
+function createdMillis(reg) {
+  const t = reg.createdAt;
+  return t?.toMillis ? t.toMillis() : t?.toDate ? t.toDate().getTime() : 0;
+}
+
+async function promoteFromWaitlist(climbId) {
+  if (!climbId) return [];
+  try {
+    const climbSnap = await db.doc(`climbs/${climbId}`).get();
+    if (!climbSnap.exists) return [];
+    const climb = climbSnap.data();
+    const max = Number(climb.maxParticipants);
+    if (!max || max <= 0 || climb.waitlistAutoPromote === false) return [];
+    if (isClimbCancelled(climb) || isClimbPostponed(climb)) return [];
+    if (climb.status === "completed") return [];
+    const end = climb.endDate?.toDate ? climb.endDate.toDate() : null;
+    if (end && end.getTime() < Date.now()) return [];
+
+    const snap = await db
+      .collection("registrations")
+      .where("climbId", "==", climbId)
+      .get();
+    const regs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const free =
+      max - regs.filter((r) => SEAT_HOLDING_STATUSES.includes(r.status)).length;
+    if (free <= 0) return [];
+
+    const promoted = regs
+      .filter((r) => r.status === "waitlisted")
+      .sort((a, b) => createdMillis(a) - createdMillis(b) || a.id.localeCompare(b.id))
+      .slice(0, free);
+    if (promoted.length === 0) return [];
+
+    const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+    const { officerEmails, adminEmails } = await getNotifyLists(climb, climbId);
+    for (const reg of promoted) {
+      await db.doc(`registrations/${reg.id}`).update({
+        status: "pending",
+        promotedFromWaitlistAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      logger.info("[promoteFromWaitlist] promoted", { climbId, regId: reg.id });
+      if (reg.userId) {
+        await createNotification({
+          userId: reg.userId,
+          type: "waitlist_promoted",
+          title: "You're off the waitlist",
+          message: `A slot opened on ${climb.title}. Your registration is pending confirmation — settle your fees from My Climbs.`,
+          link: "/my-registrations",
+          id: `waitlist_promoted_${reg.id}`,
+        });
+      }
+      try {
+        if (reg.email) {
+          await sendEmail({
+            to: reg.email,
+            toName: reg.name || "",
+            subject: `A slot opened — ${climb.title} | MMS Open Climbs 2026`,
+            html: tplWaitlistPromoted({ name: reg.name || "there", climbTitle: climb.title || "your climb", appUrl }),
+          });
+        }
+        const officerHtml = tplOfficerStatusUpdate({
+          registrantName: reg.name || "",
+          registrantEmail: reg.email || "",
+          climbTitle: climb.title || "",
+          newStatus: "pending",
+          reason: "Promoted from the waitlist — a seat opened. Please confirm.",
+          appUrl,
+        });
+        const [first, ...rest] = officerEmails.length ? officerEmails : adminEmails;
+        if (first) {
+          await sendEmail({
+            to: first.email,
+            toName: first.name,
+            subject: `[Off Waitlist] ${reg.name || "A participant"} — ${climb.title}`,
+            html: officerHtml,
+            cc: officerEmails.length ? [...officerEmails.slice(1), ...adminEmails] : rest,
+          });
+        }
+      } catch (err) {
+        logger.error("[promoteFromWaitlist] email failed", { regId: reg.id, err: err.message });
+      }
+    }
+    return promoted.map((r) => r.id);
+  } catch (err) {
+    logger.error("[promoteFromWaitlist] failed", { climbId, err: err.message });
+    return [];
+  }
 }
 
 // Another live registration by the same account for the same climb, if any.
@@ -962,6 +1070,14 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
 
     if (before.status === after.status) return; // not a status change
 
+    // A seat just freed up — offer it to the waitlist.
+    if (
+      SEAT_HOLDING_STATUSES.includes(before.status) &&
+      !SEAT_HOLDING_STATUSES.includes(after.status)
+    ) {
+      await promoteFromWaitlist(after.climbId);
+    }
+
     const notifyOn = ["confirmed", "cancelled", "waitlisted"];
     if (!notifyOn.includes(after.status)) return;
 
@@ -1069,6 +1185,9 @@ exports.onRegistrationDeleted = onDocumentDeleted(
     const reg = event.data.data();
     if (!reg.climbId) return;
     await syncParticipantList(reg.climbId);
+    if (SEAT_HOLDING_STATUSES.includes(reg.status)) {
+      await promoteFromWaitlist(reg.climbId);
+    }
     try {
       // registrationCount mirrors the create trigger's non-cancelled rule — a
       // cancelled reg was already decremented when it was cancelled, so only
@@ -1149,6 +1268,14 @@ exports.onClimbUpdated = onDocumentUpdated(
     const cancellationChanged =
       (before.cancellationStatus || "") !== (after.cancellationStatus || "") &&
       !!CANCELLATION_LABELS[after.cancellationStatus];
+
+    // More seats (or auto-promotion switched back on) — fill from the waitlist.
+    if (
+      Number(after.maxParticipants) > Number(before.maxParticipants || 0) ||
+      (before.waitlistAutoPromote === false && after.waitlistAutoPromote !== false)
+    ) {
+      await promoteFromWaitlist(climbId);
+    }
 
     if (
       newAnnouncements.length === 0 &&

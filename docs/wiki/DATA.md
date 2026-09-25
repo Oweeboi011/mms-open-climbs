@@ -89,6 +89,7 @@ Each document represents a single climb event in the schedule. Documents are ide
 | `location` | string | Yes | Location description |
 | `type` | string | Yes | `minor` / `major` / `special` |
 | `status` | string | Yes | `draft` / `open` / `closed` / `completed` / `cancelled` |
+| `waitlistAutoPromote` | boolean | No | Default on (absent = on). When a seat frees up, the longest-waiting registration moves back to `pending` automatically (`promoteFromWaitlist`) |
 | `paymentDueDate` | string | No | `YYYY-MM-DD`. Shown on the event page, registration form and My Climbs (with an "Overdue" flag), and quoted in daily payment reminders |
 | `cancellationPolicy` | string | No | Club-written cancellation/refund policy, shown on the event page, registration form and the member cancel dialog |
 | `donationDrive` | object | No | Outreach donation drive: `{ enabled, beneficiary, description, acceptsCash, acceptsInKind, suggestedItems }` (`suggestedItems` one per line). Public — shown on the event page. Set in ClimbForm (`DonationDriveFields`) |
@@ -291,6 +292,7 @@ Each document represents a single member's registration for a single climb.
 | `noShowMarkedBy` / `noShowMarkedAt` | string / Timestamp | No | Who marked the no-show and when; cleared on undo |
 | `cancelledByMember` / `cancelledAt` | boolean / Timestamp | No | Set when the member cancelled from My Climbs (rules: `memberIsCancellingOwn` — only to `cancelled`, only from a live status). Reinstating is admin-only |
 | `privacyConsentAt` / `privacyNoticeVersion` | Timestamp / string | No | When the member consented to the Privacy Notice (Data Privacy Act, RA 10173) and which version (`src/data/privacyNotice.js`). Required on self-registration by the form; absent on admin-added walk-ins and pre-2026-09 registrations |
+| `promotedFromWaitlistAt` | Timestamp | No | When `promoteFromWaitlist` moved it from `waitlisted` back to `pending` |
 | `autoWaitlisted` | boolean | No | `true` when `onRegistrationCreated` moved it to the waitlist because the climb was full |
 | `donation` | object \| null | No | Member's outreach pledge `{ cashPledge: number\|null, inKind: string, payWithFees: boolean }`. With `payWithFees` (the default for cash) the pledge is added to what they owe as a `Donation — {beneficiary}` line (`getDonationFeeItem`, mirrored in `functions/src/paymentMath.js`) and paid by GCash with their fees; the part of their payments beyond their fees, up to the pledge, is the donation and is kept out of net funds. Otherwise cash is handed to leads on climb day. Member-writable (rules: `pledgeIsValid`) |
 | `donationReceived` | object \| null | No | What leads actually received `{ cash, items, receivedBy, receivedAt }`. Admin-only; audit-logged as `donation_recorded` |

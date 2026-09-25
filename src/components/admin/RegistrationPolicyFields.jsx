@@ -4,7 +4,16 @@ export default function RegistrationPolicyFields({ form, setForm }) {
   const set = (field, value) => setForm((p) => ({ ...p, [field]: value }));
   return (
     <div className="admin-card">
-      <div className="admin-card-title">Payment Deadline &amp; Cancellation Policy</div>
+      <div className="admin-card-title">Waitlist, Payment Deadline &amp; Cancellation</div>
+      <label className="form-check">
+        <input
+          type="checkbox"
+          checked={form.waitlistAutoPromote !== false}
+          onChange={(e) => set("waitlistAutoPromote", e.target.checked)}
+        />
+        When a slot opens, move the longest-waiting person off the waitlist
+        automatically (they still need confirming)
+      </label>
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Payment due date</label>
