@@ -29,8 +29,10 @@ import { compressImage } from "@/utils/compressImage";
 import DonationPledgeFields from "@/components/DonationPledgeFields";
 import {
   getDonationFeeItem,
+  getNeededItems,
   isDonationDriveOn,
   normalizePledge,
+  stillNeededFromTotals,
 } from "@/utils/donations";
 import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
 import { PRIVACY_NOTICE_VERSION } from "@/data/privacyNotice";
@@ -418,7 +420,9 @@ export default function Register() {
           };
         }),
         // Optional outreach pledge — separate from fees and payments.
-        ...(isDonationDriveOn(climb) ? { donation: normalizePledge(pledge) } : {}),
+        ...(isDonationDriveOn(climb)
+          ? { donation: normalizePledge(pledge, getNeededItems(climb.donationDrive)) }
+          : {}),
         // Status
         status: "pending",
         createdAt: serverTimestamp(),
@@ -1286,6 +1290,7 @@ export default function Register() {
                 drive={climb.donationDrive}
                 value={pledge}
                 onChange={setPledge}
+                stillNeeded={stillNeededFromTotals(climb)}
               />
             </div>
           )}

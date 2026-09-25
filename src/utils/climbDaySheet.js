@@ -54,7 +54,12 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
         expectedOnTrail && pledge && !pledge.payWithFees
           ? Number(pledge.cashPledge) || 0
           : 0,
-      items: expectedOnTrail ? pledge?.inKind || "" : "",
+      items: expectedOnTrail
+        ? [
+            ...(pledge?.itemPledges || []).map((i) => `${i.qty} ${i.name}`),
+            ...(pledge?.inKind ? [pledge.inKind] : []),
+          ].join(", ")
+        : "",
     };
   });
 
