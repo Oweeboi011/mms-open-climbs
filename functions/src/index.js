@@ -1466,6 +1466,14 @@ const UPCOMING_REMINDER_DAYS = new Set([7, 5, 3, 1]);
 const isClimbCancelled = (climb) =>
   climb?.status === "cancelled" || climb?.cancellationStatus === "cancelled";
 const isClimbPostponed = (climb) => climb?.cancellationStatus === "postponed";
+// Over once marked completed or once its last day (endDate, else startDate)
+// has fully passed in Manila. Document nags and the officers' daily summary
+// stop then; members are still reminded of any balance they owe.
+const isClimbOver = (climb, now = Date.now()) => {
+  if (climb?.status === "completed") return true;
+  const last = (climb?.endDate ?? climb?.startDate)?.toDate?.();
+  return !!last && last.getTime() + 86400000 < now;
+};
 
 exports.sendReminderNotifications = onSchedule(
   {
@@ -1555,7 +1563,7 @@ exports.sendReminderNotifications = onSchedule(
       }
 
       // Missing required-document nags — re-surface as unread each run.
-      if (climb) {
+      if (climb && !isClimbOver(climb, now)) {
         for (const docType of REQUIRED_DOC_TYPES) {
           if (!climb[docType.requiresField] || reg[docType.uploadField]) continue;
           await createNotification({
@@ -1623,7 +1631,7 @@ exports.sendReminderNotifications = onSchedule(
 
     for (const climbId of climbIds) {
       const climb = climbs[climbId];
-      if (!climb?.officers?.length || isClimbCancelled(climb)) continue;
+      if (!climb?.officers?.length || isClimbCancelled(climb) || isClimbOver(climb, now)) continue;
 
       const climbRegs = regs.filter((r) => r.climbId === climbId);
       const unpaidCount = climbRegs.filter(

@@ -460,14 +460,14 @@ export default function Register() {
     return (
       <div className="register-page">
         <Header />
-        <div className="register-content">
+        <main className="register-content">
           <div className="alert alert-error" role="alert">
             {error || "This climb could not be loaded."}
           </div>
           <Link to="/" className="btn btn-primary">
             Browse Climbs
           </Link>
-        </div>
+        </main>
         <Footer />
       </div>
     );
@@ -477,7 +477,7 @@ export default function Register() {
     return (
       <div className="register-page">
         <Header />
-        <div className="register-content">
+        <main className="register-content">
           <div className="register-form-card">
             <div className="form-section-title">
               {blockedReason === "registered"
@@ -512,7 +512,7 @@ export default function Register() {
               </Link>
             </div>
           </div>
-        </div>
+        </main>
         <Footer />
       </div>
     );
@@ -632,7 +632,7 @@ export default function Register() {
         </button>
       </nav>
 
-      <div className="register-content">
+      <main className="register-content">
         <div className="register-climb-banner">
           <div>
             <div className="register-climb-name">{climb.title}</div>
@@ -1697,7 +1697,7 @@ export default function Register() {
             )}
           </button>
         </form>
-      </div>
+      </main>
 
       <Footer />
 

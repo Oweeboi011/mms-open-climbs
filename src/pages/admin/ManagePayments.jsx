@@ -20,6 +20,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAuditEvent } from "@/utils/auditLog";
 import { recordManualPayment } from "@/utils/recordPayment";
 import Header from "@/components/Header";
+import SeasonSelect from "@/components/admin/SeasonSelect";
+import useSeason from "@/hooks/useSeason";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ClimbPaymentCard from "@/components/admin/ClimbPaymentCard";
@@ -277,6 +279,10 @@ export default function ManagePayments() {
     return map;
   }, [regs, climbById, climbPrivateMap, getOutstanding]);
 
+  // Open on every season so an earlier season's unpaid balance is never hidden.
+  const { season, seasons, setSeason, climbInSeason } = useSeason(climbs, {
+    startWithAll: true,
+  });
   const totalStats = useMemo(() => {
     let declared = 0,
       verified = 0,
@@ -284,6 +290,7 @@ export default function ManagePayments() {
       outstanding = 0;
     for (const reg of regs) {
       if (reg.status === "cancelled") continue;
+      if (!climbInSeason(climbById[reg.climbId])) continue;
       // Net of refunds — money sent back isn't collected.
       const paid =
         (parseFloat(String(reg.amountPaid || 0).replace(/[^0-9.]/g, "")) ||
@@ -294,11 +301,13 @@ export default function ManagePayments() {
       if (reg.paymentStatus === "submitted") submitted++;
     }
     return { declared, verified, submitted, outstanding };
-  }, [regs, getOutstanding]);
+  }, // eslint-disable-next-line react-hooks/exhaustive-deps
+  [regs, getOutstanding, season, climbById]);
 
   const { upcoming: upcomingClimbs, completed: completedClimbs } = useMemo(
-    () => groupClimbsByCompletion(climbs),
-    [climbs],
+    () => groupClimbsByCompletion(climbs.filter(climbInSeason)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [climbs, season],
   );
 
   function fmt(n) {
@@ -377,9 +386,12 @@ export default function ManagePayments() {
               Cash flow, GCash QR, and transportation breakdown per climb
             </div>
           </div>
-          <Link to="/admin" className="btn btn-outline btn-sm">
-            &larr; Back to Admin
-          </Link>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <SeasonSelect season={season} seasons={seasons} onChange={setSeason} />
+            <Link to="/admin" className="btn btn-outline btn-sm">
+              &larr; Back to Admin
+            </Link>
+          </div>
         </div>
 
         {/* Global summary */}

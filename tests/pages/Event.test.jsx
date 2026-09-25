@@ -97,6 +97,26 @@ describe("Event page", () => {
     );
   });
 
+  it("shows remaining slots for an upcoming climb", async () => {
+    renderAtRoute(<Event />, "/event/:climbId", "/event/climb-1", makeGuestAuth());
+    await waitFor(() => screen.getByText("Mt. Pulag"));
+    expect(screen.getByText("20 slots remaining")).toBeInTheDocument();
+  });
+
+  it("hides remaining slots once a climb is cancelled or over", async () => {
+    for (const climb of [
+      { ...OPEN_CLIMB, status: "cancelled" },
+      { ...OPEN_CLIMB, startDate: { toDate: () => new Date("2020-08-01") } },
+    ]) {
+      getDoc.mockResolvedValue(makeSnapshot("climb-1", climb));
+      const { unmount } = renderAtRoute(<Event />, "/event/:climbId", "/event/climb-1", makeGuestAuth());
+      await waitFor(() => screen.getByText("Mt. Pulag"));
+      expect(screen.queryByText(/slots? remaining/)).not.toBeInTheDocument();
+      expect(screen.getByText(/\/\s*30 slots/)).toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it("renders the climb location", async () => {
     renderAtRoute(
       <Event />,
