@@ -15,7 +15,10 @@ export function nextMeeting(meetings = [], now = new Date()) {
   );
 }
 
-export function getSetupGaps(climb = {}, climbPrivate = {}) {
+// `officerEmails` is climbInternal/{id}.officerEmails, index-aligned with
+// climb.officers (emails are kept off the public climb doc). Omit it when it
+// isn't loaded and the check is skipped.
+export function getSetupGaps(climb = {}, climbPrivate = {}, officerEmails) {
   const gaps = [];
   if (!climb.startDate) gaps.push("Set the climb dates.");
   if (!Number(climb.maxParticipants)) {
@@ -28,11 +31,16 @@ export function getSetupGaps(climb = {}, climbPrivate = {}) {
   if (!climb.officers?.length) {
     gaps.push("Assign climb officers — they're who gets registration emails.");
   }
-  if (climb.fees?.length && !climb.paymentDueDate) {
-    gaps.push("Set a payment due date.");
-  }
-  if (!climb.cancellationPolicy?.trim()) {
-    gaps.push("Write the cancellation & refund policy.");
+  if (climb.officers?.length && Array.isArray(officerEmails)) {
+    const noEmail = climb.officers.filter(
+      (o, i) => !String(o.email || officerEmails[i]?.email || "").includes("@"),
+    );
+    if (noEmail.length) {
+      gaps.push(
+        `Add an email for ${noEmail.map((o) => o.name || "an officer").join(", ")} — ` +
+          "officers without one get no registration or payment emails.",
+      );
+    }
   }
   if (!(climbPrivate?.preClimbMeetings || []).length) {
     gaps.push("Schedule the pre-climb meeting.");

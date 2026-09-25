@@ -102,7 +102,7 @@ describe("Admin ClimbDetail", () => {
     render();
     expect(await screen.findByText("Climb at a Glance")).toBeInTheDocument();
     expect(screen.getByText("Still to set up")).toBeInTheDocument();
-    expect(screen.getByText(/cancellation & refund policy/i)).toBeInTheDocument();
+    expect(screen.getByText("Schedule the pre-climb meeting.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View public event page/i })).toHaveAttribute(
       "href",
       `/event/${climbFixture.id}`,

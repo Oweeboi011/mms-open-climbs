@@ -8,6 +8,7 @@ import {
   where,
   orderBy,
   onSnapshot,
+  getDoc,
   getDocs,
   updateDoc,
   setDoc,
@@ -76,6 +77,8 @@ import {
 import MoneyReconciliationCard from "@/components/admin/MoneyReconciliationCard";
 import { sumExpenses } from "@/utils/climbExpenses";
 import ClimbOverviewCard from "@/components/admin/ClimbOverviewCard";
+import ClimbHistoryCard from "@/components/admin/ClimbHistoryCard";
+import { buildParticipantList, participantListDiffers } from "@/utils/participantList";
 
 // What the Compliance column of the registrants table shows, as a list of the
 // gaps rather than ticks — the waiver, the participant's own details, and each
@@ -100,6 +103,7 @@ export default function AdminClimbDetail() {
 
   const [climb, setClimb] = useState(null);
   const [climbPrivate, setClimbPrivate] = useState(null);
+  const [climbPrivateLoaded, setClimbPrivateLoaded] = useState(false);
   const [regs, setRegs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -134,6 +138,7 @@ export default function AdminClimbDetail() {
 
     const unsubClimbPrivate = onSnapshot(doc(db, "climbPrivate", id), (snap) => {
       setClimbPrivate(snap.exists() ? snap.data() : null);
+      setClimbPrivateLoaded(true);
     });
 
     const unsubClimbExpenses = onSnapshot(
@@ -168,6 +173,29 @@ export default function AdminClimbDetail() {
       unsub();
       unsubFeedback();
     };
+  }, [id]);
+
+  // Repair the registrants-only participant list if it's missing or stale.
+  // The functions keep it current on every registration change, but climbs
+  // that predate it have none. climbPrivate is a live listener, so once the
+  // write lands the lists match and this doesn't fire again.
+  useEffect(() => {
+    if (loading || !climbPrivateLoaded) return;
+    const next = buildParticipantList(regs);
+    if (participantListDiffers(climbPrivate?.participants, next)) {
+      setDoc(doc(db, "climbPrivate", id), { participants: next }, { merge: true }).catch(
+        () => {},
+      );
+    }
+  }, [loading, climbPrivateLoaded, regs, climbPrivate, id]);
+
+  // Officer emails live in admin-only climbInternal; read once so the
+  // overview can flag officers who'd get no notifications.
+  const [officerEmails, setOfficerEmails] = useState(undefined);
+  useEffect(() => {
+    getDoc(doc(db, "climbInternal", id))
+      .then((snap) => setOfficerEmails(snap.exists() ? snap.data().officerEmails || [] : []))
+      .catch(() => setOfficerEmails(undefined));
   }, [id]);
 
   // Every no-show on record (a small set) — for the "earlier no-shows"
@@ -924,6 +952,7 @@ export default function AdminClimbDetail() {
             <ClimbOverviewCard
               climb={climb}
               climbPrivate={climbPrivate}
+              officerEmails={officerEmails}
               stats={stats}
             />
 
@@ -1407,6 +1436,8 @@ export default function AdminClimbDetail() {
             </ResponsiveTable>
           </>
         )}
+
+        {!loading && <ClimbHistoryCard climbId={id} regs={regs} />}
 
         {feedback.length > 0 && (
           <div className="admin-card" style={{ marginTop: 24 }}>
