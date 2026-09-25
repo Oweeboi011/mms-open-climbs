@@ -1321,6 +1321,35 @@ describe("sendReminderNotifications — cancelled climbs", () => {
   });
 });
 
+describe("sendReminderNotifications — finished climbs", () => {
+  it("drops document nags and officer emails but still chases the balance", async () => {
+    regStore["reg-1"] = {
+      climbId: "climb-1",
+      userId: "user-1",
+      status: "confirmed",
+      name: "Juan Cruz",
+      email: "juan@x.com",
+      paymentStatus: "unpaid",
+      climbTitle: "Mt. Pulag",
+    };
+    climbStore["climb-1"] = {
+      title: "Mt. Pulag",
+      status: "open",
+      requiresMedicalCert: true,
+      officers: [{ name: "Ana", email: "ana@x.com", userId: "officer-1" }],
+      thankYouSentAt: new Date(),
+      startDate: { toDate: () => new Date(Date.now() - 10 * 86400000) },
+      endDate: { toDate: () => new Date(Date.now() - 9 * 86400000) },
+    };
+
+    await scheduleHandler({});
+
+    expect(notifStore["payment_reg-1"]).toMatchObject({ type: "payment_reminder" });
+    expect(notifStore["medcert_reg-1"]).toBeUndefined();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe("daily participant list repair", () => {
   it("rebuilds a climb's missing participant list", async () => {
     regStore["r1"] = { climbId: "climb-1", userId: "u1", name: "Ana Maria Reyes", memberType: "member", status: "confirmed" };

@@ -6,7 +6,7 @@ export default function NotFound() {
   return (
     <div className="notfound-page">
       <Header />
-      <div className="notfound-body">
+      <main className="notfound-body">
         {/* Mountain silhouette */}
         <div className="notfound-mountain" aria-hidden="true">
           <svg
@@ -102,7 +102,7 @@ export default function NotFound() {
         <Link to="/" className="btn btn-primary btn-lg">
           &#8592; Back to Schedule
         </Link>
-      </div>
+      </main>
       <Footer />
     </div>
   );

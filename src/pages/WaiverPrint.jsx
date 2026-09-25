@@ -47,7 +47,7 @@ export default function WaiverPrint() {
         </button>
       </div>
 
-      <div className="waiver-print-page">
+      <main className="waiver-print-page">
         {/* Header */}
         <div className="waiver-print-header">
           <div className="waiver-print-org">Metropolitan Mountaineering Society</div>
@@ -109,7 +109,7 @@ export default function WaiverPrint() {
         <div style={{ marginTop: 32, fontSize: '0.72rem', color: 'var(--ink-soft)', textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
           This document constitutes a legally binding waiver. Metropolitan Mountaineering Society &bull; Open Climbs
         </div>
-      </div>
+      </main>
     </div>
   );
 }

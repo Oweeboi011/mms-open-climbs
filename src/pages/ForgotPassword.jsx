@@ -30,7 +30,7 @@ export default function ForgotPassword() {
   return (
     <div className="auth-page">
       <Header />
-      <div className="auth-container">
+      <main className="auth-container">
         <div className="auth-panel" aria-hidden="true">
           <div className="auth-panel-logo">
             <img src="/MMS.png" alt="" />
@@ -109,7 +109,7 @@ export default function ForgotPassword() {
             Remembered it? <Link to="/login">Sign In</Link>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
     </div>
   );
