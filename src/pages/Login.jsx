@@ -58,7 +58,7 @@ export default function Login() {
   return (
     <div className="auth-page">
       <Header />
-      <div className="auth-container">
+      <main className="auth-container">
         {/* Left mountain panel — decorative, hidden on mobile */}
         <div className="auth-panel" aria-hidden="true">
           <div className="auth-panel-logo">
@@ -218,7 +218,7 @@ export default function Login() {
             </Link>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
     </div>
   );

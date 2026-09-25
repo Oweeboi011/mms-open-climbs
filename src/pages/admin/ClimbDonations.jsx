@@ -64,10 +64,10 @@ export default function ClimbDonations() {
   if (loading) return <LoadingSpinner fullPage />;
   if (error || !climb) {
     return (
-      <div className="daysheet-page">
+      <main className="daysheet-page">
         <p className="alert alert-error">{error || "Climb not found."}</p>
         <Link to="/admin/climbs">Back to climbs</Link>
-      </div>
+      </main>
     );
   }
   const drive = climb.donationDrive || {};
