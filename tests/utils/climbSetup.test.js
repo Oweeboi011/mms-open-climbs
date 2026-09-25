@@ -9,7 +9,6 @@ describe("getSetupGaps", () => {
       expect.stringMatching(/participant limit/),
       expect.stringMatching(/fee schedule/),
       expect.stringMatching(/officers/),
-      expect.stringMatching(/cancellation/),
       expect.stringMatching(/pre-climb meeting/),
     ]));
   });
@@ -35,5 +34,17 @@ describe("nextMeeting", () => {
     const m = nextMeeting([{ date: "2026-09-10" }, { date: "2026-09-30" }, { date: "2026-09-25" }], now);
     expect(m.date).toBe("2026-09-25");
     expect(nextMeeting([{ date: "2026-09-01" }], now)).toBeNull();
+  });
+});
+
+describe("officer email check", () => {
+  const climb = { officers: [{ name: "Ana" }, { name: "Ben" }] };
+  it("flags officers with no email in climbInternal", () => {
+    const gaps = getSetupGaps(climb, {}, [{ email: "ana@mms.ph" }, { email: "" }]);
+    expect(gaps.find((g) => /email/.test(g))).toMatch(/Ben/);
+    expect(gaps.find((g) => /email/.test(g))).not.toMatch(/Ana/);
+  });
+  it("skips the check until the emails are loaded", () => {
+    expect(getSetupGaps(climb, {}).some((g) => /Add an email/.test(g))).toBe(false);
   });
 });

@@ -48,7 +48,12 @@ import { compressImage } from "@/utils/compressImage";
 import DonationPledgeModal from "@/components/DonationPledgeModal";
 import { isDonationDriveOn } from "@/utils/donations";
 import CancelRegistrationModal from "@/components/CancelRegistrationModal";
-import { canMemberCancel, formatDueDate, isPaymentOverdue } from "@/utils/registrationPolicy";
+import {
+  canMemberCancel,
+  formatDueDate,
+  getPaymentDueDate,
+  isPaymentOverdue,
+} from "@/utils/registrationPolicy";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -1317,12 +1322,12 @@ function RegCard({
               View Submitted Documents
             </button>
           )}
-        {showPay && owesBalance && climb?.paymentDueDate && (
+        {showPay && owesBalance && getPaymentDueDate(climb) && (
           <span
             className={`policy-due-chip${isPaymentOverdue(climb, outstanding) ? " overdue" : ""}`}
           >
             {isPaymentOverdue(climb, outstanding) ? "Overdue — was due " : "Due by "}
-            {formatDueDate(climb.paymentDueDate)}
+            {formatDueDate(getPaymentDueDate(climb))}
           </span>
         )}
         {showPrep && isDonationDriveOn(climb) && onEditPledge && (

@@ -1,4 +1,5 @@
 import { isClimbCompleted } from "@/utils/climbGrouping";
+import { DEFAULT_CANCELLATION_POLICY } from "@/data/defaultCancellationPolicy";
 
 // Per-climb registration policy: a payment due date and a cancellation /
 // refund policy, both set by admins in ClimbForm and shown to members before
@@ -19,9 +20,53 @@ export function formatDueDate(value) {
     : "";
 }
 
+// Without a due date of its own, payment is due this many days before the
+// climb starts.
+export const DEFAULT_DUE_DAYS_BEFORE = 5;
+
+function toLocalYmd(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function climbStart(climb) {
+  const raw = climb?.startDate;
+  if (!raw) return null;
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const d = raw?.toDate?.() ?? new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// The climb's due date as "YYYY-MM-DD": its own, else DEFAULT_DUE_DAYS_BEFORE
+// days before it starts, else "" (no dates set yet).
+export function getPaymentDueDate(climb) {
+  if (climb?.paymentDueDate) return climb.paymentDueDate;
+  const start = climbStart(climb);
+  if (!start) return "";
+  const due = new Date(start);
+  due.setDate(due.getDate() - DEFAULT_DUE_DAYS_BEFORE);
+  return toLocalYmd(due);
+}
+
+export function isDefaultDueDate(climb) {
+  return !climb?.paymentDueDate && !!getPaymentDueDate(climb);
+}
+
+// The climb's own policy, else the club-wide default.
+export function getCancellationPolicy(climb) {
+  return climb?.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY;
+}
+
+export function isDefaultPolicy(climb) {
+  return !climb?.cancellationPolicy?.trim();
+}
+
 // Past the end of the due day, with money still owed.
 export function isPaymentOverdue(climb, outstanding, now = new Date()) {
-  const due = parseDueDate(climb?.paymentDueDate);
+  const due = parseDueDate(getPaymentDueDate(climb));
   return !!due && outstanding > 0 && now > due;
 }
 
