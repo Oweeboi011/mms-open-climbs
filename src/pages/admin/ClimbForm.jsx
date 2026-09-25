@@ -454,6 +454,8 @@ export default function AdminClimbForm() {
       const payload = {
         ...publicForm,
         maxParticipants: Number(form.maxParticipants),
+        // Derived so the card's month tag can never disagree with the date.
+        month: MONTHS[Number(form.startDate.slice(5, 7)) - 1] || form.month,
         updatedAt: serverTimestamp(),
       };
       payload.officerIds = (form.officers || [])
@@ -590,21 +592,6 @@ export default function AdminClimbForm() {
                   value={form.dateLabel}
                   onChange={(e) => set("dateLabel", e.target.value)}
                 />
-              </div>
-              <div className="form-group">
-                <label className="form-label required">Month</label>
-                <select
-                  className="form-select"
-                  required
-                  value={form.month}
-                  onChange={(e) => set("month", e.target.value)}
-                >
-                  {MONTHS.map((m) => (
-                    <option key={m} value={m}>
-                      {m.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
             <div className="form-row">
