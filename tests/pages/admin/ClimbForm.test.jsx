@@ -122,6 +122,7 @@ describe("Admin ClimbForm", () => {
         label: "Trail A — Ambangeg",
         googleMapsUrl: "https://www.google.com/maps/@16.5,120.8,14z",
         allTrailsUrl: "",
+        komootUrl: "",
       },
     ]);
     expect(payload.googleMapsUrl).toBe("https://www.google.com/maps/@16.5,120.8,14z");

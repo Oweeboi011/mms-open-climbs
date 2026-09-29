@@ -1375,6 +1375,12 @@ textarea {
 .reorder-buttons .btn-sm {
   padding: 6px 10px;
 }
+.trail-map-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
 .btn-lg {
   font-size: 0.85rem;
   padding: 14px 32px;

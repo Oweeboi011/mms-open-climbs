@@ -617,12 +617,13 @@ export default function Event() {
   // googleMapsUrl/allTrailsUrl fields for climbs created before this existed.
   const trailMapEntries = climb.trailMaps?.length
     ? climb.trailMaps
-    : climb.googleMapsUrl || climb.allTrailsUrl
+    : climb.googleMapsUrl || climb.allTrailsUrl || climb.komootUrl
       ? [
           {
             label: "",
             googleMapsUrl: climb.googleMapsUrl,
             allTrailsUrl: climb.allTrailsUrl,
+            komootUrl: climb.komootUrl,
           },
         ]
       : [];
@@ -1282,6 +1283,19 @@ export default function Event() {
                       </div>
                     </>
                   ) : null}
+                  {/^https:\/\//i.test(activeTrail?.komootUrl || "") && (
+                    <div className="trail-map-links">
+                      <a
+                        href={activeTrail.komootUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline btn-sm"
+                      >
+                        <Icon name="globe" size={14} />
+                        View route on Komoot
+                      </a>
+                    </div>
+                  )}
                 </>
               )}
             </div>

@@ -677,4 +677,48 @@ describe("Event page", () => {
       expect(iframe.src).toContain("trail-b");
     });
   });
+
+  it("links to the active trail's Komoot route", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        trailMaps: [
+          { label: "", komootUrl: "https://www.komoot.com/tour/123" },
+        ],
+      }),
+    );
+
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeMemberAuth(),
+    );
+
+    const link = await screen.findByRole("link", {
+      name: /View route on Komoot/i,
+    });
+    expect(link).toHaveAttribute("href", "https://www.komoot.com/tour/123");
+  });
+
+  it("still shows the Komoot link from a legacy komootUrl field", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("climb-1", {
+        ...OPEN_CLIMB,
+        komootUrl: "https://www.komoot.com/tour/456",
+      }),
+    );
+
+    renderAtRoute(
+      <Event />,
+      "/event/:climbId",
+      "/event/climb-1",
+      makeMemberAuth(),
+    );
+
+    const link = await screen.findByRole("link", {
+      name: /View route on Komoot/i,
+    });
+    expect(link).toHaveAttribute("href", "https://www.komoot.com/tour/456");
+  });
 });
