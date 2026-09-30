@@ -35,6 +35,8 @@ import DonationDriveFields from "@/components/admin/DonationDriveFields";
 import RegistrationPolicyFields from "@/components/admin/RegistrationPolicyFields";
 import ThingsToBringFields from "@/components/admin/ThingsToBringFields";
 import ReorderButtons, { moveItem } from "@/components/admin/ReorderButtons";
+import EmbedCodeField from "@/components/admin/EmbedCodeField";
+import { normalizeEmbedInput } from "@/utils/trailEmbeds";
 
 const OFFICER_ROLES = [
   "Senior Team Leader",
@@ -465,11 +467,17 @@ export default function AdminClimbForm() {
       const { publicOfficers, officerEmails } = splitOfficerEmails(form.officers);
       payload.officers = publicOfficers;
       const internalData = { officerEmails };
+      // Admins paste the sites' iframe embed code; store just its URL.
+      payload.trailMaps = (form.trailMaps || []).map((t) => ({
+        ...t,
+        allTrailsUrl: normalizeEmbedInput(t.allTrailsUrl),
+        komootUrl: normalizeEmbedInput(t.komootUrl),
+      }));
       // Keep the legacy single googleMapsUrl/allTrailsUrl fields in sync
       // with the first trail so older code paths (e.g. the weather forecast
       // location lookup) still resolve correctly.
-      payload.googleMapsUrl = form.trailMaps?.[0]?.googleMapsUrl || "";
-      payload.allTrailsUrl = form.trailMaps?.[0]?.allTrailsUrl || "";
+      payload.googleMapsUrl = payload.trailMaps[0]?.googleMapsUrl || "";
+      payload.allTrailsUrl = payload.trailMaps[0]?.allTrailsUrl || "";
       // Clear any legacy copy left over from before these fields moved to
       // climbPrivate, so the data isn't duplicated on the public doc.
       payload.preClimbMeetingDate = null;
@@ -909,8 +917,8 @@ export default function AdminClimbForm() {
             </p>
             {(form.trailMaps || []).length === 0 && (
               <div className="form-hint" style={{ marginBottom: 12 }}>
-                No trail added yet. Click "+ Add Trail" to add a Google Maps,
-                AllTrails, and/or Komoot link.
+                No trail added yet. Click "+ Add Trail" to add a Google Maps
+                link and/or AllTrails or Komoot embed code.
               </div>
             )}
             {(form.trailMaps || []).map((trail, i) => (
@@ -967,39 +975,20 @@ export default function AdminClimbForm() {
                     }
                   />
                 </div>
-                <div className="form-group" style={{ marginBottom: 8 }}>
-                  <label className="form-label">AllTrails Trail URL</label>
-                  <input
-                    type="url"
-                    className="form-input"
-                    placeholder="https://www.alltrails.com/trail/philippines/..."
-                    value={trail.allTrailsUrl}
-                    onChange={(e) =>
-                      updateListItem("trailMaps", i, {
-                        ...trail,
-                        allTrailsUrl: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Komoot Route URL</label>
-                  <input
-                    type="url"
-                    className="form-input"
-                    placeholder="https://www.komoot.com/tour/..."
-                    value={trail.komootUrl || ""}
-                    onChange={(e) =>
-                      updateListItem("trailMaps", i, {
-                        ...trail,
-                        komootUrl: e.target.value,
-                      })
-                    }
-                  />
-                  <div className="form-hint">
-                    Registrants get a button to open the route on Komoot.
-                  </div>
-                </div>
+                <EmbedCodeField
+                  site="alltrails"
+                  value={trail.allTrailsUrl}
+                  onChange={(value) =>
+                    updateListItem("trailMaps", i, { ...trail, allTrailsUrl: value })
+                  }
+                />
+                <EmbedCodeField
+                  site="komoot"
+                  value={trail.komootUrl}
+                  onChange={(value) =>
+                    updateListItem("trailMaps", i, { ...trail, komootUrl: value })
+                  }
+                />
               </div>
             ))}
             <div className="form-group">

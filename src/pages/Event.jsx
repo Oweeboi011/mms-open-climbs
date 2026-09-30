@@ -14,6 +14,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Icon from "@/components/Icon";
+import { getAllTrailsEmbed, getKomootEmbed } from "@/utils/trailEmbeds";
 import { renderMarkdown } from "@/utils/markdownLite";
 import EventFeesCard from "@/components/EventFeesCard";
 import MountaineeringGuideModal from "@/components/MountaineeringGuideModal";
@@ -150,19 +151,32 @@ function getTrailMapEntries(climb) {
   ];
 }
 
-function KomootLink({ url }) {
-  if (!/^https:\/\//i.test(url || "")) return null;
+function getTrailEmbeds(trail) {
+  return {
+    allTrails: getAllTrailsEmbed(trail?.allTrailsUrl),
+    komoot: getKomootEmbed(trail?.komootUrl),
+  };
+}
+
+function TrailEmbed({ embed, title, height, source }) {
+  if (!embed) return null;
   return (
-    <div className="trail-map-links">
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn btn-outline btn-sm"
-      >
-        <Icon name="globe" size={14} />
-        View route on Komoot
-      </a>
+    <div className="trail-embed-block">
+      <iframe
+        src={embed.embedSrc}
+        title={title}
+        height={height}
+        className="trail-embed"
+        loading="lazy"
+        allow="fullscreen"
+        allowFullScreen
+      />
+      <p className="trail-embed-credit">
+        Trail data &copy;{" "}
+        <a href={embed.pageUrl} target="_blank" rel="noopener noreferrer">
+          {source}
+        </a>
+      </p>
     </div>
   );
 }
@@ -654,6 +668,8 @@ export default function Event() {
     Math.max(trailMapEntries.length - 1, 0),
   );
   const activeTrail = trailMapEntries[activeTrailIdx];
+  const { allTrails: allTrailsEmbed, komoot: komootEmbed } =
+    getTrailEmbeds(activeTrail);
   const activeTrailMapEmbed = activeTrail
     ? getMapEmbed(activeTrail.googleMapsUrl, null)
     : null;
@@ -1221,48 +1237,15 @@ export default function Event() {
                       ))}
                     </div>
                   )}
-                  {activeTrail?.allTrailsUrl ? (
-                    <>
-                      <iframe
-                        src={
-                          activeTrail.allTrailsUrl.replace(
-                            "www.alltrails.com/trail/",
-                            "www.alltrails.com/widget/trail/",
-                          ) +
-                          (activeTrail.allTrailsUrl.includes("?") ? "&" : "?") +
-                          "u=m&width=100%25"
-                        }
-                        title="AllTrails trail map"
-                        width="100%"
-                        height="400"
-                        style={{
-                          border: "none",
-                          borderRadius: 10,
-                          display: "block",
-                        }}
-                        loading="lazy"
-                        allowFullScreen
-                      />
-                      <p
-                        style={{
-                          fontSize: "0.7rem",
-                          color: "var(--ink-soft)",
-                          marginTop: 8,
-                        }}
-                      >
-                        Trail data &copy;{" "}
-                        <a
-                          href={activeTrail.allTrailsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: "var(--accent)" }}
-                        >
-                          AllTrails
-                        </a>
-                      </p>
-                    </>
+                  {allTrailsEmbed ? (
+                    <TrailEmbed
+                      embed={allTrailsEmbed}
+                      title="AllTrails trail map"
+                      height="400"
+                      source="AllTrails"
+                    />
                   ) : activeTrailMapEmbed?.embedSrc ? (
-                    <>
+                    <div className="trail-embed-block">
                       <iframe
                         src={activeTrailMapEmbed.embedSrc}
                         title={`${climb.title} location map`}
@@ -1303,9 +1286,14 @@ export default function Event() {
                           View on Google Maps
                         </a>
                       </div>
-                    </>
+                    </div>
                   ) : null}
-                  <KomootLink url={activeTrail?.komootUrl} />
+                  <TrailEmbed
+                    embed={komootEmbed}
+                    title="Komoot route map"
+                    height="700"
+                    source="Komoot"
+                  />
                 </>
               )}
             </div>
