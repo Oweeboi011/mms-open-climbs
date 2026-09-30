@@ -1375,11 +1375,33 @@ textarea {
 .reorder-buttons .btn-sm {
   padding: 6px 10px;
 }
-.trail-map-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
+.trail-embed-field {
+  margin-bottom: 8px;
+}
+.trail-embed-field:last-child {
+  margin-bottom: 0;
+}
+.embed-code-input {
+  resize: vertical;
+  font-family: monospace;
+  font-size: 0.78rem;
+}
+.trail-embed {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+}
+.trail-embed-credit {
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  margin-top: 8px;
+}
+.trail-embed-credit a {
+  color: var(--accent);
+}
+.trail-embed-block + .trail-embed-block {
+  margin-top: 18px;
 }
 .btn-lg {
   font-size: 0.85rem;

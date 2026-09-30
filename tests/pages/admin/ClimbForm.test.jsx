@@ -113,6 +113,13 @@ describe("Admin ClimbForm", () => {
       { target: { value: "https://www.google.com/maps/@16.5,120.8,14z" } },
     );
 
+    fireEvent.change(controlByLabel("Komoot Embed Code"), {
+      target: {
+        value:
+          '<iframe src="https://www.komoot.com/tour/42/embed?share_token=t0k&amp;layout=classic&amp;profile=1" width="100%" height="700"></iframe>',
+      },
+    });
+
     fireEvent.click(screen.getByRole("button", { name: /Create Climb/i }));
 
     await waitFor(() => expect(addDoc).toHaveBeenCalled());
@@ -122,7 +129,8 @@ describe("Admin ClimbForm", () => {
         label: "Trail A — Ambangeg",
         googleMapsUrl: "https://www.google.com/maps/@16.5,120.8,14z",
         allTrailsUrl: "",
-        komootUrl: "",
+        komootUrl:
+          "https://www.komoot.com/tour/42/embed?share_token=t0k&layout=classic&profile=1",
       },
     ]);
     expect(payload.googleMapsUrl).toBe("https://www.google.com/maps/@16.5,120.8,14z");
