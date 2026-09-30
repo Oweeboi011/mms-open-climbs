@@ -208,12 +208,13 @@ export default function AdminClimbForm() {
         const trailMaps =
           data.trailMaps?.length > 0
             ? data.trailMaps
-            : data.googleMapsUrl || data.allTrailsUrl
+            : data.googleMapsUrl || data.allTrailsUrl || data.komootUrl
               ? [
                   {
                     label: "",
                     googleMapsUrl: data.googleMapsUrl || "",
                     allTrailsUrl: data.allTrailsUrl || "",
+                    komootUrl: data.komootUrl || "",
                   },
                 ]
               : [];
@@ -888,6 +889,7 @@ export default function AdminClimbForm() {
                     label: "",
                     googleMapsUrl: "",
                     allTrailsUrl: "",
+                    komootUrl: "",
                   })
                 }
               >
@@ -907,8 +909,8 @@ export default function AdminClimbForm() {
             </p>
             {(form.trailMaps || []).length === 0 && (
               <div className="form-hint" style={{ marginBottom: 12 }}>
-                No trail added yet. Click "+ Add Trail" to add a Google Maps
-                and/or AllTrails link.
+                No trail added yet. Click "+ Add Trail" to add a Google Maps,
+                AllTrails, and/or Komoot link.
               </div>
             )}
             {(form.trailMaps || []).map((trail, i) => (
@@ -965,7 +967,7 @@ export default function AdminClimbForm() {
                     }
                   />
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
+                <div className="form-group" style={{ marginBottom: 8 }}>
                   <label className="form-label">AllTrails Trail URL</label>
                   <input
                     type="url"
@@ -979,6 +981,24 @@ export default function AdminClimbForm() {
                       })
                     }
                   />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Komoot Route URL</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://www.komoot.com/tour/..."
+                    value={trail.komootUrl || ""}
+                    onChange={(e) =>
+                      updateListItem("trailMaps", i, {
+                        ...trail,
+                        komootUrl: e.target.value,
+                      })
+                    }
+                  />
+                  <div className="form-hint">
+                    Registrants get a button to open the route on Komoot.
+                  </div>
                 </div>
               </div>
             ))}
