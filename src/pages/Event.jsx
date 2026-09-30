@@ -131,6 +131,42 @@ function getWeatherLabel(code) {
   return WEATHER_CODE_LABELS[code] || "Weather update";
 }
 
+// Support multiple alternate trail options (e.g. two routes up the same
+// mountain) via climb.trailMaps; fall back to the single legacy
+// googleMapsUrl/allTrailsUrl/komootUrl fields for climbs created before this
+// existed.
+function getTrailMapEntries(climb) {
+  if (climb.trailMaps?.length) return climb.trailMaps;
+  if (!climb.googleMapsUrl && !climb.allTrailsUrl && !climb.komootUrl) {
+    return [];
+  }
+  return [
+    {
+      label: "",
+      googleMapsUrl: climb.googleMapsUrl,
+      allTrailsUrl: climb.allTrailsUrl,
+      komootUrl: climb.komootUrl,
+    },
+  ];
+}
+
+function KomootLink({ url }) {
+  if (!/^https:\/\//i.test(url || "")) return null;
+  return (
+    <div className="trail-map-links">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn btn-outline btn-sm"
+      >
+        <Icon name="globe" size={14} />
+        View route on Komoot
+      </a>
+    </div>
+  );
+}
+
 function getMapEmbed(googleMapsUrl, fallbackCoords) {
   const placeName = parseGoogleMapsPlace(googleMapsUrl);
   const parsed = parseGoogleMapsUrl(googleMapsUrl);
@@ -612,20 +648,7 @@ export default function Event() {
 
   const mapCoords = getClimbCoords(climb);
 
-  // Support multiple alternate trail options (e.g. two routes up the same
-  // mountain) via climb.trailMaps; fall back to the single legacy
-  // googleMapsUrl/allTrailsUrl fields for climbs created before this existed.
-  const trailMapEntries = climb.trailMaps?.length
-    ? climb.trailMaps
-    : climb.googleMapsUrl || climb.allTrailsUrl
-      ? [
-          {
-            label: "",
-            googleMapsUrl: climb.googleMapsUrl,
-            allTrailsUrl: climb.allTrailsUrl,
-          },
-        ]
-      : [];
+  const trailMapEntries = getTrailMapEntries(climb);
   const activeTrailIdx = Math.min(
     selectedTrailIdx,
     Math.max(trailMapEntries.length - 1, 0),
@@ -1282,6 +1305,7 @@ export default function Event() {
                       </div>
                     </>
                   ) : null}
+                  <KomootLink url={activeTrail?.komootUrl} />
                 </>
               )}
             </div>
