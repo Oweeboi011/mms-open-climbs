@@ -678,7 +678,7 @@ describe("Event page", () => {
     });
   });
 
-  it("links to the active trail's Komoot route", async () => {
+  it("embeds the active trail's Komoot route", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot("climb-1", {
         ...OPEN_CLIMB,
@@ -695,13 +695,17 @@ describe("Event page", () => {
       makeMemberAuth(),
     );
 
-    const link = await screen.findByRole("link", {
-      name: /View route on Komoot/i,
-    });
-    expect(link).toHaveAttribute("href", "https://www.komoot.com/tour/123");
+    await waitFor(() =>
+      expect(
+        document.querySelector("iframe[title='Komoot route map']"),
+      ).toHaveAttribute(
+        "src",
+        "https://www.komoot.com/tour/123/embed?layout=classic&profile=1",
+      ),
+    );
   });
 
-  it("still shows the Komoot link from a legacy komootUrl field", async () => {
+  it("still embeds Komoot from a legacy komootUrl field", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot("climb-1", {
         ...OPEN_CLIMB,
@@ -716,9 +720,13 @@ describe("Event page", () => {
       makeMemberAuth(),
     );
 
-    const link = await screen.findByRole("link", {
-      name: /View route on Komoot/i,
-    });
-    expect(link).toHaveAttribute("href", "https://www.komoot.com/tour/456");
+    await waitFor(() =>
+      expect(
+        document.querySelector("iframe[title='Komoot route map']"),
+      ).toHaveAttribute(
+        "src",
+        "https://www.komoot.com/tour/456/embed?layout=classic&profile=1",
+      ),
+    );
   });
 });
