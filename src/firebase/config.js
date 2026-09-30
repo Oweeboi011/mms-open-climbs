@@ -22,8 +22,18 @@ const app = initializeApp(firebaseConfig);
 // error-log writes. Initialised before any other service so the first
 // requests already carry a token. Enforcement is switched on per service in
 // the Firebase console once its metrics show legitimate traffic verified.
+const useEmulators =
+  import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
 const appCheckSiteKey = import.meta.env.VITE_APPCHECK_SITE_KEY;
-if (appCheckSiteKey && !import.meta.env.DEV) {
+if (appCheckSiteKey && !useEmulators) {
+  // Local dev can't pass reCAPTCHA, so it uses a debug token instead. The
+  // token must be registered under App Check → Apps → Manage debug tokens;
+  // with VITE_APPCHECK_DEBUG_TOKEN unset, the SDK makes one and logs it to
+  // the browser console.
+  if (import.meta.env.DEV) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN =
+      import.meta.env.VITE_APPCHECK_DEBUG_TOKEN || true;
+  }
   initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
     isTokenAutoRefreshEnabled: true,
@@ -36,7 +46,7 @@ export const functions = getFunctions(app);
 export const storage   = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
-if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
+if (useEmulators) {
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, 'localhost', 8080);
   connectFunctionsEmulator(functions, 'localhost', 5001);
