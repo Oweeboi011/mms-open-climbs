@@ -13,8 +13,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.js"],
     css: false,
-    // Exclude CommonJS Jest tests in functions/ — run those with `npm test` inside functions/
-    exclude: ["**/node_modules/**", "**/functions/**", "**/rules-tests/**"],
+    // functions/ has its own Jest suite; integration (emulator) and e2e
+    // (Playwright) run through their own scripts — see docs/guides/TESTING.md.
+    exclude: ["**/node_modules/**", "**/functions/**", "tests/integration/**", "tests/e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
