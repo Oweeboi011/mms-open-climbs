@@ -4,7 +4,7 @@ import { getNeededItems } from "@/utils/donations";
 // say what it's collecting — needed items with target quantities, and an
 // optional cash goal. Public: shown on the event page with what's still
 // needed. Leads work the collection from the climb's Donations page.
-export const EMPTY_DONATION_DRIVE = {
+const EMPTY_DONATION_DRIVE = {
   enabled: false,
   beneficiary: "",
   description: "",

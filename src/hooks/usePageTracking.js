@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 // Firestore's TTL policy on `expireAt` deletes views after this long, so the
 // collection (and every admin read of it) stops growing without bound.
-export const PAGE_VIEW_RETENTION_DAYS = 90;
+const PAGE_VIEW_RETENTION_DAYS = 90;
 
 function getSessionId() {
   let id = sessionStorage.getItem("oc_session_id");

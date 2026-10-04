@@ -59,7 +59,7 @@ export function auditEntriesToEvents(entries = []) {
   }));
 }
 
-export function registrationEvents(regs = []) {
+function registrationEvents(regs = []) {
   const events = [];
   for (const r of regs) {
     const name = r.name || "A participant";

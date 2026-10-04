@@ -6,16 +6,16 @@ module.exports = {
   testMatch: ["**/tests/**/*.test.js"],
   clearMocks: true,
   resetMocks: true,
-  collectCoverageFrom: ["src/index.js"],
+  collectCoverageFrom: ["src/**/*.js"],
   coverageReporters: ["text", "lcov", "html"],
-  // Ratchets — set just under today's actuals (83 / 68.22 / 74.19 / 83.14).
-  // Raise them when coverage improves; see docs/wiki/CODE-QUALITY.md.
+  // Ratchets — set just under today's actuals (84.72 / 76.56 / 80.62 / 86.04).
+  // Raise them when coverage improves; see docs/guides/CODE-QUALITY.md.
   coverageThreshold: {
     global: {
-      branches: 68,
-      functions: 74,
-      lines: 83,
-      statements: 83,
+      branches: 76,
+      functions: 80,
+      lines: 85,
+      statements: 84,
     },
   },
 };

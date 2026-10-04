@@ -10,7 +10,7 @@ import { StatusBadge, PAYMENT_STYLE } from "./registrantShared";
 
 const peso = (n) => `₱${Number(n || 0).toLocaleString("en-PH")}`;
 
-export function formatSubmittedAt(value) {
+function formatSubmittedAt(value) {
   const d = value?.toDate?.() ?? (value ? new Date(value) : null);
   if (!d || isNaN(d.getTime())) return null;
   return d.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });

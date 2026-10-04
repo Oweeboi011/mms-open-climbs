@@ -4,7 +4,6 @@ import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
-export { GoogleAuthProvider };
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,

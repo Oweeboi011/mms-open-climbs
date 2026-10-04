@@ -16,8 +16,7 @@
     "@google-cloud/bigquery": "^7.9.0",
     "@google-cloud/monitoring": "^4.1.0",
     "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.0.0",
-    "mms-open-climbs": "file:.."
+    "firebase-functions": "^6.0.0"
   },
   "overrides": {
     "@types/request": {
@@ -26,8 +25,6 @@
     "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@jest/globals": "^30.4.1",
-    "firebase-functions-test": "^3.1.0",
     "jest": "^30.4.2"
   },
   "private": true

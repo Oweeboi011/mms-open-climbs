@@ -19,7 +19,7 @@ function parseAmount(amount) {
   return isNaN(n) ? 0 : n;
 }
 
-export const ENTRY_STATUSES = ["submitted", "verified", "rejected"];
+const ENTRY_STATUSES = ["submitted", "verified", "rejected"];
 
 function normalizeStatus(status, fallback = "submitted") {
   return ENTRY_STATUSES.includes(status) ? status : fallback;
