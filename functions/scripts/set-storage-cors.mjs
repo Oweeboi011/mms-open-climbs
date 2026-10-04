@@ -3,7 +3,7 @@
  *
  * Run from repo root:
  *   $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\serviceAccountKey.json"
- *   node scripts/set-storage-cors.mjs
+ *   node functions/scripts/set-storage-cors.mjs
  *
  * The bucket name is read from VITE_FIREBASE_STORAGE_BUCKET in .env (repo root),
  * or you can override it with the STORAGE_BUCKET env var.
@@ -15,7 +15,7 @@
  *   3. Ensure functions deps are installed: cd functions && npm install
  *
  * Alternative (requires Google Cloud SDK):
- *   gsutil cors set cors.json gs://<your-bucket>
+ *   gsutil cors set firebase/cors.json gs://<your-bucket>
  */
 
 import { initializeApp, cert, getApps } from "firebase-admin/app";
@@ -25,7 +25,7 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(__dirname, "..");
+const repoRoot = resolve(__dirname, "../..");
 
 // Read .env file from repo root to get the storage bucket name
 function readEnvFile(filePath) {
@@ -52,7 +52,7 @@ if (!storageBucket) {
       "  A) Ensure VITE_FIREBASE_STORAGE_BUCKET is set in your .env file at the repo root.\n" +
       "  B) Set the STORAGE_BUCKET env var:\n" +
       "       $env:STORAGE_BUCKET = 'your-project.firebasestorage.app'\n" +
-      "       node scripts/set-storage-cors.mjs\n\n" +
+      "       node functions/scripts/set-storage-cors.mjs\n\n" +
       "The bucket name is shown in Firebase Console > Storage > Files (top of the page).\n" +
       "It typically looks like: your-project-id.firebasestorage.app",
   );
@@ -60,7 +60,7 @@ if (!storageBucket) {
 }
 
 const corsConfig = JSON.parse(
-  readFileSync(resolve(repoRoot, "cors.json"), "utf8"),
+  readFileSync(resolve(repoRoot, "firebase/cors.json"), "utf8"),
 );
 
 const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -72,9 +72,9 @@ if (!credPath) {
       "  2. Click 'Generate new private key' and save the JSON file\n" +
       "  3. Run (PowerShell):\n" +
       "       $env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\\path\\to\\key.json'\n" +
-      "       node scripts/set-storage-cors.mjs\n\n" +
+      "       node functions/scripts/set-storage-cors.mjs\n\n" +
       "Or use gsutil if Google Cloud SDK is installed:\n" +
-      `  gsutil cors set cors.json gs://${storageBucket}`,
+      `  gsutil cors set firebase/cors.json gs://${storageBucket}`,
   );
   process.exit(1);
 }

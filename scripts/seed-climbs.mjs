@@ -10,10 +10,11 @@
  * No Firebase CLI or gcloud installation required.
  */
 import { createInterface } from "readline";
+import { requireEnv } from "./lib/env.mjs";
 
 const PROJECT_ID = "mms-open-climbs";
 const DATABASE = "openclimbs";
-const FIREBASE_API_KEY = "AIzaSyDLQFuxfJz74VtO9P1nvl6wYNzLWCF1uoU"; // public web API key
+const FIREBASE_API_KEY = requireEnv("VITE_FIREBASE_API_KEY");
 
 // ── Climb data from 2026 schedule flyer ──────────────────────────────────────
 const CLIMBS = [

@@ -1,7 +1,7 @@
 {
   // Editor
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // No Prettier: formatting is .editorconfig only (ADR 0003).
+  "editor.formatOnSave": false,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
@@ -18,7 +18,7 @@
   },
 
   // JavaScript / TypeScript
-  "javascript.preferences.importModuleSpecifier": "relative",
+  "javascript.preferences.importModuleSpecifier": "non-relative",
   "javascript.suggest.autoImports": true,
 
   // ESLint

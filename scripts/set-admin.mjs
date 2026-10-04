@@ -6,6 +6,7 @@
  * then uses the Firestore REST API to write the user doc directly.
  */
 import { readFileSync } from 'fs';
+import { requireEnv } from './lib/env.mjs';
 
 const PROJECT_ID = 'mms-open-climbs';
 const DATABASE   = 'openclimbs';
@@ -24,7 +25,7 @@ try {
   const config = JSON.parse(readFileSync(configPath, 'utf8'));
   const tokens = config.tokens;
   // Use refresh token to get access token
-  const res = await fetch('https://securetoken.googleapis.com/v1/token?key=AIzaSyDLQFuxfJz74VtO9P1nvl6wYNzLWCF1uoU', {
+  const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${requireEnv('VITE_FIREBASE_API_KEY')}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=refresh_token&refresh_token=${tokens.refresh_token}`,

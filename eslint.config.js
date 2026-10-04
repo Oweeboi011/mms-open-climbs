@@ -38,7 +38,6 @@ export default [
       "node_modules/**",
       "functions/**",
       ".firebase/**",
-      "js/**",
       "public/**",
       "images/**",
     ],

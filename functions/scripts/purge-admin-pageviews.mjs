@@ -1,8 +1,8 @@
 /**
  * Deletes all pageViews documents where path starts with /admin.
- * Run from functions folder:
+ * Run from repo root:
  *   $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\serviceAccountKey.json"
- *   node purge-admin-pageviews.mjs
+ *   node functions/scripts/purge-admin-pageviews.mjs
  */
 
 import { initializeApp, cert, getApps } from "firebase-admin/app";
@@ -32,7 +32,7 @@ if (!credPath) {
   process.exit(1);
 }
 
-const envVars = readEnvFile(resolve(__dirname, "../.env"));
+const envVars = readEnvFile(resolve(__dirname, "../../.env"));
 const projectId = envVars.VITE_FIREBASE_PROJECT_ID || "mms-open-climbs";
 
 if (!getApps().length) {

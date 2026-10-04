@@ -28,10 +28,11 @@ import { execFileSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { requireEnv } from "./lib/env.mjs";
 
 const PROJECT_ID = "mms-open-climbs";
 const DATABASE = "openclimbs";
-const FIREBASE_API_KEY = "AIzaSyDLQFuxfJz74VtO9P1nvl6wYNzLWCF1uoU"; // public web API key
+const FIREBASE_API_KEY = requireEnv("VITE_FIREBASE_API_KEY");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_FILE = join(__dirname, ".release-notes-state.json");

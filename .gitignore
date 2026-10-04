@@ -21,3 +21,4 @@ functions/coverage/
 # Local emulator / scratch artifacts
 __azurite_db_*.json
 *.rules.tmp
+.vite/

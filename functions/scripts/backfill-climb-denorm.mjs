@@ -20,14 +20,15 @@
  * registered before this change need a one-time recompute here.
  *
  * Run from repo root (uses gcloud Application Default Credentials):
- *   node scripts/backfill-climb-denorm.mjs           # dry run
- *   node scripts/backfill-climb-denorm.mjs --apply   # writes
+ *   node functions/scripts/backfill-climb-denorm.mjs           # dry run
+ *   node functions/scripts/backfill-climb-denorm.mjs --apply   # writes
  *
  * Safe to re-run.
  */
 
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { createRequire } from "node:module";
 
 const APPLY = process.argv.includes("--apply");
 
@@ -40,14 +41,7 @@ if (!getApps().length) {
 const db = getFirestore();
 db.settings({ databaseId: "openclimbs" });
 
-// Mirrors functions/src/requiredDocTypes.js — kept as its own copy since
-// this script runs standalone via node, outside either deployable package.
-const REQUIRED_DOC_TYPES = [
-  { requiresField: "requiresRegistrationForm", uploadField: "registrationFormUpload" },
-  { requiresField: "requiresMedicalCert", uploadField: "medicalCertUpload" },
-  { requiresField: "requiresPermit", uploadField: "permitUpload" },
-  { requiresField: "requiresWaiverDoc", uploadField: "waiverDocUpload" },
-];
+const { REQUIRED_DOC_TYPES } = createRequire(import.meta.url)("../src/requiredDocTypes.js");
 
 function regDocsComplete(climb, reg) {
   return REQUIRED_DOC_TYPES.every(
