@@ -22,3 +22,5 @@ functions/coverage/
 __azurite_db_*.json
 *.rules.tmp
 .vite/
+playwright-report/
+test-results/

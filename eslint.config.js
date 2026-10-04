@@ -245,7 +245,7 @@ export default [
 
   // --- Tests and Node-side scripts play by looser rules -----------------
   {
-    files: ["tests/**/*.{js,jsx,mjs}", "functions/tests/**/*.js", "rules-tests/**/*.mjs"],
+    files: ["tests/**/*.{js,jsx,mjs}", "functions/tests/**/*.js"],
     languageOptions: { globals: { ...globals.node, ...globals.vitest, ...globals.jest } },
     rules: {
       "max-lines": "off",
