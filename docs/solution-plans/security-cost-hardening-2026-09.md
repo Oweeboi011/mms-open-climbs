@@ -24,15 +24,15 @@ existing climb docs. They need Application Default Credentials
 
 1. **Admin claims**
    ```bash
-   node scripts/backfill-admin-claims.mjs          # review the list
-   node scripts/backfill-admin-claims.mjs --apply
+   node scripts/backfill-admin-claims.mjs   # done; script removed after use (git c161d2d)          # review the list
+   node scripts/backfill-admin-claims.mjs   # done; script removed after use (git c161d2d) --apply
    ```
    Admins pick the claim up on their next token refresh (AuthContext forces
    one when the claim is behind the profile); signing out and in is instant.
 2. **Roster and officer emails → climbInternal**
    ```bash
-   node scripts/backfill-climb-denorm.mjs
-   node scripts/backfill-climb-denorm.mjs --apply
+   node functions/scripts/backfill-climb-denorm.mjs
+   node functions/scripts/backfill-climb-denorm.mjs --apply
    ```
    Until this runs, existing climbs still expose the legacy roster and
    officer emails, and a member who cancels keeps briefing access through
@@ -46,7 +46,7 @@ existing climb docs. They need Application Default Credentials
 | What | How | Why |
 | --- | --- | --- |
 | Firestore TTL | Declared in `firestore.indexes.json` (`fieldOverrides` with `"ttl": true` on `pageViews.expireAt` and `failedRequests.expireAt`), so every deploy applies it | New page views and error logs carry `expireAt` (90 days). Rows written before this change have no `expireAt` and are never deleted by TTL — purge them once if the collection is large |
-| Storage lifecycle | `gcloud storage buckets update gs://<bucket> --lifecycle-file=storage-lifecycle.json` | Deletes member uploads (receipts, medical certificates, permits, waivers) 2 years after upload. **This is a data-retention decision — confirm 730 days suits the club before applying.** |
+| Storage lifecycle | `gcloud storage buckets update gs://<bucket> --lifecycle-file=firebase/storage-lifecycle.json` | Deletes member uploads (receipts, medical certificates, permits, waivers) 2 years after upload. **This is a data-retention decision — confirm 730 days suits the club before applying.** |
 | Function image cleanup | `npx firebase-tools functions:artifacts:setpolicy --project mms-open-climbs` | Every functions deploy leaves a container image in Artifact Registry; without a cleanup policy they accumulate and are billed |
 | App Check | Firebase Console → App Check → register the web app with reCAPTCHA v3; add the site key as the `VITE_APPCHECK_SITE_KEY` GitHub secret and redeploy; watch the metrics for a few days, then **Enforce** for Firestore and Storage | The only real limit on scripted writes to the open `pageViews`/`failedRequests` collections |
 | Budget alert | Google Cloud Console → Billing → Budgets & alerts → a monthly budget with alerts at 50/90/100% | Nothing else notices a runaway bill |
@@ -107,6 +107,6 @@ existing climb docs. They need Application Default Credentials
 
 ## Testing
 
-- `npm run test:rules` — 53 emulator checks of `firestore.rules` and
+- `npm run test:integration` — the emulator checks of `firestore.rules` and
   `storage.rules` (needs Java). Not part of `npm test`.
 - `npm run qa` — build plus frontend and functions tests with coverage.

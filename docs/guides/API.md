@@ -644,7 +644,7 @@ Permanently deletes a user's Firebase Auth login and their Firestore `users/{uid
 **Access:** Admin users only
 **Secrets required:** `BREVO_API_KEY`, `BREVO_FROM_EMAIL`
 
-Emails every document in the `users` collection about a published release note. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md) for the full feature design, and [DATA.md — releaseNotes](DATA.md#releasenotes) for the source document schema.
+Emails every document in the `users` collection about a published release note. See [release-notes plan](../solution-plans/release-notes.md) for the full feature design, and [DATA.md — releaseNotes](DATA.md#releasenotes) for the source document schema.
 
 #### Full flow
 
@@ -705,9 +705,9 @@ sequenceDiagram
 
 #### Known limitations
 
-- Recipients are emailed sequentially in a single function invocation — no batching, concurrency limiting, or retry/backoff on individual failures. See [RELEASE_NOTES_FEATURE.md — Risks and Challenges](RELEASE_NOTES_FEATURE.md#risks-and-challenges) for the scaling concern and the proposed asynchronous redesign.
+- Recipients are emailed sequentially in a single function invocation — no batching, concurrency limiting, or retry/backoff on individual failures. See [release-notes plan — Risks and Challenges](../solution-plans/release-notes.md#risks-and-challenges) for the scaling concern and the proposed asynchronous redesign.
 - Targets every document in `users` — there is no audience segmentation (e.g. climb officers only, or a specific climb's registrants).
-- Not yet covered by a Cloud Function test (see [RELEASE_NOTES_FEATURE.md — Dead Code and Gap Audit](RELEASE_NOTES_FEATURE.md#dead-code-and-gap-audit)).
+- Not yet covered by a Cloud Function test (see [release-notes plan — Dead Code and Gap Audit](../solution-plans/release-notes.md#dead-code-and-gap-audit)).
 
 ---
 

@@ -14,7 +14,7 @@
   ],
   "minTokens": 70,
   "minLines": 12,
-  "threshold": 1.5,
+  "threshold": 1,
   "reporters": [
     "console",
     "json"

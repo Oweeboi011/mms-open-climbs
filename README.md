@@ -121,135 +121,44 @@ sequenceDiagram
 
 ## Repository Structure
 
-```mermaid
-graph LR
-    subgraph src["src/"]
-        S1["App.jsx — main application router"]
-        S2["main.jsx — React entry point"]
-        S3["components/ — shared UI (Header, Footer, ClimbCard, ...)"]
-        S4["contexts/ — AuthContext, GuideContext"]
-        S5["data/ — static schedule data"]
-        S6["firebase/ — Firebase SDK init and config"]
-        S7["hooks/ — usePageTracking"]
-        S8["pages/ — route-level page components"]
-        S9["pages/admin/ — admin-only page components"]
-        S10["styles/ — global CSS and design tokens"]
-    end
-
-    subgraph tests["tests/ and test/"]
-        T1["tests/ — Vitest + Testing Library suites"]
-        T2["test/ — shared render helpers and setup"]
-    end
-
-    subgraph functions["functions/"]
-        F1["src/index.js — triggers, scheduled function, callables"]
-        F2["tests/ — Jest suite for Cloud Functions"]
-    end
-
-    subgraph scripts["scripts/"]
-        SC1["set-admin.mjs — promote a user to admin role"]
-        SC2["seed-climbs.mjs — seed local emulator with sample climbs"]
-        SC3["purge-admin-pageviews.mjs — remove admin-generated pageView docs"]
-    end
-
-    subgraph docs["docs/wiki/"]
-        D1["ARCHITECTURE.md — system design and diagrams"]
-        D2["API.md — Cloud Functions API reference"]
-        D3["DEPLOYMENT.md — production setup and deploy guide"]
-        D4["SECURITY.md — security model and OWASP assessment"]
-        D5["CONTRIBUTING.md — workflow and coding standards"]
-        D6["TESTING.md — test setup and coverage guide"]
-        D7["DATA.md — Firestore schema reference"]
-        D8["TROUBLESHOOTING.md — common issues and fixes"]
-        D9["USER_MANUAL.md — end-user and admin guide"]
-        D10["RELEASE_NOTES_FEATURE.md — release notes audit, roadmap, governance"]
-        D11["CODE-QUALITY.md — quality gates, layering rules, ratchets"]
-    end
-
-    subgraph plans["docs/solution-plans/"]
-        P1["mms-open-climb-web.md — web solution plan"]
-        P2["mms-open-climb-mobile.md — mobile (Android/iOS) solution plan"]
-    end
-
-    infra["infra/ — reserved for future infrastructure as code"]
+```text
+src/
+  pages/            route screens; page-only parts in pages/event, pages/register, pages/admin/climbForm
+  components/       shared UI (Modal, TextField, AuthLayout, …)
+  contexts/ hooks/  auth state and reusable hooks
+  services/         the only code that talks to Firebase (ADR 0004)
+  utils/            pure domain logic (fees, payments, schedules)
+  data/ styles/     static content, design tokens
+functions/          Cloud Functions: src/{triggers,scheduled,callables,email,shared}, tests/, scripts/
+firebase/           Firestore/Storage rules and indexes, CORS, storage lifecycle
+tests/              unit, component, accessibility, integration, e2e, performance
+scripts/            CLI helpers that use the web API key from .env
+docs/               guides/ (what it is) · solution-plans/ (how we deliver) · adr/ (why)
 ```
 
 ---
 
-## Local Development
-
-### Prerequisites
-
-- Node.js 20+
-- Firebase CLI: `npm install -g firebase-tools`
-
-### Setup
+## Quickstart
 
 ```bash
-# 1. Install dependencies
-npm install
-cd functions && npm install && cd ..
-
-# 2. Configure environment
-cp .env.example .env
-cp functions/.env.example functions/.env
-# Fill in VITE_FIREBASE_* in .env
-# Fill in BREVO_* and APP_URL in functions/.env
-
-# 3. Start Firebase emulators (Terminal 1)
-firebase emulators:start --only auth,firestore,functions
-
-# 4. Start Vite dev server (Terminal 2)
-npm run dev
+npm install && npm --prefix functions install
+cp .env.example .env            # fill in VITE_FIREBASE_*
+npm run dev                     # http://localhost:5173
+npm run qa                      # every quality gate, as CI runs it
 ```
 
-- App: `http://localhost:5173`
-- Emulator UI: `http://localhost:4000`
-
-### Set first admin
-
-```bash
-node scripts/set-admin.mjs your@email.com
-```
-
----
-
-## Scripts Reference
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Preview production build locally |
-| `npm test` | Run frontend tests (Vitest) |
-| `npm run test:watch` | Frontend tests in watch mode |
-| `npm run test:coverage` | Frontend tests with coverage report |
-| `npm run test:all` | Run frontend + function tests |
-| `npm run test:strict` | Full strict coverage gate |
-| `npm run lint` | ESLint: correctness, layering, banned imports, size ceilings |
-| `npm run arch` | dependency-cruiser: cycles, layering, reachability |
-| `npm run dupes` | jscpd duplication threshold |
-| `npm run audit:deps` | npm audit, production dependencies, high+ |
-| `npm run quality` | lint + arch + dupes |
-| `npm run qa` | Quality gates + build + strict coverage (pre-deploy gate) |
+Emulators, admin setup and the workflow: [CONTRIBUTING.md](docs/guides/CONTRIBUTING.md).
+Deploys happen from CI on push to `develop`: [DEPLOYMENT.md](docs/guides/DEPLOYMENT.md).
 
 ---
 
 ## Documentation
 
-| Document | Description |
-| --- | --- |
-| [ARCHITECTURE.md](docs/wiki/ARCHITECTURE.md) | System design, component diagrams, data model |
-| [API.md](docs/wiki/API.md) | Cloud Functions API reference |
-| [DEPLOYMENT.md](docs/wiki/DEPLOYMENT.md) | Production setup and deploy steps |
-| [SECURITY.md](docs/wiki/SECURITY.md) | Security model, rules, and OWASP assessment |
-| [DATA.md](docs/wiki/DATA.md) | Firestore schema and data reference |
-| [TESTING.md](docs/wiki/TESTING.md) | Test setup, patterns, and coverage guide |
-| [CONTRIBUTING.md](docs/wiki/CONTRIBUTING.md) | Contribution workflow and coding standards |
-| [CODE-QUALITY.md](docs/wiki/CODE-QUALITY.md) | Quality gates, layering rules, and enforcement tiers |
-| [docs/adr/](docs/adr/README.md) | Architecture Decision Records |
-| [TROUBLESHOOTING.md](docs/wiki/TROUBLESHOOTING.md) | Common issues and fixes |
-| [USER_MANUAL.md](docs/wiki/USER_MANUAL.md) | End-user and administrator usage guide |
-| [RELEASE_NOTES_FEATURE.md](docs/wiki/RELEASE_NOTES_FEATURE.md) | Release notes feature audit, roadmap, and governance plan |
-| [mms-open-climb-web.md](docs/solution-plans/mms-open-climb-web.md) | Web solution plan — challenges, recommendations, cost, environment, security |
-| [mms-open-climb-mobile.md](docs/solution-plans/mms-open-climb-mobile.md) | Mobile (Android/iOS) solution plan — challenges, recommendations, cost, environment, security |
+| Question | Read |
+|---|---|
+| How is it built? | [ARCHITECTURE](docs/guides/ARCHITECTURE.md) · [DATA](docs/guides/DATA.md) · [API](docs/guides/API.md) · [SECURITY](docs/guides/SECURITY.md) |
+| How do I work on it? | [CONTRIBUTING](docs/guides/CONTRIBUTING.md) · [TESTING](docs/guides/TESTING.md) · [CODE-QUALITY](docs/guides/CODE-QUALITY.md) · [TROUBLESHOOTING](docs/guides/TROUBLESHOOTING.md) |
+| How do I use it? | [USER_MANUAL](docs/guides/USER_MANUAL.md) |
+| How do we deliver it? | [docs/solution-plans/](docs/solution-plans/) — web plan, release notes, hardening, quality harness |
+| Why is it like this? | [docs/adr/](docs/adr/README.md) |
+| What do the words mean? | [CONTEXT.md](CONTEXT.md) — domain glossary |

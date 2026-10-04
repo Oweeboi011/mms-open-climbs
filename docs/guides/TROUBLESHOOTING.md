@@ -249,9 +249,9 @@ Or click the link in the browser console error — Firebase provides a direct li
 
 ### "What's New" popup or Release Notes page shows nothing / console shows `failed-precondition`
 
-**Cause:** Both `ReleaseNotesNotice` and the `/release-notes` page filter by `status == "published"` and order by `publishedAt`, which requires the composite index defined in `firestore.indexes.json`. If that index was never deployed, both listeners fail silently in the popup and throw a visible Firestore error in the console.
+**Cause:** The `/release-notes` page filters by `status == "published"` and order by `publishedAt`, which requires the composite index defined in `firestore.indexes.json`. If that index was never deployed, both listeners fail silently in the popup and throw a visible Firestore error in the console.
 
-**Fix:** Deploy indexes (`firebase deploy --only firestore:indexes`) and confirm at least one release note has `status: published`. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md) for the full feature reference.
+**Fix:** Deploy indexes (`firebase deploy --only firestore:indexes`) and confirm at least one release note has `status: published`. See [release-notes plan](../solution-plans/release-notes.md) for the full feature reference.
 
 ---
 

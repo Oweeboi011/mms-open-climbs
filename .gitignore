@@ -24,3 +24,4 @@ __azurite_db_*.json
 .vite/
 playwright-report/
 test-results/
+__pycache__/

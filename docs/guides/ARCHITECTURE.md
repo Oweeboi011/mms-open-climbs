@@ -28,7 +28,7 @@ The system is fully serverless — there is no custom application server. All co
 
 | Layer               | Technology                         | Purpose                                               |
 | ------------------- | ---------------------------------- | ----------------------------------------------------- |
-| Frontend            | React 18, Vite, React Router v6    | SPA, client-side routing, fast HMR in development     |
+| Frontend            | React 18, Vite, React Router v7    | SPA, client-side routing, fast HMR in development     |
 | Hosting             | Firebase Hosting                   | CDN-backed static hosting with SPA rewrite rules      |
 | Database            | Cloud Firestore (`openclimbs` DB)  | NoSQL document store for climbs, registrations, users |
 | Authentication      | Firebase Auth                      | Email/Password and Google OAuth identity              |
@@ -88,7 +88,7 @@ The entry point `src/main.jsx` mounts the React application inside `AuthProvider
 graph TD
     Main["main.jsx\nReactDOM.createRoot"]
     Auth["AuthProvider\nFirebase Auth observer"]
-    Router["BrowserRouter\nReact Router v6"]
+    Router["BrowserRouter\nReact Router v7"]
     App["App.jsx\nGuideProvider + Routes"]
     WM["WelcomeModal\nglobal overlay on first visit"]
 
@@ -99,6 +99,36 @@ graph TD
     App --> Routes["Route tree"]
 ```
 
+### Layers (Clean Architecture)
+
+Dependencies point inward, toward pure domain logic. Only `src/services`
+talks to Firebase; everything above it receives plain `{ id, ...data }`
+objects. Enforced by ESLint — see [ADR 0004](../adr/0004-services-layer.md).
+
+```mermaid
+flowchart TD
+    pages["pages/ + pages/&lt;feature&gt;/<br/>route screens, their sections and page hooks"]
+    components["components/<br/>shared UI (Modal, TextField, AuthLayout…)"]
+    ctx["contexts/ · hooks/<br/>auth state, reusable hooks"]
+    services["services/<br/>the only Firebase boundary:<br/>climbs, registrations, users, auth,<br/>storage, callables, weather…"]
+    utils["utils/<br/>pure domain logic — no I/O"]
+    data["data/<br/>static content"]
+    infra["firebase/config.js<br/>SDK init"]
+    pages --> components & ctx & services & utils & data
+    components --> ctx & services & utils & data
+    ctx --> services & utils & data
+    services --> utils & infra & data
+    utils --> data
+```
+
+| Layer | Owns | Never |
+|---|---|---|
+| `pages/` | composing a screen; page-only sections (`pages/event/`, `pages/register/`, `pages/admin/climbForm/`) and their state hooks | Firebase calls |
+| `components/` | reusable UI | importing a page |
+| `contexts/`, `hooks/` | cross-page state and effects | Firebase calls |
+| `services/` | every Firestore, Storage, Auth, callable and external HTTP call | React |
+| `utils/` | pure calculations (fees, payments, schedules, weather windows) | I/O, React |
+
 ### Component Hierarchy
 
 ```mermaid
@@ -107,7 +137,7 @@ graph TD
 
     subgraph Contexts["React Contexts"]
         AC["AuthContext\ncurrentUser, userProfile\nisAdmin, loading\nlogin, signup, logout\nloginWithGoogle"]
-        GC["GuideContext\nclimbs list, loading state"]
+        GC["GuideContext\nmountaineering guide open/closed"]
     end
 
     subgraph Guards["Route Guards"]
@@ -144,26 +174,25 @@ graph TD
     App --> GC
     App --> PR
     App --> AR
-    App --> RNN["ReleaseNotesNotice\nglobal popup, mounted like WelcomeModal"]
     PR --> Member
     PR --> RNP["ReleaseNotes (/release-notes)"]
     AR --> Admin
     App --> Public
 ```
 
-`ReleaseNotesNotice` is mounted globally in `App.jsx` alongside `WelcomeModal`, so it can surface a "what's new" popup on any authenticated page. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md) for the full feature design, roadmap, and governance proposal.
+Release notes are listed on `/release-notes` and announced through the notification bell. Feature design and roadmap: [release-notes plan](../solution-plans/release-notes.md).
 
 ### Page Tracking
 
-The `usePageTracking` hook (`src/hooks/usePageTracking.js`) writes a `pageViews` document to Firestore on every route change. This enables the Analytics admin page to report page-level traffic without any third-party analytics SDK.
+The `usePageTracking` hook (`src/hooks/usePageTracking.js`) records a page view (through `services/analytics.recordPageView`) on every non-admin route change. This enables the Analytics admin page to report page-level traffic without any third-party analytics SDK.
 
 ### Failure Logging
 
-`logFailedRequest()` (`src/utils/logFailedRequest.js`) is a fire-and-forget helper that writes a `failedRequests` document whenever a Brevo email send, a Storage upload, a Firestore read/write, or an uncaught client-side error fails. It mirrors the `pageViews` write pattern — public create, admin-only read — so failures can be logged before a user is authenticated and without ever blocking or surfacing an error back to the caller (`.catch(() => {})` swallows any write failure of the logger itself). Cloud Functions log to the same collection via the Admin SDK for server-side failures. Surfaced on the Admin **Analytics** page. See [DATA.md — failedRequests](DATA.md#failedrequests).
+`logFailedRequest()` (`src/services/logFailedRequest.js`) is a fire-and-forget helper that writes a `failedRequests` document whenever a Brevo email send, a Storage upload, a Firestore read/write, or an uncaught client-side error fails. It mirrors the `pageViews` write pattern — public create, admin-only read — so failures can be logged before a user is authenticated and without ever blocking or surfacing an error back to the caller (`.catch(() => {})` swallows any write failure of the logger itself). Cloud Functions log to the same collection via the Admin SDK for server-side failures. Surfaced on the Admin **Analytics** page. See [DATA.md — failedRequests](DATA.md#failedrequests).
 
 ### Admin Dashboard Detail Rows
 
-The admin `Dashboard.jsx` climb rows are expand/collapse-able (with an "expand/collapse all" toggle) to reveal per-climb detail without navigating away. Two small reusable presentation components back this: `src/components/Icon.jsx` (a shared inline SVG icon set, replacing ad hoc emoji/text icons) and `src/components/DetailCell.jsx` (a labeled key/value display used across the expanded rows). The expanded content is computed by `src/utils/climbCompleteness.js` (`getMissingFields`, flags climbs with incomplete setup) and `src/utils/expenseSummary.js` (aggregates registration fee/expense data). No new Firestore data — this is a presentation layer over the existing `climbs`/`registrations` collections.
+The admin `Dashboard.jsx` climb rows are expand/collapse-able (with an "expand/collapse all" toggle) to reveal per-climb detail without navigating away. Two small reusable presentation components back this: `src/components/Icon.jsx` (a shared inline SVG icon set, replacing ad hoc emoji/text icons) and `src/components/DetailCell.jsx` (a labeled key/value display used across the expanded rows). The expanded content is computed by `src/utils/climbCompleteness.js` (`getMissingFields`, flags climbs with incomplete setup) and `src/utils/feeSummary.js` (aggregates registration fee data). No new Firestore data — this is a presentation layer over the existing `climbs`/`registrations` collections.
 
 ---
 
@@ -172,6 +201,12 @@ The admin `Dashboard.jsx` climb rows are expand/collapse-able (with an "expand/c
 ### Cloud Functions Overview
 
 All backend logic runs in Cloud Functions v2. No function declares a `region`, so they deploy to the Firebase default, `us-central1`; `ogPrerender` pins that region explicitly to match its hosting rewrite. There are four Firestore document-level event triggers, one scheduled function, ten HTTPS callable functions, and one HTTP request function. See [API.md](API.md) for per-function detail.
+
+Code layout (`functions/src/`): `index.js` only re-exports; `triggers/`,
+`scheduled/` and `callables/` hold the handlers; `email/` the Brevo sender and
+HTML templates; `shared/` the Admin SDK set-up, registration operations and
+climb-status helpers; `paymentMath.js` / `requiredDocTypes.js` the pure logic
+mirrored from the frontend.
 
 ```mermaid
 graph LR
@@ -233,7 +268,7 @@ graph LR
     C6 --> GH
 ```
 
-`sendReleaseNoteEmail` follows the same `requireAdmin()` authorization helper as `updateUserProfile` and `deleteUserAccount`, and reuses the `sendEmail()`/`tplBase()` template infrastructure rather than introducing a new email path. Full reference: [API.md — sendReleaseNoteEmail](API.md#sendreleasenoteemail); feature design and roadmap: [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
+`sendReleaseNoteEmail` follows the same `requireAdmin()` authorization helper as `updateUserProfile` and `deleteUserAccount`, and reuses the `sendEmail()`/`tplBase()` template infrastructure rather than introducing a new email path. Full reference: [API.md — sendReleaseNoteEmail](API.md#sendreleasenoteemail); feature design and roadmap: [release-notes plan](../solution-plans/release-notes.md).
 
 `getReleaseNoteCommitOptions` and `generateReleaseNoteDraft` (both admin-only, secured by the `GITHUB_TOKEN` secret) power the "Generate from commits" flow in `ReleaseNoteForm.jsx`, calling the GitHub REST API to list recent commits and build a grouped changelog draft rather than requiring the admin to write release notes from scratch. See [API.md — getReleaseNoteCommitOptions](API.md#getreleasenotecommitoptions) and [API.md — generateReleaseNoteDraft](API.md#generatereleasenotedraft).
 
@@ -342,7 +377,6 @@ erDiagram
         string photoURL
         timestamp createdAt
         string addedBy
-        string lastSeenReleaseNoteId
     }
 
     pageViews {
@@ -369,7 +403,7 @@ erDiagram
     users ||--o{ releaseNotes : "createdBy"
 ```
 
-`releaseNotes` has no direct foreign key from `users` beyond authorship (`createdBy`) — visibility and email targeting are computed at read/send time (`status == "published"`, "every document in `users`"), not stored as relationships. See [DATA.md — releaseNotes](DATA.md#releasenotes) and [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
+`releaseNotes` has no direct foreign key from `users` beyond authorship (`createdBy`) — visibility and email targeting are computed at read/send time (`status == "published"`, "every document in `users`"), not stored as relationships. See [DATA.md — releaseNotes](DATA.md#releasenotes) and [release-notes plan](../solution-plans/release-notes.md).
 
 ### Registration Status State Machine
 
@@ -497,7 +531,7 @@ flowchart TD
     F5 --> R6
 ```
 
-`sendReleaseNoteEmail` is the only email path that targets the entire membership rather than a bounded set of officers/admins/one recipient — see the scaling risk and proposed async redesign in [RELEASE_NOTES_FEATURE.md — Risks and Challenges](RELEASE_NOTES_FEATURE.md#risks-and-challenges).
+`sendReleaseNoteEmail` is the only email path that targets the entire membership rather than a bounded set of officers/admins/one recipient — see the scaling risk and proposed async redesign in [release-notes plan — Risks and Challenges](../solution-plans/release-notes.md#risks-and-challenges).
 
 The thank-you email (`tplThankYou`, sent by `sendReminderNotifications`) is gated by `climbs.thankYouSentAt` so it fires exactly once per climb regardless of how many days pass after `endDate` — see [API.md — sendReminderNotifications](API.md#sendremindernotifications).
 
@@ -505,7 +539,7 @@ The thank-you email (`tplThankYou`, sent by `sendReminderNotifications`) is gate
 
 ## Routing Architecture
 
-The application uses React Router v6 with nested routes and layout-based route guards.
+The application uses React Router v7 with nested routes and layout-based route guards.
 
 | Route                     | Access        | Component        | Description                                 |
 | ------------------------- | ------------- | ---------------- | ------------------------------------------- |
@@ -548,8 +582,8 @@ graph TD
     end
 
     subgraph GuideContext["GuideContext (src/contexts/GuideContext.jsx)"]
-        GU1["climbs[] — all climbs from Firestore"]
-        GU2["loading — climbs fetch in progress"]
+        GU1["guideOpen — mountaineering guide modal"]
+        GU2["setGuideOpen"]
     end
 
     subgraph LocalState["Component-Level State"]
@@ -573,6 +607,5 @@ graph TD
 | GCash payment (not card processing) | Appropriate for the Philippine market and the club's operational model. The app records proof and amount but does not process payments directly. |
 | Vite with `@` path alias | Keeps import paths clean and refactor-friendly across a growing component tree. |
 | No TypeScript | Intentional for this project phase. The team agreed to defer a TypeScript migration to avoid premature complexity on a small-team project. |
-| React Context over Redux/Zustand | The application's shared state surface is small (auth + climbs list). A full state management library would add unnecessary complexity. |
-| `users.lastSeenReleaseNoteId` over `localStorage` for "seen" tracking | Unlike `WelcomeModal`'s device-local dismissal, the release notes popup needed to stay dismissed across devices for the same member — storing the flag on the Firestore user document the client already owns achieved that without a new subcollection. See [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md). |
-| Synchronous callable for the release notes email blast (for now) | Simplest implementation that reuses the existing `sendEmail()`/`requireAdmin()` helpers with no new infrastructure. Flagged for an async, batched redesign once membership size makes a single-request loop risky — see [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture). |
+| React Context over Redux/Zustand | The application's shared state surface is small (auth + the guide modal); server data lives in Firestore listeners behind `src/services`. A full state management library would add unnecessary complexity. |
+| Synchronous callable for the release notes email blast (for now) | Simplest implementation that reuses the existing `sendEmail()`/`requireAdmin()` helpers with no new infrastructure. Flagged for an async, batched redesign once membership size makes a single-request loop risky — see [release-notes plan — Proposed Governance-Ready Architecture](../solution-plans/release-notes.md#proposed-governance-ready-architecture). |
