@@ -1,8 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/firebase/config";
+import { listRecentFailedRequests } from "@/services/analytics";
+import { listRecentAuditEntries } from "@/services/auditLog";
+import { callFunction } from "@/services/callables";
+import { listAllClimbs } from "@/services/climbs";
+import { listRecentNotifications } from "@/services/notifications";
+import { listAllRegistrations } from "@/services/registrations";
+import { listUsers } from "@/services/users";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -122,21 +126,20 @@ export default function AppInsights() {
 
   useEffect(() => {
     async function load() {
-      const [regsSnap, climbsSnap, notifSnap, failSnap, auditSnap, usersSnap] =
-        await Promise.all([
-          getDocs(collection(db, "registrations")),
-          getDocs(collection(db, "climbs")),
-          getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(500))),
-          getDocs(query(collection(db, "failedRequests"), orderBy("createdAt", "desc"), limit(300))),
-          getDocs(query(collection(db, "auditLog"), orderBy("createdAt", "desc"), limit(50))),
-          getDocs(collection(db, "users")),
-        ]);
-      setRegs(regsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setClimbs(climbsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setNotifications(notifSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setFailedRequests(failSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setAuditLog(auditSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setUsers(usersSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const [allRegs, allClimbs, notifs, failures, audit, allUsers] = await Promise.all([
+        listAllRegistrations(),
+        listAllClimbs(),
+        listRecentNotifications(500),
+        listRecentFailedRequests(300),
+        listRecentAuditEntries(50),
+        listUsers(),
+      ]);
+      setRegs(allRegs);
+      setClimbs(allClimbs);
+      setNotifications(notifs);
+      setFailedRequests(failures);
+      setAuditLog(audit);
+      setUsers(allUsers);
       setLoading(false);
     }
     load();
@@ -146,9 +149,7 @@ export default function AppInsights() {
     setEmailLoading(true);
     setEmailError("");
     try {
-      const fn = httpsCallable(functions, "getEmailStats");
-      const res = await fn({ days: 30 });
-      setEmailStats(res.data);
+      setEmailStats(await callFunction("getEmailStats", { days: 30 }));
     } catch (err) {
       setEmailError(err.message || "Failed to load email stats.");
     } finally {
@@ -160,9 +161,7 @@ export default function AppInsights() {
     setStorageLoading(true);
     setStorageError("");
     try {
-      const fn = httpsCallable(functions, "getStorageUsage");
-      const res = await fn();
-      setStorageStats(res.data);
+      setStorageStats(await callFunction("getStorageUsage"));
     } catch (err) {
       setStorageError(err.message || "Failed to load storage usage.");
     } finally {
@@ -173,9 +172,7 @@ export default function AppInsights() {
   async function loadFunctionHealth() {
     setHealthLoading(true);
     try {
-      const fn = httpsCallable(functions, "getFunctionHealth");
-      const res = await fn();
-      setFunctionHealth(res.data);
+      setFunctionHealth(await callFunction("getFunctionHealth"));
     } catch (err) {
       setFunctionHealth({ configured: false, reason: err.message });
     } finally {
@@ -186,9 +183,7 @@ export default function AppInsights() {
   async function loadBillingCost() {
     setBillingLoading(true);
     try {
-      const fn = httpsCallable(functions, "getBillingCost");
-      const res = await fn();
-      setBillingCost(res.data);
+      setBillingCost(await callFunction("getBillingCost"));
     } catch (err) {
       setBillingCost({ configured: false, reason: err.message });
     } finally {

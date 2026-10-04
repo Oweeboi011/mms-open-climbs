@@ -1,10 +1,5 @@
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { colRef } from "@/services/firestore";
 
 // Deleted by Firestore's TTL policy on `expireAt` after this long.
 const FAILED_REQUEST_RETENTION_DAYS = 90;
@@ -20,7 +15,7 @@ export function logFailedRequest({
   climbId = null,
   registrationId = null,
 }) {
-  addDoc(collection(db, "failedRequests"), {
+  addDoc(colRef("failedRequests"), {
     type,
     source,
     message: String(message ?? "Unknown error").slice(0, 500),

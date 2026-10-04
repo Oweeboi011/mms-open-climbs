@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGuide } from "@/contexts/GuideContext";
+import { localStore } from "@/services/browserStorage";
 
 const STORAGE_KEY = (uid) => `oc_welcomed_${uid}`;
 const AUTO_OPEN_PATHS = ["/", "/my-registrations"];
@@ -135,7 +136,7 @@ export default function WelcomeModal() {
       : null;
   if (autoOpenKey && autoOpenKey !== prevAutoOpenKey) {
     setPrevAutoOpenKey(autoOpenKey);
-    const seen = localStorage.getItem(STORAGE_KEY(currentUser.uid));
+    const seen = localStore.get(STORAGE_KEY(currentUser.uid));
     if (!seen) setOpen(true);
   }
 
@@ -155,7 +156,7 @@ export default function WelcomeModal() {
 
   function dismiss() {
     if (currentUser) {
-      localStorage.setItem(STORAGE_KEY(currentUser.uid), "1");
+      localStore.set(STORAGE_KEY(currentUser.uid), "1");
     }
     setOpen(false);
   }

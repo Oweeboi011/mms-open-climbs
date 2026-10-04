@@ -1,15 +1,8 @@
 import { useState, useEffect } from "react";
-import {
-  addDoc,
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { serverTimestamp, Timestamp } from "@/services/firestore";
+import { createRegistration } from "@/services/registrations";
+import { listUsersByName } from "@/services/users";
+import { logFailedRequest } from "@/services/logFailedRequest";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 
 const EXPERIENCE_OPTIONS = ["beginner", "intermediate", "experienced"];
@@ -37,9 +30,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
   const [selectedUserId, setSelectedUserId] = useState("");
 
   useEffect(() => {
-    getDocs(query(collection(db, "users"), orderBy("displayName"))).then(
-      (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
-    );
+    listUsersByName().then(setUsers);
   }, []);
 
   function setField(field, value) {
@@ -73,7 +64,7 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
     );
     setSaving(true);
     try {
-      await addDoc(collection(db, "registrations"), {
+      await createRegistration({
         climbId,
         climbTitle: climb?.title || "",
         climbDate: climb?.dateLabel || "",

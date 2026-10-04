@@ -49,57 +49,6 @@ const LEGACY = {
   "functions/src/index.js": {complexity: 77, fileLines: 2157, functionLines: 284},
 };
 
-// Files that still reach the Firebase SDK directly instead of src/services.
-// Shrink-only, like LEGACY — see ADR 0004.
-const FIREBASE_DEBT = [
-  "src/components/admin/AddJoinerModal.jsx",
-  "src/components/admin/AdminDocumentModal.jsx",
-  "src/components/admin/ClimbHistoryCard.jsx",
-  "src/components/admin/MemberProfile.jsx",
-  "src/components/CancelRegistrationModal.jsx",
-  "src/components/DetailsPrompt.jsx",
-  "src/components/DonationPledgeModal.jsx",
-  "src/components/NotificationBell.jsx",
-  "src/components/SignWaiverPrompt.jsx",
-  "src/contexts/AuthContext.jsx",
-  "src/hooks/usePageTracking.js",
-  "src/main.jsx",
-  "src/pages/admin/AllRegistrations.jsx",
-  "src/pages/admin/Analytics.jsx",
-  "src/pages/admin/AppInsights.jsx",
-  "src/pages/admin/ClimbDaySheet.jsx",
-  "src/pages/admin/ClimbDetail.jsx",
-  "src/pages/admin/ClimbDonations.jsx",
-  "src/pages/admin/ClimbForm.jsx",
-  "src/pages/admin/ClimbsManage.jsx",
-  "src/pages/admin/Dashboard.jsx",
-  "src/pages/admin/ManagePayments.jsx",
-  "src/pages/admin/ReleaseNoteForm.jsx",
-  "src/pages/admin/ReleaseNotesManage.jsx",
-  "src/pages/admin/UsersManage.jsx",
-  "src/pages/ClimbFeedback.jsx",
-  "src/pages/Event.jsx",
-  "src/pages/MyRegistrations.jsx",
-  "src/pages/Register.jsx",
-  "src/pages/ReleaseNotes.jsx",
-  "src/pages/Schedule.jsx",
-  "src/pages/WaiverPrint.jsx",
-  "src/utils/auditLog.js",
-  "src/utils/donationRecords.js",
-  "src/utils/logFailedRequest.js",
-  "src/utils/recordPayment.js",
-  "src/utils/recordRefund.js",
-  "src/utils/splitPayment.js",
-];
-
-// Files that still touch localStorage / sessionStorage directly instead of
-// src/services/browserStorage.js (which survives private-mode Safari).
-const STORAGE_DEBT = [
-  "src/components/WelcomeModal.jsx",
-  "src/hooks/usePageTracking.js",
-  "src/pages/Schedule.jsx",
-];
-
 const LAYERS = [
   { type: "pages", pattern: "src/pages/**", partialMatch: false },
   { type: "components", pattern: "src/components/**", partialMatch: false },
@@ -115,15 +64,14 @@ const LAYERS = [
 // Who may import whom. Anything not listed is an error. src/App.jsx and
 // src/main.jsx are the composition root and stay unclassified.
 const ALLOWED = {
-  pages: ["pages", "components", "contexts", "hooks", "services", "utils", "infra", "data", "styles"],
-  components: ["components", "contexts", "hooks", "services", "utils", "infra", "data", "styles"],
-  contexts: ["contexts", "hooks", "services", "utils", "infra", "data"],
-  hooks: ["contexts", "hooks", "services", "utils", "infra", "data"],
-  // The only layer meant to talk to Firebase (infra). The other layers keep
-  // infra access only while they sit on FIREBASE_DEBT.
+  pages: ["pages", "components", "contexts", "hooks", "services", "utils", "data", "styles"],
+  components: ["components", "contexts", "hooks", "services", "utils", "data", "styles"],
+  contexts: ["contexts", "hooks", "services", "utils", "data"],
+  hooks: ["contexts", "hooks", "services", "utils", "data"],
+  // The only layer that talks to Firebase (infra) — ADR 0004.
   services: ["services", "utils", "infra", "data"],
-  // Domain logic: no UI, no state.
-  utils: ["utils", "infra", "data"],
+  // Pure domain logic: no UI, no state, no I/O.
+  utils: ["utils", "data"],
   infra: [],
   data: [],
   styles: [],
@@ -270,13 +218,13 @@ export default [
   },
   {
     files: ["src/**/*.{js,jsx}"],
-    ignores: ["src/firebase/**", "src/services/**", ...FIREBASE_DEBT],
+    ignores: ["src/firebase/**", "src/services/**"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [NO_DEEP_RELATIVE, NO_FIREBASE_SDK] }],
     },
   },
   {
-    files: ["src/services/browserStorage.js", ...STORAGE_DEBT],
+    files: ["src/services/browserStorage.js"],
     rules: { "no-restricted-globals": "off" },
   },
 

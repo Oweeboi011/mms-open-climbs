@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
 import { formatPeso } from "@/utils/feeSummary";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logFailedRequest } from "@/services/logFailedRequest";
 
 // Records money sent back to a registrant who paid more than they owe.
 // Capped at their current excess — refunding past it would quietly put them

@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { getClimb, getClimbPrivate } from "@/services/climbs";
+import { findUserRegistrationsForClimb } from "@/services/registrations";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -407,23 +400,17 @@ export default function Event() {
   useEffect(() => {
     async function load() {
       try {
-        const snap = await getDoc(doc(db, "climbs", climbId));
-        if (!snap.exists()) {
+        const climbDoc = await getClimb(climbId);
+        if (!climbDoc) {
           navigate("/");
           return;
         }
-        setClimb({ id: snap.id, ...snap.data() });
+        setClimb(climbDoc);
 
         if (currentUser) {
-          const regQ = query(
-            collection(db, "registrations"),
-            where("climbId", "==", climbId),
-            where("userId", "==", currentUser.uid),
-          );
-          const regSnap = await getDocs(regQ);
+          const [reg] = await findUserRegistrationsForClimb(climbId, currentUser.uid);
           let isRegistered = false;
-          if (!regSnap.empty) {
-            const reg = regSnap.docs[0].data();
+          if (reg) {
             if (reg.status !== "cancelled") {
               isRegistered = true;
               setAlreadyReg(true);
@@ -436,16 +423,12 @@ export default function Event() {
           // server-side too, so this fetch simply won't return data for
           // anyone else.
           if (isRegistered || isAdmin) {
-            try {
-              const privSnap = await getDoc(doc(db, "climbPrivate", climbId));
-              if (privSnap.exists()) {
-                setPrivateInfo(privSnap.data());
-                // Maintained server-side (syncParticipantList): members can't
-                // query other people's registrations directly.
-                setParticipants(privSnap.data().participants || []);
-              }
-            } catch {
-              setPrivateInfo(null);
+            const priv = await getClimbPrivate(climbId);
+            if (priv) {
+              setPrivateInfo(priv);
+              // Maintained server-side (syncParticipantList): members can't
+              // query other people's registrations directly.
+              setParticipants(priv.participants || []);
             }
           }
         }

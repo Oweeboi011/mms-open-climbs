@@ -4,16 +4,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { writeBatch } from "firebase/firestore";
-import {
-  buildSplitPatches,
-  splitPayment,
-  buildUndoSplitPatches,
-  undoSplitPayment,
-} from "@/utils/splitPayment";
+import { buildSplitPatches, buildUndoSplitPatches } from "@/utils/splitPayment";
+import { splitPayment, undoSplitPayment } from "@/services/splitPayment";
 import { setEntryStatus } from "@/utils/payments";
-import { logAuditEvent } from "@/utils/auditLog";
+import { logAuditEvent } from "@/services/auditLog";
 
-vi.mock("@/utils/auditLog", () => ({ logAuditEvent: vi.fn() }));
+vi.mock("@/services/auditLog", () => ({ logAuditEvent: vi.fn() }));
 
 const admin = { uid: "admin-1", displayName: "Admin User" };
 const receipt = { url: "https://x/gcash.jpg", fileName: "gcash.jpg" };

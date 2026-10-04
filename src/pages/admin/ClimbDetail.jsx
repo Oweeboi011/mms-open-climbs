@@ -1,22 +1,22 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import JSZip from "jszip";
+import { serverTimestamp, Timestamp } from "@/services/firestore";
 import {
-  doc,
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDoc,
-  getDocs,
-  updateDoc,
-  setDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+  getClimbOfficerEmails,
+  saveClimbExpenses,
+  saveClimbPrivate,
+  subscribeToClimb,
+  subscribeToClimbExpenses,
+  subscribeToClimbPrivate,
+} from "@/services/climbs";
+import { subscribeToClimbFeedback } from "@/services/feedback";
+import {
+  deleteRegistration as removeRegistration,
+  listNoShowRegistrations,
+  subscribeToClimbRegistrationsNewestFirst,
+  updateRegistration,
+} from "@/services/registrations";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -29,8 +29,8 @@ import CollectionBreakdown from "@/components/admin/CollectionBreakdown";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import SplitPaymentModal from "@/components/admin/SplitPaymentModal";
 import RecordRefundModal from "@/components/admin/RecordRefundModal";
-import { recordRefund, removeRefund } from "@/utils/recordRefund";
-import { splitPayment, undoSplitPayment } from "@/utils/splitPayment";
+import { recordRefund, removeRefund } from "@/services/recordRefund";
+import { splitPayment, undoSplitPayment } from "@/services/splitPayment";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import ReceiptModal from "@/components/ReceiptModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
@@ -40,8 +40,8 @@ import {
   makeDatedDownloadName,
 } from "@/utils/downloadFileName";
 import { getDocCompliance } from "@/utils/docCompliance";
-import { logAuditEvent } from "@/utils/auditLog";
-import { recordManualPayment } from "@/utils/recordPayment";
+import { logAuditEvent } from "@/services/auditLog";
+import { recordManualPayment } from "@/services/recordPayment";
 import {
   getOutstanding as getOutstandingShared,
   toggleOptionalFeeEntry,
@@ -130,39 +130,27 @@ export default function AdminClimbDetail() {
     // Live, not a one-shot read: every expected/outstanding figure on this
     // page comes from the climb's current fee schedule, so a fee edited
     // elsewhere has to land here without a reload.
-    const unsubClimb = onSnapshot(doc(db, "climbs", id), (snap) => {
-      if (snap.exists()) setClimb({ id: snap.id, ...snap.data() });
+    const unsubClimb = subscribeToClimb(id, (found) => {
+      if (found) setClimb(found);
     });
 
-    const unsubClimbPrivate = onSnapshot(doc(db, "climbPrivate", id), (snap) => {
-      setClimbPrivate(snap.exists() ? snap.data() : null);
+    const unsubClimbPrivate = subscribeToClimbPrivate(id, (found) => {
+      setClimbPrivate(found);
       setClimbPrivateLoaded(true);
     });
 
-    const unsubClimbExpenses = onSnapshot(
-      doc(db, "climbExpenses", id),
-      (snap) => {
-        setClimbExpenses(snap.exists() ? snap.data() : null);
+    const unsubClimbExpenses = subscribeToClimbExpenses(id, setClimbExpenses);
+
+    const unsub = subscribeToClimbRegistrationsNewestFirst(
+      id,
+      (docs) => {
+        setRegs(docs);
+        setLoading(false);
       },
+      () => setLoading(false),
     );
 
-    const q = query(
-      collection(db, "registrations"),
-      where("climbId", "==", id),
-      orderBy("createdAt", "desc"),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-
-    const feedbackQ = query(
-      collection(db, "feedback"),
-      where("climbId", "==", id),
-    );
-    const unsubFeedback = onSnapshot(feedbackQ, (snap) => {
-      setFeedback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    const unsubFeedback = subscribeToClimbFeedback(id, setFeedback);
 
     return () => {
       unsubClimb();
@@ -181,9 +169,7 @@ export default function AdminClimbDetail() {
     if (loading || !climbPrivateLoaded) return;
     const next = buildParticipantList(regs);
     if (participantListDiffers(climbPrivate?.participants, next)) {
-      setDoc(doc(db, "climbPrivate", id), { participants: next }, { merge: true }).catch(
-        () => {},
-      );
+      saveClimbPrivate(id, { participants: next }).catch(() => {});
     }
   }, [loading, climbPrivateLoaded, regs, climbPrivate, id]);
 
@@ -191,8 +177,8 @@ export default function AdminClimbDetail() {
   // overview can flag officers who'd get no notifications.
   const [officerEmails, setOfficerEmails] = useState(undefined);
   useEffect(() => {
-    getDoc(doc(db, "climbInternal", id))
-      .then((snap) => setOfficerEmails(snap.exists() ? snap.data().officerEmails || [] : []))
+    getClimbOfficerEmails(id)
+      .then(setOfficerEmails)
       .catch(() => setOfficerEmails(undefined));
   }, [id]);
 
@@ -200,8 +186,8 @@ export default function AdminClimbDetail() {
   // warning next to each registrant. Read once per visit.
   const [noShowRegs, setNoShowRegs] = useState([]);
   useEffect(() => {
-    getDocs(query(collection(db, "registrations"), where("noShow", "==", true)))
-      .then((snap) => setNoShowRegs(snap.docs.map((d) => d.data())))
+    listNoShowRegistrations()
+      .then(setNoShowRegs)
       .catch(() => setNoShowRegs([]));
   }, [id]);
   const priorNoShows = useMemo(
@@ -213,7 +199,7 @@ export default function AdminClimbDetail() {
 
   async function toggleNoShow(reg) {
     const next = !reg.noShow;
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       ...buildNoShowPatch(
         next,
         currentUser?.displayName || currentUser?.email || "admin",
@@ -245,11 +231,7 @@ export default function AdminClimbDetail() {
     // never otherwise written to (edge case — ClimbForm creates one on every
     // save, but this stays safe if that ever isn't true) shouldn't throw
     // "no document to update" the first time an admin forms a group.
-    await setDoc(
-      doc(db, "climbPrivate", id),
-      { serviceGroups: { [label]: serviceGroupsToDoc(groups) } },
-      { merge: true },
-    );
+    await saveClimbPrivate(id, { serviceGroups: { [label]: serviceGroupsToDoc(groups) } });
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
@@ -265,7 +247,7 @@ export default function AdminClimbDetail() {
   // edited list, so replacing it wholesale (rather than per-item writes) is
   // simplest and matches how serviceGroups is saved above.
   async function saveExpenses(items) {
-    await setDoc(doc(db, "climbExpenses", id), { items }, { merge: true });
+    await saveClimbExpenses(id, { items });
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
@@ -278,7 +260,7 @@ export default function AdminClimbDetail() {
   }
 
   async function changeStatus(regId, status) {
-    await updateDoc(doc(db, "registrations", regId), {
+    await updateRegistration(regId, {
       status,
       updatedAt: serverTimestamp(),
       ...(status === "confirmed" ? { confirmedAt: serverTimestamp() } : {}),
@@ -309,7 +291,7 @@ export default function AdminClimbDetail() {
   // the rolled-up status and the individual payments can't disagree.
   async function changePaymentStatus(regId, paymentStatus) {
     const reg = regs.find((r) => r.id === regId);
-    await updateDoc(doc(db, "registrations", regId), {
+    await updateRegistration(regId, {
       ...setAllEntryStatuses(reg || {}, paymentStatus, reviewer()),
       updatedAt: serverTimestamp(),
     });
@@ -327,7 +309,7 @@ export default function AdminClimbDetail() {
   // Review a single payment without touching the others — the registration's
   // own status re-derives from whatever the payments now say.
   async function changeEntryStatus(reg, index, status) {
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       ...setEntryStatus(reg, index, status, reviewer()),
       updatedAt: serverTimestamp(),
     });
@@ -416,7 +398,7 @@ export default function AdminClimbDetail() {
   }
 
   async function saveAdminDocs(reg, patch) {
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       ...patch,
       updatedAt: serverTimestamp(),
     });
@@ -440,7 +422,7 @@ export default function AdminClimbDetail() {
     const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
     const nowSelected = updated.find((f) => f.label === label)?.selected;
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
     });
@@ -456,7 +438,7 @@ export default function AdminClimbDetail() {
   }
 
   async function saveRegistrationEdit(regId, patch) {
-    await updateDoc(doc(db, "registrations", regId), {
+    await updateRegistration(regId, {
       ...patch,
       updatedAt: serverTimestamp(),
     });
@@ -482,7 +464,7 @@ export default function AdminClimbDetail() {
       )
     )
       return;
-    await deleteDoc(doc(db, "registrations", reg.id));
+    await removeRegistration(reg.id);
     if (expandedId === reg.id) setExpandedId(null);
     logAuditEvent({
       actorUid: currentUser?.uid,
@@ -509,7 +491,7 @@ export default function AdminClimbDetail() {
   async function saveNote(regId) {
     setSavingNote(regId);
     try {
-      await updateDoc(doc(db, "registrations", regId), {
+      await updateRegistration(regId, {
         adminNotes: editNotes[regId],
         updatedAt: serverTimestamp(),
       });

@@ -1,7 +1,7 @@
 /**
  * Tests for Admin ReleaseNoteForm page.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { addDoc, updateDoc, getDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -9,9 +9,14 @@ import { renderAtRoute, makeAdminAuth } from "@tests/helpers";
 import { makeSnapshot } from "@tests/setup";
 import AdminReleaseNoteForm from "@/pages/admin/ReleaseNoteForm";
 
-// ReleaseNoteForm.jsx creates its callable in this file's only httpsCallable
-// call at module load — grab the actual mock fn instance to control it.
-const sendReleaseNoteEmailMock = httpsCallable.mock.results[0].value;
+// Route callables by name so the test can steer the email send.
+const sendReleaseNoteEmailMock = vi.fn();
+beforeEach(() => {
+  sendReleaseNoteEmailMock.mockReset().mockResolvedValue({ data: {} });
+  httpsCallable.mockImplementation((_fns, name) =>
+    name === "sendReleaseNoteEmail" ? sendReleaseNoteEmailMock : vi.fn(() => Promise.resolve({ data: {} })),
+  );
+});
 
 describe("Admin ReleaseNoteForm", () => {
   beforeEach(() => {

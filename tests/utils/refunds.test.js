@@ -7,10 +7,10 @@ import { updateDoc } from "firebase/firestore";
 import { getRefunds, getRefundedTotal, getNetPaid } from "@/utils/payments";
 import { getCountedPaid, getOutstanding } from "@/utils/registrationFees";
 import { getExcessPayments } from "@/components/admin/BalanceDueTable";
-import { recordRefund, removeRefund } from "@/utils/recordRefund";
-import { logAuditEvent } from "@/utils/auditLog";
+import { recordRefund, removeRefund } from "@/services/recordRefund";
+import { logAuditEvent } from "@/services/auditLog";
 
-vi.mock("@/utils/auditLog", () => ({ logAuditEvent: vi.fn() }));
+vi.mock("@/services/auditLog", () => ({ logAuditEvent: vi.fn() }));
 
 const admin = { uid: "admin-1", displayName: "Admin User" };
 const climb = {

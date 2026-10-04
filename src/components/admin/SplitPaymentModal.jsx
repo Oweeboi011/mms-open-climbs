@@ -3,7 +3,7 @@ import Modal from "@/components/Modal";
 import { getPaymentEntries } from "@/utils/payments";
 import { getOutstanding } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logFailedRequest } from "@/services/logFailedRequest";
 
 const round2 = (n) => Math.round(n * 100) / 100;
 

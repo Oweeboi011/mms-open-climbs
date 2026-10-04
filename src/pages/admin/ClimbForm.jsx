@@ -1,25 +1,23 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { serverTimestamp } from "@/services/firestore";
 import {
-  doc,
-  getDoc,
-  setDoc,
-  addDoc,
-  updateDoc,
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db, storage } from "@/firebase/config";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+  createClimb,
+  getClimb,
+  getClimbOfficerEmails,
+  getClimbPrivate,
+  saveClimbInternal,
+  saveClimbPrivate,
+  updateClimb,
+} from "@/services/climbs";
+import { uploadFile } from "@/services/storage";
+import { listUsersByName } from "@/services/users";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { logFailedRequest } from "@/utils/logFailedRequest";
-import { logAuditEvent } from "@/utils/auditLog";
+import { logFailedRequest } from "@/services/logFailedRequest";
+import { logAuditEvent } from "@/services/auditLog";
 import CancellationStatusFields from "@/components/admin/CancellationStatusFields";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import {
@@ -189,72 +187,67 @@ export default function AdminClimbForm() {
   const [trailUrlInput, setTrailUrlInput] = useState("");
 
   useEffect(() => {
-    getDocs(query(collection(db, "users"), orderBy("displayName")))
-      .then((snap) => {
-        setUsers(snap.docs.map((d) => ({ uid: d.id, ...d.data() })));
-      })
+    listUsersByName()
+      .then((list) => setUsers(list.map(({ id: uid, ...user }) => ({ uid, ...user }))))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!isEdit) return;
-    Promise.all([
-      getDoc(doc(db, "climbs", id)),
-      getDoc(doc(db, "climbPrivate", id)),
-      getDoc(doc(db, "climbInternal", id)),
-    ]).then(([snap, privateSnap, internalSnap]) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        // Migrate the legacy single googleMapsUrl/allTrailsUrl fields into
-        // the new repeatable trailMaps list so existing data isn't lost.
-        const trailMaps =
-          data.trailMaps?.length > 0
-            ? data.trailMaps
-            : data.googleMapsUrl || data.allTrailsUrl || data.komootUrl
-              ? [
-                  {
-                    label: "",
-                    googleMapsUrl: data.googleMapsUrl || "",
-                    allTrailsUrl: data.allTrailsUrl || "",
-                    komootUrl: data.komootUrl || "",
-                  },
-                ]
-              : [];
-        const priv = privateSnap.exists() ? privateSnap.data() : {};
-        const officers = mergeOfficerEmails(
-          data.officers,
-          internalSnap.exists() ? internalSnap.data().officerEmails : [],
-        );
-        // Pre-climb meeting used to be a single object (climbPrivate, then
-        // briefly the climb doc itself before that) — migrate either legacy
-        // shape into the new repeatable list so nothing already saved is
-        // lost; the next save writes it back out in the new shape only.
-        const preClimbMeetings =
-          priv.preClimbMeetings?.length > 0
-            ? priv.preClimbMeetings
-            : priv.preClimbMeetingDate || data.preClimbMeetingDate
-              ? [
-                  {
-                    date: priv.preClimbMeetingDate ?? data.preClimbMeetingDate ?? "",
-                    time: priv.preClimbMeetingTime ?? data.preClimbMeetingTime ?? "",
-                    location: priv.preClimbMeetingLocation ?? data.preClimbMeetingLocation ?? "",
-                    link: priv.preClimbMeetingLink ?? "",
-                    recordingLink: priv.preClimbMeetingRecordingLink ?? "",
-                    notes: priv.preClimbMeetingNotes ?? data.preClimbMeetingNotes ?? "",
-                  },
-                ]
-              : [];
-        setForm({
-          ...EMPTY_FORM,
-          ...data,
-          officers,
-          trailMaps,
-          preClimbMeetings,
-          resources: priv.resources ?? [],
-        });
-      }
-      setLoading(false);
-    });
+    Promise.all([getClimb(id), getClimbPrivate(id), getClimbOfficerEmails(id)]).then(
+      ([climbDoc, privateDoc, officerEmails]) => {
+        if (climbDoc) {
+          // The id is the doc key, not a field — keep it out of the form so a
+          // save never writes it into the climb.
+          const { id: _id, ...data } = climbDoc;
+          // Migrate the legacy single googleMapsUrl/allTrailsUrl fields into
+          // the new repeatable trailMaps list so existing data isn't lost.
+          const trailMaps =
+            data.trailMaps?.length > 0
+              ? data.trailMaps
+              : data.googleMapsUrl || data.allTrailsUrl || data.komootUrl
+                ? [
+                    {
+                      label: "",
+                      googleMapsUrl: data.googleMapsUrl || "",
+                      allTrailsUrl: data.allTrailsUrl || "",
+                      komootUrl: data.komootUrl || "",
+                    },
+                  ]
+                : [];
+          const { id: _privId, ...priv } = privateDoc || {};
+          const officers = mergeOfficerEmails(data.officers, officerEmails);
+          // Pre-climb meeting used to be a single object (climbPrivate, then
+          // briefly the climb doc itself before that) — migrate either legacy
+          // shape into the new repeatable list so nothing already saved is
+          // lost; the next save writes it back out in the new shape only.
+          const preClimbMeetings =
+            priv.preClimbMeetings?.length > 0
+              ? priv.preClimbMeetings
+              : priv.preClimbMeetingDate || data.preClimbMeetingDate
+                ? [
+                    {
+                      date: priv.preClimbMeetingDate ?? data.preClimbMeetingDate ?? "",
+                      time: priv.preClimbMeetingTime ?? data.preClimbMeetingTime ?? "",
+                      location: priv.preClimbMeetingLocation ?? data.preClimbMeetingLocation ?? "",
+                      link: priv.preClimbMeetingLink ?? "",
+                      recordingLink: priv.preClimbMeetingRecordingLink ?? "",
+                      notes: priv.preClimbMeetingNotes ?? data.preClimbMeetingNotes ?? "",
+                    },
+                  ]
+                : [];
+          setForm({
+            ...EMPTY_FORM,
+            ...data,
+            officers,
+            trailMaps,
+            preClimbMeetings,
+            resources: priv.resources ?? [],
+          });
+        }
+        setLoading(false);
+      },
+    );
   }, [id, isEdit]);
 
   function set(field, value) {
@@ -291,13 +284,7 @@ export default function AdminClimbForm() {
     try {
       const uploaded = [];
       for (const file of files) {
-        const sRef = ref(
-          storage,
-          `trail-images/${id || "new"}/${Date.now()}_${file.name}`,
-        );
-        await uploadBytes(sRef, file);
-        const url = await getDownloadURL(sRef);
-        uploaded.push(url);
+        uploaded.push(await uploadFile(`trail-images/${id || "new"}/${Date.now()}_${file.name}`, file));
       }
       set("trailImages", [...(form.trailImages || []), ...uploaded]);
     } catch (err) {
@@ -322,13 +309,7 @@ export default function AdminClimbForm() {
     if (!file) return;
     setGcashUploading(true);
     try {
-      const storageRef = ref(
-        storage,
-        `gcash-qr/${id || "new"}/${Date.now()}_${file.name}`,
-      );
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      set("gcashQrUrl", url);
+      set("gcashQrUrl", await uploadFile(`gcash-qr/${id || "new"}/${Date.now()}_${file.name}`, file));
     } catch (err) {
       setError("Failed to upload GCash QR image: " + err.message);
       logFailedRequest({
@@ -349,12 +330,7 @@ export default function AdminClimbForm() {
     if (!file) return;
     setDocUploading((p) => ({ ...p, [urlField]: true }));
     try {
-      const sRef = ref(
-        storage,
-        `${storagePrefix}/${id || "new"}/${Date.now()}_${file.name}`,
-      );
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
+      const url = await uploadFile(`${storagePrefix}/${id || "new"}/${Date.now()}_${file.name}`, file);
       setForm((p) => ({ ...p, [urlField]: url, [fileNameField]: file.name }));
     } catch (err) {
       setError("Failed to upload file: " + err.message);
@@ -497,9 +473,9 @@ export default function AdminClimbForm() {
         ? form.cancellationReason || ""
         : "";
       if (isEdit) {
-        await updateDoc(doc(db, "climbs", id), payload);
-        await setDoc(doc(db, "climbPrivate", id), privateData, { merge: true });
-        await setDoc(doc(db, "climbInternal", id), internalData, { merge: true });
+        await updateClimb(id, payload);
+        await saveClimbPrivate(id, privateData);
+        await saveClimbInternal(id, internalData);
         logAuditEvent({
           actorUid: currentUser?.uid,
           actorName: currentUser?.displayName || currentUser?.email,
@@ -512,15 +488,15 @@ export default function AdminClimbForm() {
         payload.createdAt = serverTimestamp();
         payload.createdBy = currentUser.uid;
         payload.registrationCount = 0;
-        const ref = await addDoc(collection(db, "climbs"), payload);
-        await setDoc(doc(db, "climbPrivate", ref.id), privateData, { merge: true });
-        await setDoc(doc(db, "climbInternal", ref.id), internalData, { merge: true });
+        const newId = await createClimb(payload);
+        await saveClimbPrivate(newId, privateData);
+        await saveClimbInternal(newId, internalData);
         logAuditEvent({
           actorUid: currentUser?.uid,
           actorName: currentUser?.displayName || currentUser?.email,
           action: "climb_created",
           targetType: "climb",
-          targetId: ref.id,
+          targetId: newId,
           targetLabel: form.title,
         });
       }

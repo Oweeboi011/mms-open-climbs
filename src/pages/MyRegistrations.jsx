@@ -1,24 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDocs,
-  doc,
-  updateDoc,
-  serverTimestamp,
-  Timestamp,
-  arrayUnion,
-} from "firebase/firestore";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
-import { db, storage } from "@/firebase/config";
+import { arrayUnion, serverTimestamp, Timestamp } from "@/services/firestore";
+import { listClimbsLedBy, subscribeToClimb, subscribeToClimbPrivate } from "@/services/climbs";
+import { subscribeToUserRegistrationsNewestFirst, updateRegistration } from "@/services/registrations";
+import { uploadRegistrationFile } from "@/services/storage";
+import { compareStartDate } from "@/utils/climbGrouping";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -29,8 +15,7 @@ import SignWaiverPrompt from "@/components/SignWaiverPrompt";
 import DocumentUploadModal from "@/components/DocumentUploadModal";
 import PaymentLog from "@/components/PaymentLog";
 import ReceiptModal from "@/components/ReceiptModal";
-import { logFailedRequest } from "@/utils/logFailedRequest";
-import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
+import { logFailedRequest } from "@/services/logFailedRequest";
 import {
   getPaymentEntries,
   buildPaymentPatch,
@@ -44,7 +29,6 @@ import {
 } from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
-import { compressImage } from "@/utils/compressImage";
 import DonationPledgeModal from "@/components/DonationPledgeModal";
 import { isDonationDriveOn } from "@/utils/donations";
 import CancelRegistrationModal from "@/components/CancelRegistrationModal";
@@ -141,10 +125,10 @@ function PayPrompt({ reg, onClose, onSaved }) {
   useEffect(() => {
     // Live: the amount being asked for here has to reflect the climb's fees
     // as they stand right now, not as they were when this modal opened.
-    const unsub = onSnapshot(
-      doc(db, "climbs", reg.climbId),
-      (snap) => {
-        if (snap.exists()) setClimb(snap.data());
+    const unsub = subscribeToClimb(
+      reg.climbId,
+      (found) => {
+        if (found) setClimb(found);
       },
       (err) => {
         logFailedRequest({
@@ -163,14 +147,10 @@ function PayPrompt({ reg, onClose, onSaved }) {
     // Whether this member is currently sharing a service with others — if
     // an admin has grouped them for something like a porter, the balance
     // below should reflect the split price, not the full one.
-    const unsub = onSnapshot(
-      doc(db, "climbPrivate", reg.climbId),
-      (snap) => {
-        setServiceGroups(
-          serviceGroupsFromDoc(
-            snap.exists() ? snap.data().serviceGroups : null,
-          ),
-        );
+    const unsub = subscribeToClimbPrivate(
+      reg.climbId,
+      (priv) => {
+        setServiceGroups(serviceGroupsFromDoc(priv ? priv.serviceGroups : null));
       },
       (err) => {
         logFailedRequest({
@@ -232,18 +212,8 @@ function PayPrompt({ reg, onClose, onSaved }) {
     const parsedAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
     setSaving(true);
     try {
-      const timestamp = Date.now();
       const paymentProofs = await Promise.all(
-        files.map(async (original) => {
-          const file = await compressImage(original);
-          const fileRef = storageRef(
-            storage,
-            `payment-proofs/${reg.climbId}/${reg.userId}/${timestamp}_${file.name}`,
-          );
-          await uploadBytes(fileRef, file);
-          const url = await getDownloadURL(fileRef);
-          return { url, fileName: file.name };
-        }),
+        files.map((file) => uploadRegistrationFile("payment-proofs", reg, file)),
       );
       const feeBreakdown = climb?.fees?.length
         ? climb.fees.map((f) => ({
@@ -286,7 +256,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
         paymentPatch.amountPaid,
         previousPaid + parsedAmount,
       );
-      await updateDoc(doc(db, "registrations", reg.id), {
+      await updateRegistration(reg.id, {
         paymentProofs: [...(reg.paymentProofs || []), ...paymentProofs],
         // Earlier payments keep whatever verdict they already had; only the
         // new one is unreviewed, and the registration's status follows from
@@ -999,16 +969,13 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
     try {
       const patch = {};
       for (const docType of uploadableDocs) {
-        const file = await compressImage(docFiles[docType.key]);
-        const fileRef = storageRef(
-          storage,
-          `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId}/${makeUploadTimestamp()}_${file.name}`,
+        patch[docType.uploadField] = await uploadRegistrationFile(
+          docType.storagePrefixUpload,
+          reg,
+          docFiles[docType.key],
         );
-        await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(fileRef);
-        patch[docType.uploadField] = { url, fileName: file.name };
       }
-      await updateDoc(doc(db, "registrations", reg.id), patch);
+      await updateRegistration(reg.id, patch);
       onSaved();
     } catch (err) {
       setError("Failed to upload one of your files. Please try again.");
@@ -1366,16 +1333,14 @@ export default function MyRegistrations() {
   const [cancelReg, setCancelReg] = useState(null);
 
   useEffect(() => {
-    const q = query(
-      collection(db, "registrations"),
-      where("userId", "==", currentUser.uid),
-      orderBy("createdAt", "desc"),
+    return subscribeToUserRegistrationsNewestFirst(
+      currentUser.uid,
+      (docs) => {
+        setRegs(docs);
+        setLoading(false);
+      },
+      () => setLoading(false),
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return unsub;
   }, [currentUser.uid]);
 
   useEffect(() => {
@@ -1385,13 +1350,10 @@ export default function MyRegistrations() {
     // details get corrected by officers after people register, and what a
     // member is shown they owe must follow those edits.
     const unsubs = climbIds.map((id) =>
-      onSnapshot(
-        doc(db, "climbs", id),
-        (snap) => {
-          setClimbsMap((prev) => ({
-            ...prev,
-            [id]: snap.exists() ? snap.data() : null,
-          }));
+      subscribeToClimb(
+        id,
+        (found) => {
+          setClimbsMap((prev) => ({ ...prev, [id]: found }));
         },
         (err) => {
           logFailedRequest({
@@ -1415,13 +1377,10 @@ export default function MyRegistrations() {
     // above — an admin forming/dissolving a group has to change what a
     // member is shown they owe without a reload.
     const unsubs = climbIds.map((id) =>
-      onSnapshot(
-        doc(db, "climbPrivate", id),
-        (snap) => {
-          setClimbPrivateMap((prev) => ({
-            ...prev,
-            [id]: snap.exists() ? readClimbPrivate(snap.data()) : null,
-          }));
+      subscribeToClimbPrivate(
+        id,
+        (priv) => {
+          setClimbPrivateMap((prev) => ({ ...prev, [id]: priv ? readClimbPrivate(priv) : null }));
         },
         (err) => {
           logFailedRequest({
@@ -1519,22 +1478,8 @@ export default function MyRegistrations() {
     100;
 
   useEffect(() => {
-    getDocs(
-      query(
-        collection(db, "climbs"),
-        where("officerIds", "array-contains", currentUser.uid),
-      ),
-    )
-      .then((snap) => {
-        const sorted = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => {
-            const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
-            const db2 = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
-            return da - db2;
-          });
-        setOfficerClimbs(sorted);
-      })
+    listClimbsLedBy(currentUser.uid)
+      .then((climbs) => setOfficerClimbs([...climbs].sort(compareStartDate)))
       .catch((err) => {
         console.error("Officer climbs query failed:", err);
         logFailedRequest({

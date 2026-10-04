@@ -1,26 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { listPageViewsByUser } from "@/services/analytics";
+import { listAuditEntriesByActor, listAuditEntriesForTargets } from "@/services/auditLog";
+import { getClimb, getClimbPrivate, listClimbsLedBy } from "@/services/climbs";
+import { listFeedbackByUser } from "@/services/feedback";
+import { listRegistrationsForUser } from "@/services/registrations";
+import { getUserProfile } from "@/services/users";
 import { formatPeso } from "@/utils/feeSummary";
 import {
   buildMemberClimbs,
   lastSeen,
   latestSafetyDetails,
 } from "@/utils/memberProfile";
-import {
-  auditEntriesToEvents,
-  buildClimbHistory,
-  chunk,
-} from "@/utils/climbHistory";
+import { auditEntriesToEvents, buildClimbHistory } from "@/utils/climbHistory";
 
 const fmtDate = (ms) =>
   ms
@@ -40,42 +32,36 @@ export default function MemberProfile({ uid }) {
   useEffect(() => {
     async function load() {
       try {
-        const [userSnap, regSnap, officerSnap, feedbackSnap, viewSnap, actorSnap] =
-          await Promise.all([
-            getDoc(doc(db, "users", uid)),
-            getDocs(query(collection(db, "registrations"), where("userId", "==", uid))),
-            getDocs(query(collection(db, "climbs"), where("officerIds", "array-contains", uid))),
-            getDocs(query(collection(db, "feedback"), where("userId", "==", uid))),
-            getDocs(query(collection(db, "pageViews"), where("userId", "==", uid), limit(500))),
-            getDocs(query(collection(db, "auditLog"), where("actorUid", "==", uid), limit(200))),
-          ]);
-        const regs = regSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const [user, regs, officerClimbs, feedback, views, actorEntries] = await Promise.all([
+          getUserProfile(uid),
+          listRegistrationsForUser(uid),
+          listClimbsLedBy(uid),
+          listFeedbackByUser(uid),
+          listPageViewsByUser(uid, 500),
+          listAuditEntriesByActor(uid, 200),
+        ]);
         const climbIds = [...new Set(regs.map((r) => r.climbId).filter(Boolean))];
-        const [climbSnaps, privSnaps, auditSnaps] = await Promise.all([
-          Promise.all(climbIds.map((id) => getDoc(doc(db, "climbs", id)))),
-          Promise.all(climbIds.map((id) => getDoc(doc(db, "climbPrivate", id)).catch(() => null))),
-          Promise.all(
-            chunk(regs.map((r) => r.id)).map((ids) =>
-              getDocs(query(collection(db, "auditLog"), where("targetId", "in", ids))),
-            ),
-          ),
+        const [climbs, privates, targetEntries] = await Promise.all([
+          Promise.all(climbIds.map(getClimb)),
+          Promise.all(climbIds.map(getClimbPrivate)),
+          listAuditEntriesForTargets(regs.map((r) => r.id)),
         ]);
         const climbsById = {};
         const privateById = {};
         climbIds.forEach((id, i) => {
-          if (climbSnaps[i]?.exists()) climbsById[id] = climbSnaps[i].data();
-          if (privSnaps[i]?.exists?.()) privateById[id] = privSnaps[i].data();
+          if (climbs[i]) climbsById[id] = climbs[i];
+          if (privates[i]) privateById[id] = privates[i];
         });
         setData({
-          user: userSnap.exists() ? { id: uid, ...userSnap.data() } : null,
+          user,
           regs,
           climbsById,
           privateById,
-          officerClimbs: officerSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-          feedback: feedbackSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-          pageViews: viewSnap.docs.map((d) => d.data()),
-          aboutThem: auditSnaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...d.data() }))),
-          byThem: actorSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+          officerClimbs,
+          feedback,
+          pageViews: views,
+          aboutThem: targetEntries,
+          byThem: actorEntries,
         });
       } catch (err) {
         setError(err?.message || "Couldn't load this member.");

@@ -7,10 +7,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { updateDoc } from "firebase/firestore";
 import { uploadBytes, getDownloadURL } from "firebase/storage";
-import { recordManualPayment } from "@/utils/recordPayment";
-import { logAuditEvent } from "@/utils/auditLog";
+import { recordManualPayment } from "@/services/recordPayment";
+import { logAuditEvent } from "@/services/auditLog";
 
-vi.mock("@/utils/auditLog", () => ({ logAuditEvent: vi.fn() }));
+vi.mock("@/services/auditLog", () => ({ logAuditEvent: vi.fn() }));
 
 const admin = { uid: "admin-1", displayName: "Admin User" };
 

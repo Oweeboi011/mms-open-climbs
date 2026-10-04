@@ -1,25 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  collection,
-  query,
-  onSnapshot,
-  doc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/firebase/config";
+import { callFunction } from "@/services/callables";
+import { serverTimestamp } from "@/services/firestore";
+import { subscribeToUsers, updateUserProfile } from "@/services/users";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import MemberProfile from "@/components/admin/MemberProfile";
-
-const createUserFn = httpsCallable(functions, "createUser");
-const updateUserProfileFn = httpsCallable(functions, "updateUserProfile");
-const deleteUserAccountFn = httpsCallable(functions, "deleteUserAccount");
 
 const CREATE_USER_ERROR_INFO = {
   "already-exists": {
@@ -136,18 +125,14 @@ export default function AdminUsersManage() {
   const [createOk, setCreateOk] = useState("");
 
   useEffect(() => {
-    const q = query(collection(db, "users"));
-    const unsub = onSnapshot(q, (snap) => {
-      const sorted = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort(
+    return subscribeToUsers((docs) => {
+      const sorted = [...docs].sort(
           (a, b) =>
             (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0),
         );
       setUsers(sorted);
       setLoading(false);
     });
-    return unsub;
   }, []);
 
   async function changeRole(uid, newRole, user) {
@@ -159,7 +144,7 @@ export default function AdminUsersManage() {
     setRoleChanging(true);
     setRoleError("");
     try {
-      await updateDoc(doc(db, "users", uid), {
+      await updateUserProfile(uid, {
         role: newRole,
         updatedAt: serverTimestamp(),
       });
@@ -210,7 +195,7 @@ export default function AdminUsersManage() {
     setProfileError("");
     setProfileOk("");
     try {
-      await updateUserProfileFn({
+      await callFunction("updateUserProfile", {
         uid: selectedUser.id,
         ...(nameChanged ? { displayName: editName.trim() } : {}),
         ...(emailChanged ? { email: editEmail.trim() } : {}),
@@ -239,7 +224,7 @@ export default function AdminUsersManage() {
     setDeleting(true);
     setDeleteError("");
     try {
-      await deleteUserAccountFn({ uid: selectedUser.id });
+      await callFunction("deleteUserAccount", { uid: selectedUser.id });
       closeUserModal();
     } catch (err) {
       setDeleteError(err?.message || "Failed to delete user.");
@@ -253,8 +238,8 @@ export default function AdminUsersManage() {
     setCreateOk("");
     setCreating(true);
     try {
-      const result = await createUserFn(newUser);
-      const emailSent = result.data?.emailSent !== false;
+      const result = await callFunction("createUser", newUser);
+      const emailSent = result?.emailSent !== false;
       setCreateOk(
         emailSent
           ? `Account created for ${newUser.email}. A welcome email with setup link has been sent.`
