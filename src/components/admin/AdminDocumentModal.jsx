@@ -1,15 +1,8 @@
 import { useState } from "react";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
-import { storage } from "@/firebase/config";
+import { uploadRegistrationFile } from "@/services/storage";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
-import { logFailedRequest } from "@/utils/logFailedRequest";
-import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
+import { logFailedRequest } from "@/services/logFailedRequest";
 import DocumentUploadModal from "@/components/DocumentUploadModal";
-import { compressImage } from "@/utils/compressImage";
 
 // Lets an admin submit or replace a required document on a participant's
 // behalf — for a walk-in with no phone on them, or a physical copy handed
@@ -72,16 +65,11 @@ export default function AdminDocumentModal({
     try {
       const patch = {};
       for (const docType of toUpload) {
-        const file = await compressImage(docFiles[docType.key]);
-        const fileRef = storageRef(
-          storage,
-          // Registration id stands in for a walk-in with no userId, so their
-          // documents don't share one `null/` folder with every other walk-in.
-          `${docType.storagePrefixUpload}/${reg.climbId}/${reg.userId || reg.id}/${makeUploadTimestamp()}_${file.name}`,
+        patch[docType.uploadField] = await uploadRegistrationFile(
+          docType.storagePrefixUpload,
+          reg,
+          docFiles[docType.key],
         );
-        await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(fileRef);
-        patch[docType.uploadField] = { url, fileName: file.name };
       }
       await onSave(reg, patch);
     } catch (err) {

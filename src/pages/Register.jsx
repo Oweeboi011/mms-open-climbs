@@ -1,31 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import {
-  doc,
-  getDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-  Timestamp,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { db, storage } from "@/firebase/config";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
+import { serverTimestamp, Timestamp } from "@/services/firestore";
+import { getClimb } from "@/services/climbs";
+import { createRegistration, findUserRegistrationsForClimb } from "@/services/registrations";
+import { uploadRegistrationFile } from "@/services/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import WaiverText from "@/components/WaiverText";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logFailedRequest } from "@/services/logFailedRequest";
 import { computeExpectedTotal, getClimbFeeModel } from "@/utils/feeSummary";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
-import { compressImage } from "@/utils/compressImage";
 import DonationPledgeFields from "@/components/DonationPledgeFields";
 import {
   getDonationFeeItem,
@@ -140,12 +126,11 @@ export default function Register() {
   useEffect(() => {
     async function load() {
       try {
-        const snap = await getDoc(doc(db, "climbs", climbId));
-        if (!snap.exists()) {
+        const climbData = await getClimb(climbId);
+        if (!climbData) {
           navigate("/", { replace: true });
           return;
         }
-        const climbData = { id: snap.id, ...snap.data() };
 
         if (climbData.status !== "open") {
           // Was a silent navigate("/"). A member who taps a shared link to a
@@ -157,13 +142,8 @@ export default function Register() {
         }
 
         // Check not already registered
-        const regQ = query(
-          collection(db, "registrations"),
-          where("climbId", "==", climbId),
-          where("userId", "==", currentUser.uid),
-        );
-        const regSnap = await getDocs(regQ);
-        if (!regSnap.empty && regSnap.docs[0].data().status !== "cancelled") {
+        const [existing] = await findUserRegistrationsForClimb(climbId, currentUser.uid);
+        if (existing && existing.status !== "cancelled") {
           setClimb(climbData);
           setBlockedReason("registered");
           return;
@@ -293,35 +273,23 @@ export default function Register() {
     setSubmitting(true);
     let paymentProofs = [];
     const docUploads = {};
+    // The registration doesn't exist yet; files are filed under the member.
+    const owner = { climbId, userId: currentUser.uid };
     try {
       if (paymentFiles.length > 0) {
         setPaymentUploading(true);
-        const timestamp = Date.now();
         paymentProofs = await Promise.all(
-          paymentFiles.map(async (original) => {
-            const file = await compressImage(original);
-            const fileRef = storageRef(
-              storage,
-              `payment-proofs/${climbId}/${currentUser.uid}/${timestamp}_${file.name}`,
-            );
-            await uploadBytes(fileRef, file);
-            const url = await getDownloadURL(fileRef);
-            return { url, fileName: file.name };
-          }),
+          paymentFiles.map((file) => uploadRegistrationFile("payment-proofs", owner, file)),
         );
         setPaymentUploading(false);
       }
       for (const docType of REQUIRED_DOC_TYPES) {
-        const file = await compressImage(docFiles[docType.key]);
-        if (!file) continue;
-        const timestamp = Date.now();
-        const fileRef = storageRef(
-          storage,
-          `${docType.storagePrefixUpload}/${climbId}/${currentUser.uid}/${timestamp}_${file.name}`,
+        if (!docFiles[docType.key]) continue;
+        docUploads[docType.uploadField] = await uploadRegistrationFile(
+          docType.storagePrefixUpload,
+          owner,
+          docFiles[docType.key],
         );
-        await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(fileRef);
-        docUploads[docType.uploadField] = { url, fileName: file.name };
       }
     } catch (uploadErr) {
       setPaymentUploading(false);
@@ -428,7 +396,7 @@ export default function Register() {
         createdAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, "registrations"), regData);
+      const newRegId = await createRegistration(regData);
       setSuccessUnpaid(paymentProofs.length === 0);
       setSuccessMissingDocs(
         REQUIRED_DOC_TYPES.filter(
@@ -436,7 +404,7 @@ export default function Register() {
             climb[docType.requiresField] && !docUploads[docType.uploadField],
         ).map((docType) => docType.label),
       );
-      setSuccessRegId(docRef.id);
+      setSuccessRegId(newRegId);
     } catch (err) {
       console.error(err);
       setError("Registration failed. Please try again.");

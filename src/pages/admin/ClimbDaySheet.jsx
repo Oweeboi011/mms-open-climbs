@@ -1,22 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { serverTimestamp } from "@/services/firestore";
+import { updateRegistration } from "@/services/registrations";
+import useClimbRoster from "@/hooks/useClimbRoster";
+import ClimbLoadError from "@/components/admin/ClimbLoadError";
 import { useAuth } from "@/contexts/AuthContext";
-import { logAuditEvent } from "@/utils/auditLog";
+import { logAuditEvent } from "@/services/auditLog";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { formatPeso } from "@/utils/feeSummary";
 import { buildAttendancePatch, buildClimbDaySheet } from "@/utils/climbDaySheet";
-import { readClimbPrivate } from "@/utils/registrationFees";
 
 // Printable roster for climb day. Loaded once (not live) so what's printed
 // matches what's on screen. Contains medical and emergency details — admins
@@ -30,33 +22,7 @@ export default function ClimbDaySheet() {
   const { id } = useParams();
   const { currentUser } = useAuth();
   const [savingId, setSavingId] = useState(null);
-  const [climb, setClimb] = useState(null);
-  const [regs, setRegs] = useState([]);
-  const [serviceGroups, setServiceGroups] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const [climbSnap, privSnap, regSnap] = await Promise.all([
-          getDoc(doc(db, "climbs", id)),
-          getDoc(doc(db, "climbPrivate", id)),
-          getDocs(query(collection(db, "registrations"), where("climbId", "==", id))),
-        ]);
-        setClimb(climbSnap.exists() ? { id, ...climbSnap.data() } : null);
-        if (privSnap.exists()) {
-          setServiceGroups(readClimbPrivate(privSnap.data()).serviceGroups || {});
-        }
-        setRegs(regSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        setError(err?.message || "Could not load the climb.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [id]);
+  const { climb, regs, setRegs, serviceGroups, loading, error } = useClimbRoster(id);
 
   const sheet = useMemo(
     () => (climb ? buildClimbDaySheet(regs, climb, serviceGroups) : null),
@@ -64,14 +30,7 @@ export default function ClimbDaySheet() {
   );
 
   if (loading) return <LoadingSpinner fullPage />;
-  if (error || !climb) {
-    return (
-      <main className="daysheet-page">
-        <p className="alert alert-error">{error || "Climb not found."}</p>
-        <Link to="/admin/climbs">Back to climbs</Link>
-      </main>
-    );
-  }
+  if (error || !climb) return <ClimbLoadError error={error} />;
 
   const { rows, totals } = sheet;
   const actor = currentUser?.displayName || currentUser?.email || "admin";
@@ -84,7 +43,7 @@ export default function ClimbDaySheet() {
     setSavingId(row.id);
     try {
       const patch = buildAttendancePatch(!row.attended, actor, serverTimestamp());
-      await updateDoc(doc(db, "registrations", row.id), { ...patch, updatedAt: serverTimestamp() });
+      await updateRegistration(row.id, { ...patch, updatedAt: serverTimestamp() });
       patchLocal(row.id, { ...patch, attendedMarkedAt: new Date() });
     } finally {
       setSavingId(null);
@@ -94,7 +53,7 @@ export default function ClimbDaySheet() {
   async function confirmOnSite(row) {
     setSavingId(row.id);
     try {
-      await updateDoc(doc(db, "registrations", row.id), {
+      await updateRegistration(row.id, {
         status: "confirmed",
         confirmedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

@@ -1,6 +1,7 @@
-import { doc, serverTimestamp, Timestamp, updateDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { logAuditEvent } from "@/utils/auditLog";
+import { serverTimestamp, Timestamp } from "firebase/firestore";
+import { logAuditEvent } from "@/services/auditLog";
+import { updateClimb } from "@/services/climbs";
+import { updateRegistration } from "@/services/registrations";
 import { getCountedPaid, getExpectedTotal } from "@/utils/registrationFees";
 import {
   buildDonationCollection,
@@ -38,7 +39,7 @@ export async function recordDonationReceived({
   const actor = currentUser?.displayName || currentUser?.email || "admin";
   const needed = getNeededItems(climb.donationDrive);
   const donationReceived = normalizeReceived(received, actor, Timestamp.now(), needed);
-  await updateDoc(doc(db, "registrations", reg.id), {
+  await updateRegistration(reg.id, {
     donationReceived,
     updatedAt: serverTimestamp(),
   });
@@ -67,7 +68,7 @@ export async function recordDonationReceived({
 
 export async function publishDonationTotals(climb, regs, serviceGroups) {
   const collection = buildDonationCollection(regs, climb, makePaidWithFees(climb, serviceGroups));
-  await updateDoc(doc(db, "climbs", climb.id), {
+  await updateClimb(climb.id, {
     donationTotals: publicDonationTotals(collection),
   });
 }

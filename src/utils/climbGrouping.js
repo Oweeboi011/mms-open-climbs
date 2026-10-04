@@ -92,3 +92,11 @@ export function defaultSeason(climbs = [], years = seasonYears(climbs), now = ne
     .sort((a, b) => climbStartOf(a) - climbStartOf(b))[0];
   return next ? String(climbStartOf(next).getFullYear()) : years[years.length - 1];
 }
+
+// Sort comparator: earliest climb first. startDate is a Firestore Timestamp on
+// saved climbs but may be a plain date string on older or seeded ones.
+export function compareStartDate(a, b) {
+  const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
+  const db = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
+  return da - db;
+}

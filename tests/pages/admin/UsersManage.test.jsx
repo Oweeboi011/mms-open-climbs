@@ -9,11 +9,18 @@ import { onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { makeQuerySnapshot } from "@tests/setup";
 
-// UsersManage.jsx creates its three callables in this fixed order at module
-// load — grab handles to the actual mock fn instances so tests can control
-// resolved/rejected values per call.
-const updateUserProfileMock = httpsCallable.mock.results[1].value;
-const deleteUserAccountMock = httpsCallable.mock.results[2].value;
+// Route each callable by name so tests can steer them individually.
+const callables = {
+  createUser: vi.fn(),
+  updateUserProfile: vi.fn(),
+  deleteUserAccount: vi.fn(),
+};
+const updateUserProfileMock = callables.updateUserProfile;
+const deleteUserAccountMock = callables.deleteUserAccount;
+beforeEach(() => {
+  Object.values(callables).forEach((fn) => fn.mockReset().mockResolvedValue({ data: {} }));
+  httpsCallable.mockImplementation((_fns, name) => callables[name]);
+});
 
 const userDoc = {
   id: "user-1",

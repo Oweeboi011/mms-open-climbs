@@ -1,13 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { subscribeToScheduledClimbs } from "@/services/climbs";
+import { sessionStore } from "@/services/browserStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -48,27 +42,24 @@ export default function Schedule() {
   const filtersWrapRef = useRef(null);
   const [showTop, setShowTop] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(
-    () => sessionStorage.getItem("oc_visitor_banner") === "1",
+    () => sessionStore.get("oc_visitor_banner") === "1",
   );
   const [guideOpen, setGuideOpen] = useState(false);
   const gridRef = useRef(null);
 
   function dismissBanner() {
-    sessionStorage.setItem("oc_visitor_banner", "1");
+    sessionStore.set("oc_visitor_banner", "1");
     setBannerDismissed(true);
   }
 
   useEffect(() => {
-    const q = query(
-      collection(db, "climbs"),
-      where("status", "in", ["open", "closed", "completed", "cancelled"]),
-      orderBy("startDate", "asc"),
+    return subscribeToScheduledClimbs(
+      (docs) => {
+        setClimbs(docs);
+        setLoading(false);
+      },
+      () => setLoading(false),
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setClimbs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return unsub;
   }, []);
 
   // The month buttons scroll off the right on mobile. Keep the fade

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { getRegistration } from '@/services/registrations';
 import { useAuth } from '@/contexts/AuthContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import WaiverText from '@/components/WaiverText';
@@ -16,9 +15,8 @@ export default function WaiverPrint() {
 
   useEffect(() => {
     async function load() {
-      const snap = await getDoc(doc(db, 'registrations', registrationId));
-      if (!snap.exists()) { navigate('/'); return; }
-      const data = { id: snap.id, ...snap.data() };
+      const data = await getRegistration(registrationId);
+      if (!data) { navigate('/'); return; }
       // Only owner or admin can view
       if (data.userId !== currentUser.uid && !isAdmin) { navigate('/'); return; }
       setReg(data);

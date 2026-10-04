@@ -1,24 +1,13 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
-import {
-  collection,
-  doc,
-  updateDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
-import { db, storage } from "@/firebase/config";
+import { serverTimestamp, Timestamp } from "@/services/firestore";
+import { updateClimb } from "@/services/climbs";
+import { updateRegistration } from "@/services/registrations";
+import { uploadFile } from "@/services/storage";
+import useLiveClimbData from "@/hooks/useLiveClimbData";
 import { useAuth } from "@/contexts/AuthContext";
-import { logAuditEvent } from "@/utils/auditLog";
-import { recordManualPayment } from "@/utils/recordPayment";
+import { logAuditEvent } from "@/services/auditLog";
+import { recordManualPayment } from "@/services/recordPayment";
 import Header from "@/components/Header";
 import SeasonSelect from "@/components/admin/SeasonSelect";
 import useSeason from "@/hooks/useSeason";
@@ -31,7 +20,6 @@ import {
   getOutstanding as getOutstandingShared,
   toggleOptionalFeeEntry,
   getAvailmentCounts,
-  readClimbPrivate,
 } from "@/utils/registrationFees";
 import {
   setEntryStatus,
@@ -42,10 +30,7 @@ import { groupClimbsByCompletion } from "@/utils/climbGrouping";
 
 export default function ManagePayments() {
   const { currentUser } = useAuth();
-  const [climbs, setClimbs] = useState([]);
-  const [climbPrivateMap, setClimbPrivateMap] = useState({});
-  const [regs, setRegs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { climbs, setClimbs, climbPrivateMap, regs, loading } = useLiveClimbData();
   const [expandedId, setExpandedId] = useState(null);
   const [expandedRegId, setExpandedRegId] = useState(null);
   const [qrUploading, setQrUploading] = useState(null);
@@ -60,52 +45,6 @@ export default function ManagePayments() {
     fileRefs.current[climbId]?.click();
   }
 
-  // Live climbs — every expected/outstanding figure on this page is computed
-  // from the climb's current fee schedule, so a fee edited elsewhere has to
-  // land here without a reload.
-  useEffect(() => {
-    const unsub = onSnapshot(
-      query(collection(db, "climbs"), orderBy("startDate", "asc")),
-      (snap) => {
-        const list = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => {
-            const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
-            const db2 = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
-            return da - db2;
-          });
-        setClimbs(list);
-      },
-    );
-    return unsub;
-  }, []);
-
-  // Live sharing groups for every climb's shareable services — an admin
-  // action on ClimbDetail (form/dissolve a group) has to be reflected here
-  // without a reload, same as the fee schedule itself.
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "climbPrivate"), (snap) => {
-      const map = {};
-      snap.docs.forEach((d) => {
-        map[d.id] = readClimbPrivate(d.data());
-      });
-      setClimbPrivateMap(map);
-    });
-    return unsub;
-  }, []);
-
-  // Live registrations
-  useEffect(() => {
-    const unsub = onSnapshot(
-      query(collection(db, "registrations"), orderBy("createdAt", "desc")),
-      (snap) => {
-        setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setLoading(false);
-      },
-    );
-    return unsub;
-  }, []);
-
   // Update climbs when Firestore QR changes
   function updateClimbLocally(climbId, patch) {
     setClimbs((prev) =>
@@ -118,13 +57,8 @@ export default function ManagePayments() {
     setQrUploading(climbId);
     setQrError((p) => ({ ...p, [climbId]: "" }));
     try {
-      const sRef = storageRef(
-        storage,
-        `gcash-qr/${climbId}/${Date.now()}_${file.name}`,
-      );
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      await updateDoc(doc(db, "climbs", climbId), { gcashQrUrl: url });
+      const url = await uploadFile(`gcash-qr/${climbId}/${Date.now()}_${file.name}`, file);
+      await updateClimb(climbId, { gcashQrUrl: url });
       updateClimbLocally(climbId, { gcashQrUrl: url });
     } catch (err) {
       setQrError((p) => ({ ...p, [climbId]: "Upload failed: " + err.message }));
@@ -157,7 +91,7 @@ export default function ManagePayments() {
         name: currentUser?.displayName || currentUser?.email || "Admin",
       };
     }
-    await updateDoc(doc(db, "registrations", regId), patch);
+    await updateRegistration(regId, patch);
     const reg = regs.find((r) => r.id === regId);
     logAuditEvent({
       actorUid: currentUser?.uid,
@@ -173,7 +107,7 @@ export default function ManagePayments() {
   // Review one payment on its own — an officer can accept the downpayment
   // and bounce only the instalment with the unreadable receipt.
   async function changeEntryStatus(reg, index, status) {
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       ...setEntryStatus(reg, index, status, reviewer()),
     });
     logAuditEvent({
@@ -214,7 +148,7 @@ export default function ManagePayments() {
     const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
     const nowSelected = updated.find((f) => f.label === label)?.selected;
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
     });

@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import useClimbRoster from "@/hooks/useClimbRoster";
+import ClimbLoadError from "@/components/admin/ClimbLoadError";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { formatPeso } from "@/utils/feeSummary";
 import { buildDonationCollection, itemQtyMap } from "@/utils/donations";
-import { readClimbPrivate } from "@/utils/registrationFees";
 import {
   makePaidWithFees,
   publishDonationTotals,
   recordDonationReceived,
-} from "@/utils/donationRecords";
+} from "@/services/donationRecords";
 
 const itemsText = (list = []) =>
   list.map((i) => `${i.qty} ${i.name}`).join(", ");
@@ -23,37 +22,11 @@ const itemsText = (list = []) =>
 export default function ClimbDonations() {
   const { id } = useParams();
   const { currentUser } = useAuth();
-  const [climb, setClimb] = useState(null);
-  const [regs, setRegs] = useState([]);
-  const [serviceGroups, setServiceGroups] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { climb, regs, setRegs, serviceGroups, loading, error } = useClimbRoster(id);
   const [editing, setEditing] = useState(null); // regId
   const [form, setForm] = useState({ cash: "", items: "", itemQty: {} });
   const [saving, setSaving] = useState(false);
   const [addId, setAddId] = useState("");
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const [climbSnap, privSnap, regSnap] = await Promise.all([
-          getDoc(doc(db, "climbs", id)),
-          getDoc(doc(db, "climbPrivate", id)),
-          getDocs(query(collection(db, "registrations"), where("climbId", "==", id))),
-        ]);
-        setClimb(climbSnap.exists() ? { id, ...climbSnap.data() } : null);
-        if (privSnap.exists()) {
-          setServiceGroups(readClimbPrivate(privSnap.data()).serviceGroups || {});
-        }
-        setRegs(regSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        setError(err?.message || "Could not load the climb.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [id]);
 
   const data = useMemo(
     () =>
@@ -62,14 +35,7 @@ export default function ClimbDonations() {
   );
 
   if (loading) return <LoadingSpinner fullPage />;
-  if (error || !climb) {
-    return (
-      <main className="daysheet-page">
-        <p className="alert alert-error">{error || "Climb not found."}</p>
-        <Link to="/admin/climbs">Back to climbs</Link>
-      </main>
-    );
-  }
+  if (error || !climb) return <ClimbLoadError error={error} />;
   const drive = climb.donationDrive || {};
   if (!drive.enabled) {
     return (

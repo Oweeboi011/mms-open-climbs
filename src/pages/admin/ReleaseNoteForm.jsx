@@ -1,30 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import {
-  doc,
-  getDoc,
-  addDoc,
-  updateDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/firebase/config";
+import { callFunction } from "@/services/callables";
+import { serverTimestamp } from "@/services/firestore";
+import { createReleaseNote, getReleaseNote, updateReleaseNote } from "@/services/releaseNotes";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { logFailedRequest } from "@/utils/logFailedRequest";
-
-const sendReleaseNoteEmailFn = httpsCallable(functions, "sendReleaseNoteEmail");
-const getReleaseNoteCommitOptionsFn = httpsCallable(
-  functions,
-  "getReleaseNoteCommitOptions",
-);
-const generateReleaseNoteDraftFn = httpsCallable(
-  functions,
-  "generateReleaseNoteDraft",
-);
+import { logFailedRequest } from "@/services/logFailedRequest";
 
 const EMPTY_FORM = {
   title: "",
@@ -58,11 +41,11 @@ export default function AdminReleaseNoteForm() {
 
   useEffect(() => {
     if (!isEdit) return;
-    getDoc(doc(db, "releaseNotes", id)).then((snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
+    getReleaseNote(id).then((found) => {
+      if (found) {
+        const { id: _id, ...data } = found;
         setForm({ ...EMPTY_FORM, ...data });
-        setNote({ id: snap.id, ...data });
+        setNote(found);
       }
       setLoading(false);
     });
@@ -79,9 +62,9 @@ export default function AdminReleaseNoteForm() {
     if (commitOptions) return;
     setPickerLoading(true);
     try {
-      const result = await getReleaseNoteCommitOptionsFn();
-      const commits = result.data?.commits || [];
-      setCommitOptions({ since: result.data?.since || null, commits });
+      const result = await callFunction("getReleaseNoteCommitOptions");
+      const commits = result?.commits || [];
+      setCommitOptions({ since: result?.since || null, commits });
       if (commits.length > 0) setSelectedSha(commits[0].sha);
     } catch (err) {
       setPickerError(err?.message || "Failed to load commits.");
@@ -95,8 +78,8 @@ export default function AdminReleaseNoteForm() {
     setGenerating(true);
     setGenerateError("");
     try {
-      const result = await generateReleaseNoteDraftFn({ until: selectedSha });
-      const { title, body, sourceCommit: sc, commitCount } = result.data || {};
+      const result = await callFunction("generateReleaseNoteDraft", { until: selectedSha });
+      const { title, body, sourceCommit: sc, commitCount } = result || {};
       if (!commitCount) {
         setGenerateError("No user-facing commits found in that range.");
         return;
@@ -130,11 +113,11 @@ export default function AdminReleaseNoteForm() {
         payload.sourceCommit = sourceCommit;
       }
       if (isEdit) {
-        await updateDoc(doc(db, "releaseNotes", id), payload);
+        await updateReleaseNote(id, payload);
       } else {
         payload.createdAt = serverTimestamp();
         payload.createdBy = currentUser.uid;
-        await addDoc(collection(db, "releaseNotes"), payload);
+        await createReleaseNote(payload);
       }
       navigate("/admin/release-notes");
     } catch (err) {
@@ -163,9 +146,9 @@ export default function AdminReleaseNoteForm() {
     setSendError("");
     setSendOk("");
     try {
-      const result = await sendReleaseNoteEmailFn({ releaseNoteId: id });
+      const result = await callFunction("sendReleaseNoteEmail", { releaseNoteId: id });
       setSendOk(
-        `Email sent to ${result.data?.sent ?? 0} of ${result.data?.total ?? 0} members.`,
+        `Email sent to ${result?.sent ?? 0} of ${result?.total ?? 0} members.`,
       );
     } catch (err) {
       setSendError(err?.message || "Failed to send email.");

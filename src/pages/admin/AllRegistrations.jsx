@@ -1,17 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { serverTimestamp, Timestamp } from "@/services/firestore";
+import { deleteRegistration as removeRegistration, updateRegistration } from "@/services/registrations";
+import useLiveClimbData from "@/hooks/useLiveClimbData";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import SeasonSelect from "@/components/admin/SeasonSelect";
@@ -24,8 +15,8 @@ import { detailsIncomplete } from "@/components/DetailsPrompt";
 import PaymentHistory from "@/components/admin/PaymentHistory";
 import RecordPaymentModal from "@/components/admin/RecordPaymentModal";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
-import { logAuditEvent } from "@/utils/auditLog";
-import { recordManualPayment } from "@/utils/recordPayment";
+import { logAuditEvent } from "@/services/auditLog";
+import { recordManualPayment } from "@/services/recordPayment";
 import {
   getPaymentEntries,
   setEntryStatus,
@@ -38,7 +29,6 @@ import {
   isAvailing,
   getGroupmates,
   describeMemberTypeChange,
-  readClimbPrivate,
 } from "@/utils/registrationFees";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import {
@@ -67,10 +57,7 @@ function hasMissingRequiredDocs(reg, climb) {
 export default function AllRegistrations() {
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
-  const [regs, setRegs] = useState([]);
-  const [climbs, setClimbs] = useState([]);
-  const [climbPrivateMap, setClimbPrivateMap] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { climbs, climbPrivateMap, regs, loading } = useLiveClimbData();
   const [search, setSearch] = useState("");
   const [filterClimb, setFilterClimb] = useState(
     searchParams.get("climb") || "all",
@@ -90,64 +77,8 @@ export default function AllRegistrations() {
 
   const [scope, setScope] = useState("active");
 
-  useEffect(() => {
-    // Climbs feed the filter dropdown and every per-registration lookup (fee
-    // schedule + required-document flags). Kept live so a fee edited on the
-    // climb shows up in each registrant's breakdown without a reload.
-    const unsubClimbs = onSnapshot(collection(db, "climbs"), (snap) => {
-      const list = snap.docs
-        .map((d) => ({
-          id: d.id,
-          title: d.data().title,
-          dateLabel: d.data().dateLabel,
-          status: d.data().status,
-          startDate: d.data().startDate,
-          fees: d.data().fees || [],
-          ...Object.fromEntries(
-            REQUIRED_DOC_TYPES.map((docType) => [
-              docType.requiresField,
-              !!d.data()[docType.requiresField],
-            ]),
-          ),
-        }))
-        .sort((a, b) => {
-          const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
-          const db2 = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
-          return da - db2;
-        });
-      setClimbs(list);
-    });
-
-    // Sharing groups for every climb's shareable services — same live-update
-    // reasoning as the climbs subscription above.
-    const unsubClimbPrivate = onSnapshot(
-      collection(db, "climbPrivate"),
-      (snap) => {
-        const map = {};
-        snap.docs.forEach((d) => {
-          map[d.id] = readClimbPrivate(d.data());
-        });
-        setClimbPrivateMap(map);
-      },
-    );
-
-    const q = query(
-      collection(db, "registrations"),
-      orderBy("createdAt", "desc"),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return () => {
-      unsubClimbs();
-      unsubClimbPrivate();
-      unsub();
-    };
-  }, []);
-
   async function changeStatus(regId, status) {
-    await updateDoc(doc(db, "registrations", regId), {
+    await updateRegistration(regId, {
       status,
       updatedAt: serverTimestamp(),
       ...(status === "confirmed" ? { confirmedAt: serverTimestamp() } : {}),
@@ -176,7 +107,7 @@ export default function AllRegistrations() {
 
   async function changePaymentStatus(regId, paymentStatus) {
     const reg = regs.find((r) => r.id === regId);
-    await updateDoc(doc(db, "registrations", regId), {
+    await updateRegistration(regId, {
       ...setAllEntryStatuses(reg || {}, paymentStatus, reviewer()),
       updatedAt: serverTimestamp(),
     });
@@ -192,7 +123,7 @@ export default function AllRegistrations() {
 
   // Review a single payment without touching the rest of the history.
   async function changeEntryStatus(reg, index, status) {
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       ...setEntryStatus(reg, index, status, reviewer()),
       updatedAt: serverTimestamp(),
     });
@@ -213,7 +144,7 @@ export default function AllRegistrations() {
       )
     )
       return;
-    await deleteDoc(doc(db, "registrations", reg.id));
+    await removeRegistration(reg.id);
     if (expandedId === reg.id) setExpandedId(null);
     logAuditEvent({
       actorUid: currentUser?.uid,
@@ -236,7 +167,7 @@ export default function AllRegistrations() {
     const updated = toggleOptionalFeeEntry(reg, climb, label);
     if (!updated) return;
     const nowSelected = updated.find((f) => f.label === label)?.selected;
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       feeBreakdown: updated,
       updatedAt: serverTimestamp(),
     });
@@ -252,7 +183,7 @@ export default function AllRegistrations() {
   }
 
   async function saveRegistrationEdit(regId, patch) {
-    await updateDoc(doc(db, "registrations", regId), {
+    await updateRegistration(regId, {
       ...patch,
       updatedAt: serverTimestamp(),
     });
@@ -289,7 +220,7 @@ export default function AllRegistrations() {
   // behalf — a walk-in's physical copy, or a member who can't upload it
   // themselves right now.
   async function saveAdminDocs(reg, patch) {
-    await updateDoc(doc(db, "registrations", reg.id), {
+    await updateRegistration(reg.id, {
       ...patch,
       updatedAt: serverTimestamp(),
     });

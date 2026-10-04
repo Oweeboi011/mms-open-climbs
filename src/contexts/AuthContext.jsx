@@ -1,18 +1,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  getRedirectResult,
-  signOut,
-  updateProfile,
-  sendPasswordResetEmail,
-  sendEmailVerification,
-} from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { auth, db, functions, googleProvider } from "@/firebase/config";
+  consumeRedirectSignIn,
+  sendPasswordReset,
+  sendVerificationEmail,
+  signInWithEmail,
+  signInWithGoogle,
+  signOutUser,
+  signUpWithEmail,
+  watchAuthState,
+} from "@/services/auth";
+import { callFunction } from "@/services/callables";
+import { serverTimestamp } from "@/services/firestore";
+import { createUserProfile, getUserProfile } from "@/services/users";
 
 export const AuthContext = createContext(null);
 
@@ -31,7 +30,7 @@ async function syncAdminToken(user, profile) {
     const { claims } = await user.getIdTokenResult();
     if ((profile?.role === "admin") !== (claims.admin === true)) {
       if (profile?.role === "admin") {
-        await httpsCallable(functions, "ensureAdminClaim")();
+        await callFunction("ensureAdminClaim");
       }
       await user.getIdToken(true);
     }
@@ -46,14 +45,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   async function fetchProfile(uid) {
-    const snap = await getDoc(doc(db, "users", uid));
-    return snap.exists() ? snap.data() : null;
+    const profile = await getUserProfile(uid);
+    if (!profile) return null;
+    const { id: _id, ...data } = profile;
+    return data;
   }
 
   async function signup(email, password, displayName) {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(cred.user, { displayName });
-    await setDoc(doc(db, "users", cred.user.uid), {
+    const cred = await signUpWithEmail(email, password, displayName);
+    await createUserProfile(cred.user.uid, {
       displayName,
       email,
       role: "member",
@@ -61,21 +61,21 @@ export function AuthProvider({ children }) {
       addedBy: "self",
     });
     // Non-blocking: a failed send just leaves the banner's Resend to retry.
-    sendEmailVerification(cred.user).catch(() => {});
+    sendVerificationEmail(cred.user).catch(() => {});
     return cred;
   }
 
   function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
+    return signInWithEmail(email, password);
   }
 
   async function loginWithGoogle() {
     try {
       // Try popup first (works in most cases)
-      const cred = await signInWithPopup(auth, googleProvider);
+      const cred = await signInWithGoogle();
       const existing = await fetchProfile(cred.user.uid);
       if (!existing) {
-        await setDoc(doc(db, "users", cred.user.uid), {
+        await createUserProfile(cred.user.uid, {
           displayName: cred.user.displayName,
           email: cred.user.email,
           photoURL: cred.user.photoURL ?? null,
@@ -100,13 +100,13 @@ export function AuthProvider({ children }) {
 
   async function handleRedirectResult() {
     try {
-      const cred = await getRedirectResult(auth);
+      const cred = await consumeRedirectSignIn();
       if (!cred?.user) return;
       // Only write if we can — silently skip if rules block it
       try {
         const existing = await fetchProfile(cred.user.uid);
         if (!existing) {
-          await setDoc(doc(db, "users", cred.user.uid), {
+          await createUserProfile(cred.user.uid, {
             displayName: cred.user.displayName,
             email: cred.user.email,
             photoURL: cred.user.photoURL ?? null,
@@ -125,17 +125,15 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    return signOut(auth);
+    return signOutUser();
   }
 
   function resendVerification() {
-    return auth.currentUser
-      ? sendEmailVerification(auth.currentUser)
-      : Promise.resolve();
+    return sendVerificationEmail();
   }
 
   function resetPassword(email) {
-    return sendPasswordResetEmail(auth, email);
+    return sendPasswordReset(email);
   }
 
   useEffect(() => {
@@ -148,7 +146,7 @@ export function AuthProvider({ children }) {
     (async () => {
       await handleRedirectResult();
       if (cancelled) return;
-      unsub = onAuthStateChanged(auth, async (user) => {
+      unsub = watchAuthState(async (user) => {
         setCurrentUser(user);
         if (user) {
           const profile = await fetchProfile(user.uid);

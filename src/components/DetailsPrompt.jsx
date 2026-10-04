@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { serverTimestamp } from "@/services/firestore";
+import { updateRegistration } from "@/services/registrations";
+import { logFailedRequest } from "@/services/logFailedRequest";
 import Modal from "@/components/Modal";
 
 // An admin registering someone can only record their best guess at a mobile
@@ -50,7 +50,7 @@ export default function DetailsPrompt({ reg, currentUser, onClose, onSaved }) {
     setSaving(true);
     try {
       // Exactly the fields the firestore rule allows an owner to write.
-      await updateDoc(doc(db, "registrations", reg.id), {
+      await updateRegistration(reg.id, {
         mobile: form.mobile.trim(),
         emergencyContact: {
           name: form.ecName.trim(),

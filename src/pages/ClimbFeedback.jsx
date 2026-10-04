@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { serverTimestamp } from "@/services/firestore";
+import { getClimb } from "@/services/climbs";
+import { getFeedback, saveFeedback } from "@/services/feedback";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logFailedRequest } from "@/services/logFailedRequest";
 
 const RATING_LABELS = {
   1: "Poor",
@@ -33,27 +34,27 @@ export default function ClimbFeedback() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  const feedbackId = `${climbId}_${currentUser?.uid}`;
+  const uid = currentUser?.uid;
 
   useEffect(() => {
     async function load() {
-      const [climbSnap, feedbackSnap] = await Promise.all([
-        getDoc(doc(db, "climbs", climbId)),
-        getDoc(doc(db, "feedback", feedbackId)),
+      const [climbDoc, feedbackDoc] = await Promise.all([
+        getClimb(climbId),
+        getFeedback(climbId, uid),
       ]);
-      if (!climbSnap.exists()) {
+      if (!climbDoc) {
         setNotFound(true);
         setLoading(false);
         return;
       }
-      setClimb({ id: climbSnap.id, ...climbSnap.data() });
-      if (feedbackSnap.exists()) {
-        setExisting(feedbackSnap.data());
+      setClimb(climbDoc);
+      if (feedbackDoc) {
+        setExisting(feedbackDoc);
       }
       setLoading(false);
     }
     load();
-  }, [climbId, feedbackId]);
+  }, [climbId, uid]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -64,7 +65,7 @@ export default function ClimbFeedback() {
     }
     setSaving(true);
     try {
-      await setDoc(doc(db, "feedback", feedbackId), {
+      await saveFeedback(climbId, currentUser.uid, {
         climbId,
         climbTitle: climb?.title || "",
         userId: currentUser.uid,

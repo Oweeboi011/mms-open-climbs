@@ -1,26 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
-
-// Firestore's TTL policy on `expireAt` deletes views after this long, so the
-// collection (and every admin read of it) stops growing without bound.
-const PAGE_VIEW_RETENTION_DAYS = 90;
+import { recordPageView } from "@/services/analytics";
+import { sessionStore } from "@/services/browserStorage";
 
 function getSessionId() {
-  let id = sessionStorage.getItem("oc_session_id");
+  let id = sessionStore.get("oc_session_id");
   if (!id) {
     id =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : Math.random().toString(36).slice(2) + Date.now().toString(36);
-    sessionStorage.setItem("oc_session_id", id);
+    sessionStore.set("oc_session_id", id);
   }
   return id;
 }
@@ -47,17 +38,12 @@ export function usePageTracking() {
       userRole = userProfile?.role === "admin" ? "admin" : "member";
     }
 
-    // Fire-and-forget — tracking errors must never affect the user
-    addDoc(collection(db, "pageViews"), {
+    recordPageView({
       path: location.pathname,
       climbId: climbId ?? null,
       userId: currentUser?.uid ?? null,
       userRole,
       sessionId: getSessionId(),
-      timestamp: serverTimestamp(),
-      expireAt: Timestamp.fromMillis(
-        Date.now() + PAGE_VIEW_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-      ),
-    }).catch(() => {});
+    });
   }, [location.pathname, currentUser, userProfile]);
 }

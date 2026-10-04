@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
-import { auth } from './firebase/config';
-import { logFailedRequest } from './utils/logFailedRequest';
+import { currentUserId } from './services/auth';
+import { logFailedRequest } from './services/logFailedRequest';
 import './styles/globals.css';
 
 // De-dupe repeating errors within a session so a crash loop can't flood Firestore.
@@ -18,7 +18,7 @@ function reportClientError(source, message) {
     source,
     message,
     path: window.location.pathname,
-    userId: auth.currentUser?.uid ?? null,
+    userId: currentUserId(),
   });
 }
 

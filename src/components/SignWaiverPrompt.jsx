@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { serverTimestamp } from "@/services/firestore";
+import { updateRegistration } from "@/services/registrations";
+import { logFailedRequest } from "@/services/logFailedRequest";
 import Modal from "@/components/Modal";
 import WaiverText from "@/components/WaiverText";
 
@@ -37,7 +37,7 @@ export default function SignWaiverPrompt({
     try {
       // These four fields are exactly what the firestore rule allows an owner
       // to write, and only while the waiver is still unsigned.
-      await updateDoc(doc(db, "registrations", reg.id), {
+      await updateRegistration(reg.id, {
         waiverSigned: true,
         waiverSignedName: sigName.trim(),
         waiverSignedAt: serverTimestamp(),

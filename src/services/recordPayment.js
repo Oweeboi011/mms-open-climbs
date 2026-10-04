@@ -1,14 +1,8 @@
-import { doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
-import { db, storage } from "@/firebase/config";
+import { serverTimestamp, Timestamp } from "firebase/firestore";
 import { getPaymentEntries, buildPaymentPatch } from "@/utils/payments";
-import { logAuditEvent } from "@/utils/auditLog";
-import { makeUploadTimestamp } from "@/utils/uploadTimestamp";
-import { compressImage } from "@/utils/compressImage";
+import { logAuditEvent } from "@/services/auditLog";
+import { updateRegistration } from "@/services/registrations";
+import { uploadRegistrationFile } from "@/services/storage";
 
 /**
  * Log a payment the club received outside the app — cash at the jump-off, a
@@ -31,19 +25,7 @@ export async function recordManualPayment(
   { currentUser, climbTitle } = {},
 ) {
   const proofs = await Promise.all(
-    files.map(async (original) => {
-      const file = await compressImage(original);
-      const fileRef = storageRef(
-        storage,
-        // A walk-in added by an admin has no userId, so the registration id
-        // stands in — otherwise every such participant's receipts pile into
-        // one shared `null/` folder.
-        `payment-proofs/${reg.climbId}/${reg.userId || reg.id}/${makeUploadTimestamp()}_${file.name}`,
-      );
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
-      return { url, fileName: file.name };
-    }),
+    files.map((file) => uploadRegistrationFile("payment-proofs", reg, file)),
   );
 
   const payments = [
@@ -58,7 +40,7 @@ export async function recordManualPayment(
     },
   ];
 
-  await updateDoc(doc(db, "registrations", reg.id), {
+  await updateRegistration(reg.id, {
     ...buildPaymentPatch(payments),
     updatedAt: serverTimestamp(),
   });
