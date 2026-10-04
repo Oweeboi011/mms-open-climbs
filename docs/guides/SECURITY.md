@@ -162,13 +162,13 @@ flowchart LR
     ADM --> P13
 ```
 
-Note that P13 (mass-emailing every member) is currently gated only by the same `admin` role used for every other admin capability — there is no narrower "release manager" grant. See [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture) for a proposed finer-grained role.
+Note that P13 (mass-emailing every member) is currently gated only by the same `admin` role used for every other admin capability — there is no narrower "release manager" grant. See [release-notes plan — Proposed Governance-Ready Architecture](../solution-plans/release-notes.md#proposed-governance-ready-architecture) for a proposed finer-grained role.
 
 ---
 
 ## Firestore Security Rules
 
-Rules are defined in `firestore.rules` and deployed with `firebase deploy --only firestore:rules`.
+Rules are defined in `firebase/firestore.rules` and deployed with `firebase deploy --only firestore:rules`.
 
 ```mermaid
 flowchart TD
@@ -209,7 +209,7 @@ allow read: if isSignedIn() && (resource.data.status == 'published' || isAdmin()
 allow write: if isAdmin();
 ```
 
-Full feature reference: [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md).
+Full feature reference: [release-notes plan](../solution-plans/release-notes.md).
 
 ### Critical rule details
 
@@ -367,7 +367,7 @@ flowchart TD
 | A01 Broken Access Control | Firestore rules enforce ownership and role-based access server-side. React route guards provide UX-level protection. |
 | A02 Cryptographic Failures | HTTPS enforced by Firebase Hosting. Passwords managed by Firebase Auth (bcrypt). No sensitive data stored in plaintext. |
 | A03 Injection | Firestore SDK uses structured queries and typed data — no raw query strings or SQL. |
-| A04 Insecure Design | Registration count uses atomic server-side increments. Role escalation is blocked at the database rule level. `sendReleaseNoteEmail` currently allows any admin to mass-email the entire membership with no second-approval step — see [RELEASE_NOTES_FEATURE.md](RELEASE_NOTES_FEATURE.md#risks-and-challenges). |
+| A04 Insecure Design | Registration count uses atomic server-side increments. Role escalation is blocked at the database rule level. `sendReleaseNoteEmail` currently allows any admin to mass-email the entire membership with no second-approval step — see [release-notes plan](../solution-plans/release-notes.md#risks-and-challenges). |
 | A05 Security Misconfiguration | Firestore rules deployed explicitly via CLI. No open-write rules in production. Storage rules restrict access. |
 | A06 Vulnerable Components | Dependencies tracked in `package.json` and `functions/package.json`. Run `npm audit` regularly. |
 | A07 Authentication Failures | Firebase Auth handles JWT lifecycle, token refresh, and secure session management. Short-lived tokens (1-hour expiry). |
@@ -389,4 +389,4 @@ flowchart TD
 | Run `npm audit` and `npm audit --prefix functions` regularly | High | Catch vulnerable dependency versions |
 | Review and rotate Brevo API key annually | Medium | Limit blast radius if the key is compromised |
 | Set up Firebase Alerting for Auth anomalies | Low | Detect unusual sign-in patterns |
-| Introduce a narrower "release manager" role or approval step before mass emails send | Medium | Currently any `admin` account can immediately email every member via `sendReleaseNoteEmail` — see [RELEASE_NOTES_FEATURE.md — Proposed Governance-Ready Architecture](RELEASE_NOTES_FEATURE.md#proposed-governance-ready-architecture) |
+| Introduce a narrower "release manager" role or approval step before mass emails send | Medium | Currently any `admin` account can immediately email every member via `sendReleaseNoteEmail` — see [release-notes plan — Proposed Governance-Ready Architecture](../solution-plans/release-notes.md#proposed-governance-ready-architecture) |

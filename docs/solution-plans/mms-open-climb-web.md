@@ -2,7 +2,7 @@
 
 **Scope**: the web application (React SPA + Firebase backend) as it stands today, its recent evolution, and the forward-looking plan for hardening, cost, and growth.
 
-Last reviewed: 2026-07-25. Companion document: [mms-open-climb-mobile.md](mms-open-climb-mobile.md).
+Last reviewed: 2026-07-25.
 
 ---
 
@@ -62,14 +62,14 @@ Grouped by theme, most recent first:
 
 - **Low operating cost for the current scale** — serverless end-to-end (Hosting, Firestore, Functions, Storage all pay-per-use); no idle server cost. See §6 for concrete figures.
 - **Fast iteration** — Vite dev server, Firebase emulator suite, and a single-repo full-stack setup let one or two contributors ship features quickly, evidenced by the delivery cadence in §2.
-- **Security rules do the heavy lifting** — access control lives declaratively in `firestore.rules`/`storage.rules` rather than being re-implemented in every API handler, reducing the chance of an endpoint forgetting an auth check.
+- **Security rules do the heavy lifting** — access control lives declaratively in `firebase/firestore.rules` / `storage.rules` rather than being re-implemented in every API handler, reducing the chance of an endpoint forgetting an auth check.
 - **Backend is mobile-ready without rework** — because the data/auth layer isn't web-coupled, the mobile plan doesn't require any backend migration.
 - **Real audit/observability tooling now in place** — failure logging and the notification/release-notes system give admins visibility without needing a paid observability stack.
 
 ## 5. Disadvantages / Risks
 
 - **No staging environment** — every merge to `develop` that passes CI is auto-promoted and deployed to production. A logic bug that passes tests (coverage thresholds are only ~45% lines) ships directly to members.
-- **App Check not enabled** — Firestore/Storage/Functions currently accept any request with a valid Firebase Auth token; there's no verification that the request originates from the real app binary. This is the single largest open security gap (flagged in `docs/wiki/SECURITY.md`).
+- **App Check** — enforced since 2026-09-26 (reCAPTCHA Enterprise); see [security-cost-hardening-2026-09](security-cost-hardening-2026-09.md).
 - **No rate limiting / Cloud Armor** — the anonymous-write `pageViews` and `failedRequests` collections are both open to unauthenticated `create`, which is by design for analytics/error capture, but also means they're an unmetered write surface without App Check or rate limiting in front of them.
 - **No MFA for admin accounts** — a compromised admin credential has full read/write over `climbs`, `users`, and payment verification state.
 - **Coverage thresholds are modest** (45% lines / 35% functions / 34% branches) — enough to catch regressions in exercised paths, not enough to catch regressions in the ~55-65% of code that isn't required to be covered.
@@ -94,7 +94,7 @@ All costs are pay-as-you-go (Firebase Blaze plan required for Cloud Functions v2
 
 - Balancing further feature velocity against the coverage/staging gaps above — every new feature currently ships straight to prod on merge.
 - The AI-assisted release-note draft generator depends on a `GITHUB_TOKEN` secret and commit-history access; if the repo's visibility or token scope changes, this feature silently degrades and needs a documented fallback (manual note authoring, which already exists as the base path).
-- Keeping `docs/wiki/*` synchronized with the codebase as feature velocity increases — this document set has needed a manual catch-up pass more than once (this update included).
+- Keeping `docs/guides/*` synchronized with the codebase as feature velocity increases — this document set has needed a manual catch-up pass more than once (this update included).
 
 ## 8. Recommendations & Enhancements
 
@@ -106,7 +106,7 @@ Priority-ordered, cheapest/highest-impact first:
 4. **Enforce MFA for admin accounts** (Firebase Auth supports this) — admins hold the most sensitive permissions in the system (payment verification, user deletion).
 5. **Move `climbs/**` and `trail-images/**` Storage write authorization from UI-only to Storage rules** (check `users/{uid}.role == 'admin'` via a rules function, consistent with how Firestore already does it) — closes the direct-API-bypass gap.
 6. **Raise coverage thresholds incrementally** (e.g., 45% → 55% lines) as new features land, rather than in one large jump, to keep the CI gate meaningful without blocking velocity.
-7. **Document a secret-rotation cadence** for `BREVO_API_KEY` and `GITHUB_TOKEN` in `docs/wiki/SECURITY.md`.
+7. **Document a secret-rotation cadence** for `BREVO_API_KEY` and `GITHUB_TOKEN` in `docs/guides/SECURITY.md`.
 
 ---
 

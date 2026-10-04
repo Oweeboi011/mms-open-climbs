@@ -10,7 +10,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui",
     "test:all": "npm test && npm --prefix functions test",
     "test:strict": "npm run test:coverage && npm --prefix functions run test:coverage",
     "lint": "eslint . --max-warnings 0 --cache",

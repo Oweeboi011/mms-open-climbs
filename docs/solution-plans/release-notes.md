@@ -1,5 +1,11 @@
 # Release Notes Feature — Audit, Roadmap, and Governance Plan
 
+> **Status (2026-10):** the in-app "what's new" popup (`ReleaseNotesNotice`)
+> and its `users.lastSeenReleaseNoteId` field were removed in `0a5d845`;
+> notes are now listed at `/release-notes` and emailed on publish. Sections
+> below that describe the popup are historical. The open item is still the
+> async email blast (see *Proposed Governance-Ready Architecture*).
+
 ## Table of Contents
 
 - [Purpose](#purpose)
@@ -29,7 +35,7 @@
 
 Release Notes gives admins a way to publish "what's new" updates and reach members through two channels: a passive in-app notice (popup + history page) and an active email blast. It reuses the existing Firestore + Cloud Functions + Brevo pipeline rather than introducing new infrastructure.
 
-This document is the single source of truth for the feature's current state, what remains to be built, and how the design should evolve as the club's usage grows (more members, more frequent releases, a need for approval workflows). It is intended to be read alongside [ARCHITECTURE.md](ARCHITECTURE.md), [API.md](API.md), [DATA.md](DATA.md), and [SECURITY.md](SECURITY.md), which have been updated to cross-reference this feature rather than duplicate it.
+This document is the single source of truth for the feature's current state, what remains to be built, and how the design should evolve as the club's usage grows (more members, more frequent releases, a need for approval workflows). It is intended to be read alongside [ARCHITECTURE.md](../guides/ARCHITECTURE.md), [API.md](../guides/API.md), [DATA.md](../guides/DATA.md), and [SECURITY.md](../guides/SECURITY.md), which have been updated to cross-reference this feature rather than duplicate it.
 
 ---
 
@@ -99,13 +105,13 @@ graph TB
     HDR --> RNP
 ```
 
-**Design principle carried over from the rest of the app:** authorization is enforced twice — client-side route guards for UX, Firestore security rules and the `requireAdmin()` Cloud Function helper as the actual security boundary. See [SECURITY.md](SECURITY.md#firestore-security-rules).
+**Design principle carried over from the rest of the app:** authorization is enforced twice — client-side route guards for UX, Firestore security rules and the `requireAdmin()` Cloud Function helper as the actual security boundary. See [SECURITY.md](../guides/SECURITY.md#firestore-security-rules).
 
 ---
 
 ## Data Model
 
-`releaseNotes/{id}` — see the full field table in [DATA.md](DATA.md#releasenotes). Summary:
+`releaseNotes/{id}` — see the full field table in [DATA.md](../guides/DATA.md#releasenotes). Summary:
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -157,7 +163,7 @@ sequenceDiagram
     Note over M,MU: Popup will not reappear for this note on any device,\nsince state lives on the Firestore user document, not localStorage.
 ```
 
-This deliberately differs from `WelcomeModal`'s "seen" tracking, which uses `localStorage` (`oc_welcomed_{uid}`) and therefore does not sync across devices or browsers. Release notes use the Firestore-backed field specifically so a member who dismisses the popup on their phone does not see it again on desktop. See [ARCHITECTURE.md — State Management](ARCHITECTURE.md#state-management) for the general pattern.
+This deliberately differs from `WelcomeModal`'s "seen" tracking, which uses `localStorage` (`oc_welcomed_{uid}`) and therefore does not sync across devices or browsers. Release notes use the Firestore-backed field specifically so a member who dismisses the popup on their phone does not see it again on desktop. See [ARCHITECTURE.md — State Management](../guides/ARCHITECTURE.md#state-management) for the general pattern.
 
 ### Email Blast Flow
 
@@ -220,7 +226,7 @@ sequenceDiagram
     A->>A: Admin reviews/edits draft, then saves as draft or published
 ```
 
-This is a convenience layer only — it populates the same `title`/`body` fields an admin could type by hand; it does not change how a note is stored, published, or emailed. `scripts/generate-release-notes.mjs` implements the same commit-grouping approach as a standalone CLI (signing in via the Firebase Auth REST API) for admins who prefer generating and writing a release note directly from a terminal instead of the in-app form. See [API.md — getReleaseNoteCommitOptions](API.md#getreleasenotecommitoptions) and [API.md — generateReleaseNoteDraft](API.md#generatereleasenotedraft).
+This is a convenience layer only — it populates the same `title`/`body` fields an admin could type by hand; it does not change how a note is stored, published, or emailed. `scripts/generate-release-notes.mjs` implements the same commit-grouping approach as a standalone CLI (signing in via the Firebase Auth REST API) for admins who prefer generating and writing a release note directly from a terminal instead of the in-app form. See [API.md — getReleaseNoteCommitOptions](../guides/API.md#getreleasenotecommitoptions) and [API.md — generateReleaseNoteDraft](../guides/API.md#generatereleasenotedraft).
 
 ### Release Note Lifecycle
 
@@ -372,7 +378,7 @@ Key differences and why each is additive rather than disruptive:
 | Approval sub-status before send | The `draft`/`published` status field already on `releaseNotes` | An optional `pending_review` status admins can require before `published` unlocks the email button — purely additive to the state diagram in [Release Note Lifecycle](#release-note-lifecycle). |
 | Live progress in the admin UI | The `onSnapshot`-based realtime patterns already used everywhere in the admin pages | The admin form subscribes to the job document instead of awaiting a single callable response, giving visible progress on large sends instead of a single opaque "Sending..." spinner. |
 
-This keeps every existing building block (`sendEmail`, `tplReleaseNote`, Firestore rules conventions, `requireAdmin`) intact and only changes the shape of *how work gets scheduled and executed*, which is exactly the kind of decision that belongs in an ADR (`docs/adr/ADR-0001-release-notes-notification-channel.md`, proposed but not yet created) so that if a future contributor reverts to a synchronous design, the tradeoff is documented rather than rediscovered.
+This keeps every existing building block (`sendEmail`, `tplReleaseNote`, Firestore rules conventions, `requireAdmin`) intact and only changes the shape of *how work gets scheduled and executed*, which is exactly the kind of decision that belongs in an ADR (`a future ADR in docs/adr/`, proposed but not yet created) so that if a future contributor reverts to a synchronous design, the tradeoff is documented rather than rediscovered.
 
 ---
 
@@ -380,11 +386,11 @@ This keeps every existing building block (`sendEmail`, `tplReleaseNote`, Firesto
 
 | Topic | See |
 | --- | --- |
-| `releaseNotes` schema and `users.lastSeenReleaseNoteId` field | [DATA.md](DATA.md#releasenotes) |
-| `sendReleaseNoteEmail` callable reference (payload, response, error codes) | [API.md](API.md#sendreleasenoteemail) |
-| `getReleaseNoteCommitOptions` / `generateReleaseNoteDraft` callable reference | [API.md](API.md#getreleasenotecommitoptions) |
-| Firestore rules for `releaseNotes` | [SECURITY.md](SECURITY.md#firestore-security-rules) |
-| Component hierarchy placement | [ARCHITECTURE.md](ARCHITECTURE.md#frontend-architecture) |
-| Composite index deployment step | [DEPLOYMENT.md](DEPLOYMENT.md#step-2--firestore-database-and-rules) |
-| Test file locations | [TESTING.md](TESTING.md#test-structure) |
-| End-user and admin usage guide | [USER_MANUAL.md](USER_MANUAL.md#12-for-administrators) |
+| `releaseNotes` schema and `users.lastSeenReleaseNoteId` field | [DATA.md](../guides/DATA.md#releasenotes) |
+| `sendReleaseNoteEmail` callable reference (payload, response, error codes) | [API.md](../guides/API.md#sendreleasenoteemail) |
+| `getReleaseNoteCommitOptions` / `generateReleaseNoteDraft` callable reference | [API.md](../guides/API.md#getreleasenotecommitoptions) |
+| Firestore rules for `releaseNotes` | [SECURITY.md](../guides/SECURITY.md#firestore-security-rules) |
+| Component hierarchy placement | [ARCHITECTURE.md](../guides/ARCHITECTURE.md#frontend-architecture) |
+| Composite index deployment step | [DEPLOYMENT.md](../guides/DEPLOYMENT.md#step-2--firestore-database-and-rules) |
+| Test file locations | [TESTING.md](../guides/TESTING.md#test-structure) |
+| End-user and admin usage guide | [USER_MANUAL.md](../guides/USER_MANUAL.md#12-for-administrators) |

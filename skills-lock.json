@@ -55,12 +55,6 @@
       "skillPath": "skills/misc/setup-pre-commit/SKILL.md",
       "computedHash": "68ddf950f4848ae057b33a940533447d3b5ae34f21e09701e263879f973daa38"
     },
-    "setup-ts-deep-modules": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/in-progress/setup-ts-deep-modules/SKILL.md",
-      "computedHash": "6dbd0830059a887ca6206dfa8c24baf7e28be7321471d2b899887fff9b77e34f"
-    },
     "tdd": {
       "source": "mattpocock/skills",
       "sourceType": "github",
