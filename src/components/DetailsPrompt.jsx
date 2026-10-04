@@ -3,6 +3,7 @@ import { serverTimestamp } from "@/services/firestore";
 import { updateRegistration } from "@/services/registrations";
 import { logFailedRequest } from "@/services/logFailedRequest";
 import Modal from "@/components/Modal";
+import TextField from "@/components/TextField";
 
 // An admin registering someone can only record their best guess at a mobile
 // number, next of kin and medical history — so the participant confirms their
@@ -107,65 +108,51 @@ export default function DetailsPrompt({ reg, currentUser, onClose, onSaved }) {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label required">Mobile Number</label>
-            <input
-              type="tel"
-              className="form-input"
-              placeholder="+63 9XX XXX XXXX"
-              value={form.mobile}
-              onChange={(e) => set("mobile", e.target.value)}
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label required">
-              Emergency Contact Name
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              value={form.ecName}
-              onChange={(e) => set("ecName", e.target.value)}
-            />
-          </div>
+          <TextField
+            label="Mobile Number"
+            required
+            value={form.mobile}
+            onChange={(v) => set("mobile", v)}
+            type="tel"
+            placeholder="+63 9XX XXX XXXX"
+          />
+          <TextField
+            label="Emergency Contact Name"
+            required
+            value={form.ecName}
+            onChange={(v) => set("ecName", v)}
+          />
           <div className="form-row">
-            <div className="form-group">
-              <label className="form-label required">Contact Mobile</label>
-              <input
-                type="tel"
-                className="form-input"
-                placeholder="+63 9XX XXX XXXX"
-                value={form.ecMobile}
-                onChange={(e) => set("ecMobile", e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label required">Relationship</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Parent, Spouse"
-                value={form.ecRelationship}
-                onChange={(e) => set("ecRelationship", e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label required">
-              Medical Conditions / Allergies
-            </label>
-            <textarea
-              className="form-textarea"
-              rows={2}
-              placeholder='e.g. asthma, peanut allergy — or "None"'
-              value={form.medicalConditions}
-              onChange={(e) => set("medicalConditions", e.target.value)}
+            <TextField
+              label="Contact Mobile"
+              required
+              value={form.ecMobile}
+              onChange={(v) => set("ecMobile", v)}
+              type="tel"
+              placeholder="+63 9XX XXX XXXX"
             />
-            <div className="form-hint">
-              Confidential and used only in an emergency. Write{" "}
-              <strong>None</strong> if you have none.
-            </div>
+            <TextField
+              label="Relationship"
+              required
+              value={form.ecRelationship}
+              onChange={(v) => set("ecRelationship", v)}
+              placeholder="e.g. Parent, Spouse"
+            />
           </div>
+          <TextField
+            label="Medical Conditions / Allergies"
+            required
+            value={form.medicalConditions}
+            onChange={(v) => set("medicalConditions", v)}
+            rows={2}
+            placeholder='e.g. asthma, peanut allergy — or "None"'
+            hint={
+              <>
+                Confidential and used only in an emergency. Write <strong>None</strong> if you
+                have none.
+              </>
+            }
+          />
 
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button

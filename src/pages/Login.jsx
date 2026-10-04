@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { resolveRedirect, authLinkWithRedirect } from "@/utils/authRedirect";
+import AuthLayout from "@/components/AuthLayout";
 
 function isInAppBrowser() {
   const ua = navigator.userAgent || "";
@@ -56,45 +55,7 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-page">
-      <Header />
-      <main className="auth-container">
-        {/* Left mountain panel — decorative, hidden on mobile */}
-        <div className="auth-panel" aria-hidden="true">
-          <div className="auth-panel-logo">
-            <img src="/MMS.png" alt="" />
-          </div>
-          <p className="auth-panel-org">
-            Metropolitan
-            <br />
-            Mountaineering
-            <br />
-            Society
-          </p>
-          <p className="auth-panel-year">Open Climbs</p>
-          <div className="auth-panel-mountains">
-            <svg viewBox="0 0 400 160" preserveAspectRatio="none">
-              <path
-                d="M0,160 L0,130 L40,110 L80,120 L130,85 L180,100 L230,62 L280,78 L330,45 L370,60 L400,40 L400,160 Z"
-                fill="rgba(46,125,50,0.30)"
-              />
-              <path
-                d="M0,160 L0,140 L60,125 L120,135 L190,110 L250,120 L320,98 L370,108 L400,95 L400,160 Z"
-                fill="rgba(13,43,18,0.45)"
-              />
-              <path
-                d="M0,160 L0,150 L80,142 L160,148 L240,138 L310,145 L400,135 L400,160 Z"
-                fill="rgba(0,0,0,0.20)"
-              />
-            </svg>
-          </div>
-          <p className="auth-panel-quote">
-            "Every summit begins
-            <br />
-            with a single step."
-          </p>
-        </div>
-
+    <AuthLayout quote={<>&ldquo;Every summit begins<br />with a single step.&rdquo;</>}>
         <div className="auth-card">
           <div className="auth-logo">
             <img src="/MMS.png" alt="MMS Logo" />
@@ -218,9 +179,7 @@ export default function Login() {
             </Link>
           </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+    </AuthLayout>
   );
 }
 
