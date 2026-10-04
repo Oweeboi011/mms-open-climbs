@@ -18,8 +18,8 @@ const TS = firebase.firestore.Timestamp;
 const env = await initializeTestEnvironment({
   projectId: "demo-rules",
   // Hosts/ports come from the env vars `firebase emulators:exec` sets.
-  firestore: { rules: readFileSync("firestore.rules", "utf8") },
-  storage: { rules: readFileSync("storage.rules", "utf8") },
+  firestore: { rules: readFileSync("firebase/firestore.rules", "utf8") },
+  storage: { rules: readFileSync("firebase/storage.rules", "utf8") },
 });
 
 let pass = 0, fail = 0;
