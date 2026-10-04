@@ -33,10 +33,52 @@ jobs:
       - name: Install Cloud Functions dependencies
         run: npm ci --prefix functions
 
-      - name: Build + test (frontend & functions, coverage-enforced)
+      - name: Quality gates, build, bundle budget, tests (coverage-enforced)
         run: npm run qa
 
-  # develop passed quality → open (or reuse) a PR into main and merge it
+  # Firestore/Storage security rules against the emulators.
+  integration:
+    name: Integration (security rules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci
+      - run: npm run test:integration
+
+  # Playwright smoke through the real app on the emulators.
+  e2e:
+    name: E2E smoke (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+
+  # develop passed every gate → open (or reuse) a PR into main and merge it
   # immediately. We merge directly here (rather than GitHub's "auto-merge"
   # UI feature, which requires a paid plan on private repos) so the deploy
   # job below can run in this same workflow run — a merge performed with the
@@ -44,7 +86,7 @@ jobs:
   promote:
     name: Merge develop → main
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [quality, integration, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
       contents: write
@@ -82,10 +124,12 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
-    needs: [quality, promote]
+    needs: [quality, integration, e2e, promote]
     if: |
       always() &&
       needs.quality.result == 'success' &&
+      needs.integration.result == 'success' &&
+      needs.e2e.result == 'success' &&
       (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
         (needs.promote.result == 'success' && needs.promote.outputs.merged == 'true')
@@ -127,9 +171,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Deploy to Firebase (rules, indexes, functions, hosting)
+      - name: Deploy to Firebase (rules, indexes, storage rules, functions, hosting)
         run: |
           npx firebase-tools deploy \
             --project mms-open-climbs \
-            --only firestore:rules,firestore:indexes,functions,hosting \
+            --only firestore:rules,firestore:indexes,storage,functions,hosting \
             --non-interactive
