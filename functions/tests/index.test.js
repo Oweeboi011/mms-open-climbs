@@ -254,7 +254,6 @@ describe("tplStatusUpdate()", () => {
 });
 
 describe("createUser callable — auth guard", () => {
-  const { HttpsError } = require("firebase-functions/v2/https");
 
   beforeEach(() => {
     // resetMocks: true in jest.config.cjs wipes implementations before each

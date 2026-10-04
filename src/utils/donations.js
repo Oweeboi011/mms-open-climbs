@@ -8,9 +8,9 @@
 // climb day, where leads *record* what actually arrived. Either way it is the
 // beneficiary's money, so it is kept out of the club's net funds.
 
-export const MAX_CASH_PLEDGE = 1_000_000;
-export const MAX_IN_KIND_LENGTH = 500;
-export const MAX_ITEM_QTY = 10_000;
+const MAX_CASH_PLEDGE = 1_000_000;
+const MAX_IN_KIND_LENGTH = 500;
+const MAX_ITEM_QTY = 10_000;
 
 const round2 = (n) => Math.round(n * 100) / 100;
 const cleanQty = (q) => {
@@ -37,7 +37,7 @@ export function getNeededItems(drive = {}) {
 
 // { itemName: qty } from a form, as [{ name, qty }] with only positive
 // quantities, limited to items the drive actually asks for.
-export function normalizeItemQuantities(byName = {}, neededItems = []) {
+function normalizeItemQuantities(byName = {}, neededItems = []) {
   return neededItems
     .map((i) => ({ name: i.name, qty: cleanQty(byName?.[i.name]) }))
     .filter((i) => i.qty > 0);

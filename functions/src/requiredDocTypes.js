@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 "use strict";
 
 // Cloud Functions mirror of src/data/requiredDocTypes.js. Kept as a

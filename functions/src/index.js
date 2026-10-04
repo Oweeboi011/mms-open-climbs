@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 "use strict";
 
 const {
@@ -218,8 +217,7 @@ function tplWelcomeRaw({ displayName, setupLink }) {
     <p style="color:#4a4a4a;font-size:13px;line-height:1.6;">This link expires in 24 hours. If you did not expect this email, please disregard it.</p>`);
 }
 
-function tplOfficerNewRegistrationRaw({ registrantName, registrantEmail, climbTitle, climbDate, climbLocation, regId, appUrl }) {
-  const adminUrl = `${appUrl}/admin/climbs/${regId}`;
+function tplOfficerNewRegistrationRaw({ registrantName, registrantEmail, climbTitle, climbDate, climbLocation, appUrl }) {
   return tplBase(`
     <h2 style="color:#0d2b12;font-size:20px;margin:0 0 16px;">New Registration Received</h2>
     <p style="color:#4a4a4a;font-size:15px;line-height:1.6;">A new participant has registered for your climb:</p>
