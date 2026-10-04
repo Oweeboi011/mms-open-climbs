@@ -19,10 +19,11 @@
     "arch": "depcruise src --config .dependency-cruiser.cjs",
     "arch:graph": "depcruise src --config .dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",
     "dupes": "jscpd",
-    "audit:deps": "npm audit --audit-level=high --omit=dev",
     "quality": "npm run lint && npm run arch && npm run dupes",
     "qa": "npm run quality && npm run build && npm run test:strict",
-    "release-notes": "node scripts/generate-release-notes.mjs"
+    "release-notes": "node scripts/generate-release-notes.mjs",
+    "secrets": "secretlint \"**/*\"",
+    "audit:deps": "npm audit --audit-level=high --omit=dev && npm --prefix functions audit --audit-level=high --omit=dev"
   },
   "dependencies": {
     "firebase": "^12.14.0",
@@ -32,16 +33,21 @@
     "react-router-dom": "^7.18.4"
   },
   "overrides": {
-    "websocket-driver": "^0.7.5"
+    "websocket-driver": "^0.7.5",
+    "@grpc/grpc-js": "^1.14.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.63.0",
+    "@secretlint/secretlint-rule-pattern": "^13.0.7",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.7",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.3.0",
     "@vitest/coverage-v8": "^4.1.7",
+    "axe-core": "^4.13.0",
     "dependency-cruiser": "^18.1.1",
     "eslint": "^9.39.5",
     "eslint-plugin-boundaries": "^7.1.0",
@@ -49,8 +55,12 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.9.0",
+    "husky": "^9.1.7",
     "jscpd": "^5.0.14",
     "jsdom": "^29.1.1",
+    "knip": "^6.39.0",
+    "lint-staged": "^17.6.0",
+    "secretlint": "^13.0.7",
     "vite": "^5.2.0",
     "vitest": "^4.1.7"
   }
