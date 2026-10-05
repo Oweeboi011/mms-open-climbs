@@ -71,5 +71,5 @@ sequenceDiagram
   fields `users.canEmailMembers`, `releaseNotes.emailJob`.
 - Existing admins can't send until the owner runs the grant script — a
   deliberate one-time step after deploy.
-- One job covers a few thousand recipients; beyond that the trigger would need
-  to continue across invocations.
+- One job covers a few thousand recipients; a larger list stalls and an admin
+  resumes it with another Send (no automatic continuation).

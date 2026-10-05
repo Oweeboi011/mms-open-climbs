@@ -47,5 +47,5 @@ undo). The Users page shows who has it.
 
 | Risk | Status |
 |---|---|
-| More than a few thousand recipients exceeds one job's 9 minutes | Accepted at club scale; the trigger would need to continue across invocations |
+| More than a few thousand recipients exceeds one job's 9 minutes | The job stalls; pressing Send again (after 15 min) resumes after the last member reached. Automatic continuation not built |
 | `emailSentCount` counts Brevo acceptances, not deliveries | Accepted |
