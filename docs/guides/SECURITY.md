@@ -79,8 +79,9 @@ of season), when someone with access leaves, or immediately if exposed.
   Referrer-Policy, Permissions-Policy) in `firebase.json`.
 - A full **Content-Security-Policy in Report-Only mode**: violations are
   posted to `/csp-report` (the `cspReport` function) and logged —
-  `firebase functions:log --only cspReport`. After a clean fortnight in
-  production, rename the header to `Content-Security-Policy` to enforce it.
+  `firebase functions:log --only cspReport`. The daily `csp-watch` workflow
+  reads those logs: violations go into one issue; after 14 clean days it opens
+  a PR that switches the header to enforce (a person merges it).
   `style-src` keeps `'unsafe-inline'` until the inline styles are gone.
 - Email templates escape every argument; links use the `APP_URL` secret,
   never document data. `ogPrerender` attribute-escapes climb text.
