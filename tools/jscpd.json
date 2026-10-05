@@ -19,7 +19,7 @@
     "console",
     "json"
   ],
-  "output": "./.jscpd",
+  "output": "./coverage/jscpd",
   "absolute": false,
   "gitignore": true
 }

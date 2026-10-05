@@ -14,15 +14,15 @@
     "test:strict": "npm run test:coverage && npm --prefix functions run test:coverage",
     "lint": "eslint . --max-warnings 0 --cache",
     "lint:fix": "eslint . --fix",
-    "arch": "depcruise src tests scripts functions/src functions/scripts --config .dependency-cruiser.cjs",
-    "arch:graph": "depcruise src --include-only \"^src/\" --config .dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",
-    "dupes": "jscpd src functions/src",
+    "arch": "depcruise src tests scripts functions/src functions/scripts --config tools/dependency-cruiser.cjs",
+    "arch:graph": "depcruise src --include-only \"^src/\" --config tools/dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",
+    "dupes": "jscpd --config tools/jscpd.json src functions/src",
     "quality": "npm run lint && npm run arch && npm run dupes && npm run deadcode && npm run secrets",
     "qa": "npm run quality && npm run build && npm run test:perf && npm run test:strict",
     "release-notes": "node scripts/generate-release-notes.mjs",
-    "secrets": "secretlint \"**/*\"",
+    "secrets": "secretlint --secretlintrc tools/secretlintrc.json --secretlintignore tools/secretlintignore \"**/*\"",
     "audit:deps": "npm audit --audit-level=high --omit=dev && npm --prefix functions audit --audit-level=high --omit=dev",
-    "deadcode": "knip",
+    "deadcode": "knip --config tools/knip.json",
     "test:integration": "npx -y firebase-tools@15 emulators:exec --only firestore,storage --project demo-rules \"node tests/integration/rules.test.mjs\"",
     "test:e2e": "npx -y firebase-tools@15 emulators:exec --only auth,firestore --project demo-e2e \"playwright test -c tests/e2e/playwright.config.js\"",
     "test:perf": "node tests/performance/bundle-budget.mjs",
@@ -71,6 +71,6 @@
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs}": "eslint --max-warnings 0 --no-warn-ignored",
-    "*": "secretlint --secretlintignore .secretlintignore"
+    "*": "secretlint --secretlintrc tools/secretlintrc.json --secretlintignore tools/secretlintignore"
   }
 }
