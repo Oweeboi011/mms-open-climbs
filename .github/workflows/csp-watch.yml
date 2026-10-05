@@ -1,0 +1,103 @@
+name: CSP watch
+
+# The Content-Security-Policy ships Report-Only (firebase.json); browsers post
+# violations to /csp-report and the cspReport function logs them. Daily:
+# - violations since CSP_SINCE → open/update one issue listing them;
+# - none for CSP_WATCH_DAYS → open a PR that switches the header to enforce.
+# Nothing is enforced without a person merging that PR.
+# Needs: GCP_SA_KEY with Logs Viewer (roles/logging.viewer) on the project.
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  PROJECT: mms-open-climbs
+  CSP_SINCE: "2026-10-05T00:00:00Z"
+  CSP_WATCH_DAYS: "14"
+  ISSUE_TITLE: "CSP violations (report-only)"
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: develop
+
+      - name: Still report-only?
+        id: mode
+        run: |
+          if grep -q '"Content-Security-Policy-Report-Only"' firebase.json; then
+            echo "reportOnly=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "CSP already enforced; nothing to watch."
+          fi
+
+      - if: steps.mode.outputs.reportOnly == 'true'
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - if: steps.mode.outputs.reportOnly == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Read violations
+        if: steps.mode.outputs.reportOnly == 'true'
+        id: read
+        run: |
+          gcloud logging read \
+            'resource.type="cloud_run_revision" AND resource.labels.service_name="cspreport" AND jsonPayload.message="CSP violation" AND timestamp>="'"$CSP_SINCE"'"' \
+            --project "$PROJECT" --format=json --limit=1000 > violations.json
+          # One row per directive + blocked origin, most frequent first.
+          jq -r '
+            map(.jsonPayload | {d: (.directive // "?"), b: ((.blocked // "?") | sub("^(?<o>[a-z]+://[^/]+).*$"; "\(.o)"))})
+            | group_by(.d, .b) | map({d: .[0].d, b: .[0].b, n: length}) | sort_by(-.n)
+            | .[] | "| `\(.d)` | `\(.b)` | \(.n) |"' violations.json > rows.md
+          echo "count=$(jq length violations.json)" >> "$GITHUB_OUTPUT"
+          echo "days=$(( ( $(date +%s) - $(date -d "$CSP_SINCE" +%s) ) / 86400 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Report violations in an issue
+        if: steps.mode.outputs.reportOnly == 'true' && steps.read.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Report-Only CSP violations since $CSP_SINCE (${{ steps.read.outputs.count }} reports, updated $(date -u +%F))."
+            echo
+            echo "| Directive | Blocked | Count |"
+            echo "|---|---|---|"
+            cat rows.md
+            echo
+            echo "Allow a legitimate origin in \`firebase.json\`, or fix the code that loads it; then move \`CSP_SINCE\` in \`.github/workflows/csp-watch.yml\` to restart the clean period."
+          } > body.md
+          n=$(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" --json number -q '.[0].number')
+          if [ -n "$n" ]; then gh issue edit "$n" --body-file body.md; else gh issue create --title "$ISSUE_TITLE" --body-file body.md; fi
+
+      - name: Propose enforcing after a clean period
+        if: >-
+          steps.mode.outputs.reportOnly == 'true' && steps.read.outputs.count == '0' &&
+          fromJSON(steps.read.outputs.days) >= fromJSON(env.CSP_WATCH_DAYS)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch=csp-enforce
+          if gh pr list --head "$branch" --state open --json number -q '.[0].number' | grep -q .; then
+            echo "Enforce PR already open."; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          sed -i 's/"Content-Security-Policy-Report-Only"/"Content-Security-Policy"/' firebase.json
+          git commit -am "feat(security): enforce the Content-Security-Policy" \
+            -m "No violations reported since $CSP_SINCE (${{ steps.read.outputs.days }} days, checked by csp-watch)."
+          git push -f origin "$branch"
+          gh pr create --base develop --head "$branch" \
+            --title "feat(security): enforce the Content-Security-Policy" \
+            --body "csp-watch found no Report-Only violations since $CSP_SINCE. Merging switches the header to enforce (report-uri stays). Close it if you'd rather wait."
