@@ -50,10 +50,14 @@ const body = {
   }
 };
 
-const res = await fetch(url, {
+// An existing profile only gets its role changed — rewriting the whole doc
+// would reset createdAt, which orders (and resumes) the all-member email.
+const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+const exists = (await fetch(url, { headers })).ok;
+const res = await fetch(exists ? `${url}?updateMask.fieldPaths=role` : url, {
   method: 'PATCH',
-  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
+  headers,
+  body: JSON.stringify(exists ? { fields: { role: body.fields.role } } : body),
 });
 
 if (res.ok) {
