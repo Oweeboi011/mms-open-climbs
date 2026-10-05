@@ -39,7 +39,7 @@ Semgrep), `codeql.yml`, `create-release.yml` (GitHub release on `main`),
 | Where | What | Set with |
 |---|---|---|
 | GitHub Actions secrets | `VITE_FIREBASE_*`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `GCP_SA_KEY` | repo settings |
-| Firebase secrets | `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL` | `firebase functions:secrets:set NAME` |
+| Firebase secrets | `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL`, `GITHUB_TOKEN` (release-note drafts) | `firebase functions:secrets:set NAME` |
 | `.env` / `functions/.env` | local only, git-ignored | copy the `.example` files |
 
 `VITE_*` values are baked into the bundle at build time, so they must be
@@ -52,7 +52,7 @@ One-off, in order, for a fresh Firebase project:
 1. Enable Auth (Email/Password + Google), Firestore, Storage, Functions;
    App Check with reCAPTCHA Enterprise.
 2. Create the Firestore database named **`openclimbs`** (not `(default)`).
-3. Set the three Firebase secrets above, and the GitHub secrets.
+3. Set the Firebase secrets above, and the GitHub secrets.
 4. Push to `develop` — CI deploys rules, indexes, storage rules, functions and
    hosting.
 5. Apply bucket config once (not part of `firebase deploy`):
@@ -64,5 +64,6 @@ One-off, in order, for a fresh Firebase project:
    `node scripts/set-admin.mjs <uid> "<Name>" <email>` (uses your
    `firebase login`). Later admins are promoted from the Users page.
 
-Security-relevant follow-ups and why they exist:
-[security-cost-hardening-2026-09](../solution-plans/security-cost-hardening-2026-09.md).
+Also once, in the Cloud console: enforce App Check for Firestore and Storage,
+a monthly budget alert, and `npx firebase-tools functions:artifacts:setpolicy`
+so old function images don't accumulate. Why each exists: [SECURITY.md](SECURITY.md).

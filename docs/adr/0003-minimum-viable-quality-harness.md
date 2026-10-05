@@ -2,7 +2,7 @@
 
 **Status**: Accepted (implemented)
 **Date**: 2026-10-05
-**Amends**: [ADR 0002](0002-code-quality-gates.md) — keeps its Gate / Advisory / Reviewed tiers, changes which tool owns each check and where it runs.
+**Supersedes**: [ADR 0002](0002-code-quality-gates.md) — keeps its Gate / Advisory / Reviewed tiers, changes which tool owns each check and where it runs.
 
 ## Context
 

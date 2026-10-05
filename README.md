@@ -160,6 +160,6 @@ Deploys happen from CI on push to `develop`: [DEPLOYMENT.md](docs/guides/DEPLOYM
 | How is it built? | [ARCHITECTURE](docs/guides/ARCHITECTURE.md) · [DATA](docs/guides/DATA.md) · [API](docs/guides/API.md) · [SECURITY](docs/guides/SECURITY.md) |
 | How do I work on it? | [CONTRIBUTING](docs/guides/CONTRIBUTING.md) · [TESTING](docs/guides/TESTING.md) · [CODE-QUALITY](docs/guides/CODE-QUALITY.md) · [TROUBLESHOOTING](docs/guides/TROUBLESHOOTING.md) |
 | How do I use it? | [USER_MANUAL](docs/guides/USER_MANUAL.md) |
-| How do we deliver it? | [docs/solution-plans/](docs/solution-plans/) — web plan, release notes, hardening, quality harness |
+| How do we deliver it? | [docs/solution-plans/](docs/solution-plans/) — web plan, release notes, quality harness |
 | Why is it like this? | [docs/adr/](docs/adr/README.md) |
 | What do the words mean? | [CONTEXT.md](CONTEXT.md) — domain glossary |

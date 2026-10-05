@@ -1,643 +1,132 @@
 # Data
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Firestore Database](#firestore-database)
-- [Collections Reference](#collections-reference)
-  - [climbs](#climbs)
-  - [climbPrivate](#climbprivate)
-  - [climbInternal](#climbinternal)
-  - [climbExpenses](#climbexpenses)
-  - [registrations](#registrations)
-  - [feedback](#feedback)
-  - [users](#users)
-  - [pageViews](#pageviews)
-  - [failedRequests](#failedrequests)
-  - [notifications](#notifications)
-  - [auditLog](#auditlog)
-  - [releaseNotes](#releasenotes)
-- [Data Relationships](#data-relationships)
-- [Status Enumerations](#status-enumerations)
-- [Denormalization Strategy](#denormalization-strategy)
-- [Atomic Counters](#atomic-counters)
-- [Data Seeding](#data-seeding)
-- [Data Export](#data-export)
-- [Data Retention](#data-retention)
-
----
-
-## Overview
-
-MMS Open Climbs uses Cloud Firestore as its sole database. Firestore is a NoSQL document store. All data is organized in the named database `openclimbs` under twelve top-level collections: `climbs`, `climbPrivate`, `climbInternal`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, and `releaseNotes`.
-
-There is no SQL schema. Documents in the same collection can have varying fields, though the application follows a consistent structure as documented here.
-
----
-
-## Firestore Database
-
-```mermaid
-graph TD
-    DB["Firestore Database\n'openclimbs'"]
-
-    subgraph Collections["Collections"]
-        C1["climbs\nOne document per climb event\npublicly readable"]
-        C1b["climbPrivate\nRegistrant-only detail for a climb\nsame doc ID as climbs"]
-        C1c["climbExpenses\nAdmin-only cost log for a climb\nsame doc ID as climbs"]
-        C2["registrations\nOne document per member registration"]
-        C2b["feedback\nOne post-climb review\nper member per climb"]
-        C3["users\nOne document per user account"]
-        C4["pageViews\nOne document per page visit"]
-        C5["failedRequests\nOne document per logged failure"]
-        C6["notifications\nOne document per bell item"]
-        C7["auditLog\nOne document per admin action"]
-        C8["releaseNotes\nOne document per announcement"]
-    end
-
-    DB --> C1
-    DB --> C1b
-    DB --> C1c
-    DB --> C2
-    DB --> C2b
-    DB --> C3
-    DB --> C4
-    DB --> C5
-    DB --> C6
-    DB --> C7
-    DB --> C8
-
-    C1 -. "same document ID" .-> C1b
-    C1 -. "same document ID" .-> C1c
-```
-
----
-
-## Collections Reference
-
-### climbs
-
-Each document represents a single climb event in the schedule. Documents are identified by an auto-generated Firestore document ID.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `title` | string | Yes | Climb name, e.g. "Mt. Pulag" |
-| `dateLabel` | string | Yes | Display date, e.g. "July 19-20" |
-| `month` | string | Yes | Lowercase month key: `jan`, `feb`, ... `dec` |
-| `startDate` | timestamp | Yes | Used for sorting the schedule |
-| `endDate` | timestamp | No | End date for multi-day climbs |
-| `location` | string | Yes | Location description |
-| `type` | string | Yes | `minor` / `major` / `special` |
-| `status` | string | Yes | `draft` / `open` / `closed` / `completed` / `cancelled` |
-| `waitlistAutoPromote` | boolean | No | Default on (absent = on). When a seat frees up, the longest-waiting registration moves back to `pending` automatically (`promoteFromWaitlist`) |
-| `paymentDueDate` | string | No | `YYYY-MM-DD`. Shown on the event page, registration form and My Climbs (with an "Overdue" flag), and quoted in daily payment reminders |
-| `cancellationPolicy` | string | No | Club-written cancellation/refund policy, shown on the event page, registration form and the member cancel dialog |
-| `donationDrive` | object | No | Outreach donation drive: `{ enabled, beneficiary, description, acceptsCash, acceptsInKind, cashGoal, neededItems: [{ name, target, unit }] }`. Older drives may carry free-text `suggestedItems` (one per line), read as items with no target. Public — the event page shows what's still needed. Set in ClimbForm (`DonationDriveFields`); worked from `/admin/climbs/:id/donations` |
-| `donationTotals` | object | No | `{ receivedCash, cashGoal, donors, itemDonations, items: [{ name, unit, target, pledged, received }] }` — public totals republished from the Donations page (`publishDonationTotals`) whenever a donation is recorded; never names donors |
-| `color` | string | No | Card color token, e.g. `c-slate` |
-| `maxParticipants` | number | Yes | Maximum allowed registrations |
-| `registrationCount` | number | Yes | Maintained by Cloud Functions — do not edit client-side |
-| `isWide` | boolean | No | Card spans 2 columns on the schedule grid |
-| `itineraryReady` | boolean | No | Shows itinerary section on event page when `true` |
-| `description` | string | No | Mountain description for the event page |
-| `elevation` | string | No | Summit elevation in MASL |
-| `difficulty` | string | No | Difficulty rating, e.g. "Moderate", "Difficult" |
-| `trailClass` | string | No | `"1"`–`"6"`, YDS-style technical difficulty scale (1 = easy walking, 6 = requires artificial climbing gear) — see `src/utils/trailClass.js` for the label/description per class; drives the "Beginner/Moderate/Advanced" badge on `ClimbCard` |
-| `jumpOff` | string | No | Jump-off point name |
-| `jumpOffElevation` | string | No | Jump-off elevation in meters |
-| `elevationGain` | string | No | Total elevation gain |
-| `distanceToSummit` | string | No | Jump-off to peak distance |
-| `roundTripDistance` | string | No | Total round trip distance |
-| `recommendedDays` | string | No | Recommended number of days |
-| `features` | string | No | Terrain features description |
-| `googleMapsUrl` | string | No | Google Maps URL for the embedded map; kept in sync with `trailMaps[0]` on save for backward compatibility (e.g. the weather forecast location lookup) |
-| `allTrailsUrl` | string | No | AllTrails link; kept in sync with `trailMaps[0]` on save |
-| `trailMaps` | object[] | No | `[{ label, googleMapsUrl, allTrailsUrl, komootUrl }]` — one or more alternate trail/route options; `allTrailsUrl`/`komootUrl` hold the URL taken from the site's pasted iframe embed code (a plain link also works) and render as embedded maps; registrants see a tab per entry on the event page when there's more than one |
-| `trailImages` | string[] | No | Firebase Storage or CDN image URLs for the photo carousel |
-| `waterSourceNote` | string | No | Water source information |
-| `weatherNote` | string | No | Seasonal weather notes |
-| `thingsToBring` | string[] | No | Recommended gear and supplies |
-| `fees` | object[] | No | `[{ label, amount, note, optional, isGuestFee, shareable }]` — `isGuestFee: true` marks the one fee charged only to non-member registrants (`memberType: "joiner"`), never to members; identified by this flag, not by label text. `shareable: true` (only meaningful alongside `optional: true`) lets admins group registrants who opt in to split one unit of the service between them — see `climbPrivate.serviceGroups` and `src/utils/registrationFees.js` |
-| `officers` | object[] | No | `[{ name, role, contact, email, userId }]` — the phone field is `contact`, not `mobile` (`mobile` is a *registration* field); `userId` links an officer to their account and is denormalised to `officerIds` on save. Used for email notifications. **This array lives on the publicly-readable climb document, so `contact` and `email` are world-readable — see the exposure note below.** |
-| `itinerary` | object[] | No | `[{ day, entries: [{ time, activity }] }]` |
-| `announcements` | object[] | No | `[{ message, pinned, createdAt }]` — shown on the public climb page under Mountain Profile; `createdAt` is a client-set epoch ms number (not a Firestore timestamp, since `serverTimestamp()` isn't valid inside array elements); `pinned` entries sort first and render as a highlighted reminder. `message` is plain text with an optional Markdown subset — bold/italic, links, `-`/`1.` lists, `#` headings, `---` dividers, pipe tables — rendered by `renderMarkdown` in `src/utils/markdownLite.jsx` (React nodes only, no raw HTML) |
-| `gcashName` | string | No | GCash account holder name |
-| `gcashNumber` | string | No | GCash mobile number |
-| `gcashQrUrl` | string | No | Firebase Storage URL for the GCash QR code image |
-| `requiresRegistrationForm` | boolean | No | When `true`, registrants must download `registrationFormUrl`, fill it out, and upload their own copy to register |
-| `registrationFormUrl` | string | No | Firebase Storage URL for the admin-uploaded registration form template |
-| `registrationFormFileName` | string | No | Original filename of the uploaded template |
-| `requiresMedicalCert` | boolean | No | When `true`, registrants must upload their own medical certificate to register |
-| `medicalCertSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded sample medical certificate (for reference only) |
-| `medicalCertSampleFileName` | string | No | Original filename of the uploaded sample |
-| `requiresPermit` | boolean | No | When `true`, registrants must upload their own mountaineering / trekking permit to register |
-| `permitSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded sample permit (for reference only) |
-| `permitSampleFileName` | string | No | Original filename of the uploaded sample |
-| `requiresWaiverDoc` | boolean | No | When `true`, registrants must download `waiverDocSampleUrl`, sign it, and upload their own copy of the Waiver of Responsibility to register (distinct from the `waiverSigned` e-signature on the registration doc) |
-| `waiverDocSampleUrl` | string | No | Firebase Storage URL for the admin-uploaded Waiver of Responsibility template |
-| `waiverDocSampleFileName` | string | No | Original filename of the uploaded template |
-| `thankYouSentAt` | timestamp | No | Set by `sendReminderNotifications` once the one-time post-climb thank-you email (`tplThankYou`) has been sent to all confirmed registrants; gates the email so it only sends once per climb — see [API.md — sendReminderNotifications](API.md#sendremindernotifications) |
-| `cancellationStatus` | string | No | `cancelled` / `postponed`, or unset/`""` for a climb that's proceeding as scheduled. **Derived, not independently edited:** `status: "cancelled"` is the source of truth for a cancelled climb, and every write site (`ClimbForm`, the inline dropdown in `ClimbsManage`) sets this field to match. Admins pick `postponed` directly, since postponement has no `status` value. Changing this triggers `onClimbUpdated`, which emails and notifies every active registrant plus officers/admins |
-| `cancellationReason` | string | No | Admin-entered reason shown to participants when `cancellationStatus` is set |
-
-#### Climb status lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> draft : Admin creates climb
-    draft --> open : Admin opens registration
-    open --> closed : Admin closes registration
-    open --> completed : Climb date passes, admin marks done
-    closed --> open : Admin re-opens registration
-    closed --> completed : Climb completed
-    open --> cancelled : Admin cancels
-    closed --> cancelled : Admin cancels
-    cancelled --> closed : Admin un-cancels
-    completed --> [*]
-    cancelled --> [*]
-```
-
-#### Officer contact details
-
-`climbs` is `allow read: if true`, so nothing private may sit on it. Officer
-**emails** are kept in admin-only [`climbInternal`](#climbinternal) and
-stripped from `officers[]` on every save (`splitOfficerEmails` in
-`src/utils/officerContacts.js`). `name`, `role`, `userId` and the phone
-`contact` stay public: the event page shows the phone number behind a "Sign in
-to view the climb officers" lock, but that lock is presentational and the
-number is still one `getDoc` away. Moving `contact` too would need a doc every
-signed-in member can read, which does not exist yet.
-
----
-
-### climbPrivate
-
-Registrant-only detail for a climb. **The document ID is the climb ID** — `climbPrivate/{climbId}` pairs 1:1 with `climbs/{climbId}`.
-
-This collection exists purely as a security boundary. `climbs` is publicly readable so that unauthenticated visitors can browse the schedule, which means anything that must *not* be public cannot live on the climb document. Pre-climb meeting details and resource links are restricted to admins and actual registrants, so they live here instead.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preClimbMeetings` | array | Meeting entries, each `{ date, time, location, notes, link, recordingLink }`. `date` is a `YYYY-MM-DD` string, not a Timestamp |
-| `resources` | array | Registrant-only resource links |
-| `participants` | array | `{ name, memberType }[]` — who's joining (pending + confirmed), names shortened to first name + last initial. Maintained by `syncParticipantList` on every registration create/status change/delete; the event page's participant list reads it (members can't query other people's registrations) |
-| `serviceGroups` | map | `{ [feeLabel]: { ids: string[] }[] }` — for a climb fee flagged `shareable`, the groups of registration IDs currently sharing one unit of that service (e.g. one porter split between three climbers). A registrant absent from every group for a label pays that fee's full amount, unchanged. Each group is wrapped as `{ ids }` because Firestore rejects nested arrays; `serviceGroupsFromDoc`/`serviceGroupsToDoc` convert to and from the in-memory `string[][]`. Written one label at a time (a merge on `serviceGroups`) from `src/components/admin/ServiceSharingCard.jsx` on ClimbDetail; read by `src/utils/registrationFees.js` (`getFeeItems`/`getExpectedTotal`/`getOutstanding`/`getAvailmentCounts`) to split the cost and the booking headcount |
-
-#### Access
-
-| Operation | Who |
-| --- | --- |
-| read | Admins, and members whose `userId` appears in `climbInternal/{climbId}.registeredUserIds` (`isRegisteredFor(climbId)`) |
-| write | Admins only |
-
-The roster in [`climbInternal`](#climbinternal) is what the rule checks, which is why the registration triggers keep it in sync — see [API.md](API.md#onregistrationcreated).
-
-#### Written and read by
-
-| Where | What |
-| --- | --- |
-| `src/pages/admin/ClimbForm.jsx` | `setDoc(..., { merge: true })` alongside every climb create/edit |
-| `src/pages/admin/ClimbDetail.jsx` / `ServiceSharingCard.jsx` | Forms/dissolves one service's sharing groups via `setDoc(..., { merge: true })` on `serviceGroups: { <label> }` |
-| `sendReminderNotifications` | Reads `preClimbMeetings` to name the next upcoming meeting in the 7/5/3/1-day reminder |
-
-#### Legacy fields
-
-Pre-climb meeting details were once a single object on the climb, then a single object here, before becoming the `preClimbMeetings` list. Both writers explicitly null out `preClimbMeetingDate`, `preClimbMeetingTime`, `preClimbMeetingLocation`, `preClimbMeetingNotes`, `preClimbMeetingLink`, and `preClimbMeetingRecordingLink` so the old shape can't linger beside the new list. Expect to see these as `null` on older documents.
-
----
-
-### climbInternal
-
-Admin-only data about a climb that must never be public. **The document ID is the climb ID.**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `registeredUserIds` | string[] | uids of the climb's active (`pending`/`confirmed`) registrants. Maintained by `onRegistrationCreated`/`Updated`/`Deleted` via `updateRoster`. Checked by the `climbPrivate` read rule and the `feedback` create rule. It used to live on the public climb doc, where anyone could enumerate every registrant |
-| `officerEmails` | object[] | `{ name, email, userId }`, index-aligned with `climbs/{id}.officers`. Written by ClimbForm; read by `getOfficerContacts` in the functions for officer notifications |
-
-#### Access
-
-| Operation | Who |
-| --- | --- |
-| read, write | Admins only (Cloud Functions write via the Admin SDK) |
-
-`node functions/scripts/backfill-climb-denorm.mjs --apply` rebuilds the roster and moves any officer emails still on climb docs into this collection.
-
----
-
-### climbExpenses
-
-Admin-only cost log for a climb. **The document ID is the climb ID** — `climbExpenses/{climbId}` pairs 1:1 with `climbs/{climbId}`, same convention as `climbPrivate`.
-
-This is a separate collection from `climbPrivate` rather than another field there specifically because `climbPrivate` is readable by any registrant of the climb — expense line items (what the club actually paid for permits, guide fees, etc.) are internal financial detail that registrants should never see, even though `climbPrivate` would otherwise be a natural fit.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `items` | array | `[{ id, label, amount, note }]` — one line item per logged cost. `id` is a client-generated string, unique within the array. Written wholesale (the full array) on every add/remove, same pattern as `preClimbMeetings` |
-
-#### Access
-
-| Operation | Who |
-| --- | --- |
-| read | Admins only |
-| write | Admins only |
-
-#### Written and read by
-
-| Where | What |
-| --- | --- |
-| `src/pages/admin/ClimbDetail.jsx` / `ExpensesCard.jsx` | Adds/removes one expense via `setDoc(..., { merge: true })` on the full `items` array |
-| `src/utils/climbExpenses.js` | `sumExpenses`/`getNetFunds` — totals expenses and nets them against verified collections (`stats.totalPaid` from `ClimbDetail.jsx`) |
-
----
-
-### registrations
-
-Each document represents a single member's registration for a single climb.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `climbId` | string | Yes | Document ID of the referenced climb |
-| `climbTitle` | string | Yes | Denormalized climb name (for display without extra reads) |
-| `climbDate` | string | Yes | Denormalized `dateLabel` |
-| `climbLocation` | string | Yes | Denormalized location |
-| `userId` | string | Yes | Firebase Auth UID of the registrant |
-| `status` | string | Yes | `pending` / `confirmed` / `waitlisted` / `cancelled` |
-| `memberType` | string | Yes | `member` / `guest` |
-| `name` | string | Yes | Full name |
-| `email` | string | Yes | Email address |
-| `mobile` | string | Yes | Mobile number |
-| `dateOfBirth` | string | No | Date of birth (YYYY-MM-DD) |
-| `address` | string | No | Home address |
-| `emergencyContact` | object | Yes | `{ name, mobile, relationship }` |
-| `medicalConditions` | string | No | Disclosed medical conditions |
-| `experienceLevel` | string | Yes | `beginner` / `intermediate` / `experienced` |
-| `waiverSigned` | boolean | Yes | `true` when member typed their signature |
-| `waiverSignedAt` | timestamp | No | Timestamp of digital signature |
-| `waiverSignedName` | string | No | Typed full name as digital signature |
-| `paymentStatus` | string | No | `unpaid` / `submitted` / `verified` / `rejected` — **derived**, never set on its own: it rolls up `payments[].status` (any payment awaiting review ⇒ `submitted`; otherwise `verified` if at least one stands, else `rejected`; no payments ⇒ `unpaid`). Members can register without paying |
-| `amountPaid` | number | No | Running total of the non-rejected payments — the source of truth for balance math; an admin can still override it from the edit modal, which the admin views flag |
-| `payments` | object[] | No | `[{ amount, proofs: [{ url, fileName }], submittedAt, status, note?, recordedBy? }]` — one entry per submission, oldest first. Members can pay in instalments (downpayment then balance, or an optional fee added later), and each submission appends an entry. `status` is `submitted`/`verified`/`rejected` and is reviewed per payment, so one instalment can be rejected while the others stand. Registrations created before this field exists carry only `amountPaid` + `paymentProofs`; `src/utils/payments.js` normalizes both shapes. Write through `buildPaymentPatch` / `setEntryStatus` / `setAllEntryStatuses` so `payments`, `amountPaid` and `paymentStatus` can't drift apart |
-| `paymentProofs` | object[] | No | `[{ url, fileName }]` — flat list of every uploaded receipt across all payments |
-| `paymentSubmittedAt` | timestamp | No | Set when the member submits (or resubmits) a GCash proof — reflects the most recent submission |
-| `verifiedAt` | timestamp | No | Set when an admin marks the payment `verified`; cleared on resubmission |
-| `verifiedBy` | object | No | `{ uid, name }` of the admin who verified the payment; cleared on resubmission |
-| `feeBreakdown` | object[] | No | `[{ label, amount, optional, selected }]` |
-| `registrationFormUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresRegistrationForm` is `true` |
-| `medicalCertUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresMedicalCert` is `true` |
-| `permitUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresPermit` is `true` |
-| `waiverDocUpload` | object | No | `{ url, fileName }` — the member's uploaded copy, required when the climb's `requiresWaiverDoc` is `true` |
-| `adminNotes` | string | No | Admin-only internal notes |
-| `attended` / `attendedMarkedBy` / `attendedMarkedAt` | boolean / string / Timestamp | No | Ticked Present on the climb-day sheet (`/admin/climbs/:id/sheet`). Ticking also clears any no-show; a present registrant who isn't `confirmed` is flagged there with an on-the-spot Confirm |
-| `noShow` | boolean | No | `true` when a confirmed registrant didn't turn up on climb day. A flag, not a status — the registration stays `confirmed`, so payments, counters and status emails are untouched. Set by admins after the climb (`src/utils/noShow.js`); no-shows get no thank-you/feedback request, and ClimbDetail warns on members with earlier no-shows |
-| `noShowMarkedBy` / `noShowMarkedAt` | string / Timestamp | No | Who marked the no-show and when; cleared on undo |
-| `cancelledByMember` / `cancelledAt` | boolean / Timestamp | No | Set when the member cancelled from My Climbs (rules: `memberIsCancellingOwn` — only to `cancelled`, only from a live status). Reinstating is admin-only |
-| `privacyConsentAt` / `privacyNoticeVersion` | Timestamp / string | No | When the member consented to the Privacy Notice (Data Privacy Act, RA 10173) and which version (`src/data/privacyNotice.js`). Required on self-registration by the form; absent on admin-added walk-ins and pre-2026-09 registrations |
-| `promotedFromWaitlistAt` | Timestamp | No | When `promoteFromWaitlist` moved it from `waitlisted` back to `pending` |
-| `autoWaitlisted` | boolean | No | `true` when `onRegistrationCreated` moved it to the waitlist because the climb was full |
-| `donation` | object \| null | No | Member's outreach pledge `{ cashPledge: number\|null, inKind: string, payWithFees: boolean, itemPledges?: [{ name, qty }] }` (`itemPledges` against the drive's `neededItems`). With `payWithFees` (the default for cash) the pledge is added to what they owe as a `Donation — {beneficiary}` line (`getDonationFeeItem`, mirrored in `functions/src/paymentMath.js`) and paid by GCash with their fees; the part of their payments beyond their fees, up to the pledge, is the donation and is kept out of net funds. Otherwise cash is handed to leads on climb day. Member-writable (rules: `pledgeIsValid`) |
-| `donationReceived` | object \| null | No | What leads actually received `{ cash, items, itemQuantities?: [{ name, qty }], receivedBy, receivedAt }`. Admin-only; audit-logged as `donation_recorded` |
-| `cancellationReason` | string | No | Reason provided when `status = cancelled` |
-| `confirmedAt` | timestamp | No | Set when status changes to `confirmed` |
-| `createdAt` | timestamp | Yes | Firestore server timestamp on creation |
-| `updatedAt` | timestamp | Yes | Firestore server timestamp on last update |
-
-#### Registration status lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> pending : Member submits registration
-    pending --> confirmed : Admin confirms
-    pending --> waitlisted : Climb full, admin waitlists
-    pending --> cancelled : Admin or member cancels
-    confirmed --> cancelled : Admin or member cancels
-    waitlisted --> confirmed : Spot opens, admin confirms
-    waitlisted --> cancelled : Admin or member cancels
-    cancelled --> [*]
-```
-
-#### Payment status lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> unpaid : Member registers without payment
-    [*] --> submitted : Member uploads GCash proof at registration
-    unpaid --> submitted : Member submits payment later (My Climbs)
-    submitted --> verified : Admin confirms payment
-    submitted --> rejected : Admin rejects (wrong amount or unclear image)
-    rejected --> submitted : Member re-uploads proof
-    verified --> [*]
-```
-
----
-
-### feedback
-
-One post-climb review per member per climb. **The document ID is deterministic: `{climbId}_{userId}`.**
-
-That id is the whole enforcement mechanism for "one entry per member per climb". Rules allow `create` but deny `update` and `delete` outright, so a second submission targets the same document ID, is evaluated as an update, and is refused — no query or transaction needed.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `climbId` | string | Climb being reviewed; must be a string per rules |
-| `climbTitle` | string | Denormalized title at submission time |
-| `userId` | string | Author's UID; must equal the caller's own UID |
-| `name` | string | Author's display name at submission time |
-| `rating` | number | Integer 1–5, range-enforced in rules |
-| `comments` | string | Free text, trimmed client-side; may be empty |
-| `createdAt` | Timestamp | `serverTimestamp()` |
-
-#### Access
-
-| Operation | Who |
-| --- | --- |
-| create | Signed-in member writing their own `userId`, with an integer `rating` between 1 and 5 |
-| read | Admins, or the author |
-| update, delete | **Nobody** — immutable once written |
-
-#### Written and read by
-
-| Where | What |
-| --- | --- |
-| `src/pages/ClimbFeedback.jsx` | The `/feedback/{climbId}` page; also reads the existing doc first so a returning member sees what they already submitted |
-| `src/pages/admin/ClimbDetail.jsx` | Live `onSnapshot` query by `climbId` for the admin view |
-
-Members reach this page from the thank-you email and the `feedback_request` bell notification, both sent by `sendReminderNotifications` once a climb ends — see [API.md](API.md#sendremindernotifications).
-
----
-
-### users
-
-Each document represents one user account. The document ID equals the Firebase Auth UID.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `displayName` | string | Yes | User's full name |
-| `email` | string | Yes | User's email address |
-| `role` | string | Yes | `member` (default) or `admin` |
-| `photoURL` | string | No | Google profile photo URL (Google sign-in accounts only) |
-| `createdAt` | timestamp | Yes | Firestore server timestamp on creation |
-| `addedBy` | string | Yes | Firebase Auth UID of the creating admin, or `"self"` for self-registration |
-
-#### User role model
-
-```mermaid
-flowchart LR
-    A["New user signs up\n(self-registration)"]
-    B["New user created by admin\n(createUser callable)"]
-    C["role: member\n(default for all new accounts)"]
-    D["role: admin\n(set via set-admin.mjs script\nor createUser with role: admin)"]
-
-    A --> C
-    B --> C
-    B --> D
-    C -->|promoted by admin| D
-```
-
----
-
-### pageViews
-
-Each document records one page view event. Used by the Admin Analytics page.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `path` | string | Yes | URL path, e.g. `/event/abc123` |
-| `userId` | string | No | Firebase Auth UID if signed in, otherwise `null` |
-| `createdAt` | timestamp | Yes | Firestore server timestamp of the page view |
-
-Write access is public (any visitor can write). Read, update, and delete are restricted to admins only.
-
----
-
-### failedRequests
-
-Each document records one failure the admin "Failed Requests" analytics section surfaces — a failed Brevo email send, a failed Storage upload, a failed Firestore write/read, or an uncaught client-side error. Written both by clients (fire-and-forget, mirroring `pageViews`) and by Cloud Functions (via the Admin SDK).
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `type` | string | Yes | `email` / `upload` / `firestore` / `client` / `payment` — the set is enforced by `firebase/firestore.rules`, so a new value must be added there too or the write is silently rejected |
-| `source` | string | Yes | Origin of the failure, e.g. `onRegistrationCreated`, `Register.jsx:paymentUpload`, `window.onerror` |
-| `message` | string | Yes | Error message, truncated to 500 characters |
-| `path` | string | No | Route path, client-side failures only; `null` for Cloud Functions |
-| `userId` | string | No | Firebase Auth UID if known, otherwise `null` |
-| `userRole` | string | No | `guest` / `member` / `admin` if known, otherwise `null` |
-| `climbId` | string | No | Related climb document ID, if applicable |
-| `registrationId` | string | No | Related registration document ID, if applicable |
-| `createdAt` | timestamp | Yes | Firestore server timestamp of the failure |
-
-Write access is public (any visitor's browser can log a client-side failure, same as `pageViews`). Read, update, and delete are restricted to admins only.
-
----
-
-### notifications
-
-Each document is one in-app reminder shown in the notification bell. Written only by Cloud Functions (Admin SDK bypasses security rules) — clients cannot create or delete them, only toggle `read`.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `userId` | string | Yes | Firebase Auth UID of the recipient |
-| `type` | string | Yes | `payment_reminder` / `payment_verified` / `payment_submitted` / `document_reminder` / `climb_announcement` / `status_update` / `upcoming_climb` / `climb_status_change` |
-| `title` | string | Yes | Short headline shown in the bell dropdown |
-| `message` | string | No | Supporting detail text |
-| `link` | string | No | In-app path to navigate to on click (e.g. `/my-registrations`) |
-| `read` | boolean | Yes | Toggled by the owning member when they open/dismiss it |
-| `createdAt` | timestamp | Yes | Firestore server timestamp — reminders may bump this to resurface as unread |
-
-Some notification IDs are deterministic (e.g. `payment_{regId}`, `upcoming3_{regId}`, `upcoming1_{regId}`) so recurring reminders upsert the same document instead of piling up duplicates. A daily scheduled function (`sendReminderNotifications`) re-flags unpaid/rejected registrations as unread and notifies confirmed registrants 3 days and 1 day before their climb's `startDate`.
-
----
-
-### auditLog
-
-Each document records one admin action, surfaced in the "Recent Admin Activity" table on the App Insights page (`/admin/insights`). Written client-side by admin pages (`ManagePayments.jsx`, `ClimbDetail.jsx`, `ClimbForm.jsx`, `AllRegistrations.jsx`) via the `logAuditEvent` helper (`src/utils/auditLog.js`); never fails the action it describes.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `actorUid` | string | No | Firebase Auth UID of the admin who performed the action |
-| `actorName` | string | Yes | Display name or email of the admin |
-| `action` | string | Yes | e.g. `payment_status_verified`, `registration_status_confirmed`, `registration_edited`, `climb_created`, `climb_updated`, `transportation_toggled` |
-| `targetType` | string | No | `registration` / `climb` |
-| `targetId` | string | No | Document ID of the affected record |
-| `targetLabel` | string | No | Human-readable label (participant name or climb title) for display |
-| `details` | string | No | Optional extra context |
-| `createdAt` | timestamp | Yes | Firestore server timestamp |
-
-Read and create are admin-only; update and delete are disabled — it's an append-only log.
-
----
-
-### releaseNotes
-
-Each document is one "what's new" announcement, authored by an admin. Members browse the published history at `/release-notes`; publishing can also email every member (`sendReleaseNoteEmail`).
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `title` | string | Yes | Headline shown in the popup, history page, and email subject |
-| `body` | string | Yes | Free-text content; blank lines separate paragraphs |
-| `status` | string | Yes | `draft` or `published` — only `published` notes are visible to members or emailable |
-| `createdAt` | timestamp | Yes | Firestore server timestamp on creation |
-| `updatedAt` | timestamp | No | Firestore server timestamp on last edit |
-| `publishedAt` | timestamp | No | Set the first time `status` transitions to `published`; drives the "newest note" ordering |
-| `createdBy` | string | Yes | Firebase Auth UID of the authoring admin |
-| `emailSentAt` | timestamp | No | Set by the `sendReleaseNoteEmail` callable after a successful email blast |
-| `emailSentCount` | number | No | Count of members successfully emailed on the last send |
-
-Reads are restricted to signed-in users, and only admins may see `draft` notes. All writes are admin-only. The `sendReleaseNoteEmail` callable (admin-only) emails every document in `users` with an `email` field via the existing Brevo pipeline.
-
----
-
-## Data Relationships
-
-Firestore is a document database with no native joins. Relationships are expressed through document ID references and selective denormalization.
+Cloud Firestore, named database **`openclimbs`** (not `(default)`). Field
+lists below cover what isn't obvious from the code — self-describing display
+fields (`title`, `location`, `elevation`, …) are left to the forms that write
+them. Rules: `firebase/firestore.rules`; how they're tested:
+[TESTING.md](TESTING.md).
 
 ```mermaid
 erDiagram
-    climbs {
-        string id PK
-        string title
-        string status
-        number maxParticipants
-        number registrationCount
-        object[] officers
-        object[] fees
-    }
-
-    registrations {
-        string id PK
-        string climbId FK
-        string userId FK
-        string climbTitle
-        string climbDate
-        string climbLocation
-        string status
-        string paymentStatus
-    }
-
-    users {
-        string id PK
-        string displayName
-        string email
-        string role
-    }
-
-    pageViews {
-        string id PK
-        string path
-        string userId FK
-    }
-
-    climbs ||--o{ registrations : "climbId references climbs.id"
-    users ||--o{ registrations : "userId references users.id"
-    users ||--o{ pageViews : "userId references users.id (nullable)"
+    climbs ||--o| climbPrivate : "same id · registrants"
+    climbs ||--o| climbInternal : "same id · admins"
+    climbs ||--o| climbExpenses : "same id · admins"
+    climbs ||--o{ registrations : climbId
+    users ||--o{ registrations : userId
+    climbs ||--o{ feedback : "{climbId}_{userId}"
+    users ||--o{ notifications : userId
 ```
 
----
+| Collection | One doc per | Read | Write |
+|---|---|---|---|
+| `climbs` | climb | **public** | admin |
+| `climbPrivate` | climb (same id) | admin + registrants of that climb | admin |
+| `climbInternal` | climb (same id) | admin | admin, Functions |
+| `climbExpenses` | climb (same id) | admin | admin |
+| `registrations` | member × climb | owner, admin | owner (narrow, see rules), admin, Functions |
+| `feedback` | member × climb, id `{climbId}_{userId}` | author, admin | author create only — immutable |
+| `users` | account, id = Auth uid | owner, admin | owner (never `role`), admin |
+| `notifications` | bell item | owner, admin | Functions; owner toggles `read` |
+| `pageViews`, `failedRequests` | event | admin | **public create** (logging before sign-in) |
+| `auditLog` | admin action | admin | admin create — append-only |
+| `releaseNotes` | announcement | signed-in (drafts: admin) | admin |
 
-## Status Enumerations
+The `climbPrivate` / `climbInternal` / `climbExpenses` split exists only
+because `climbs` is world-readable: anything private needs its own document.
 
-### Climb status
+## climbs
 
-| Value | Meaning |
-| --- | --- |
-| `draft` | Climb created but not yet visible for registration |
-| `open` | Registration is open — members can submit registrations |
-| `closed` | Registration is closed — no new registrations accepted |
-| `completed` | Climb has taken place |
+| Field | Meaning |
+|---|---|
+| `status` | `draft` → `open` ⇄ `closed` → `completed`; `cancelled` from open/closed (reversible to closed) |
+| `cancellationStatus` | `cancelled` / `postponed` / empty. **Derived** from `status: "cancelled"` at every write site; `postponed` is set directly. A change fires `onClimbUpdated` emails |
+| `registrationCount`, `docsCompleteCount` | Maintained by triggers with atomic increments — **never write from the client** |
+| `maxParticipants`, `waitlistAutoPromote` | Capacity; auto-promotion from the waitlist is on unless `false` |
+| `fees[]` | `{ label, amount, note, optional, isGuestFee, shareable }`. `isGuestFee` = charged only to `memberType: "joiner"` (flag, not label). `shareable` optional fees can be split via `climbPrivate.serviceGroups` |
+| `officers[]` | `{ name, role, contact, userId }` — public. Emails are stripped on save into `climbInternal.officerEmails`; the phone `contact` stays public (the sign-in lock on the event page is cosmetic) |
+| `requires{RegistrationForm,MedicalCert,Permit,WaiverDoc}` + `…Url`/`…FileName` | Per-climb required documents and their templates; pairs with `REQUIRED_DOC_TYPES` |
+| `announcements[]` | `{ message, pinned, createdAt }`; `createdAt` is epoch ms (no `serverTimestamp()` in arrays). Markdown subset via `src/utils/markdownLite.jsx` — React nodes only |
+| `trailMaps[]` | `{ label, googleMapsUrl, allTrailsUrl, komootUrl }`; `googleMapsUrl`/`allTrailsUrl` at top level mirror `trailMaps[0]` |
+| `donationDrive`, `donationTotals` | Outreach drive config, and public totals republished on every recorded donation (no donor names) |
+| `paymentDueDate` | `YYYY-MM-DD`; drives "Overdue" and reminder wording |
+| `thankYouSentAt` | Set once the post-climb thank-you went out; makes it one-time |
 
-### Registration status
+## climbPrivate · climbInternal · climbExpenses
 
-| Value | Meaning |
-| --- | --- |
-| `pending` | Submitted, awaiting admin confirmation |
-| `confirmed` | Admin-confirmed — member has a guaranteed spot |
-| `waitlisted` | Climb full — member is on the waitlist |
-| `cancelled` | Registration cancelled by admin or member |
+| Doc | Field | Meaning |
+|---|---|---|
+| `climbPrivate` | `preClimbMeetings[]` | `{ date (YYYY-MM-DD), time, location, notes, link, recordingLink }`. Old single-meeting fields are written `null` |
+| | `resources[]` | Registrant-only links |
+| | `participants[]` | `{ name (first + initial), memberType }` for the public-ish participant list; kept by `syncParticipantList` |
+| | `serviceGroups` | `{ [feeLabel]: [{ ids: regId[] }] }` — who shares one unit of a shareable fee (wrapped because Firestore forbids nested arrays) |
+| `climbInternal` | `registeredUserIds[]` | Active (`pending`/`confirmed`) registrant uids. Kept by the registration triggers; checked by the `climbPrivate` read and `feedback` create rules |
+| | `officerEmails[]` | `{ name, email, userId }`, index-aligned with `climbs.officers` |
+| `climbExpenses` | `items[]` | `{ id, label, amount, note }`, written whole; netted against collections by `src/utils/climbExpenses.js` |
 
-### Payment status
+`node functions/scripts/backfill-climb-denorm.mjs --apply` rebuilds the
+roster and moves stray officer emails off climb docs.
 
-| Value | Meaning |
-| --- | --- |
-| `unpaid` | Member registered without submitting a GCash proof yet |
-| `submitted` | Member uploaded a GCash proof — awaiting admin review |
-| `verified` | Admin confirmed payment matches the expected amount |
-| `rejected` | Admin rejected the proof — member must resubmit |
+## registrations
 
-### Member type
+Denormalised at creation (not updated later): `climbTitle`, `climbDate`,
+`climbLocation`. Personal details (`name`, `email`, `mobile`,
+`emergencyContact`, `medicalConditions`, …) are the member's and stay
+editable by them.
 
-| Value | Meaning |
-| --- | --- |
-| `member` | MMS club member |
-| `guest` | Non-member guest registering with a member |
-
-### Experience level
-
-| Value | Meaning |
-| --- | --- |
-| `beginner` | Little or no mountaineering experience |
-| `intermediate` | Some climb experience, completed minor climbs |
-| `experienced` | Regular climber with major climb experience |
-
----
-
-## Denormalization Strategy
-
-Some fields from the `climbs` collection are copied (denormalized) into each `registrations` document at creation time. This allows the admin registrations views to display climb context without issuing extra Firestore reads per registration.
-
-| Field in registrations | Source | Notes |
-| --- | --- | --- |
-| `climbTitle` | `climbs.title` | Set at registration time — not updated if the climb title changes |
-| `climbDate` | `climbs.dateLabel` | Set at registration time |
-| `climbLocation` | `climbs.location` | Set at registration time |
-
----
-
-## Atomic Counters
-
-`climbs.registrationCount` is maintained exclusively by Cloud Functions using Firestore's `FieldValue.increment()`. This is an atomic server-side operation that prevents the race condition that would arise from client-side read-increment-write sequences.
+| Field | Meaning |
+|---|---|
+| `status` | `pending` / `confirmed` / `waitlisted` / `cancelled` (diagram below) |
+| `memberType` | `member` / `joiner` (non-member; pays the guest fee) |
+| `payments[]` | `{ amount, proofs[{url,fileName}], submittedAt, status, note?, recordedBy?, reviewedBy?, paidBy?, splitTo? }`, oldest first; each reviewed on its own |
+| `paymentStatus` | **Derived** from `payments[].status`: any awaiting review ⇒ `submitted`; else `verified` if one stands; else `rejected`; none ⇒ `unpaid` |
+| `amountPaid` | Sum of non-rejected payments — what balance math uses |
+| | Write all three only through `buildPaymentPatch` / `setEntryStatus` / `setAllEntryStatuses` (`src/utils/payments.js`). Old docs with only `amountPaid` + `paymentProofs` are normalised by `getPaymentEntries` |
+| `feeBreakdown[]` | Fee snapshot at registration; used only when the climb has no fee schedule |
+| `…Upload` (`registrationForm`, `medicalCert`, `permit`, `waiverDoc`) | `{ url, fileName }` for each required document |
+| `waiverSigned`, `waiverSignedName`, `waiverSignedAt` | Typed e-signature (separate from an uploaded waiver document) |
+| `privacyConsentAt`, `privacyNoticeVersion` | Data Privacy Act consent; absent on admin-added walk-ins |
+| `noShow`, `attended` (+ `…MarkedBy/At`) | Climb-day flags, not statuses — payments and counters untouched |
+| `cancelledByMember`, `cancelledAt`, `cancellationReason` | Members may only cancel their own live registration; reinstating is admin-only |
+| `autoWaitlisted`, `promotedFromWaitlistAt` | Set by the triggers |
+| `donation`, `donationReceived` | Member pledge (`payWithFees` adds a donation line to what they owe); what leads actually received (admin-only) |
+| `adminNotes` | Admin-only |
 
 ```mermaid
-sequenceDiagram
-    participant CF as Cloud Function
-    participant FS as Firestore
-
-    CF->>FS: update climbs/{id}: { registrationCount: FieldValue.increment(1) }
-    Note over FS: Atomic server-side increment\nNo read required\nRace-condition-safe
-    FS-->>CF: Write confirmed
+stateDiagram-v2
+    [*] --> pending
+    [*] --> waitlisted : climb full
+    pending --> confirmed
+    pending --> waitlisted
+    waitlisted --> pending : seat frees (auto)
+    pending --> cancelled
+    confirmed --> cancelled
+    waitlisted --> cancelled
 ```
 
-**Do not modify `registrationCount` from the client.** If the count becomes incorrect due to a failed function execution, it can be manually corrected in the Firebase Console.
+## Other collections
 
----
+- **users** — `displayName`, `email`, `role` (`member` default; `admin` via
+  `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`.
+  `syncAdminClaim` mirrors it into an auth claim for Storage rules.
+- **feedback** — `rating` integer 1–5 and `comments`. The deterministic id is
+  the one-per-member rule: a second submit becomes an update, which the rules
+  refuse.
+- **notifications** — `userId`, `type`, `title`, `message`, `link`, `read`,
+  `createdAt`. Ids and types: [API.md](API.md#notifications-ids-are-the-design).
+- **failedRequests** — `type` must be one of the values the rules allow
+  (`email`/`upload`/`firestore`/`client`/`payment`); a new type needs a rules
+  change or the write is silently dropped.
+- **auditLog** — `actorUid`, `actorName`, `action` (e.g.
+  `payment_status_verified`), `target{Type,Id,Label}`, `details`. Written by
+  `logAuditEvent`; never blocks the action.
+- **releaseNotes** — `status` `draft`/`published`; `publishedAt` orders them;
+  `emailSentAt`/`emailSentCount` set by `sendReleaseNoteEmail`.
+- **pageViews** — `path`, `userId`, `createdAt`; admin views can be purged with
+  `functions/scripts/purge-admin-pageviews.mjs`.
 
-## Data Seeding
+## Retention
 
-A seed script is provided for populating the local Firebase emulator with sample climb data:
-
-```bash
-node scripts/seed-climbs.mjs
-```
-
-This script targets the local emulator. Ensure the emulator is running before executing it.
-
----
-
-## Data Export
-
-Admins can export registration data to CSV from **Admin > All Registrations**. The export includes all visible fields from the filtered registrations table.
-
-For a full Firestore export, use the Firebase Console or the `gcloud firestore export` command (requires project Owner or Firestore Admin role).
-
----
-
-## Data Retention
-
-There is no automated data retention or purge policy currently implemented. All registrations, users, and climb data persist indefinitely.
-
-A utility script is provided for purging admin page view data if the `pageViews` collection grows large:
-
-```bash
-node functions/scripts/purge-admin-pageviews.mjs
-```
-
-This removes `pageViews` documents generated by admin users, which can inflate analytics data.
+Firestore data is kept indefinitely; member uploads (payment proofs and
+required documents) are deleted after two years by
+`firebase/storage-lifecycle.json`. Registration CSV export: Admin › All
+Registrations. Sample climbs: `node scripts/seed-climbs.mjs`.

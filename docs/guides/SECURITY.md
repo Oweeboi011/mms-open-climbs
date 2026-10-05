@@ -1,392 +1,84 @@
 # Security
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Security Architecture](#security-architecture)
-- [Authentication](#authentication)
-- [Authorization Model](#authorization-model)
-- [Firestore Security Rules](#firestore-security-rules)
-- [Client-Side Route Guards](#client-side-route-guards)
-- [Secrets Management](#secrets-management)
-- [Data Validation](#data-validation)
-- [Email Security](#email-security)
-- [File Upload Security](#file-upload-security)
-- [OWASP Top 10 Assessment](#owasp-top-10-assessment)
-- [Recommended Hardening](#recommended-hardening)
-
----
-
-## Overview
-
-MMS Open Climbs applies a defense-in-depth approach. Security controls are layered across the client, the Firebase platform, and the Cloud Functions backend. No single layer is treated as sufficient on its own.
-
-Key principles:
-
-- **Zero secrets in the browser** — Brevo credentials and admin tooling credentials never reach the client.
-- **Server-side enforcement** — Firestore security rules enforce access control regardless of client behavior.
-- **Least privilege** — Members can only read and write their own data. Admins have elevated access only where required.
-- **Firebase-managed identity** — Passwords and tokens are handled entirely by Firebase Auth; the application never sees or stores credentials.
-
----
-
-## Security Architecture
-
-```mermaid
-flowchart TB
-    subgraph Users["User Types"]
-        PU["Public Visitor\n(unauthenticated)"]
-        MU["Authenticated Member\n(role: member)"]
-        AU["Admin User\n(role: admin)"]
-    end
-
-    subgraph ClientLayer["Client Security Layer"]
-        PR["ProtectedRoute\nBlocks unauthenticated access\nRedirects to /login"]
-        AR["AdminRoute\nBlocks non-admin access\nRedirects to /"]
-    end
-
-    subgraph ServerLayer["Server Security Layer (Firestore Rules)"]
-        CR["climbs\npublic read\nadmin write only"]
-        RR["registrations\nowner read + create\nadmin read + write all"]
-        UR["users\nany signed-in read\nowner or admin update\nadmin delete"]
-        PV["pageViews\npublic create\nadmin read/update/delete"]
-        RN["releaseNotes\nsigned-in read (published only)\nadmin read (draft) + write"]
-        FR["failedRequests\npublic create\nadmin read/update/delete"]
-        NT["notifications\nowner read + toggle read flag only\nadmin read\ncreate/delete: server (Admin SDK) only"]
-    end
-
-    subgraph FunctionLayer["Cloud Function Security"]
-        CF1["onRegistrationCreated\nNo auth check — triggered server-side only"]
-        CF2["onRegistrationUpdated\nNo auth check — triggered server-side only"]
-        CF3["createUser\nVerifies caller role via Firestore\nbefore executing"]
-        CF4["sendReleaseNoteEmail\nVerifies caller role via requireAdmin()\nbefore emailing every user"]
-        CF5["updateUserProfile / deleteUserAccount\nVerifies caller role via requireAdmin();\ndeleteUserAccount also blocks self-deletion"]
-        CF6["getReleaseNoteCommitOptions / generateReleaseNoteDraft\nVerifies caller role via requireAdmin()\nbefore calling the GitHub API"]
-        CF7["sendReminderNotifications\nNo auth check — Cloud Scheduler only,\nwrites notifications + thank-you emails via Admin SDK"]
-    end
-
-    PU -->|blocked by| PR
-    MU --> PR --> RR
-    MU --> PR --> RN
-    AU --> AR --> CR
-    AU --> AR --> UR
-    AU --> AR --> RR
-    AU --> AR --> RN
-    AU --> CF3
-    AU --> CF4
-    AU --> CF5
-    AU --> CF6
-```
-
----
-
-## Authentication
-
-```mermaid
-flowchart TD
-    A["User submits credentials or initiates Google OAuth"]
-    B["Firebase Auth validates credentials"]
-    C["Firebase issues short-lived JWT (ID token)"]
-    D["onAuthStateChanged fires in AuthContext"]
-    E["App fetches users/{uid} from Firestore"]
-    F["App state: currentUser + userProfile + isAdmin"]
-    G["Token auto-refreshes every 1 hour via Firebase SDK"]
-
-    A --> B --> C --> D --> E --> F --> G
-```
-
-### Supported providers
-
-| Provider | Method | Notes |
-| --- | --- | --- |
-| Email/Password | `signInWithEmailAndPassword` | Passwords managed entirely by Firebase |
-| Google OAuth | `signInWithPopup` | Falls back gracefully when popup is blocked |
-
-### Password handling
-
-- Passwords are never stored, transmitted to, or logged by the application.
-- Password resets use Firebase's built-in `sendPasswordResetEmail` — the app only triggers the flow.
-- Admin-created accounts use `generatePasswordResetLink` to send a first-time account setup link via Brevo.
-
----
-
-## Authorization Model
-
-Role-based access is enforced at two independent layers: the React client and the Firestore server. An attacker bypassing the client layer still cannot read or write data beyond what Firestore rules allow.
+The browser talks to Firebase directly, so **the security rules are the
+access control**; route guards are only UX. Secrets live in Cloud Functions
+only. Rules are tested on the emulators (`npm run test:integration`, a CI
+gate before every deploy).
 
 ```mermaid
 flowchart LR
-    subgraph Roles["User Roles"]
-        PUB["anonymous"]
-        MEM["member"]
-        ADM["admin"]
-    end
-
-    subgraph Permissions["Permissions"]
-        P1["Read climbs (all)"]
-        P2["Read own registrations"]
-        P3["Create own registration\n(only when climb is open)"]
-        P4["Update own registration"]
-        P5["Read all user profiles"]
-        P6["Read all registrations"]
-        P7["Write climbs"]
-        P8["Write/delete any registration"]
-        P9["Write/delete users"]
-        P10["Create pageViews"]
-        P11["Read published release notes"]
-        P12["Write release notes (any status)"]
-        P13["Trigger release note email to all members"]
-    end
-
-    PUB --> P1
-    PUB --> P10
-    MEM --> P1
-    MEM --> P2
-    MEM --> P3
-    MEM --> P4
-    MEM --> P5
-    MEM --> P10
-    MEM --> P11
-    ADM --> P1
-    ADM --> P2
-    ADM --> P3
-    ADM --> P4
-    ADM --> P5
-    ADM --> P6
-    ADM --> P7
-    ADM --> P8
-    ADM --> P9
-    ADM --> P10
-    ADM --> P11
-    ADM --> P12
-    ADM --> P13
+    B[Browser] -->|App Check + ID token| R{firestore.rules<br/>storage.rules}
+    R -->|allowed| D[(Firestore / Storage)]
+    D -->|writes| T[Triggers<br/>Admin SDK, bypass rules]
+    T -->|clamp forged payment verdicts| D
+    B -->|callables| C[Functions<br/>requireAdmin]
+    C -->|secrets| X[Brevo · GitHub · BigQuery]
 ```
 
-Note that P13 (mass-emailing every member) is currently gated only by the same `admin` role used for every other admin capability — there is no narrower "release manager" grant. See [release-notes plan — Proposed Governance-Ready Architecture](../solution-plans/release-notes.md#proposed-governance-ready-architecture) for a proposed finer-grained role.
+## Identity and roles
 
----
+- Firebase Auth (email/password, Google). The app never handles passwords;
+  admin-created accounts get a password-setup link.
+- Role = `users/{uid}.role` (`member` | `admin`). Rules read it on every
+  admin check, so a demotion is immediate.
+- Members can create their profile only as `member` and can never change
+  `role` afterwards — both halves block self-promotion.
+- `isAdmin()` is `exists()`-guarded: a missing profile doc must deny, not
+  error the whole rule.
+- **Storage rules can't read the named database**, so they check an `admin`
+  custom claim. `syncAdminClaim` mirrors the role into it; an admin whose
+  token is behind calls `ensureAdminClaim` and refreshes.
 
-## Firestore Security Rules
+## What the rules enforce
 
-Rules are defined in `firebase/firestore.rules` and deployed with `firebase deploy --only firestore:rules`.
+Per-collection read/write is summarised in [DATA.md](DATA.md). The
+non-obvious guarantees:
 
-```mermaid
-flowchart TD
-    subgraph Helper["Helper Functions"]
-        H1["isSignedIn()\nrequest.auth != null"]
-        H2["isAdmin()\nisSignedIn() AND\nusers/{uid}.role == admin"]
-        H3["isOwner(userId)\nisSignedIn() AND\nrequest.auth.uid == userId"]
-        H4["climbIsOpen(climbId)\ncliimbs/{climbId}.status == open"]
-    end
+| Guarantee | How |
+|---|---|
+| Register only for an open climb, only as yourself, with a pinned initial state | `registrations` create checks `climbIsOpen`, owner, `status`/payment fields, `memberType ∈ {member, joiner}`, and `email == request.auth.token.email` |
+| Members declare payments; only admins accept them | Owner updates are limited to member-writable fields; a member may append exactly one `submitted` payment, `amountPaid` may grow only by it, `paymentStatus` only to `unpaid`/`submitted`, verification fields only cleared |
+| A forged per-payment verdict doesn't stick | Rules can't iterate arrays, so `onRegistrationUpdated` clamps non-admin edits to `payments[].status` and rewrites the doc ([API.md](API.md#registration-triggers)) |
+| Private climb data stays private | `climbs` is public, so briefings live in `climbPrivate` (registrants only, via the `climbInternal` roster) and costs/officer emails in admin-only docs |
+| One feedback per member per climb | Deterministic id + no update/delete; author must be on the roster |
+| Notifications are server-made | Clients may only flip `read` on their own |
+| Member uploads are private | Storage: owner-or-admin read; members add files to their own folder only, never overwrite/delete; content types checked; admin-only for QR, images, templates |
 
-    subgraph Collections["Collection Rules"]
-        C1["users/{userId}\nread: isSignedIn\ncreate: isOwner AND role=member only\nupdate: isAdmin OR (isOwner AND role unchanged)\ndelete: isAdmin"]
-        C2["climbs/{climbId}\nread: public\nwrite: isAdmin"]
-        C3["registrations/{regId}\nread: isOwner OR isAdmin\ncreate: isOwner AND climbIsOpen\nupdate: isAdmin OR (isOwner AND member-writable fields only\nAND cannot self-verify)\ndelete: isAdmin"]
-        C4["pageViews/{viewId}\ncreate: public\nread/update/delete: isAdmin"]
-        C5["releaseNotes/{noteId}\nread: isSignedIn AND (published OR isAdmin)\nwrite: isAdmin"]
-        C6["failedRequests/{id}\ncreate: public\nread/update/delete: isAdmin"]
-        C7["notifications/{notifId}\nread: isOwner OR isAdmin\nupdate: isOwner AND only the read field changed\ncreate/delete: false (Admin SDK bypasses rules)"]
-    end
-```
+## Secrets and keys
 
-**`notifications` collection — server-only writes**
+| Value | Where | Who sees it |
+|---|---|---|
+| `VITE_FIREBASE_*`, `VITE_APPCHECK_SITE_KEY` | `.env` → bundle | Public by design: identifies the project, rules do the protecting |
+| `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL`, `GITHUB_TOKEN` | Firebase secrets | Functions only |
+| `BILLING_EXPORT_TABLE` | `functions/.env` | Functions only |
 
-Notifications are only ever created or deleted by Cloud Functions using the Admin SDK, which bypasses security rules entirely. The rules therefore deny client `create`/`delete` outright, and the only client write allowed is toggling the `read` flag on a notification the caller owns:
+`.env` files are git-ignored. **secretlint** (with extra Brevo and Google-key
+patterns) runs on every commit and in CI; if a secret was ever pushed,
+rotate it — removing it from history is not enough.
 
-```js
-allow update: if isSignedIn() && isOwner(resource.data.userId) &&
-  request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
-allow create, delete: if false;
-```
+## Platform controls
 
-**`releaseNotes` collection — draft visibility**
+- **App Check** (reCAPTCHA Enterprise) enforced on Firestore and Storage — the real
+  limit on scripted writes to the public-create `pageViews` / `failedRequests`.
+- Security headers on Hosting (HSTS, frame-ancestors, nosniff,
+  Referrer-Policy, Permissions-Policy) in `firebase.json`.
+- Email templates escape every argument; links use the `APP_URL` secret,
+  never document data. `ogPrerender` attribute-escapes climb text.
+- In the app: `dangerouslySetInnerHTML`, `innerHTML`, `eval` and
+  `document.write` are lint errors; markdown renders to React nodes only.
+- Dependency audit (high+) on every push and weekly; CodeQL on every push
+  that touches code.
+- Deleting an account strips health/contact fields from the member's
+  registrations and removes their notifications and uploads.
 
-Draft notes are only readable by admins; members can only read documents where `status == 'published'`:
+## Accepted risks
 
-```js
-allow read: if isSignedIn() && (resource.data.status == 'published' || isAdmin());
-allow write: if isAdmin();
-```
-
-Full feature reference: [release-notes plan](../solution-plans/release-notes.md).
-
-### Critical rule details
-
-**`users` collection — role escalation prevention**
-
-New user documents can only be created with `role: member`, and an owner can never change the `role` field afterwards. Both halves are required: without the update guard, any member could self-assign `admin` from the browser console on a doc they legitimately own.
-
-```js
-allow create: if isOwner(userId) && request.resource.data.role == 'member';
-allow update: if isAdmin() || (isOwner(userId) && !affected().hasAny(['role']));
-```
-
-**`registrations` collection — creation gate**
-
-A member can only register for a climb that has `status: open`. Attempting to register for a draft or closed climb is rejected at the database level:
-
-```js
-allow create: if isSignedIn() &&
-  isOwner(request.resource.data.userId) &&
-  climbIsOpen(request.resource.data.climbId);
-```
-
-**`registrations` collection — members declare payments, admins approve them**
-
-An owner's update is restricted to the fields the member-facing flows actually write (payment submission and required-document uploads), and a member may never claim a payment was accepted: `paymentStatus` can only move to `unpaid`/`submitted`, and `verifiedAt`/`verifiedBy` can only be cleared, never written. Status, admin notes and the waiver record are admin-only.
-
-```js
-allow update: if (isOwner(resource.data.userId) &&
-    affected().hasOnly([...member-writable fields...]) &&
-    memberPaymentClaimIsHonest()) ||
-  isAdmin();
-```
-
-**Rules gap, closed by a trigger.** Security rules cannot iterate arrays, so the per-payment `status` values inside `payments[]` cannot be validated at the rules layer — nothing there stops a crafted client write from marking an individual entry `verified`. The rolled-up `paymentStatus`, which drives the review queue and the balance math, *is* enforced by rules.
-
-The array case is enforced one layer down instead, in the `onRegistrationUpdated` trigger (`functions/src/index.js:531`):
-
-| Step | Behavior |
-| --- | --- |
-| Identify the writer | `event.authId`, which is why this trigger uses `onDocumentUpdatedWithAuthContext` rather than the plain variant |
-| Skip unknown writers | No `authId` means an Admin SDK or backfill write, never a client |
-| Check the role | `users/{writerUid}.role == "admin"` |
-| Clamp non-admins | Any entry whose `status` is neither `submitted` nor its own prior value is reverted to that prior value (or `submitted`) |
-| Rewrite and stop | Logs `Clamped forged payment status`, writes the corrected array back, and returns — the corrective write re-runs the trigger against clean data |
-
-So a member can submit a payment, but only an admin can move one to `verified` or `rejected`. See [API.md — onRegistrationUpdated](API.md#onregistrationupdated) for the full handler.
-
-Two caveats worth keeping in view. The enforcement is **corrective, not preventive**: the forged value does land in Firestore and is visible to anything reading between the write and the trigger firing, typically well under a second but not zero. And it is clamped **positionally** — entry *i* after is compared against entry *i* before — so a write that reorders or splices `payments[]` is compared against the wrong prior entries. Moving payment writes behind a callable Cloud Function remains the way to close both.
-
-**`isAdmin()` is `exists()`-guarded**
-
-`get()` on a missing document returns null, and reading `.data` off it is an evaluation error that denies the entire rule. Without the `exists()` check, a signed-in user whose `users/` profile hasn't been created yet (the Google redirect path can land there) would be locked out of writes they legitimately own. Owner branches are also evaluated before `isAdmin()` so the common member write doesn't pay for the extra lookup.
-
----
-
-## Client-Side Route Guards
-
-React route guards provide a smooth UX by redirecting unauthorized users before rendering protected pages. They are **not** a security boundary — Firestore rules are the security boundary.
-
-```mermaid
-flowchart TD
-    subgraph Guards["Route Guard Components"]
-        PR["ProtectedRoute\nsrc/components/ProtectedRoute.jsx\nChecks: currentUser != null\nRedirects to: /login"]
-        AR["AdminRoute\nsrc/components/AdminRoute.jsx\nChecks: isAdmin === true\nRedirects to: /"]
-    end
-
-    subgraph Source["Role Source"]
-        FS["Firestore users/{uid}.role\nFetched on onAuthStateChanged\nNot trusted from client claims"]
-    end
-
-    AR --> FS
-```
-
-The admin role is sourced from the Firestore `users/{uid}` document, not from a client-side claim. This means an attacker cannot self-elevate by manipulating local state — the Firestore security rules will still deny the write.
-
----
-
-## Secrets Management
-
-```mermaid
-flowchart LR
-    subgraph Frontend["Frontend Bundle (public)"]
-        VF["VITE_FIREBASE_* vars\nBaked into bundle by Vite\nIntentionally public\nProtected by Firestore rules"]
-    end
-
-    subgraph Functions["Cloud Functions (server-side only)"]
-        SF["BREVO_API_KEY\nBREVO_FROM_EMAIL\nAPP_URL\nGITHUB_TOKEN\nStored in Firebase Secrets Manager\nNever in source code or browser"]
-    end
-
-    subgraph Git["Source Control"]
-        GI[".env (git-ignored)\nfunctions/.env (git-ignored)\n.env.example committed as template"]
-    end
-```
-
-| Secret | Storage | Accessible by |
-| --- | --- | --- |
-| `VITE_FIREBASE_*` | `.env` / Vite bundle | Browser (intentionally public) |
-| `BREVO_API_KEY` | Firebase Secrets Manager | Cloud Functions only |
-| `BREVO_FROM_EMAIL` | Firebase Secrets Manager | Cloud Functions only |
-| `APP_URL` | Firebase Secrets Manager | Cloud Functions only |
-| `GITHUB_TOKEN` | Firebase Secrets Manager | Cloud Functions only (`getReleaseNoteCommitOptions`, `generateReleaseNoteDraft`) |
-
-Firebase API keys are designed to be public. They identify the Firebase project, not authenticate the caller. Access control is enforced entirely by Firestore security rules.
-
----
-
-## Data Validation
-
-```mermaid
-flowchart TD
-    A["User submits form"]
-    B["Client-side validation\nRequired fields, formats"]
-    C["Firestore security rules\nOwnership, role, climb status"]
-    D{"Validation passes?"}
-    E["Document written to Firestore"]
-    F["Validation error returned to client"]
-
-    A --> B --> C --> D
-    D -- "Yes" --> E
-    D -- "No" --> F
-```
-
-### Validation layers
-
-| Layer | What is validated |
-| --- | --- |
-| React form (client) | Required fields, email format, fee selection |
-| Firestore security rules (server) | Caller ownership, role, climb open status |
-| Cloud Function `createUser` (server) | Email and displayName presence, caller admin role |
-
----
-
-## Email Security
-
-- All email is dispatched server-side from Cloud Functions only.
-- The Brevo `api-key` header is only present in Cloud Function server-side HTTP calls — it never reaches the browser.
-- Email HTML is generated from server-side templates. No user-supplied content is rendered as raw HTML.
-- Email links use `APP_URL` from a Firebase secret, not a value from the registration document, preventing open redirect injection.
-
----
-
-## File Upload Security
-
-- Trail photos and GCash payment proof images are uploaded to Firebase Storage.
-- Storage security rules restrict writes to authenticated users and reads to the appropriate audience.
-- File URLs stored in Firestore are Firebase Storage download URLs or verified CDN URLs — they are not user-controlled redirect targets.
-- Uploaded file content is not executed — images are rendered as `<img>` tags only.
-
----
-
-## OWASP Top 10 Assessment
-
-| Risk | Mitigation |
-| --- | --- |
-| A01 Broken Access Control | Firestore rules enforce ownership and role-based access server-side. React route guards provide UX-level protection. |
-| A02 Cryptographic Failures | HTTPS enforced by Firebase Hosting. Passwords managed by Firebase Auth (bcrypt). No sensitive data stored in plaintext. |
-| A03 Injection | Firestore SDK uses structured queries and typed data — no raw query strings or SQL. |
-| A04 Insecure Design | Registration count uses atomic server-side increments. Role escalation is blocked at the database rule level. `sendReleaseNoteEmail` currently allows any admin to mass-email the entire membership with no second-approval step — see [release-notes plan](../solution-plans/release-notes.md#risks-and-challenges). |
-| A05 Security Misconfiguration | Firestore rules deployed explicitly via CLI. No open-write rules in production. Storage rules restrict access. |
-| A06 Vulnerable Components | Dependencies tracked in `package.json` and `functions/package.json`. Run `npm audit` regularly. |
-| A07 Authentication Failures | Firebase Auth handles JWT lifecycle, token refresh, and secure session management. Short-lived tokens (1-hour expiry). |
-| A08 Software/Data Integrity | Firestore document triggers run server-side; clients cannot fake trigger events. |
-| A09 Logging Failures | Cloud Functions emit structured logs to Google Cloud Logging. Firebase Auth audit logs available in the console. |
-| A10 SSRF | No server-side URL fetching from user-supplied input. The only outbound HTTP call is to the Brevo API with a hardcoded endpoint. |
-
----
-
-## Recommended Hardening
-
-| Recommendation | Priority | Notes |
-| --- | --- | --- |
-| Enable Firebase App Check | High | Prevents unauthorized API use from non-app clients |
-| Restrict Firebase API key to production domain | High | Google Cloud Console — API key restrictions |
-| Enable Google Cloud Armor or rate limiting | Medium | Protect against abuse if the platform is publicly promoted |
-| Audit Firestore rules before each season | High | Review for any drift from intended access model |
-| Enable Firebase Auth multi-factor authentication | Medium | For admin accounts specifically |
-| Run `npm audit` and `npm audit --prefix functions` regularly | High | Catch vulnerable dependency versions |
-| Review and rotate Brevo API key annually | Medium | Limit blast radius if the key is compromised |
-| Set up Firebase Alerting for Auth anomalies | Low | Detect unusual sign-in patterns |
-| Introduce a narrower "release manager" role or approval step before mass emails send | Medium | Currently any `admin` account can immediately email every member via `sendReleaseNoteEmail` — see [release-notes plan — Proposed Governance-Ready Architecture](../solution-plans/release-notes.md#proposed-governance-ready-architecture) |
+| Risk | Why it stands |
+|---|---|
+| A forged payment verdict is visible for the moment before the trigger clamps it; the clamp compares entries by position | Moving payment writes behind a callable is the full fix; not worth it yet |
+| Unreviewed payments count toward the balance | Intended: members aren't chased for money already sent; admins still review |
+| `memberType` (guest fee) is self-declared | No membership list to check against |
+| Officer phone numbers are on the public climb doc | No doc every signed-in member can read yet ([DATA.md](DATA.md#climbs)) |
+| Any admin can email every member (`sendReleaseNoteEmail`) | No narrower role yet; see the [release-notes plan](../solution-plans/release-notes.md) |
+| No script/style Content-Security-Policy | Needs browser testing against Maps, Google sign-in, Storage and fonts |
+| Moderate `npm audit` items remain | Need breaking upgrades; the gate is at high |
