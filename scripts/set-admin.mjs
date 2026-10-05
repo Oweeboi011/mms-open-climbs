@@ -53,8 +53,14 @@ const body = {
 // An existing profile only gets its role changed — rewriting the whole doc
 // would reset createdAt, which orders (and resumes) the all-member email.
 const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-const exists = (await fetch(url, { headers })).ok;
-const res = await fetch(exists ? `${url}?updateMask.fieldPaths=role` : url, {
+const probe = await fetch(url, { headers });
+if (!probe.ok && probe.status !== 404) {
+  console.error('Could not read the profile, nothing written:', probe.status, await probe.text());
+  process.exit(1);
+}
+const exists = probe.ok;
+// Create only if still absent; never overwrite an existing profile.
+const res = await fetch(exists ? `${url}?updateMask.fieldPaths=role` : `${url}?currentDocument.exists=false`, {
   method: 'PATCH',
   headers,
   body: JSON.stringify(exists ? { fields: { role: body.fields.role } } : body),
