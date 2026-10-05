@@ -173,4 +173,17 @@ describe("Admin ReleaseNoteForm", () => {
     await waitFor(() => expect(callables.sendReleaseNoteEmail).toHaveBeenCalledWith({ releaseNoteId: "note-1" }));
     expect(await screen.findByText(/Sending… 2 of 5/)).toBeInTheDocument();
   });
+
+  it("says when its send was replaced by a newer one", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("note-1", { title: "Existing Note", body: "B", status: "published", emailJob: { id: "job-old", status: "superseded" } }),
+    );
+    onSnapshot.mockImplementation((ref, cb) => {
+      cb(ref?.path === "releaseNoteEmailJobs/job-old" ? makeSnapshot("job-old", { status: "superseded", total: 5 }) : makeQuerySnapshot([]));
+      return vi.fn();
+    });
+    openEdit(sender());
+    expect(await screen.findByText(/replaced by a newer one/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Sending…/)).not.toBeInTheDocument();
+  });
 });
