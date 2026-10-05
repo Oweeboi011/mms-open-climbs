@@ -4,8 +4,6 @@ applyTo: "**/docs/adr/*.md"
 
 # ADR Processing Guidelines
 
-Apply the [general coding guidelines](./general-coding.instructions.md) to ADR work.
-
 ## Core Principles
 
 1. One ADR documents one architecture decision.
@@ -23,7 +21,7 @@ Apply the [general coding guidelines](./general-coding.instructions.md) to ADR w
 
 ## Required Updates for New ADRs
 
-- Create from the repository ADR template.
+- Follow the shape of the existing ADRs: Status, Date, Context, Decision, Alternatives, Consequences.
 - Set status to `proposed` initially.
 - Use the current date in the ADR metadata.
 - Update ADR index/navigation files if present.

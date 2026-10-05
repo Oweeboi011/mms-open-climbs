@@ -72,7 +72,7 @@ export function isPaymentOverdue(climb, outstanding, now = new Date()) {
 
 // Members may withdraw themselves until the climb is over. Anything later
 // (or undoing a cancellation) goes through an admin.
-export const MEMBER_CANCELLABLE_STATUSES = ["pending", "confirmed", "waitlisted"];
+const MEMBER_CANCELLABLE_STATUSES = ["pending", "confirmed", "waitlisted"];
 export function canMemberCancel(reg, climb, now = new Date()) {
   return (
     MEMBER_CANCELLABLE_STATUSES.includes(reg?.status) &&
@@ -80,7 +80,7 @@ export function canMemberCancel(reg, climb, now = new Date()) {
   );
 }
 
-export const MEMBER_CANCELLATION_REASON =
+const MEMBER_CANCELLATION_REASON =
   "You cancelled this registration from My Climbs. If you have paid, the " +
   "organizers will be in touch about any refund under this climb's " +
   "cancellation policy.";

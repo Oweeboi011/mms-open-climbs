@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { subscribeToAllReleaseNotes } from "@/services/releaseNotes";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -17,12 +16,13 @@ export default function AdminReleaseNotesManage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, "releaseNotes"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      setNotes(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return unsub;
+    return subscribeToAllReleaseNotes(
+      (docs) => {
+        setNotes(docs);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
   }, []);
 
   return (

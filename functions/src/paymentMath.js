@@ -110,12 +110,8 @@ function getOutstanding(reg, climb) {
 }
 
 module.exports = {
-  parseAmount,
-  hasPaymentHistory,
   getPaymentEntries,
   getCountedTotal,
-  getRefundedTotal,
   getFeeItems,
-  getExpectedTotal,
   getOutstanding,
 };

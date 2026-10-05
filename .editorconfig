@@ -1,0 +1,12 @@
+# The only formatting rule set (no Prettier — see docs/adr/0003).
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false

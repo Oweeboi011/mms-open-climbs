@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+  subscribeToAllClimbPrivate,
+  subscribeToAllClimbs,
+  updateClimb,
+} from "@/services/climbs";
+import { subscribeToAllRegistrations } from "@/services/registrations";
 import Header from "@/components/Header";
 import SeasonSelect from "@/components/admin/SeasonSelect";
 import useSeason from "@/hooks/useSeason";
@@ -44,12 +41,13 @@ export default function AdminClimbsManage() {
   const [expandedIds, setExpandedIds] = useState(() => new Set());
 
   useEffect(() => {
-    const q = query(collection(db, "climbs"), orderBy("startDate", "asc"));
-    const unsub = onSnapshot(q, (snap) => {
-      setClimbs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return unsub;
+    return subscribeToAllClimbs(
+      (docs) => {
+        setClimbs(docs);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
   }, []);
 
   // Registrations and service-sharing groups for every climb, so each climb's
@@ -58,13 +56,11 @@ export default function AdminClimbsManage() {
   const [regs, setRegs] = useState([]);
   const [climbPrivateMap, setClimbPrivateMap] = useState({});
   useEffect(() => {
-    const unsubRegs = onSnapshot(collection(db, "registrations"), (snap) => {
-      setRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    const unsubPrivate = onSnapshot(collection(db, "climbPrivate"), (snap) => {
+    const unsubRegs = subscribeToAllRegistrations(setRegs);
+    const unsubPrivate = subscribeToAllClimbPrivate((docs) => {
       const map = {};
-      snap.docs.forEach((d) => {
-        map[d.id] = readClimbPrivate(d.data());
+      docs.forEach(({ id, ...data }) => {
+        map[id] = readClimbPrivate(data);
       });
       setClimbPrivateMap(map);
     });
@@ -124,7 +120,7 @@ export default function AdminClimbsManage() {
       patch.cancellationStatus = "";
       patch.cancellationReason = "";
     }
-    await updateDoc(doc(db, "climbs", id), patch);
+    await updateClimb(id, patch);
   }
 
   function toggleExpanded(id) {

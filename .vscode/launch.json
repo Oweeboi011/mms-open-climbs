@@ -79,30 +79,6 @@
         "order": 1
       }
     },
-    {
-      "name": "Firebase: Deploy All",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "firebase deploy",
-      "cwd": "${workspaceFolder}",
-      "presentation": {
-        "hidden": false,
-        "group": "3_firebase",
-        "order": 2
-      }
-    },
-    {
-      "name": "Firebase: Deploy Hosting Only",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "npm run build && firebase deploy --only hosting",
-      "cwd": "${workspaceFolder}",
-      "presentation": {
-        "hidden": false,
-        "group": "3_firebase",
-        "order": 3
-      }
-    },
 
     // ========================================================================
     // SETUP

@@ -1,0 +1,22 @@
+# Weekly, grouped so one PR per ecosystem instead of one per package.
+# npm audit in CI is the gate; Dependabot keeps the fix PRs coming.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly }
+    groups:
+      minor-and-patch: { update-types: [minor, patch] }
+  - package-ecosystem: npm
+    directory: /functions
+    target-branch: develop
+    schedule: { interval: weekly }
+    groups:
+      minor-and-patch: { update-types: [minor, patch] }
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule: { interval: monthly }
+    groups:
+      actions: { patterns: ["*"] }

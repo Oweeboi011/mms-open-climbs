@@ -2,8 +2,8 @@
 // signed-out visitors on the event page. Set one of these when finalized —
 // everything derives from them, and the UI degrades to plain text (no broken
 // link) while they're blank.
-export const ORG_CONTACT_EMAIL = ""; // e.g. "openclimbs@example.org"
-export const ORG_CONTACT_URL =
+const ORG_CONTACT_EMAIL = ""; // e.g. "openclimbs@example.org"
+const ORG_CONTACT_URL =
   "https://www.facebook.com/metropolitanmountaineeringsociety/"; // the club's official page
 
 // Pure resolver so the derivation is testable without reaching into module

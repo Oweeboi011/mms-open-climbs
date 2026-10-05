@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { serverTimestamp } from "@/services/firestore";
+import { updateRegistration } from "@/services/registrations";
 import Modal from "@/components/Modal";
 import RegistrationPolicyInfo from "@/components/RegistrationPolicyInfo";
 import { buildMemberCancelPatch } from "@/utils/registrationPolicy";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logFailedRequest } from "@/services/logFailedRequest";
 
 // My Climbs: a member withdraws from a climb. Frees their seat for the
 // waitlist; the status-change trigger emails them and the officers.
@@ -16,9 +16,7 @@ export default function CancelRegistrationModal({ reg, climb, currentUser, onClo
     setSaving(true);
     setError("");
     try {
-      await updateDoc(
-        doc(db, "registrations", reg.id),
-        buildMemberCancelPatch(serverTimestamp()),
+      await updateRegistration(reg.id, buildMemberCancelPatch(serverTimestamp()),
       );
       onClose();
     } catch (err) {

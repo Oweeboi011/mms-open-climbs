@@ -1,6 +1,6 @@
 # ADR 0002: Code quality gates — what a machine enforces vs. what a reviewer judges
 
-**Status**: Implemented
+**Status**: Implemented; amended by [ADR 0003](0003-minimum-viable-quality-harness.md) (2026-10-05)
 **Date**: 2026-08-06
 **Supersedes / extends**: nothing; complements [ADR 0001](0001-admin-payments-pages-refactor.md), which surfaced the duplication and file-size problems this ADR puts guardrails around.
 
@@ -10,7 +10,7 @@ ADR 0001 found copy-pasted fee logic across three admin pages and two files over
 1,300 lines. It fixed those instances by hand. Nothing stopped them recurring.
 
 At the same time the repo had **no linter at all** — despite the CI job being
-named "Build, Lint & Test" and `docs/wiki/CONTRIBUTING.md` describing coding
+named "Build, Lint & Test" and `docs/guides/CONTRIBUTING.md` describing coding
 standards (naming, no inline styles, hooks-only) that existed purely as prose.
 The only automated quality signal was the coverage threshold in
 `vite.config.js`.
@@ -78,7 +78,7 @@ intact and enforced.
 - `websocket-driver` 0.7.4 → 0.7.5 (critical) and `form-data` 2.5.5 → 2.5.6 (high) via scoped `overrides`; both audits now clean at high+.
 - `coverage/` and `functions/coverage/` untracked — 139 generated files that were producing diff churn on every test run.
 - `package.json` — `lint`, `lint:fix`, `arch`, `arch:graph`, `dupes`, `audit:deps`, `quality`; `qa` now runs `quality` first.
-- `docs/wiki/CODE-QUALITY.md` — the working reference, including the ratchet table and the exit conditions for every advisory check.
+- `docs/guides/CODE-QUALITY.md` — the working reference, including the ratchet table and the exit conditions for every advisory check.
 - 29 dead identifiers removed across 8 files. 249 frontend tests still pass; production build unchanged.
 
 ## Follow-up / not yet done

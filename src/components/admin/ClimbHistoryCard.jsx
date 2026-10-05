@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { buildClimbHistory, chunk } from "@/utils/climbHistory";
+import { listAuditEntriesForTargets } from "@/services/auditLog";
+import { buildClimbHistory } from "@/utils/climbHistory";
 
 const PAGE = 50;
 
@@ -18,13 +17,7 @@ export default function ClimbHistoryCard({ climbId, regs }) {
     setLoading(true);
     setError("");
     try {
-      const ids = [climbId, ...regs.map((r) => r.id)];
-      const snaps = await Promise.all(
-        chunk(ids).map((part) =>
-          getDocs(query(collection(db, "auditLog"), where("targetId", "in", part))),
-        ),
-      );
-      const entries = snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const entries = await listAuditEntriesForTargets([climbId, ...regs.map((r) => r.id)]);
       setEvents(buildClimbHistory(entries, regs));
     } catch (err) {
       setError(err?.message || "Couldn't load the history.");

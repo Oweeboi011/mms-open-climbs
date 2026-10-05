@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getPaymentEntries, getPaymentsTotal } from "@/utils/payments";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logFailedRequest } from "@/services/logFailedRequest";
 
 // Logs a payment that never went through the app — cash handed over at the
 // jump-off, a bank transfer, a friend settling someone's balance. It appends

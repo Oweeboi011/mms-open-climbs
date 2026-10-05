@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { listClimbsByStartDate } from "@/services/climbs";
+import { compareStartDate } from "@/utils/climbGrouping";
 import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-  where,
-  getCountFromServer,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+  countRegistrations,
+  listAllRegistrations,
+  subscribeToRecentRegistrations,
+} from "@/services/registrations";
+import { countUsers } from "@/services/users";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -142,21 +139,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadAll() {
       // Load climbs
-      const climbsSnap = await getDocs(
-        query(collection(db, "climbs"), orderBy("startDate", "asc")),
-      );
-      const climbList = climbsSnap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => {
-          const da = a.startDate?.toDate?.() ?? new Date(a.startDate ?? 0);
-          const db2 = b.startDate?.toDate?.() ?? new Date(b.startDate ?? 0);
-          return da - db2;
-        });
+      const climbList = (await listClimbsByStartDate()).sort(compareStartDate);
       setClimbs(climbList);
 
       // Load all registrations once for per-climb stats
-      const regsSnap = await getDocs(collection(db, "registrations"));
-      const allRegs = regsSnap.docs.map((d) => d.data());
+      const allRegs = await listAllRegistrations();
 
       // Build per-climb breakdown
       const breakdown = {};
@@ -185,49 +172,19 @@ export default function AdminDashboard() {
       setClimbRegStats(breakdown);
 
       // Global stats
-      const [totalRegsSnap, pendingSnap, usersSnap, awaitingSnap, unpaidSnap] =
-        await Promise.all([
-          getCountFromServer(collection(db, "registrations")),
-          getCountFromServer(
-            query(
-              collection(db, "registrations"),
-              where("status", "==", "pending"),
-            ),
-          ),
-          getCountFromServer(collection(db, "users")),
-          getCountFromServer(
-            query(
-              collection(db, "registrations"),
-              where("paymentStatus", "==", "submitted"),
-            ),
-          ),
-          getCountFromServer(
-            query(
-              collection(db, "registrations"),
-              where("paymentStatus", "==", "unpaid"),
-            ),
-          ),
-        ]);
-      setStats({
-        climbs: climbList.length,
-        totalRegs: totalRegsSnap.data().count,
-        pending: pendingSnap.data().count,
-        users: usersSnap.data().count,
-        awaitingPayment: awaitingSnap.data().count,
-        unpaid: unpaidSnap.data().count,
-      });
+      const [totalRegs, pending, users, awaitingPayment, unpaid] = await Promise.all([
+        countRegistrations(),
+        countRegistrations({ status: "pending" }),
+        countUsers(),
+        countRegistrations({ paymentStatus: "submitted" }),
+        countRegistrations({ paymentStatus: "unpaid" }),
+      ]);
+      setStats({ climbs: climbList.length, totalRegs, pending, users, awaitingPayment, unpaid });
     }
 
     // Query-side limit — this only ever shows 20 rows, so don't pay to read
     // (and re-read, on every registration write anywhere) the whole collection.
-    const q = query(
-      collection(db, "registrations"),
-      orderBy("createdAt", "desc"),
-      limit(20),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setRecentRegs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    const unsub = subscribeToRecentRegistrations(20, setRecentRegs);
     // Once per visit, not per snapshot: loadAll reads every registration and
     // climb, and re-running it on each write anywhere in the collection
     // multiplied the page's reads by the day's registration traffic.

@@ -3,6 +3,7 @@ import Modal from "@/components/Modal";
 import { getPaymentEntries, getPaymentsTotal } from "@/utils/payments";
 import { getExpectedTotal } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
+import TextField from "@/components/TextField";
 
 export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -83,34 +84,20 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Full Name</label>
-            <input
-              type="text"
-              className="form-input"
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-            />
-          </div>
+          <TextField label="Full Name" value={form.name} onChange={(v) => set("name", v)} />
           <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Mobile</label>
-              <input
-                type="tel"
-                className="form-input"
-                value={form.mobile}
-                onChange={(e) => set("mobile", e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Date of Birth</label>
-              <input
-                type="date"
-                className="form-input"
-                value={form.dateOfBirth}
-                onChange={(e) => set("dateOfBirth", e.target.value)}
-              />
-            </div>
+            <TextField
+              label="Mobile"
+              value={form.mobile}
+              onChange={(v) => set("mobile", v)}
+              type="tel"
+            />
+            <TextField
+              label="Date of Birth"
+              value={form.dateOfBirth}
+              onChange={(v) => set("dateOfBirth", v)}
+              type="date"
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Participant Type</label>
@@ -140,53 +127,31 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
               </div>
             )}
           </div>
-          <div className="form-group">
-            <label className="form-label">Address</label>
-            <input
-              type="text"
-              className="form-input"
-              value={form.address}
-              onChange={(e) => set("address", e.target.value)}
-            />
-          </div>
+          <TextField label="Address" value={form.address} onChange={(v) => set("address", v)} />
           <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Emergency Contact Name</label>
-              <input
-                type="text"
-                className="form-input"
-                value={form.ecName}
-                onChange={(e) => set("ecName", e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Emergency Contact Mobile</label>
-              <input
-                type="tel"
-                className="form-input"
-                value={form.ecMobile}
-                onChange={(e) => set("ecMobile", e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Emergency Contact Relationship</label>
-            <input
-              type="text"
-              className="form-input"
-              value={form.ecRelationship}
-              onChange={(e) => set("ecRelationship", e.target.value)}
+            <TextField
+              label="Emergency Contact Name"
+              value={form.ecName}
+              onChange={(v) => set("ecName", v)}
+            />
+            <TextField
+              label="Emergency Contact Mobile"
+              value={form.ecMobile}
+              onChange={(v) => set("ecMobile", v)}
+              type="tel"
             />
           </div>
-          <div className="form-group">
-            <label className="form-label">Medical Conditions</label>
-            <textarea
-              className="form-textarea"
-              rows={2}
-              value={form.medicalConditions}
-              onChange={(e) => set("medicalConditions", e.target.value)}
-            />
-          </div>
+          <TextField
+            label="Emergency Contact Relationship"
+            value={form.ecRelationship}
+            onChange={(v) => set("ecRelationship", v)}
+          />
+          <TextField
+            label="Medical Conditions"
+            value={form.medicalConditions}
+            onChange={(v) => set("medicalConditions", v)}
+            rows={2}
+          />
           <div className="form-group">
             <label className="form-label">Amount Paid (₱)</label>
             <input

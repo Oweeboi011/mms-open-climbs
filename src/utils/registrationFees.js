@@ -75,7 +75,7 @@ export function getGroupSize(reg, serviceGroups, label) {
 // 1,166.67 + 1,166.66, not three 1,166.67s (which over-collect a centavo and
 // left totals like ₱207,940.01). The leftover centavos go to the members
 // listed first in the group, so everyone's share is stable across renders.
-export function getSplitShare(unitAmount, reg, serviceGroups, label) {
+function getSplitShare(unitAmount, reg, serviceGroups, label) {
   const group = serviceGroups?.[label]?.find((ids) => ids.includes(reg.id));
   if (!group || group.length <= 1) return unitAmount;
   const unitCents = Math.round(unitAmount * 100);

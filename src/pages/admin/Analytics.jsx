@@ -1,15 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  where,
-  getDocs,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { listFailedRequestsSince, listPageViewsSince } from "@/services/analytics";
+import { listAllClimbs } from "@/services/climbs";
+import { listUsers } from "@/services/users";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -100,29 +93,11 @@ export default function Analytics() {
   useEffect(() => {
     async function load() {
       try {
-        const windowStart = Timestamp.fromMillis(
-          Date.now() - DAYS_WINDOW * 24 * 60 * 60 * 1000,
-        );
-        // Page views inside the charted window only, newest first
-        const q = query(
-          collection(db, "pageViews"),
-          where("timestamp", ">=", windowStart),
-          orderBy("timestamp", "desc"),
-          limit(MAX_VIEWS),
-        );
-        const snap = await getDocs(q);
-        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const [data, failData] = await Promise.all([
+          listPageViewsSince(DAYS_WINDOW, MAX_VIEWS),
+          listFailedRequestsSince(DAYS_WINDOW, MAX_FAILURES),
+        ]);
         setViews(data);
-
-        // Fetch recent failed requests (last MAX_FAILURES, ordered by time desc)
-        const failQ = query(
-          collection(db, "failedRequests"),
-          where("createdAt", ">=", windowStart),
-          orderBy("createdAt", "desc"),
-          limit(MAX_FAILURES),
-        );
-        const failSnap = await getDocs(failQ);
-        const failData = failSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setFailures(failData);
 
         // Resolve climb titles for any climbId found
@@ -132,10 +107,9 @@ export default function Analytics() {
           ),
         ];
         if (climbIds.length > 0) {
-          const climbSnaps = await getDocs(collection(db, "climbs"));
           const titles = {};
-          climbSnaps.docs.forEach((d) => {
-            titles[d.id] = d.data().title || d.id;
+          (await listAllClimbs()).forEach((c) => {
+            titles[c.id] = c.title || c.id;
           });
           setClimbTitles(titles);
         }
@@ -147,10 +121,9 @@ export default function Analytics() {
           ),
         ];
         if (userIds.length > 0) {
-          const userSnaps = await getDocs(collection(db, "users"));
           const names = {};
-          userSnaps.docs.forEach((d) => {
-            names[d.id] = d.data().displayName || d.data().email || d.id;
+          (await listUsers()).forEach((u) => {
+            names[u.id] = u.displayName || u.email || u.id;
           });
           setUserNames(names);
         }

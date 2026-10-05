@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { serverTimestamp } from "@/services/firestore";
+import { updateRegistration } from "@/services/registrations";
 import Modal from "@/components/Modal";
 import DonationPledgeFields from "@/components/DonationPledgeFields";
 import {
@@ -9,7 +9,7 @@ import {
   normalizePledge,
   stillNeededFromTotals,
 } from "@/utils/donations";
-import { logFailedRequest } from "@/utils/logFailedRequest";
+import { logFailedRequest } from "@/services/logFailedRequest";
 
 // My Climbs: add, change or withdraw a donation pledge after registering.
 export default function DonationPledgeModal({ reg, drive, climb, currentUser, onClose }) {
@@ -28,7 +28,7 @@ export default function DonationPledgeModal({ reg, drive, climb, currentUser, on
     setError("");
     try {
       // Exactly the fields the firestore rule lets an owner write here.
-      await updateDoc(doc(db, "registrations", reg.id), {
+      await updateRegistration(reg.id, {
         donation: normalizePledge(value, getNeededItems(drive)),
         updatedAt: serverTimestamp(),
       });

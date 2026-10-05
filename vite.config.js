@@ -13,20 +13,22 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.js"],
     css: false,
-    // Exclude CommonJS Jest tests in functions/ — run those with `npm test` inside functions/
-    exclude: ["**/node_modules/**", "**/functions/**", "**/rules-tests/**"],
+    // functions/ has its own Jest suite; integration (emulator) and e2e
+    // (Playwright) run through their own scripts — see docs/guides/TESTING.md.
+    exclude: ["**/node_modules/**", "**/functions/**", "tests/integration/**", "tests/e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
       include: ["src/**/*.{js,jsx}"],
       exclude: ["src/main.jsx"],
       // Ratchets, like the ESLint ceilings — set just under today's actuals
-      // (63.6 / 57 / 62.6 / 52.5). Raise them when coverage improves.
+      // (lines 78.5 / functions 71 / statements 77.5 / branches 66.3).
+      // Raise them when coverage improves; never lower them.
       thresholds: {
-        lines: 63,
-        functions: 56,
-        statements: 62,
-        branches: 52,
+        lines: 78,
+        functions: 70,
+        statements: 77,
+        branches: 66,
       },
     },
   },

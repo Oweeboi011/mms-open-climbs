@@ -1,16 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  onSnapshot,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { markNotificationRead, subscribeToUserNotifications } from "@/services/notifications";
 import { useAuth } from "@/contexts/AuthContext";
 import { renderMarkdownLite } from "@/utils/markdownLite";
 
@@ -36,16 +26,7 @@ export default function NotificationBell() {
 
   useEffect(() => {
     if (!currentUser) return;
-    const q = query(
-      collection(db, "notifications"),
-      where("userId", "==", currentUser.uid),
-      orderBy("createdAt", "desc"),
-      limit(30),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    return unsub;
+    return subscribeToUserNotifications(currentUser.uid, 30, setNotifications);
   }, [currentUser]);
 
   useEffect(() => {
@@ -64,7 +45,7 @@ export default function NotificationBell() {
 
   async function markRead(notif) {
     if (!notif.read) {
-      await updateDoc(doc(db, "notifications", notif.id), { read: true });
+      await markNotificationRead(notif.id);
     }
   }
 
@@ -72,7 +53,7 @@ export default function NotificationBell() {
     await Promise.all(
       notifications
         .filter((n) => !n.read)
-        .map((n) => updateDoc(doc(db, "notifications", n.id), { read: true })),
+        .map((n) => markNotificationRead(n.id)),
     );
   }
 

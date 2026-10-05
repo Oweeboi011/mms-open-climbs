@@ -1,12 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { subscribeToPublishedReleaseNotes } from "@/services/releaseNotes";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -21,20 +14,13 @@ export default function ReleaseNotes() {
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
-    const q = query(
-      collection(db, "releaseNotes"),
-      where("status", "==", "published"),
-      orderBy("publishedAt", "desc"),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return subscribeToPublishedReleaseNotes((docs) => {
       setNotes(docs);
       setExpandedId((prev) =>
         prev && docs.some((n) => n.id === prev) ? prev : docs[0]?.id ?? null,
       );
       setLoading(false);
-    });
-    return unsub;
+    }, () => setLoading(false));
   }, []);
 
   return (
