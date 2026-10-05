@@ -68,8 +68,9 @@ service cloud.firestore {
       // canEmailMembers (email every member) is never written by a client —
       // any admin can mint admins, so an in-app grant could be self-served.
       // The project owner sets it: functions/scripts/grant-email-members.mjs.
-      allow update: if (isAdmin() && !affected().hasAny(['canEmailMembers'])) ||
-        (isOwner(userId) && !affected().hasAny(['role', 'canEmailMembers']));
+      // createdAt is fixed for life: it orders the all-member email send.
+      allow update: if (isAdmin() && !affected().hasAny(['canEmailMembers', 'createdAt'])) ||
+        (isOwner(userId) && !affected().hasAny(['role', 'canEmailMembers', 'createdAt']));
       allow delete: if isAdmin();
     }
 

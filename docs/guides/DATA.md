@@ -107,7 +107,8 @@ stateDiagram-v2
 ## Other collections
 
 - **users** — `displayName`, `email`, `role` (`member` default; `admin` via
-  `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`.
+  `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`;
+  nobody can change `createdAt` (it orders the all-member email send).
   `canEmailMembers` allows the all-member release-note email; no client can
   write it (`functions/scripts/grant-email-members.mjs`).
   `syncAdminClaim` mirrors it into an auth claim for Storage rules.
