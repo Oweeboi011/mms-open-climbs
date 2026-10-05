@@ -27,8 +27,9 @@ hook, not a fifty-step process.
 
 Measured at the end: frontend coverage floor 63 → 78% lines (actual 79.3%);
 functions 87.2% lines; duplication 4% ceiling → 0.32% actual (ceiling now 1%);
-frontend tests 712 → 744, plus 69 rules checks and 10 e2e runs (4 smoke
-paths + a sign-up → register → My Climbs journey, desktop and phone); initial load
+frontend tests 712 → 744, plus 69 rules checks and 11 e2e runs (4 smoke
+paths + a sign-up → register → My Climbs journey on desktop and phone, and an
+admin payment-verification journey on desktop); initial load
 270.6 kB gzip (+2 kB from the services layer).
 
 ## Keeping it working
