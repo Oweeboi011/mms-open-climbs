@@ -2,6 +2,7 @@ import { CLOSED_REASON } from "@/pages/register/registerShared";
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import "./register.css";
 
 export default function RegisterBlocked({ blockedReason, climb, climbId }) {
   return (
@@ -11,15 +12,12 @@ export default function RegisterBlocked({ blockedReason, climb, climbId }) {
         <main className="register-content">
           <div className="register-form-card">
             <div className="form-section-title">
-              {blockedReason === "registered"
-                ? "You're Already Registered"
-                : "Registration Is Not Open"}
+              {blockedReason === "registered" ? "You're Already Registered" : "Registration Is Not Open"}
             </div>
-            <p style={{ color: "var(--ink-soft)", marginBottom: 20 }}>
+            <p className="register-blocked-text">
               {blockedReason === "registered" ? (
                 <>
-                  You already have a registration for{" "}
-                  <strong>{climb.title}</strong>.
+                  You already have a registration for <strong>{climb.title}</strong>.
                 </>
               ) : (
                 <>
@@ -28,7 +26,7 @@ export default function RegisterBlocked({ blockedReason, climb, climbId }) {
                 </>
               )}
             </p>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div className="register-blocked-actions">
               {blockedReason === "registered" ? (
                 <Link to="/my-registrations" className="btn btn-primary">
                   View My Climbs

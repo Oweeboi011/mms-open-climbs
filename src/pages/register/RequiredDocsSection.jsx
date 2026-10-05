@@ -1,5 +1,6 @@
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { FieldError } from "@/pages/register/registerShared";
+import "./register.css";
 
 export default function RequiredDocsSection({
   bindField,
@@ -15,19 +16,16 @@ export default function RequiredDocsSection({
       {REQUIRED_DOC_TYPES.some((docType) => climb[docType.requiresField]) && (
         <div className="register-form-card">
           <div className="form-section-title">Required Documents</div>
-          <p className="form-hint" style={{ marginBottom: 16 }}>
-            You can upload these now, or later from{" "}
-            <strong>My Climbs</strong> — we&rsquo;ll remind you in the
+          <p className="form-hint required-docs-intro">
+            You can upload these now, or later from <strong>My Climbs</strong> — we&rsquo;ll remind you in the
             notification bell until they&rsquo;re in.
           </p>
 
-          {REQUIRED_DOC_TYPES.filter(
-            (docType) => climb[docType.requiresField],
-          ).map((docType) => (
+          {REQUIRED_DOC_TYPES.filter((docType) => climb[docType.requiresField]).map((docType) => (
             <div className="form-group" key={docType.key}>
               <label className="form-label">{docType.registerLabel}</label>
               {climb[docType.sampleUrlField] && (
-                <div style={{ marginBottom: 8 }}>
+                <div className="required-doc-row">
                   <a
                     href={climb[docType.sampleUrlField]}
                     target="_blank"
