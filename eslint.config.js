@@ -137,9 +137,7 @@ export default [
       "functions/coverage/**",
       "functions/appShell.generated.js",
       ".firebase/**",
-      "images/**",
-      "playwright-report/**",
-      "test-results/**",
+      "public/**",
     ],
   },
 

@@ -32,8 +32,6 @@ export default defineConfig({
       },
     },
   },
-  // Serve the images/ folder as static assets at /images/
-  publicDir: "images",
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
