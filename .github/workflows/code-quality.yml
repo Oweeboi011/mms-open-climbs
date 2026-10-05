@@ -23,17 +23,17 @@ permissions:
 
 jobs:
   supply-chain:
-    name: Dependency audit (high+)
+    name: Dependency audit (moderate+)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Audit app dependencies
-        run: npm audit --audit-level=high --omit=dev
+        run: npm audit --audit-level=moderate --omit=dev
       - name: Audit Cloud Functions dependencies
-        run: npm --prefix functions audit --audit-level=high --omit=dev
+        run: npm --prefix functions audit --audit-level=moderate --omit=dev
 
   patterns:
     name: Semgrep (advisory)
@@ -44,7 +44,7 @@ jobs:
     container:
       image: semgrep/semgrep:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Scan with Semgrep rulesets
         run: |
           semgrep scan \

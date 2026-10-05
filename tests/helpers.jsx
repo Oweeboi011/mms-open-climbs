@@ -87,11 +87,11 @@ export function makeAdminAuth(overrides = {}) {
 export function renderWithProviders(ui, authValue, options = {}) {
   const ctx = authValue ?? makeGuestAuth();
   return render(
-    <AuthContext.Provider value={ctx}>
+    <AuthContext value={ctx}>
       <GuideProvider>
         <BrowserRouter>{ui}</BrowserRouter>
       </GuideProvider>
-    </AuthContext.Provider>,
+    </AuthContext>,
     options,
   );
 }
@@ -103,7 +103,7 @@ export function renderWithProviders(ui, authValue, options = {}) {
 export function renderAtRoute(ui, path, initialEntry, authValue) {
   const ctx = authValue ?? makeGuestAuth();
   return render(
-    <AuthContext.Provider value={ctx}>
+    <AuthContext value={ctx}>
       <GuideProvider>
         <MemoryRouter initialEntries={[initialEntry]}>
           <Routes>
@@ -111,7 +111,7 @@ export function renderAtRoute(ui, path, initialEntry, authValue) {
           </Routes>
         </MemoryRouter>
       </GuideProvider>
-    </AuthContext.Provider>,
+    </AuthContext>,
   );
 }
 

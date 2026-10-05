@@ -38,8 +38,8 @@ admin payment-verification journey on desktop); initial load
 - Raise coverage floors and lower budgets when reality improves; never the
   reverse to go green.
 - Dependabot PRs land on `develop` weekly; the audit job is the backstop.
-- Re-check the pinned tools (knip 5.55, jscpd 4) once contributors' machines
-  no longer block native binaries.
+- Re-check the knip 5.55.1 pin once contributors' machines no longer block
+  native binaries (see CODE-QUALITY Known limits).
 
 ## Not done / next
 

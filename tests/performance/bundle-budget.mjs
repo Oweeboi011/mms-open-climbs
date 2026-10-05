@@ -8,8 +8,11 @@ import { gzipSync } from "node:zlib";
 const BUDGET_KB = {
   // Entry script + everything index.html preloads: the cost of a first visit.
   initialLoad: 300,
-  // Any one lazily-loaded chunk (an admin page, a Firebase SDK piece).
-  largestChunk: 85,
+  // Any one chunk (an admin page, a Firebase SDK piece). Raised from 85 for
+  // firebase 12.15+: the Firestore SDK grew 74 → 126 kB (its Pipelines code
+  // shares a module with the main entry and doesn't tree-shake; bisected
+  // 12.14 → 12.19). Routes went lazy to keep initialLoad under budget.
+  largestChunk: 135,
 };
 
 const DIST = "dist";

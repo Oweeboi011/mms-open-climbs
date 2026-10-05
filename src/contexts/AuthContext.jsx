@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, use, useEffect, useState } from "react";
 import {
   consumeRedirectSignIn,
   sendPasswordReset,
@@ -168,7 +168,7 @@ export function AuthProvider({ children }) {
   const isAdmin = userProfile?.role === "admin";
 
   return (
-    <AuthContext.Provider
+    <AuthContext
       value={{
         currentUser,
         userProfile,
@@ -185,10 +185,10 @@ export function AuthProvider({ children }) {
       {/* Rendered unconditionally: the public schedule and event pages must
           not wait on a users/ read. The route guards own the loading gate. */}
       {children}
-    </AuthContext.Provider>
+    </AuthContext>
   );
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  return use(AuthContext);
 }

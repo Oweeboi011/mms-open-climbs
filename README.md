@@ -9,7 +9,7 @@ Event management portal for the Metropolitan Mountaineering Society (MMS). Membe
 ```mermaid
 graph TB
     subgraph Browser["User Browser"]
-        SPA["React SPA\n(Vite + React 18)"]
+        SPA["React SPA\n(Vite + React 19)"]
     end
 
     subgraph Firebase["Firebase Platform"]
@@ -35,7 +35,7 @@ graph TB
 
 | Layer               | Technology                        |
 | ------------------- | --------------------------------- |
-| Frontend            | React 18, Vite, React Router v6   |
+| Frontend            | React 19, Vite 8, React Router 7  |
 | Hosting             | Firebase Hosting                  |
 | Database            | Cloud Firestore (`openclimbs` DB) |
 | Authentication      | Firebase Auth (Email + Google)    |
@@ -133,7 +133,7 @@ functions/          Cloud Functions: src/{triggers,scheduled,callables,email,sha
 firebase/           Firestore/Storage rules and indexes, CORS, storage lifecycle
 tests/              unit, component, accessibility, integration, e2e, performance
 scripts/            CLI helpers that use the web API key from .env
-tools/              configs for dependency-cruiser, jscpd, knip, secretlint
+tools/              configs for dependency-cruiser, jscpd, secretlint (knip's lives in package.json)
 docs/               guides/ (what it is) · solution-plans/ (how we deliver) · adr/ (why)
 ```
 

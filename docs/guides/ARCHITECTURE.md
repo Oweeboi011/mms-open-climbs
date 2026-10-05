@@ -8,7 +8,7 @@ holds third-party secrets.
 
 ```mermaid
 graph TB
-    SPA["React 18 SPA<br/>Vite · React Router 7"] -->|served by| FH[Firebase Hosting]
+    SPA["React 19 SPA<br/>Vite 8 · React Router 7"] -->|served by| FH[Firebase Hosting]
     SPA --> FA[Firebase Auth<br/>email/password · Google]
     SPA -->|rules-guarded reads/writes| FS[(Firestore<br/>named DB: openclimbs)]
     SPA -->|uploads| ST[Storage]

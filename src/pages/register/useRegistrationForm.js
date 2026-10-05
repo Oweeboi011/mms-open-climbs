@@ -57,10 +57,10 @@ export default function useRegistrationForm() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const failureContext = { currentUser, userProfile, climbId };
-  const fieldRefs = useRef({});
+  const fieldNodesRef = useRef({});
   function bindField(key) {
     return (node) => {
-      fieldRefs.current[key] = node;
+      fieldNodesRef.current[key] = node;
     };
   }
   function inputClass(key, base = "form-input") {
@@ -139,7 +139,7 @@ export default function useRegistrationForm() {
       // The summary alert sits at the top of a form the user has scrolled to
       // the bottom of. Without this the page appears to do nothing at all.
       const firstKey = FIELD_ORDER.find((k) => errors[k]);
-      const node = fieldRefs.current[firstKey];
+      const node = fieldNodesRef.current[firstKey];
       if (typeof node?.scrollIntoView === "function") {
         node.scrollIntoView({ behavior: "smooth", block: "center" });
       }

@@ -619,7 +619,7 @@ export default function AppInsights() {
             {billingCost?.configured && (
               <>
                 <p style={{ fontWeight: 800, marginBottom: 10 }}>
-                  {billingCost.month}: ${billingCost.totalCost.toFixed(2)}{" "}
+                  {billingCost.month}: {`$${billingCost.totalCost.toFixed(2)}`}{" "}
                   {billingCost.currency}
                 </p>
                 {billingCost.byService.length === 0 ? (

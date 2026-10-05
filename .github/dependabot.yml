@@ -1,5 +1,5 @@
-# Weekly, grouped so one PR per ecosystem instead of one per package.
-# npm audit in CI is the gate; Dependabot keeps the fix PRs coming.
+# Weekly: one PR for minor/patch and one for majors per ecosystem, instead of
+# one per package. npm audit in CI is the gate; Dependabot keeps fixes coming.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -8,12 +8,21 @@ updates:
     schedule: { interval: weekly }
     groups:
       minor-and-patch: { update-types: [minor, patch] }
+      major: { update-types: [major] }
+    ignore:
+      # Pinned on purpose — see docs/guides/CODE-QUALITY.md (Known limits):
+      # later knip loads a native resolver that Windows App Control blocks,
+      # and TypeScript 7 drops the JS API knip parses with.
+      - dependency-name: knip
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
   - package-ecosystem: npm
     directory: /functions
     target-branch: develop
     schedule: { interval: weekly }
     groups:
       minor-and-patch: { update-types: [minor, patch] }
+      major: { update-types: [major] }
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop

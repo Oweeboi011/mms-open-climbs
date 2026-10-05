@@ -45,7 +45,7 @@ node functions/scripts/purge-admin-pageviews.mjs      # admin SDK scripts live i
 
 ## Architecture
 
-**Stack**: React 18 + Vite SPA → Firebase Hosting → Cloud Firestore (named database `openclimbs`, not the default) + Auth + Storage + Cloud Functions v2 (Node 22) + Brevo for email.
+**Stack**: React 19 + Vite SPA → Firebase Hosting → Cloud Firestore (named database `openclimbs`, not the default) + Auth + Storage + Cloud Functions v2 (Node 22) + Brevo for email.
 
 ### Layers — enforced by ESLint (ADR 0004)
 

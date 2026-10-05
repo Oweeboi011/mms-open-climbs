@@ -7,21 +7,18 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { GuideProvider } from "@/contexts/GuideContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
 
-// Public pages
+// The landing page stays in the entry chunk; every other route loads on
+// demand so a first visit downloads only what the schedule needs.
 import Schedule from "@/pages/Schedule";
-import Event from "@/pages/Event";
-import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
-import ForgotPassword from "@/pages/ForgotPassword";
 import NotFound from "@/pages/NotFound";
 
-// Authenticated pages
-import Register from "@/pages/Register";
-import MyRegistrations from "@/pages/MyRegistrations";
-import ClimbFeedback from "@/pages/ClimbFeedback";
-
-// Rarely hit, and WaiverPrint carries print-only styles — no reason for
-// either to sit in the entry chunk.
+const Event = lazy(() => import("@/pages/Event"));
+const Login = lazy(() => import("@/pages/Login"));
+const Signup = lazy(() => import("@/pages/Signup"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const Register = lazy(() => import("@/pages/Register"));
+const MyRegistrations = lazy(() => import("@/pages/MyRegistrations"));
+const ClimbFeedback = lazy(() => import("@/pages/ClimbFeedback"));
 const WaiverPrint = lazy(() => import("@/pages/WaiverPrint"));
 const ReleaseNotes = lazy(() => import("@/pages/ReleaseNotes"));
 const Privacy = lazy(() => import("@/pages/Privacy"));

@@ -18,7 +18,7 @@ import { makeGuestAuth, makeMemberAuth, makeAdminAuth } from "@tests/helpers";
 
 function renderRoutes(authValue, Component) {
   return render(
-    <AuthContext.Provider value={authValue}>
+    <AuthContext value={authValue}>
       <MemoryRouter initialEntries={["/protected"]}>
         <Routes>
           <Route element={<Component />}>
@@ -28,7 +28,7 @@ function renderRoutes(authValue, Component) {
           <Route path="/login" element={<div>login page</div>} />
         </Routes>
       </MemoryRouter>
-    </AuthContext.Provider>,
+    </AuthContext>,
   );
 }
 

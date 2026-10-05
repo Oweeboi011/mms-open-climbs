@@ -5,6 +5,8 @@ module.exports = {
   testEnvironment: "node",
   testMatch: ["**/tests/**/*.test.js"],
   clearMocks: true,
+  // See tests/stubs/jwks-rsa.js.
+  moduleNameMapper: { "^jwks-rsa$": "<rootDir>/tests/stubs/jwks-rsa.js" },
   resetMocks: true,
   collectCoverageFrom: ["src/**/*.js"],
   coverageReporters: ["text", "lcov", "html"],
