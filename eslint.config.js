@@ -4,6 +4,7 @@ import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import importPlugin from "eslint-plugin-import";
 import boundaries from "eslint-plugin-boundaries";
+import { readFileSync } from "node:fs";
 
 // Size / complexity limits every file must meet. See
 // docs/guides/CODE-QUALITY.md and ADR 0003.
@@ -49,6 +50,13 @@ const LEGACY = {
   "functions/src/triggers/climbs.js": {complexity: 30},
   "functions/src/triggers/registrations.js": {functionLines: 284, complexity: 69},
 };
+
+// Files that still use inline `style={{…}}`. New code uses classes and the
+// tokens in src/styles/globals.css. Shrink-only, like LEGACY: drop a file when
+// its last inline style goes; never add one.
+const INLINE_STYLE_LEGACY = JSON.parse(
+  readFileSync(new URL("./tools/inline-styles-legacy.json", import.meta.url), "utf8"),
+);
 
 const LAYERS = [
   { type: "pages", pattern: "src/pages/**", partialMatch: false },
@@ -144,6 +152,11 @@ export default [
       eqeqeq: ["error", "smart"],
       "no-var": "error",
       "prefer-const": "error",
+
+      // --- Naming ------------------------------------------------------
+      // Firestore field names arrive as properties, hence "never".
+      camelcase: ["error", { properties: "never", ignoreDestructuring: true, ignoreImports: true }],
+      "react/jsx-pascal-case": "error",
       "react/prop-types": "off",
       // Apostrophes in user-facing copy are fine; only flag what breaks JSX.
       "react/no-unescaped-entities": ["error", { forbid: [">", "}"] }],
@@ -210,6 +223,8 @@ export default [
           })),
         },
       ],
+      // Design tokens and classes, not inline styles.
+      "react/forbid-dom-props": ["error", { forbid: ["style"] }],
       "no-restricted-globals": [
         "error",
         { name: "localStorage", message: "Use src/services/browserStorage.js." },
@@ -230,6 +245,7 @@ export default [
   },
 
   ...legacyOverrides,
+  { files: INLINE_STYLE_LEGACY, rules: { "react/forbid-dom-props": "off" } },
 
   // --- Cloud Functions (CommonJS, Node) ---------------------------------
   {

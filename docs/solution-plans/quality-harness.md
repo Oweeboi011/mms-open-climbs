@@ -44,6 +44,7 @@ paths + a sign-up → register → My Climbs journey, desktop and phone); initia
 
 - Work down `LEGACY`: `ClimbPaymentCard`, `RegistrantRow`, `AllRegistrations`,
   `Analytics`, `ClimbDetail`, `MyRegistrations`, then the functions triggers.
-- Replace remaining inline styles with design tokens (convention, not yet a gate).
+- Replace remaining inline styles with design tokens — gated for new files;
+  89 legacy files listed in `tools/inline-styles-legacy.json`.
 - Grow `TextField` adoption across the other ~100 hand-written form groups.
 - Consider Stryker once coverage is consistently above 80%.
