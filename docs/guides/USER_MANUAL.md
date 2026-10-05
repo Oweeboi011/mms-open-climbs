@@ -8,27 +8,6 @@ No installation is required — the app runs in your web browser on desktop, tab
 
 ---
 
-## Table of Contents
-
-1. [Getting Started](#1-getting-started)
-2. [Browsing the Climb Schedule](#2-browsing-the-climb-schedule)
-3. [Viewing a Climb (Event Page)](#3-viewing-a-climb-event-page)
-4. [Creating an Account](#4-creating-an-account)
-5. [Logging In](#5-logging-in)
-6. [Forgot Password](#6-forgot-password)
-7. [Registering for a Climb](#7-registering-for-a-climb)
-8. [Paying via GCash](#8-paying-via-gcash)
-9. [My Registrations](#9-my-registrations)
-10. [Your Signed Waiver](#10-your-signed-waiver)
-11. [What's New (Release Notes)](#11-whats-new-release-notes)
-12. [For Climb Officers](#12-for-climb-officers)
-13. [For Administrators](#13-for-administrators)
-14. [Frequently Asked Questions](#14-frequently-asked-questions)
-15. [Troubleshooting](#15-troubleshooting)
-16. [Glossary](#16-glossary)
-
----
-
 ## 1. Getting Started
 
 MMS Open Climbs lets you:
@@ -258,6 +237,8 @@ Each registration card shows:
 - **View Climb** — return to that climb's event page
 - **Print Waiver** — open your printable waiver (only shown once your waiver is signed)
 - **Submit Payment** — shown only while your payment is `Unpaid` or `Rejected`; opens a popup with your fee breakdown, the climb's GCash QR code and account details, and fields to enter the amount paid and upload proof (see [Section 8 — Paying via GCash](#8-paying-via-gcash))
+- **Cancel Registration** — withdraw yourself while your registration is pending, confirmed or waitlisted and the climb hasn't happened yet. If you've paid, the organizers will contact you about a refund under the climb's cancellation policy. Only an admin can undo a cancellation
+- **Leave Feedback** — after a climb you were confirmed for, rate it once
 
 If no registrations exist yet, you'll see a prompt to **Browse Climbs**.
 
@@ -283,9 +264,8 @@ Use your browser's print function (Ctrl+P / Cmd+P) to print it or save it as a P
 
 ## 11. What's New (Release Notes)
 
-Whenever the site adds a new feature or makes an important change, you'll be told about it in two ways:
+Whenever the site adds a new feature or makes an important change, you can find it here:
 
-- **A one-time popup** appears the first time you sign in after a new update is published. It shows the update's title and a short description. Click **Got it** to dismiss it, or **View All Updates** to see the full history. Once dismissed, it won't reappear on any device you sign in from.
 - **A "What's New" link** in the header takes you to the full **Release Notes** page (`/release-notes`) at any time, listing every published update with its date, newest first.
 
 You may also receive an email about a significant update — this is sent at an administrator's discretion, not automatically for every release note.
@@ -379,7 +359,7 @@ Publish "what's new" updates for members from **Admin > Release Notes**:
 
 - **Create a release note** — enter a title and body, and set its status to **Draft** while you're still writing, or **Published** to make it visible to members immediately.
 - **Generate from commits** — instead of writing from scratch, pick a commit range from the recent development history and click Generate to draft a title and grouped changelog body automatically. Review and edit the draft before publishing; nothing is saved until you save the note yourself.
-- Published notes appear as the one-time popup (for the newest one) and on the member-facing **Release Notes** page for everyone signed in — see [Section 11](#11-whats-new-release-notes).
+- Published notes appear on the member-facing **Release Notes** page for everyone signed in — see [Section 11](#11-whats-new-release-notes).
 - **Send Email to All Members** — from a published note's edit page, this button emails every registered member about the update via the same system that sends registration confirmations. You'll be asked to confirm before it sends, since it cannot be undone once sent. The page shows how many members were emailed and when, after a send completes.
 - A release note must be **Published** before it can be emailed — the send button is disabled for drafts.
 
@@ -400,7 +380,7 @@ This affects fee calculation — Joiners are typically charged a Guest Fee (if t
 Check **My Registrations** — your registration's payment status is updated by admins after they review your GCash proof. You'll also receive email updates as your registration status changes.
 
 **Can I cancel my registration myself?**
-Registration status changes (confirm/waitlist/cancel) are managed by climb officers and administrators. Contact your climb officers if you need to cancel or make changes.
+Yes — use **Cancel Registration** in My Registrations, up until the climb takes place. Confirming, waitlisting and reinstating a cancelled registration are done by officers and admins.
 
 **Is my medical information visible to other members?**
 No — medical information is only visible to climb officers and administrators managing that climb, and is used solely for emergency purposes.
@@ -439,4 +419,4 @@ If none of the above resolves your issue, contact your climb officers or the MMS
 | **Payment Status** | Whether your GCash proof of payment is Unpaid, Awaiting Review, Verified, or Rejected |
 | **Officer** | A member assigned to help manage a specific climb's registrations |
 | **Admin** | A user account with full administrative access to all climbs, registrations, and users |
-| **Release Note** | A "what's new" announcement published by an admin, shown as a popup and on the Release Notes page |
+| **Release Note** | A "what's new" announcement published by an admin, listed on the Release Notes page |

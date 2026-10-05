@@ -1,6 +1,6 @@
 # ADR 0002: Code quality gates — what a machine enforces vs. what a reviewer judges
 
-**Status**: Implemented; amended by [ADR 0003](0003-minimum-viable-quality-harness.md) (2026-10-05)
+**Status**: Superseded by [ADR 0003](0003-minimum-viable-quality-harness.md) (2026-10-05). Kept for history; tool names, thresholds and file paths below are no longer current.
 **Date**: 2026-08-06
 **Supersedes / extends**: nothing; complements [ADR 0001](0001-admin-payments-pages-refactor.md), which surfaced the duplication and file-size problems this ADR puts guardrails around.
 

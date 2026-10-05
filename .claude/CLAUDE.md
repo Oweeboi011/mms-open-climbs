@@ -94,7 +94,7 @@ Push to `develop`; CI runs the gates, merges to `main` and deploys. Never deploy
 ## Coding conventions
 
 - Functional components with hooks; JavaScript, not TypeScript.
-- Design tokens from `src/styles/globals.css`; no new inline styles; no CSS frameworks.
+- Design tokens from `src/styles/globals.css`; no CSS frameworks. Inline `style={{…}}` is a lint error outside the shrink-only `tools/inline-styles-legacy.json`.
 - PascalCase components, camelCase functions, ALL_CAPS constants; `@/` imports.
 - Comment only where intent is non-obvious.
 

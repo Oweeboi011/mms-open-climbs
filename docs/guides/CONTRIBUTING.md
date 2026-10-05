@@ -91,15 +91,15 @@ checks what they can't:
 ## Coding conventions
 
 Functional components and hooks only; JavaScript, not TypeScript; `@/`
-imports; design tokens from `src/styles/globals.css` instead of new inline
-styles; no CSS frameworks. PascalCase components, camelCase functions,
+imports; design tokens from `src/styles/globals.css` instead of inline
+styles (a lint error in new files); no CSS frameworks. PascalCase components, camelCase functions,
 ALL_CAPS constants. Comment only where intent isn't obvious.
 
 ## Decisions
 
 Architectural decisions go in [`docs/adr/`](../adr/README.md) as
-`NNNN-title.md`, added in the same PR as the change. Authoring rules:
-[`.github/instructions/adr.instructions.md`](../../.github/instructions/adr.instructions.md).
+`NNNN-title.md`, added in the same PR as the change; the rules are in its
+README.
 
 ## Reporting issues
 
