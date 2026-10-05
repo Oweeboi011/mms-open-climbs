@@ -43,7 +43,7 @@ sequenceDiagram
   sends in batches with a retry, writing progress and a heartbeat after each.
   A second send is refused while one is live. A job that stalls (timeout) is
   closed by the next send, which resumes after the last member it reached
-  (recipients go in uid order), so nobody is emailed twice.
+  (recipients go in signup order, so late signups still sort after the cursor), so nobody is emailed twice.
 - **Preview first.** The admin sees the rendered email and the recipient
   count before confirming.
 - **Owner-granted permission.** Sending needs `users/{uid}.canEmailMembers` on

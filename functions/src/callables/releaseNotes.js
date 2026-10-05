@@ -37,12 +37,26 @@ async function loadPublishedNote(releaseNoteId) {
   return note;
 }
 
+// Send order and resume cursor: signup time, then uid. Members who sign up
+// while a send is stalled sort last, so a resumed job still reaches them.
+const cursorOf = (u) => ({ at: u.createdAt?.toMillis?.() ?? 0, id: u.id });
+function isAfter(u, cursor) {
+  if (!cursor) return true;
+  const k = cursorOf(u);
+  return k.at > cursor.at || (k.at === cursor.at && k.id > cursor.id);
+}
+const byCursor = (a, b) => {
+  const x = cursorOf(a);
+  const y = cursorOf(b);
+  return x.at - y.at || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0);
+};
+
 async function emailRecipients() {
   const usersSnap = await db.collection("users").get();
   return usersSnap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .filter((u) => u.email)
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    .sort(byCursor);
 }
 
 function renderReleaseNoteEmail(note) {
@@ -91,12 +105,13 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
       }
       // A job that stalled mid-send (e.g. hit the 9-minute limit): close it and
       // carry on after the last member it reached, so nobody gets it twice.
-      const resume = currentJob?.status === "sending" ? currentJob.lastUid || null : null;
-      if (currentJob?.status === "sending") {
+      const unfinished = currentJob && !["done", "superseded"].includes(currentJob.status);
+      const resume = unfinished ? currentJob.lastCursor || currentJob.afterCursor || null : null;
+      if (["queued", "sending"].includes(currentJob?.status)) {
         tx.update(db.doc(`releaseNoteEmailJobs/${current}`), { status: "failed", error: "Stalled; resumed by a new job." });
       }
       tx.set(jobRef, {
-        ...(resume ? { afterUid: resume } : {}),
+        ...(resume ? { afterCursor: resume } : {}),
         releaseNoteId,
         status: "queued",
         total: recipients.length,
@@ -118,7 +133,7 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
   }
 });
 
-Object.assign(module.exports, { emailRecipients, renderReleaseNoteEmail });
+Object.assign(module.exports, { emailRecipients, renderReleaseNoteEmail, cursorOf, isAfter });
 
 // ── Release note draft generation from GitHub commit history ──────────────────
 const GITHUB_REPO_OWNER = "Oweeboi011";

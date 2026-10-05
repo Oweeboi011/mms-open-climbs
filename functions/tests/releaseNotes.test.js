@@ -235,10 +235,18 @@ describe("sendReleaseNoteEmail callable", () => {
   it("resumes after the last member a stalled job reached", async () => {
     sender();
     releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
-    jobsStore["j0"] = { status: "sending", lastUid: "m2", heartbeatAt: Date.now() - 30 * 60 * 1000 };
+    jobsStore["j0"] = { status: "sending", lastCursor: { at: 0, id: "m2" }, heartbeatAt: Date.now() - 30 * 60 * 1000 };
     const { jobId } = await call({ releaseNoteId: "rn1" });
     expect(jobsStore["j0"].status).toBe("failed");
-    expect(jobsStore[jobId].afterUid).toBe("m2");
+    expect(jobsStore[jobId].afterCursor).toEqual({ at: 0, id: "m2" });
+  });
+
+  it("keeps the resume point when a resume job itself fails early", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j1", status: "failed" } };
+    jobsStore["j1"] = { status: "failed", afterCursor: { at: 0, id: "m2" } };
+    const { jobId } = await call({ releaseNoteId: "rn1" });
+    expect(jobsStore[jobId].afterCursor).toEqual({ at: 0, id: "m2" });
   });
 
   it("can send again after a failed job", async () => {
@@ -349,12 +357,17 @@ describe("release-note email job", () => {
 
   it("skips members a previous stalled job already reached", async () => {
     releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
-    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued", afterUid: "m2" };
-    for (const id of ["m1", "m2", "m3", "m4"]) usersStore[id] = { email: `${id}@a.com` };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued", afterCursor: { at: 200, id: "m2" } };
+    const at = (ms) => ({ toMillis: () => ms });
+    usersStore["m1"] = { email: "m1@a.com", createdAt: at(100) };
+    usersStore["m2"] = { email: "m2@a.com", createdAt: at(200) };
+    usersStore["m3"] = { email: "m3@a.com", createdAt: at(300) };
+    // Signed up during the stall; its uid sorts first but its signup is last.
+    usersStore["a0"] = { email: "new@a.com", createdAt: at(999) };
     await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
     const to = global.fetch.mock.calls.map(([, init]) => JSON.parse(init.body).to[0].email);
-    expect(to).toEqual(["m3@a.com", "m4@a.com"]);
-    expect(jobsStore["job-9"]).toMatchObject({ status: "done", lastUid: "m4" });
+    expect(to).toEqual(["m3@a.com", "new@a.com"]);
+    expect(jobsStore["job-9"]).toMatchObject({ status: "done", lastCursor: { at: 999, id: "a0" } });
   });
 
   it("does not send a note that was unpublished after queueing", async () => {

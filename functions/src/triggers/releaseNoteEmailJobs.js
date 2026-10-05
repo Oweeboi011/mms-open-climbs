@@ -11,7 +11,7 @@ const { FieldValue } = require("firebase-admin/firestore");
 const { sendEmail } = require("../email/sendEmail");
 const { logFailedRequest } = require("../shared/registrationOps");
 const { sendInBatches } = require("../shared/batchSend");
-const { emailRecipients, renderReleaseNoteEmail } = require("../callables/releaseNotes");
+const { emailRecipients, renderReleaseNoteEmail, cursorOf, isAfter } = require("../callables/releaseNotes");
 const { db } = require("../shared/admin");
 
 // Point the note at this job's status (plus any extra fields) — unless a
@@ -61,13 +61,13 @@ async function runJob(jobId, job, deps = {}) {
   }
   const noteSnap = await noteRef.get();
   const { subject, html } = renderReleaseNoteEmail(noteSnap.data());
-  const recipients = (await emailRecipients()).filter((u) => !job.afterUid || u.id > job.afterUid);
+  const recipients = (await emailRecipients()).filter((u) => isAfter(u, job.afterCursor));
   await jobRef.update({ total: recipients.length, heartbeatAt: Date.now() });
 
   const result = await sendInBatches(recipients, {
     send: (u) => sendEmail({ to: u.email, toName: u.displayName || u.email, subject, html }),
     onProgress: ({ sent, failed }) =>
-      jobRef.update({ sent, failed, lastUid: recipients[sent + failed - 1].id, heartbeatAt: Date.now() }),
+      jobRef.update({ sent, failed, lastCursor: cursorOf(recipients[sent + failed - 1]), heartbeatAt: Date.now() }),
     onFailure: (u, message) =>
       logFailedRequest({ type: "email", source: "releaseNoteEmailJobs", message, userId: u.id }),
     ...deps,

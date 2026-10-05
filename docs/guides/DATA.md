@@ -127,7 +127,8 @@ stateDiagram-v2
   `emailSentCount` are stamped when it finishes.
 - **releaseNoteEmailJobs** — `releaseNoteId`, `status`
   (`queued`/`sending`/`done`/`failed`/`superseded`), `total`, `sent`, `failed`,
-  `createdBy`, `queuedAt`, `heartbeatAt` (every batch). It is the send lock: a
+  `createdBy`, `queuedAt`, `heartbeatAt` and `lastCursor` (every batch),
+  `afterCursor` on a resumed job. It is the send lock: a
   queued job holds it up to 60 min, a sending one while its heartbeat is under
   15 min old. A job only sends if it claims itself first (still queued, still
   the note's current job), so an expired or replayed job never re-sends. Written only by Functions, watched by the admin form.
