@@ -17,7 +17,7 @@
     "arch": "depcruise src tests scripts functions/src functions/scripts --config tools/dependency-cruiser.cjs",
     "arch:graph": "depcruise src --include-only \"^src/\" --config tools/dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",
     "dupes": "jscpd --config tools/jscpd.json src functions/src",
-    "quality": "npm run lint && npm run arch && npm run dupes && npm run deadcode && npm run secrets",
+    "quality": "run-p --print-label lint arch css dupes deadcode secrets",
     "qa": "npm run quality && npm run build && npm run test:perf && npm run test:strict",
     "release-notes": "node scripts/generate-release-notes.mjs",
     "secrets": "secretlint --secretlintrc tools/secretlintrc.json --secretlintignore tools/secretlintignore \"**/*\"",
@@ -26,7 +26,8 @@
     "test:integration": "npx -y firebase-tools@15 emulators:exec --only firestore,storage --project demo-rules \"node tests/integration/rules.test.mjs\"",
     "test:e2e": "npx -y firebase-tools@15 emulators:exec --only auth,firestore --project demo-e2e \"playwright test -c tests/e2e/playwright.config.js\"",
     "test:perf": "node tests/performance/bundle-budget.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "css": "node tools/css-collisions.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",
@@ -64,6 +65,7 @@
     "jsdom": "^30.1.2",
     "knip": "5.55.1",
     "lint-staged": "^17.6.0",
+    "npm-run-all2": "^9.0.3",
     "secretlint": "^13.0.7",
     "typescript": "^5.9.3",
     "vite": "^8.3.2",

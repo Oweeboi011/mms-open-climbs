@@ -29,6 +29,9 @@ flowchart TB
 `npm run test:strict` runs both unit suites with coverage thresholds;
 `npm run qa` runs everything except integration and e2e.
 
+Vitest runs with `pool: "vmThreads"` (each test file gets its own VM
+context inside a reused worker — about a third faster, same isolation).
+
 ### Emulator-backed tests
 
 Integration and e2e start the Firebase emulators themselves
