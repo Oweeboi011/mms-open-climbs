@@ -1,3 +1,5 @@
+import "./Icon.css";
+
 const PATHS = {
   heart: (
     <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
@@ -154,7 +156,8 @@ const PATHS = {
   ),
 };
 
-export default function Icon({ name, size = 18, color = "currentColor", style }) {
+// Decorative line icons; the control that holds one carries the label.
+export default function Icon({ name, size = 18, color = "currentColor", className = "" }) {
   const path = PATHS[name];
   if (!path) return null;
   return (
@@ -167,7 +170,9 @@ export default function Icon({ name, size = 18, color = "currentColor", style })
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ flexShrink: 0, verticalAlign: "middle", ...style }}
+      className={`icon-svg ${className}`.trim()}
+      aria-hidden="true"
+      focusable="false"
     >
       {path}
     </svg>

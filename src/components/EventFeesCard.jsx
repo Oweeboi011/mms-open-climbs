@@ -1,12 +1,7 @@
-import Icon from "@/components/Icon";
 import { getClimbFeeModel, formatPeso } from "@/utils/feeSummary";
+import SectionCard from "@/components/SectionCard";
 
-const PLACEHOLDER_FEES = [
-  "Transportation",
-  "Registration / Guide Fee",
-  "Accommodation",
-  "Food & Meals",
-];
+const PLACEHOLDER_FEES = ["Transportation", "Registration / Guide Fee", "Accommodation", "Food & Meals"];
 
 function FeeRow({ fee }) {
   return (
@@ -24,86 +19,62 @@ function FeeRow({ fee }) {
 // required fees only. Optional extras and the joiner-only guest fee are shown
 // apart so nobody reads them as owed (see utils/feeSummary.js).
 export default function EventFeesCard({ climb, onOpenGuide }) {
-  const {
-    requiredFees,
-    optionalFees,
-    guestFee,
-    guestAmount,
-    requiredTotal,
-    requiredHasTBA,
-    requiredHasAmount,
-  } = getClimbFeeModel(climb);
+  const { requiredFees, optionalFees, guestFee, guestAmount, requiredTotal, requiredHasTBA, requiredHasAmount } =
+    getClimbFeeModel(climb);
 
   return (
-    <div className="section-card">
-      <div className="section-header">
-        <span className="icon">
-          <Icon name="wallet" size={17} />
-        </span>
-        <h3>Fees</h3>
-      </div>
-      <div className="section-body">
-        {!climb.fees?.length ? (
-          PLACEHOLDER_FEES.map((label) => (
-            <FeeRow key={label} fee={{ label, amount: "TBA" }} />
-          ))
-        ) : (
-          <>
-            {requiredFees.map((fee, i) => (
-              <FeeRow key={`req-${i}`} fee={fee} />
-            ))}
-            {requiredHasAmount && (
-              <div className="expense-total-row">
-                <div className="expense-total-label">
-                  Member Total
-                  {requiredHasTBA && (
-                    <span className="expense-total-note"> (excl. TBA items)</span>
-                  )}
-                </div>
-                <div className="expense-total-amount">
-                  {formatPeso(requiredTotal)}
-                </div>
+    <SectionCard icon="wallet" title="Fees">
+      {!climb.fees?.length ? (
+        PLACEHOLDER_FEES.map((label) => <FeeRow key={label} fee={{ label, amount: "TBA" }} />)
+      ) : (
+        <>
+          {requiredFees.map((fee, i) => (
+            <FeeRow key={`req-${i}`} fee={fee} />
+          ))}
+          {requiredHasAmount && (
+            <div className="expense-total-row">
+              <div className="expense-total-label">
+                Member Total
+                {requiredHasTBA && <span className="expense-total-note"> (excl. TBA items)</span>}
               </div>
-            )}
-            {optionalFees.length > 0 && (
-              <>
-                <div className="expense-group-label">
-                  Optional — only if availed
-                </div>
-                {optionalFees.map((fee, i) => (
-                  <FeeRow key={`opt-${i}`} fee={fee} />
-                ))}
-              </>
-            )}
-            {guestFee && (
-              <div className="expense-guest-note">
-                + {guestAmount !== null ? formatPeso(guestAmount) : "TBA"}{" "}
-                {guestFee.label} for non-members
-              </div>
-            )}
-          </>
-        )}
-        {onOpenGuide && (
-          <div className="expense-guest-note" style={{ marginTop: 8 }}>
-            Not sure if you&rsquo;re a member or a joiner?{" "}
-            <button
-              type="button"
-              onClick={onOpenGuide}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                font: "inherit",
-                color: "var(--green-dark)",
-                textDecoration: "underline",
-                cursor: "pointer",
-              }}
-            >
-              See member vs joiner
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+              <div className="expense-total-amount">{formatPeso(requiredTotal)}</div>
+            </div>
+          )}
+          {optionalFees.length > 0 && (
+            <>
+              <div className="expense-group-label">Optional — only if availed</div>
+              {optionalFees.map((fee, i) => (
+                <FeeRow key={`opt-${i}`} fee={fee} />
+              ))}
+            </>
+          )}
+          {guestFee && (
+            <div className="expense-guest-note">
+              + {guestAmount !== null ? formatPeso(guestAmount) : "TBA"} {guestFee.label} for non-members
+            </div>
+          )}
+        </>
+      )}
+      {onOpenGuide && (
+        <div className="expense-guest-note" style={{ marginTop: 8 }}>
+          Not sure if you&rsquo;re a member or a joiner?{" "}
+          <button
+            type="button"
+            onClick={onOpenGuide}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              font: "inherit",
+              color: "var(--green-dark)",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+          >
+            See member vs joiner
+          </button>
+        </div>
+      )}
+    </SectionCard>
   );
 }
