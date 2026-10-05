@@ -74,6 +74,7 @@ vi.mock("firebase/auth", () => ({
 
 vi.mock("firebase/firestore", () => ({
   getFirestore: vi.fn(),
+  initializeFirestore: vi.fn(),
   collection: vi.fn((_db, path) => ({ path })),
   doc: vi.fn((_db, ...args) => ({ path: args.join("/") })),
   getDoc: vi.fn(() => Promise.resolve(makeSnapshot("doc-1", {}))),
