@@ -32,6 +32,7 @@ flowchart LR
 | Inline styles in new files | ESLint `react/forbid-dom-props` | pre-commit + `qa` | 0 outside `tools/inline-styles-legacy.json` | Use a class and the tokens in `src/styles/globals.css` |
 | Naming: camelCase identifiers, PascalCase components | ESLint `camelcase`, `react/jsx-pascal-case` | pre-commit + `qa` | 0 | Rename. Firestore field names are exempt (properties) |
 | Circular deps, unresolvable imports, dev-deps or `firebase-admin` in the bundle | dependency-cruiser (`npm run arch`) | `qa` | 0 | Break the cycle by extracting the shared piece |
+| Class name defined in two stylesheets | `npm run css` | `qa` | 0 | Rename the feature's class, or scope it as `.global.feature` |
 | Duplication | jscpd (`npm run dupes`) | `qa` | ≤ 1% | Extract a component, hook or util |
 | Dead code: unused files, exports, deps | knip (`npm run deadcode`) | `qa` | 0 | Delete it (git keeps history) |
 | Secrets | secretlint (+ Brevo / Google key patterns) | pre-commit + `qa` | 0 | Move it to `.env` or a Firebase secret; **rotate it** if it was ever pushed |
@@ -61,11 +62,27 @@ Current debt (largest first): `ClimbPaymentCard`, `RegistrantRow`,
 the Cloud Functions trigger handlers (complexity up to 77). The full list is
 `LEGACY` itself.
 
+## What it costs
+
+Kept cheap on purpose: if a gate is slow, people stop running it.
+
+| Stage | Time (local, warm) |
+|---|---|
+| pre-commit (lint-staged: ESLint + secretlint on staged files) | ~2–3 s |
+| `npm run quality` (6 static checks in parallel) | ~4 s |
+| `npm run qa` (quality, build, bundle budget, both test suites with coverage) | ~20 s |
+| CI integration / e2e jobs | run in parallel with `qa`; emulator JARs and the Playwright browser are cached |
+
+What keeps it there: static checks run concurrently (`run-p`), Vitest
+reuses workers across files (`pool: "vmThreads"`), ESLint caches results,
+and each concern has exactly one tool. Before adding a check, time it; a
+new gate that adds more than a few seconds to `qa` needs a reason in an ADR.
+
 ## Commands
 
 ```bash
 npm run qa          # everything CI's quality job runs — run before pushing
-npm run quality     # just the static checks (lint, arch, dupes, deadcode, secrets)
+npm run quality     # just the static checks, in parallel (lint, arch, css, dupes, deadcode, secrets)
 npm run lint:fix    # autofix what ESLint can
 npm run arch:graph  # SVG dependency graph (needs graphviz)
 ```
