@@ -232,6 +232,15 @@ describe("sendReleaseNoteEmail callable", () => {
     await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-2" });
   });
 
+  it("resumes after the last member a stalled job reached", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
+    jobsStore["j0"] = { status: "sending", lastUid: "m2", heartbeatAt: Date.now() - 30 * 60 * 1000 };
+    const { jobId } = await call({ releaseNoteId: "rn1" });
+    expect(jobsStore["j0"].status).toBe("failed");
+    expect(jobsStore[jobId].afterUid).toBe("m2");
+  });
+
   it("can send again after a failed job", async () => {
     sender();
     releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "failed" } };
@@ -336,6 +345,41 @@ describe("release-note email job", () => {
     await expect(
       index.sendReleaseNoteEmail({ auth: { uid: "admin-1" }, data: { releaseNoteId: "rn1" } }),
     ).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+
+  it("skips members a previous stalled job already reached", async () => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued", afterUid: "m2" };
+    for (const id of ["m1", "m2", "m3", "m4"]) usersStore[id] = { email: `${id}@a.com` };
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+    const to = global.fetch.mock.calls.map(([, init]) => JSON.parse(init.body).to[0].email);
+    expect(to).toEqual(["m3@a.com", "m4@a.com"]);
+    expect(jobsStore["job-9"]).toMatchObject({ status: "done", lastUid: "m4" });
+  });
+
+  it("does not send a note that was unpublished after queueing", async () => {
+    releaseNotesStore["rn1"] = { status: "draft", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
+    usersStore["m1"] = { email: "a@a.com" };
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(jobsStore["job-9"].status).toBe("failed");
+  });
+
+  it("keeps a finished job done when only the closing stamp fails", async () => {
+    const { onReleaseNoteEmailJobCreated } = require("../src/triggers/releaseNoteEmailJobs");
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
+    usersStore["m1"] = { email: "a@a.com" };
+    let transactions = 0;
+    mockDb.runTransaction.mockImplementation((fn) => {
+      transactions++;
+      // claim succeeds; the final note stamp (2nd transaction) fails.
+      if (transactions === 2) return Promise.reject(new Error("deadline exceeded"));
+      return runTransaction(fn);
+    });
+    await onReleaseNoteEmailJobCreated({ params: { jobId: "job-9" }, data: { data: () => ({ releaseNoteId: "rn1", status: "queued" }) } });
+    expect(jobsStore["job-9"].status).toBe("done");
   });
 
   it("fails the job when the note was deleted", async () => {

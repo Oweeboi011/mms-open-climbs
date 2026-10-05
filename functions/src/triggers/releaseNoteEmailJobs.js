@@ -31,6 +31,10 @@ function claim(jobRef, noteRef, jobId) {
     const job = (await tx.get(jobRef)).data();
     const note = await tx.get(noteRef);
     if (!note.exists) return "missing";
+    if (note.data().status !== "published") {
+      if (job?.status === "queued") tx.update(jobRef, { status: "failed", error: "Note was unpublished before sending." });
+      return "skip";
+    }
     // Already started or finished (e.g. a redelivered event): leave it be.
     if (job?.status !== "queued") return "skip";
     if (note.data().emailJob?.id !== jobId) {
@@ -57,12 +61,13 @@ async function runJob(jobId, job, deps = {}) {
   }
   const noteSnap = await noteRef.get();
   const { subject, html } = renderReleaseNoteEmail(noteSnap.data());
-  const recipients = await emailRecipients();
+  const recipients = (await emailRecipients()).filter((u) => !job.afterUid || u.id > job.afterUid);
   await jobRef.update({ total: recipients.length, heartbeatAt: Date.now() });
 
   const result = await sendInBatches(recipients, {
     send: (u) => sendEmail({ to: u.email, toName: u.displayName || u.email, subject, html }),
-    onProgress: ({ sent, failed }) => jobRef.update({ sent, failed, heartbeatAt: Date.now() }),
+    onProgress: ({ sent, failed }) =>
+      jobRef.update({ sent, failed, lastUid: recipients[sent + failed - 1].id, heartbeatAt: Date.now() }),
     onFailure: (u, message) =>
       logFailedRequest({ type: "email", source: "releaseNoteEmailJobs", message, userId: u.id }),
     ...deps,
@@ -91,7 +96,13 @@ exports.onReleaseNoteEmailJobCreated = onDocumentCreated(
     } catch (err) {
       logger.error("[releaseNoteEmailJobs] Failed", { jobId, err: err.message });
       const job = event.data.data();
-      await db.doc(`releaseNoteEmailJobs/${jobId}`).update({ status: "failed", error: err.message.slice(0, 300) });
+      const jobRef = db.doc(`releaseNoteEmailJobs/${jobId}`);
+      if ((await jobRef.get()).data()?.status === "done") {
+        // Every email went out; only the closing stamp failed. Don't unlock a re-send.
+        await logFailedRequest({ type: "email", source: "releaseNoteEmailJobs", message: `after done: ${err.message}` });
+        return;
+      }
+      await jobRef.update({ status: "failed", error: err.message.slice(0, 300) });
       // Release the note so an admin can send again.
       if (job?.releaseNoteId) {
         await setNoteJob(db.doc(`releaseNotes/${job.releaseNoteId}`), jobId, "failed");

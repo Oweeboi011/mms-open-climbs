@@ -42,7 +42,7 @@ non-obvious guarantees:
 | Private climb data stays private | `climbs` is public, so briefings live in `climbPrivate` (registrants only, via the `climbInternal` roster) and costs/officer emails in admin-only docs |
 | One feedback per member per climb | Deterministic id + no update/delete; author must be on the roster |
 | Notifications are server-made | Clients may only flip `read` on their own |
-| Emailing every member takes two admins | `canEmailMembers` can be set by an admin only on *someone else*; the callable checks it |
+| Emailing every member needs an owner-held grant | No client can write `canEmailMembers` (an admin could mint a second admin to approve themselves); the owner sets it with `functions/scripts/grant-email-members.mjs`; the callable checks it |
 | Member uploads are private | Storage: owner-or-admin read; members add files to their own folder only, never overwrite/delete; content types checked; admin-only for QR, images, templates |
 
 ## Secrets and keys

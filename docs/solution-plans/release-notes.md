@@ -29,7 +29,7 @@ flowchart LR
   `docs`/`test`/`chore`/`ci` noise; `npm run release-notes` does the same in a
   terminal.
 - Emailing everyone: preview → confirm → queued job with a progress bar.
-  Needs the `canEmailMembers` permission, granted by another admin.
+  Needs the `canEmailMembers` permission, granted by the project owner.
 
 Code: `src/pages/ReleaseNotes.jsx`, `src/pages/admin/ReleaseNote*.jsx` +
 `src/pages/admin/releaseNoteForm/`, `src/services/releaseNotes.js`,
@@ -39,8 +39,9 @@ Code: `src/pages/ReleaseNotes.jsx`, `src/pages/admin/ReleaseNote*.jsx` +
 
 ## After deploy
 
-One admin opens **Users**, picks another admin and ticks **Can email every
-member**; repeat in reverse if both should be able to send.
+The project owner grants senders from a terminal with Google Cloud access:
+`node functions/scripts/grant-email-members.mjs <admin email>` (`--revoke` to
+undo). The Users page shows who has it.
 
 ## Open
 

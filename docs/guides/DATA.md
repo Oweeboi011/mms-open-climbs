@@ -108,8 +108,8 @@ stateDiagram-v2
 
 - **users** — `displayName`, `email`, `role` (`member` default; `admin` via
   `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`.
-  `canEmailMembers` allows the all-member release-note email; only another
-  admin can set it.
+  `canEmailMembers` allows the all-member release-note email; no client can
+  write it (`functions/scripts/grant-email-members.mjs`).
   `syncAdminClaim` mirrors it into an auth claim for Storage rules.
 - **feedback** — `rating` integer 1–5 and `comments`. The deterministic id is
   the one-per-member rule: a second submit becomes an update, which the rules

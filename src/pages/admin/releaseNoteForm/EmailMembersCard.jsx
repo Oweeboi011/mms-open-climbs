@@ -30,7 +30,7 @@ function JobProgress({ job }) {
 function blockedReason(published, canEmail) {
   if (!published) return "Publish this release note before emailing it.";
   if (!canEmail) {
-    return "Emailing every member needs the “Can email members” permission — ask another admin to grant it on the Users page.";
+    return "Emailing every member needs the “Can email members” permission, which the project owner grants (see Users › your profile).";
   }
   return "";
 }
