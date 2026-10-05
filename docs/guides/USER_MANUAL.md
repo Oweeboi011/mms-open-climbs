@@ -360,8 +360,10 @@ Publish "what's new" updates for members from **Admin > Release Notes**:
 - **Create a release note** — enter a title and body, and set its status to **Draft** while you're still writing, or **Published** to make it visible to members immediately.
 - **Generate from commits** — instead of writing from scratch, pick a commit range from the recent development history and click Generate to draft a title and grouped changelog body automatically. Review and edit the draft before publishing; nothing is saved until you save the note yourself.
 - Published notes appear on the member-facing **Release Notes** page for everyone signed in — see [Section 11](#11-whats-new-release-notes).
-- **Send Email to All Members** — from a published note's edit page, this button emails every registered member about the update via the same system that sends registration confirmations. You'll be asked to confirm before it sends, since it cannot be undone once sent. The page shows how many members were emailed and when, after a send completes.
 - A release note must be **Published** before it can be emailed — the send button is disabled for drafts.
+- **Preview & Send** shows the exact email and how many members will get it before anything is sent; after you confirm, a progress bar shows the send as it happens.
+- Emailing everyone needs the **Can email every member** permission. Another admin turns it on for you under **Users** (open your profile there); you can't grant it to yourself.
+- **Delete** removes a note from the history page. Emails already sent can't be recalled.
 
 ---
 

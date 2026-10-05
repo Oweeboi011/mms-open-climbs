@@ -64,7 +64,7 @@ export default function SignWaiverPrompt({
     <Modal
       onClose={onClose}
       labelledBy="signwaiver-title"
-      contentStyle={{ maxWidth: 520 }}
+      size="lg"
     >
       <div>
         <h3

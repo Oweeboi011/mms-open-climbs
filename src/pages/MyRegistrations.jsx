@@ -753,7 +753,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
             <Modal
               onClose={() => setShowConfirm(false)}
               label="Confirm Payment"
-              zIndex={1100}
+              layer="top"
             >
               <div>
                 <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
@@ -851,16 +851,9 @@ function PayPrompt({ reg, onClose, onSaved }) {
         <Modal
           onClose={() => setQrModalOpen(false)}
           label="GCash QR Code"
-          zIndex={1100}
+          layer="top"
+          variant="spotlight"
           showClose={false}
-          overlayStyle={{ background: "rgba(0,0,0,0.75)", padding: 24 }}
-          contentStyle={{
-            background: "#fff",
-            borderRadius: 16,
-            maxWidth: 340,
-            textAlign: "center",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
-          }}
         >
           <div>
             <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: 4 }}>

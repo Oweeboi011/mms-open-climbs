@@ -32,6 +32,22 @@
   --surface-warning: #fff8e1;
   --warning-border: #ffe082;
   --danger: #c62828;
+
+  /* Status tones: text / background / border for pills, alerts, amounts. */
+  --success-ink: #1a6b2c;
+  --success-bg: #e8f5e9;
+  --success-border: #a7d7b2;
+  --warning-ink: #b45309;
+  --warning-bg: #fff8e1;
+  --warning-line: #fde68a;
+  --danger-ink: #b91c1c;
+  --danger-bg: #fce8e8;
+  --danger-border: #fca5a5;
+  --muted-ink: #6b7280;
+  --muted-bg: #f3f4f6;
+  --muted-border: #d1d5db;
+  --gcash: #0070e0;
+  --officer: #7b2d8b;
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
@@ -2357,6 +2373,11 @@ textarea {
 }
 .rn-list li {
   padding-left: 2px;
+}
+.rn-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
 }
 .reg-card-actions {
   display: flex;

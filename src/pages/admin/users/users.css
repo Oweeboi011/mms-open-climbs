@@ -1,0 +1,241 @@
+/* Admin › Users */
+
+.users-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.users-search {
+  max-width: 320px;
+}
+
+/* Table */
+.users-table th:not(:first-child) {
+  min-width: 100px;
+  white-space: nowrap;
+}
+
+.users-row {
+  cursor: pointer;
+}
+
+.users-row-name {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.users-row-email {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.users-row-soft {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.users-row-date {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.users-empty {
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.users-you {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface-alt);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink-soft);
+  vertical-align: middle;
+}
+
+/* Detail dialog */
+.users-detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.users-avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--green-dark);
+  color: var(--gold-light);
+  font-family: var(--font-head);
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.users-detail-name {
+  margin: 0 32px 2px 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.users-detail-email {
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.users-label {
+  margin-bottom: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.users-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 20px;
+  margin: 0 0 22px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.users-facts .users-label {
+  margin-bottom: 2px;
+  font-size: 0.65rem;
+}
+
+.users-facts dd {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.users-section {
+  margin-bottom: 22px;
+}
+
+.users-section .alert {
+  margin-bottom: 10px;
+}
+
+.users-role-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.users-role-option {
+  padding: 8px 20px;
+  border: 2px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.users-role-option--member.users-role-option--active {
+  border-color: var(--success-ink);
+  background: var(--success-bg);
+  color: var(--success-ink);
+}
+
+.users-role-option--admin.users-role-option--active {
+  border-color: #f59e0b;
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
+
+.users-role-save {
+  margin-left: auto;
+}
+
+.users-note {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.users-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.users-self-note {
+  margin-bottom: 22px;
+  padding: 12px 14px;
+  border: 1px solid var(--warning-line);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  font-size: 0.82rem;
+  color: var(--warning-ink);
+}
+
+.users-danger {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Create-user error */
+.users-error-title {
+  margin: 0 32px 14px 0;
+  font-family: var(--font-head);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--danger-ink);
+}
+
+.users-error-message {
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
+
+.users-next-step {
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+
+.users-next-step .users-label {
+  margin-bottom: 4px;
+  font-size: 0.65rem;
+}
+
+.users-error-raw {
+  margin-bottom: 20px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  word-break: break-word;
+}

@@ -3,19 +3,17 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { addDoc, updateDoc, getDoc } from "firebase/firestore";
+import { addDoc, updateDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { renderAtRoute, makeAdminAuth } from "@tests/helpers";
-import { makeSnapshot } from "@tests/setup";
+import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
 import AdminReleaseNoteForm from "@/pages/admin/ReleaseNoteForm";
 
-// Route callables by name so the test can steer the email send.
-const sendReleaseNoteEmailMock = vi.fn();
+// Route callables by name so each test can steer preview and send.
+const callables = { previewReleaseNoteEmail: vi.fn(), sendReleaseNoteEmail: vi.fn() };
 beforeEach(() => {
-  sendReleaseNoteEmailMock.mockReset().mockResolvedValue({ data: {} });
-  httpsCallable.mockImplementation((_fns, name) =>
-    name === "sendReleaseNoteEmail" ? sendReleaseNoteEmailMock : vi.fn(() => Promise.resolve({ data: {} })),
-  );
+  for (const fn of Object.values(callables)) fn.mockReset().mockResolvedValue({ data: {} });
+  httpsCallable.mockImplementation((_fns, name) => callables[name] || vi.fn(() => Promise.resolve({ data: {} })));
 });
 
 describe("Admin ReleaseNoteForm", () => {
@@ -124,66 +122,55 @@ describe("Admin ReleaseNoteForm", () => {
     await waitFor(() => expect(updateDoc).toHaveBeenCalled());
   });
 
-  it("only enables Send Email once the note is published", async () => {
+  const publishedNote = () =>
     getDoc.mockResolvedValue(
-      makeSnapshot("note-1", {
-        title: "Existing Note",
-        body: "Existing body",
-        status: "draft",
-      }),
+      makeSnapshot("note-1", { title: "Existing Note", body: "Existing body", status: "published" }),
     );
+  const sender = () => makeAdminAuth({ userProfile: { role: "admin", canEmailMembers: true } });
+  const openEdit = (auth) =>
+    renderAtRoute(<AdminReleaseNoteForm />, "/admin/release-notes/:id/edit", "/admin/release-notes/note-1/edit", auth);
 
-    renderAtRoute(
-      <AdminReleaseNoteForm />,
-      "/admin/release-notes/:id/edit",
-      "/admin/release-notes/note-1/edit",
-      makeAdminAuth(),
-    );
-
-    await waitFor(() =>
-      expect(screen.getByDisplayValue("Existing Note")).toBeInTheDocument(),
-    );
-
-    expect(
-      screen.getByRole("button", { name: /Send Email to All Members/i }),
-    ).toBeDisabled();
+  it("only enables sending once the note is published", async () => {
+    getDoc.mockResolvedValue(makeSnapshot("note-1", { title: "Existing Note", body: "Existing body", status: "draft" }));
+    openEdit(sender());
+    await waitFor(() => expect(screen.getByDisplayValue("Existing Note")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Preview & Send/i })).toBeDisabled();
+    expect(screen.getByText(/Publish this release note before emailing it/i)).toBeInTheDocument();
   });
 
-  it("sends the release note email after confirmation", async () => {
-    window.confirm.mockReturnValue(true);
-    sendReleaseNoteEmailMock.mockResolvedValue({
-      data: { sent: 5, total: 5 },
+  it("explains the missing permission to an admin without canEmailMembers", async () => {
+    publishedNote();
+    openEdit(makeAdminAuth());
+    await waitFor(() => expect(screen.getByDisplayValue("Existing Note")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Preview & Send/i })).toBeDisabled();
+    expect(screen.getByText(/ask another admin to grant it/i)).toBeInTheDocument();
+  });
+
+  it("previews the email, sends after confirmation and shows progress", async () => {
+    publishedNote();
+    callables.previewReleaseNoteEmail.mockResolvedValue({
+      data: { subject: "MMS Open Climbs Update: Existing Note", html: "<p>hi</p>", recipients: 5 },
     });
-    getDoc.mockResolvedValue(
-      makeSnapshot("note-1", {
-        title: "Existing Note",
-        body: "Existing body",
-        status: "published",
-      }),
-    );
+    callables.sendReleaseNoteEmail.mockResolvedValue({ data: { jobId: "job-1", total: 5 } });
+    onSnapshot.mockImplementation((ref, cb) => {
+      cb(
+        ref?.path === "releaseNoteEmailJobs/job-1"
+          ? makeSnapshot("job-1", { status: "sending", total: 5, sent: 2, failed: 0 })
+          : makeQuerySnapshot([]),
+      );
+      return vi.fn();
+    });
 
-    renderAtRoute(
-      <AdminReleaseNoteForm />,
-      "/admin/release-notes/:id/edit",
-      "/admin/release-notes/note-1/edit",
-      makeAdminAuth(),
-    );
+    openEdit(sender());
+    await waitFor(() => expect(screen.getByDisplayValue("Existing Note")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Preview & Send/i }));
 
-    await waitFor(() =>
-      expect(screen.getByDisplayValue("Existing Note")).toBeInTheDocument(),
-    );
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("MMS Open Climbs Update: Existing Note");
+    expect(screen.getByTitle("Email preview")).toHaveAttribute("sandbox", "");
+    fireEvent.click(screen.getByRole("button", { name: "Send to 5 members" }));
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /Send Email to All Members/i }),
-    );
-
-    await waitFor(() =>
-      expect(sendReleaseNoteEmailMock).toHaveBeenCalledWith({
-        releaseNoteId: "note-1",
-      }),
-    );
-    await waitFor(() =>
-      expect(screen.getByText(/Email sent to 5 of 5 members/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(callables.sendReleaseNoteEmail).toHaveBeenCalledWith({ releaseNoteId: "note-1" }));
+    expect(await screen.findByText(/Sending… 2 of 5/)).toBeInTheDocument();
   });
 });

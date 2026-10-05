@@ -2,8 +2,8 @@
  * Tests for the Admin Release Notes Manage page.
  */
 import { describe, it, expect, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
-import { onSnapshot } from "firebase/firestore";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { onSnapshot, deleteDoc } from "firebase/firestore";
 import { renderWithProviders, makeAdminAuth } from "@tests/helpers";
 import { makeQuerySnapshot } from "@tests/setup";
 import AdminReleaseNotesManage from "@/pages/admin/ReleaseNotesManage";
@@ -72,5 +72,25 @@ describe("Admin ReleaseNotesManage", () => {
       "href",
       "/admin/release-notes/note-1/edit",
     );
+  });
+
+  it("deletes a note only after confirming", async () => {
+    onSnapshot.mockImplementation((_q, cb) => {
+      cb(makeQuerySnapshot([noteDoc]));
+      return vi.fn();
+    });
+    renderWithProviders(<AdminReleaseNotesManage />, makeAdminAuth());
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("New Registration Flow");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(deleteDoc).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const confirm = (await screen.findByRole("dialog")).querySelector(".btn-danger");
+    fireEvent.click(confirm);
+    await waitFor(() => expect(deleteDoc).toHaveBeenCalledWith({ path: "releaseNotes/note-1" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

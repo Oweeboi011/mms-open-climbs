@@ -44,7 +44,8 @@ graph LR
 | `sendReminderNotifications` | `scheduled/reminders.js` | schedule | Daily nags, officer summary, one-time thank-you + feedback request |
 | `ensureAdminClaim` | `callables/users.js` | callable | Issues the claim for an admin promoted before `syncAdminClaim` existed |
 | `createUser` / `updateUserProfile` / `deleteUserAccount` | `callables/users.js` | callable | Admin user management; Auth and `users/` kept in step |
-| `sendReleaseNoteEmail` | `callables/releaseNotes.js` | callable | Emails a published note to every user |
+| `previewReleaseNoteEmail` / `sendReleaseNoteEmail` | `callables/releaseNotes.js` | callable | Render the announcement email; queue a send job (needs `canEmailMembers`) |
+| `onReleaseNoteEmailJobCreated` | `triggers/releaseNoteEmailJobs.js` | trigger | Works a send job in batches with a retry, writing progress |
 | `getReleaseNoteCommitOptions` / `generateReleaseNoteDraft` | `callables/releaseNotes.js` | callable | Draft a note from conventional commits via GitHub (`GITHUB_TOKEN`) |
 | `getEmailStats` / `getStorageUsage` / `getFunctionHealth` / `getBillingCost` | `callables/insights.js` | callable | App Insights dashboard data |
 | `ogPrerender` | `ogPrerender.js` | HTTP (hosting rewrite `/event/**`) | Per-climb Open Graph tags for shared links |
@@ -160,8 +161,12 @@ gets it and the rest are CC'd.
 - `updateUserProfile` changes Auth and `users/{uid}` together.
   `deleteUserAccount` keeps the user's past registrations (they carry their
   own name/email) and refuses to delete the caller.
-- `sendReleaseNoteEmail` sends sequentially in one invocation and returns
-  `{ sent, total }`; `sent < total` means some sends failed.
+- Emailing every member needs `canEmailMembers` on top of the admin role,
+  granted by a *different* admin (the rules refuse a self-grant).
+  `sendReleaseNoteEmail` only queues `releaseNoteEmailJobs/{id}` and refuses
+  while one for the note is still running; the trigger sends 10 at a time,
+  retries a failure once, and updates `sent`/`failed` per batch — one job
+  covers a few thousand members within its 9-minute limit.
 - `getFunctionHealth` and `getBillingCost` return
   `{ configured: false, reason }` instead of throwing when IAM or
   `BILLING_EXPORT_TABLE` is missing — callers branch on `configured`.

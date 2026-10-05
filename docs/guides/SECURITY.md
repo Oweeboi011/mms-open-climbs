@@ -42,6 +42,7 @@ non-obvious guarantees:
 | Private climb data stays private | `climbs` is public, so briefings live in `climbPrivate` (registrants only, via the `climbInternal` roster) and costs/officer emails in admin-only docs |
 | One feedback per member per climb | Deterministic id + no update/delete; author must be on the roster |
 | Notifications are server-made | Clients may only flip `read` on their own |
+| Emailing every member takes two admins | `canEmailMembers` can be set by an admin only on *someone else*; the callable checks it |
 | Member uploads are private | Storage: owner-or-admin read; members add files to their own folder only, never overwrite/delete; content types checked; admin-only for QR, images, templates |
 
 ## Secrets and keys
@@ -98,6 +99,5 @@ of season), when someone with access leaves, or immediately if exposed.
 | Unreviewed payments count toward the balance | Intended: members aren't chased for money already sent; admins still review |
 | `memberType` (guest fee) is self-declared | No membership list to check against |
 | Officer phone numbers are on the public climb doc | No doc every signed-in member can read yet ([DATA.md](DATA.md#climbs)) |
-| Any admin can email every member (`sendReleaseNoteEmail`) | No narrower role yet; see the [release-notes plan](../solution-plans/release-notes.md) |
 | CSP is Report-Only, not enforced | Origins (Maps, Google sign-in, reCAPTCHA, fonts, Storage) must be confirmed against real traffic first |
 | Dev-tool advisories (`braces`) remain | No patched release yet; tools only scan our own code |

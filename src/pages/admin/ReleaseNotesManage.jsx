@@ -1,19 +1,20 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { subscribeToAllReleaseNotes } from "@/services/releaseNotes";
+import { deleteReleaseNote, subscribeToAllReleaseNotes } from "@/services/releaseNotes";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
-
-const STATUS_STYLE = {
-  published: { background: "#e8f5e9", color: "#1a6b2c", border: "1px solid #a7d7b2" },
-  draft: { background: "var(--surface-alt)", color: "var(--ink-soft)", border: "1px solid var(--border)" },
-};
+import StatusPill from "@/components/StatusPill";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import "./releaseNoteForm/releaseNotes.css";
 
 export default function AdminReleaseNotesManage() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     return subscribeToAllReleaseNotes(
@@ -24,6 +25,19 @@ export default function AdminReleaseNotesManage() {
       () => setLoading(false),
     );
   }, []);
+
+  async function confirmDelete() {
+    setBusy(true);
+    setDeleteError("");
+    try {
+      await deleteReleaseNote(deleting.id);
+      setDeleting(null);
+    } catch (err) {
+      setDeleteError(err?.message || "Delete failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="admin-layout">
@@ -41,7 +55,7 @@ export default function AdminReleaseNotesManage() {
               {notes.length} note{notes.length !== 1 ? "s" : ""} total
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="rn-admin-actions">
             <Link to="/admin" className="btn btn-outline btn-sm">
               &larr; Back to Admin
             </Link>
@@ -55,73 +69,45 @@ export default function AdminReleaseNotesManage() {
           <LoadingSpinner />
         ) : (
           <ResponsiveTable>
-            <table className="admin-table table-min-620">
+            <table className="admin-table table-min-620 rn-admin-table">
               <thead>
                 <tr>
                   <th>Title</th>
-                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
-                    Status
-                  </th>
-                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
-                    Emailed
-                  </th>
-                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
-                    Created
-                  </th>
-                  <th style={{ minWidth: 90, whiteSpace: "nowrap" }}>
-                    Actions
-                  </th>
+                  <th>Status</th>
+                  <th>Emailed</th>
+                  <th>Created</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {notes.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={5}
-                      style={{ textAlign: "center", color: "var(--ink-soft)" }}
-                    >
+                    <td colSpan={5} className="rn-admin-empty">
                       No release notes yet.
                     </td>
                   </tr>
                 ) : (
                   notes.map((note) => (
                     <tr key={note.id}>
-                      <td style={{ fontWeight: 600 }}>{note.title}</td>
+                      <td className="rn-admin-title">{note.title}</td>
                       <td>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "2px 10px",
-                            borderRadius: 99,
-                            fontSize: "0.72rem",
-                            fontWeight: 700,
-                            letterSpacing: 0.5,
-                            ...(STATUS_STYLE[note.status] || STATUS_STYLE.draft),
-                          }}
-                        >
+                        <StatusPill tone={note.status === "published" ? "success" : "neutral"}>
                           {note.status}
-                        </span>
+                        </StatusPill>
                       </td>
-                      <td style={{ fontSize: "0.82rem" }}>
-                        {note.emailSentAt ? (
-                          <span>
-                            {note.emailSentCount ?? 0} sent
-                          </span>
-                        ) : (
-                          <span style={{ color: "var(--ink-soft)" }}>—</span>
-                        )}
+                      <td className="rn-admin-small">
+                        {note.emailSentAt ? `${note.emailSentCount ?? 0} sent` : <span className="rn-admin-none">—</span>}
                       </td>
-                      <td style={{ fontSize: "0.78rem" }}>
-                        {note.createdAt?.toDate?.().toLocaleDateString("en-PH") ||
-                          "—"}
+                      <td className="rn-admin-small">
+                        {note.createdAt?.toDate?.().toLocaleDateString("en-PH") || "—"}
                       </td>
-                      <td>
-                        <Link
-                          to={`/admin/release-notes/${note.id}/edit`}
-                          className="btn btn-accent btn-sm"
-                        >
+                      <td className="rn-admin-row-actions">
+                        <Link to={`/admin/release-notes/${note.id}/edit`} className="btn btn-accent btn-sm">
                           Edit
                         </Link>
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setDeleting(note)}>
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -132,6 +118,22 @@ export default function AdminReleaseNotesManage() {
         )}
       </main>
       <Footer />
+      {deleting && (
+        <ConfirmDialog
+          title="Delete this release note?"
+          confirmLabel="Delete"
+          danger
+          busy={busy}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={() => {
+            setDeleting(null);
+            setDeleteError("");
+          }}
+        >
+          &ldquo;{deleting.title}&rdquo; disappears from the history page. Emails already sent can&rsquo;t be recalled.
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

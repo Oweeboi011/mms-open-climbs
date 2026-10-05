@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import "./Modal.css";
 
 // Shared dialog shell: backdrop, centred card, and the accessibility behaviour
 // every modal in the app needs but most hand-rolled ones skipped — labelled
@@ -17,27 +18,6 @@ let scrollLockCount = 0;
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const DEFAULT_OVERLAY = {
-  position: "fixed",
-  inset: 0,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 20,
-  background: "rgba(0,0,0,0.6)",
-};
-
-const DEFAULT_CONTENT = {
-  position: "relative",
-  background: "var(--surface)",
-  borderRadius: 12,
-  padding: 24,
-  maxWidth: 420,
-  width: "100%",
-  maxHeight: "90dvh",
-  overflowY: "auto",
-};
-
 export default function Modal({
   onClose,
   label,
@@ -46,9 +26,12 @@ export default function Modal({
   closeOnBackdrop = true,
   initialFocusRef,
   showClose = true,
-  overlayStyle,
-  contentStyle,
-  zIndex = 1000,
+  // sm 420px (default) · md 460 · lg 520 · wide 720 · xl 960
+  size = "sm",
+  // "top" stacks above another open dialog (e.g. a receipt over a form).
+  layer = "base",
+  variant = "default",
+  className = "",
   children,
 }) {
   const dialogRef = useRef(null);
@@ -115,8 +98,8 @@ export default function Modal({
 
   return (
     <div
+      className={`modal-overlay modal-overlay--${layer} modal-overlay--${variant}`}
       onClick={closeOnBackdrop ? () => onClose?.() : undefined}
-      style={{ ...DEFAULT_OVERLAY, zIndex, ...overlayStyle }}
     >
       <div
         ref={dialogRef}
@@ -126,26 +109,15 @@ export default function Modal({
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
         tabIndex={-1}
+        className={`modal-card modal-card--${size} modal-card--${variant} ${className}`.trim()}
         onClick={(e) => e.stopPropagation()}
-        style={{ ...DEFAULT_CONTENT, ...contentStyle }}
       >
         {showClose && (
           <button
             type="button"
             onClick={() => onClose?.()}
             aria-label="Close"
-            style={{
-              position: "absolute",
-              top: 12,
-              right: 14,
-              background: "none",
-              border: "none",
-              fontSize: "1.2rem",
-              lineHeight: 1,
-              cursor: "pointer",
-              color: "var(--ink-soft)",
-              padding: 4,
-            }}
+            className="modal-close"
           >
             &#x2715;
           </button>

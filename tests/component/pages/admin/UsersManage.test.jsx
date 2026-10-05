@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithProviders, makeAdminAuth } from "@tests/helpers";
 import AdminUsersManage from "@/pages/admin/UsersManage";
-import { onSnapshot } from "firebase/firestore";
+import { onSnapshot, updateDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { makeQuerySnapshot } from "@tests/setup";
 
@@ -170,7 +170,6 @@ describe("Admin UsersManage", () => {
   });
 
   it("deletes a user's account after confirmation", async () => {
-    window.confirm = vi.fn(() => true);
     deleteUserAccountMock.mockResolvedValueOnce({ data: { success: true } });
     renderWithProviders(<AdminUsersManage />, makeAdminAuth());
     await waitFor(() =>
@@ -182,6 +181,7 @@ describe("Admin UsersManage", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Delete Account/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete account" }));
 
     await waitFor(() =>
       expect(deleteUserAccountMock).toHaveBeenCalledWith({ uid: "user-1" }),
@@ -192,7 +192,6 @@ describe("Admin UsersManage", () => {
   });
 
   it("does not delete when the confirmation dialog is dismissed", async () => {
-    window.confirm = vi.fn(() => false);
     renderWithProviders(<AdminUsersManage />, makeAdminAuth());
     await waitFor(() =>
       expect(screen.getByText("Juan Cruz")).toBeInTheDocument(),
@@ -203,7 +202,9 @@ describe("Admin UsersManage", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Delete Account/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     expect(deleteUserAccountMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Delete account" })).not.toBeInTheDocument();
   });
 
   it("prevents an admin from deleting their own account", async () => {
@@ -244,5 +245,26 @@ describe("Admin UsersManage", () => {
     renderWithProviders(<AdminUsersManage />, makeAdminAuth());
     fireEvent.click(await screen.findByText("Juan Cruz"));
     expect(await screen.findByText("Climbs & Activity")).toBeInTheDocument();
+  });
+
+  it("lets an admin grant another admin the email-members permission", async () => {
+    renderWithProviders(<AdminUsersManage />, makeAdminAuth());
+    fireEvent.click(await screen.findByText("Maria Santos"));
+    const box = await screen.findByRole("checkbox", { name: /Can email every member/i });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    await waitFor(() =>
+      expect(updateDoc).toHaveBeenCalledWith(
+        { path: "users/user-2" },
+        expect.objectContaining({ canEmailMembers: true }),
+      ),
+    );
+  });
+
+  it("offers no permission switch for members", async () => {
+    renderWithProviders(<AdminUsersManage />, makeAdminAuth());
+    fireEvent.click(await screen.findByText("Juan Cruz"));
+    await screen.findByText("Change Role");
+    expect(screen.queryByRole("checkbox", { name: /Can email every member/i })).not.toBeInTheDocument();
   });
 });

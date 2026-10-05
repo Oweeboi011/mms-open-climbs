@@ -50,7 +50,7 @@ export default function DonationPledgeModal({ reg, drive, climb, currentUser, on
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="pledge-title" contentStyle={{ maxWidth: 440 }}>
+    <Modal onClose={onClose} labelledBy="pledge-title" size="md">
       <h3 id="pledge-title" className="modal-heading">
         Donation pledge
       </h3>
