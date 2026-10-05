@@ -56,12 +56,31 @@ non-obvious guarantees:
 patterns) runs on every commit and in CI; if a secret was ever pushed,
 rotate it — removing it from history is not enough.
 
+### Rotation
+
+The club treasurer or tech lead owns these; rotate **every January** (start
+of season), when someone with access leaves, or immediately if exposed.
+
+| Secret | Rotate by | Then |
+|---|---|---|
+| `BREVO_API_KEY` | Brevo › SMTP & API › create a key, `firebase functions:secrets:set BREVO_API_KEY` | Push to `develop` (functions pick up the new version on deploy), check a test email, delete the old key in Brevo |
+| `GITHUB_TOKEN` (Functions) | GitHub › fine-grained token, read-only *Contents* on this repo, 1-year expiry | `firebase functions:secrets:set GITHUB_TOKEN`, deploy, try "Generate from commits" |
+| `GCP_SA_KEY` (CI) | GCP › IAM › the deploy service account › new JSON key | Update the GitHub secret, run CI, delete the old key |
+| `VITE_*` web keys | Not secrets; restrict by HTTP referrer in GCP instead | — |
+
+`firebase functions:secrets:destroy` old versions once the new one is live.
+
 ## Platform controls
 
 - **App Check** (reCAPTCHA Enterprise) enforced on Firestore and Storage — the real
   limit on scripted writes to the public-create `pageViews` / `failedRequests`.
 - Security headers on Hosting (HSTS, frame-ancestors, nosniff,
   Referrer-Policy, Permissions-Policy) in `firebase.json`.
+- A full **Content-Security-Policy in Report-Only mode**: violations are
+  posted to `/csp-report` (the `cspReport` function) and logged —
+  `firebase functions:log --only cspReport`. After a clean fortnight in
+  production, rename the header to `Content-Security-Policy` to enforce it.
+  `style-src` keeps `'unsafe-inline'` until the inline styles are gone.
 - Email templates escape every argument; links use the `APP_URL` secret,
   never document data. `ogPrerender` attribute-escapes climb text.
 - In the app: `dangerouslySetInnerHTML`, `innerHTML`, `eval` and
@@ -80,5 +99,5 @@ rotate it — removing it from history is not enough.
 | `memberType` (guest fee) is self-declared | No membership list to check against |
 | Officer phone numbers are on the public climb doc | No doc every signed-in member can read yet ([DATA.md](DATA.md#climbs)) |
 | Any admin can email every member (`sendReleaseNoteEmail`) | No narrower role yet; see the [release-notes plan](../solution-plans/release-notes.md) |
-| No script/style Content-Security-Policy | Needs browser testing against Maps, Google sign-in, Storage and fonts |
+| CSP is Report-Only, not enforced | Origins (Maps, Google sign-in, reCAPTCHA, fonts, Storage) must be confirmed against real traffic first |
 | Dev-tool advisories (`braces`) remain | No patched release yet; tools only scan our own code |
