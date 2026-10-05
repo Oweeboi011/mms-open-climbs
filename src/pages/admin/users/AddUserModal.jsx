@@ -76,7 +76,7 @@ export default function AddUserModal({ onClose }) {
             </select>
             <div className="form-hint">The user will receive an email with a link to set their password.</div>
           </div>
-          <div className="modal-actions">
+          <div className="users-form-actions">
             <button className="btn btn-primary" type="submit" disabled={creating}>
               {creating ? "Sending…" : "Create & Send Invite"}
             </button>

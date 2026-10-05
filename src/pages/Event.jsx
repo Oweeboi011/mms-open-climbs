@@ -4,7 +4,6 @@ import DonationDriveInfo from "@/components/DonationDriveInfo";
 import EventFeesCard from "@/components/EventFeesCard";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import Icon from "@/components/Icon";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import MountaineeringGuideModal from "@/components/MountaineeringGuideModal";
 import RegisterCta from "@/components/RegisterCta";
@@ -32,6 +31,7 @@ import { findUserRegistrationsForClimb } from "@/services/registrations";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import { getSlotSummary } from "@/utils/slotSummary";
 import { getClimbCoords, getMapEmbed, getTrailEmbeds, getTrailMapEntries } from "@/utils/eventMaps";
+import SectionCard from "@/components/SectionCard";
 
 export default function Event() {
   const { climbId } = useParams();
@@ -114,7 +114,6 @@ export default function Event() {
     return () => observer.disconnect();
   });
 
-
   if (loading) return <LoadingSpinner fullPage />;
   if (!climb) return null;
 
@@ -139,16 +138,10 @@ export default function Event() {
   const mapCoords = getClimbCoords(climb);
 
   const trailMapEntries = getTrailMapEntries(climb);
-  const activeTrailIdx = Math.min(
-    selectedTrailIdx,
-    Math.max(trailMapEntries.length - 1, 0),
-  );
+  const activeTrailIdx = Math.min(selectedTrailIdx, Math.max(trailMapEntries.length - 1, 0));
   const activeTrail = trailMapEntries[activeTrailIdx];
-  const { allTrails: allTrailsEmbed, komoot: komootEmbed } =
-    getTrailEmbeds(activeTrail);
-  const activeTrailMapEmbed = activeTrail
-    ? getMapEmbed(activeTrail.googleMapsUrl, null)
-    : null;
+  const { allTrails: allTrailsEmbed, komoot: komootEmbed } = getTrailEmbeds(activeTrail);
+  const activeTrailMapEmbed = activeTrail ? getMapEmbed(activeTrail.googleMapsUrl, null) : null;
 
   return (
     <div>
@@ -200,21 +193,13 @@ export default function Event() {
           setLightboxIndex={setLightboxIndex}
         />
 
-        <PhotoLightbox
-          climb={climb}
-          lightboxIndex={lightboxIndex}
-          setLightboxIndex={setLightboxIndex}
-        />
+        <PhotoLightbox climb={climb} lightboxIndex={lightboxIndex} setLightboxIndex={setLightboxIndex} />
 
         <WaterSource climb={climb} />
 
         <WeatherSection climb={climb} mapCoords={mapCoords} weather={weather} />
 
-        <ClimbOfficers
-          climb={climb}
-          currentUser={currentUser}
-          setShowSignInModal={setShowSignInModal}
-        />
+        <ClimbOfficers climb={climb} currentUser={currentUser} setShowSignInModal={setShowSignInModal} />
 
         <EventFeesCard climb={climb} onOpenGuide={() => setGuideOpen(true)} />
         <RegistrationPolicyInfo climb={climb} className="policy-info section-card" />
@@ -223,44 +208,25 @@ export default function Event() {
 
         <PackingAndEthics climb={climb} />
 
-        <ItinerarySection
-          climb={climb}
-          currentUser={currentUser}
-          setShowSignInModal={setShowSignInModal}
-        />
+        <ItinerarySection climb={climb} currentUser={currentUser} setShowSignInModal={setShowSignInModal} />
 
         {/* Participants */}
-        <div className="section-card">
-          <div className="section-header">
-            <span className="icon">
-              <Icon name="activity" size={17} />
-            </span>
-            <h3>Participants</h3>
-          </div>
-          <div className="section-body">
-            <ParticipantsBody
-              climb={climb}
-              participants={participants}
-              currentUser={currentUser}
-              canSee={alreadyReg || isAdmin}
-              onSignIn={() => setShowSignInModal(true)}
-            />
-
-          </div>
-        </div>
+        <SectionCard icon="activity" title="Participants">
+          <ParticipantsBody
+            climb={climb}
+            participants={participants}
+            currentUser={currentUser}
+            canSee={alreadyReg || isAdmin}
+            onSignIn={() => setShowSignInModal(true)}
+          />
+        </SectionCard>
       </main>
 
       <Footer />
 
-      {guideOpen && (
-        <MountaineeringGuideModal onClose={() => setGuideOpen(false)} />
-      )}
+      {guideOpen && <MountaineeringGuideModal onClose={() => setGuideOpen(false)} />}
 
-      <SignInModal
-        climbId={climbId}
-        setShowSignInModal={setShowSignInModal}
-        showSignInModal={showSignInModal}
-      />
+      <SignInModal climbId={climbId} setShowSignInModal={setShowSignInModal} showSignInModal={showSignInModal} />
     </div>
   );
 }

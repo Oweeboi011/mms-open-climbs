@@ -97,10 +97,17 @@ const NO_RAW_HTML = {
   selector: "AssignmentExpression > MemberExpression.left[property.name=/^(inner|outer)HTML$/]",
   message: "Render through React; raw HTML assignment is an XSS sink.",
 };
-const NO_INLINE_STYLE = {
-  selector: "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='style']",
-  message: "Use a class and the tokens in src/styles/globals.css, not an inline style.",
-};
+// Inline styles: only CSS custom properties may be passed (for values that
+// really are dynamic, e.g. style={{ "--pct": "40%" }}); the CSS reads them.
+const STYLE_ATTR = "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='style'] > JSXExpressionContainer";
+const INLINE_STYLE_MESSAGE =
+  "Use a class and the tokens in src/styles/globals.css; pass dynamic values as CSS custom properties.";
+const NO_INLINE_STYLE = [
+  `${STYLE_ATTR} > :not(ObjectExpression)`,
+  `${STYLE_ATTR} > ObjectExpression > SpreadElement`,
+  `${STYLE_ATTR} > ObjectExpression > Property[key.type='Identifier']`,
+  `${STYLE_ATTR} > ObjectExpression > Property[key.type='Literal'][key.value!=/^--/]`,
+].map((selector) => ({ selector, message: INLINE_STYLE_MESSAGE }));
 
 // @eslint-react re-implements the React Compiler hook rules; the official
 // react-hooks plugin owns those, so drop the duplicates.
@@ -232,7 +239,7 @@ export default [
         },
       ],
       // Design tokens and classes, not inline styles.
-      "no-restricted-syntax": ["error", NO_RAW_HTML, NO_INLINE_STYLE],
+      "no-restricted-syntax": ["error", NO_RAW_HTML, ...NO_INLINE_STYLE],
       "no-restricted-globals": [
         "error",
         { name: "localStorage", message: "Use src/services/browserStorage.js." },
