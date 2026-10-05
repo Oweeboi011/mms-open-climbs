@@ -318,13 +318,15 @@ describe("release-note email job", () => {
     expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-new", status: "sending" });
   });
 
-  it("does not re-send a job delivered twice", async () => {
-    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "done" } };
-    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "done" };
+  it.each(["sending", "done"])("ignores a redelivered event while the job is %s", async (live) => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: live } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: live };
     usersStore["m1"] = { email: "a@a.com" };
-    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+    // The event carries the document as created, i.e. still "queued".
+    await runReleaseNoteEmailJob("job-9", { releaseNoteId: "rn1", status: "queued" }, noSleep);
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(jobsStore["job-9"].status).toBe("done");
+    expect(jobsStore["job-9"].status).toBe(live);
+    expect(releaseNotesStore["rn1"].emailJob.status).toBe(live);
   });
 
   it("treats a job with only createdAt as recently queued", async () => {

@@ -31,7 +31,12 @@ function claim(jobRef, noteRef, jobId) {
     const job = (await tx.get(jobRef)).data();
     const note = await tx.get(noteRef);
     if (!note.exists) return "missing";
-    if (job?.status !== "queued" || note.data().emailJob?.id !== jobId) return "superseded";
+    // Already started or finished (e.g. a redelivered event): leave it be.
+    if (job?.status !== "queued") return "skip";
+    if (note.data().emailJob?.id !== jobId) {
+      tx.update(jobRef, { status: "superseded" });
+      return "skip";
+    }
     tx.update(jobRef, { status: "sending", heartbeatAt: Date.now() });
     tx.update(noteRef, { emailJob: { id: jobId, status: "sending" } });
     return "claimed";
@@ -46,9 +51,8 @@ async function runJob(jobId, job, deps = {}) {
     await jobRef.update({ status: "failed", error: "Release note no longer exists." });
     return;
   }
-  if (claimed === "superseded") {
-    if (job.status === "queued") await jobRef.update({ status: "superseded" });
-    logger.info("[releaseNoteEmailJobs] Skipped superseded job", { jobId });
+  if (claimed === "skip") {
+    logger.info("[releaseNoteEmailJobs] Skipped: not queued or replaced", { jobId });
     return;
   }
   const noteSnap = await noteRef.get();

@@ -8,6 +8,7 @@ const ACTIVE = ["queued", "sending"];
 function JobProgress({ job }) {
   if (!job) return null;
   const done = (job.sent || 0) + (job.failed || 0);
+  if (job.status === "superseded") return <div className="alert alert-info">This send was replaced by a newer one.</div>;
   if (job.status === "failed") return <div className="alert alert-error">Sending stopped: {job.error || "unknown error"}.</div>;
   if (job.status === "done") {
     return (
