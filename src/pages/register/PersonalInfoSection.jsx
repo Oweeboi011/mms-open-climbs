@@ -1,12 +1,7 @@
 import { FieldError } from "@/pages/register/registerShared";
+import "./register.css";
 
-export default function PersonalInfoSection({
-  bindField,
-  fieldErrors,
-  form,
-  inputClass,
-  setField,
-}) {
+export default function PersonalInfoSection({ bindField, fieldErrors, form, inputClass, setField }) {
   return (
     <>
       {/* Personal Information */}
@@ -75,16 +70,8 @@ export default function PersonalInfoSection({
         </div>
         <div className="form-group">
           <label className="form-label required">Participant Type</label>
-          <div style={{ display: "flex", gap: 20, marginTop: 6 }}>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                cursor: "pointer",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div className="member-type-options">
+            <label className="member-type-option">
               <input
                 type="radio"
                 name="memberType"
@@ -94,15 +81,7 @@ export default function PersonalInfoSection({
               />
               MMS Member
             </label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                cursor: "pointer",
-                fontSize: "0.9rem",
-              }}
-            >
+            <label className="member-type-option">
               <input
                 type="radio"
                 name="memberType"

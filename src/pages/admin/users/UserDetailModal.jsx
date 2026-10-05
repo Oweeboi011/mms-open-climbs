@@ -107,32 +107,21 @@ function ChangeRole({ user }) {
   );
 }
 
-// "Can email members": sending a release note to everyone. Granted by another
-// admin only — the security rules refuse a self-grant.
+// "Can email members" (send a release note to everyone) is read-only here:
+// rules refuse it from every client, because any admin can create admins.
+// The project owner grants it with functions/scripts/grant-email-members.mjs.
 function EmailPermission({ user }) {
-  const id = useId();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  async function toggle(e) {
-    setSaving(true);
-    setError("");
-    try {
-      await updateUserProfile(user.id, { canEmailMembers: e.target.checked, updatedAt: serverTimestamp() });
-    } catch (err) {
-      setError("Failed to update permission: " + err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
+  const granted = user.canEmailMembers === true;
   return (
     <Section title="Permissions">
-      {error && <div className="alert alert-error">{error}</div>}
-      <label className="users-check" htmlFor={id}>
-        <input id={id} type="checkbox" checked={user.canEmailMembers === true} disabled={saving} onChange={toggle} />
-        Can email every member (release-note announcements)
-      </label>
+      <p className="users-permission">
+        Can email every member: <strong>{granted ? "Yes" : "No"}</strong>
+      </p>
+      <p className="form-hint">
+        Granted outside the app by the project owner (
+        <code>node functions/scripts/grant-email-members.mjs {user.email}</code>
+        {granted ? " --revoke" : ""}).
+      </p>
     </Section>
   );
 }

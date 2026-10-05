@@ -13,6 +13,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.js"],
     css: false,
+    // Reuses workers across files; each file still gets its own VM context.
+    // ~35% faster than the default — see docs/guides/TESTING.md.
+    pool: "vmThreads",
+    // More workers past ~4 only add RAM (15 workers: 4 GB, slower). Measured.
+    maxWorkers: 4,
     // functions/ has its own Jest suite; integration (emulator) and e2e
     // (Playwright) run through their own scripts — see docs/guides/TESTING.md.
     exclude: ["**/node_modules/**", "**/functions/**", "tests/integration/**", "tests/e2e/**"],

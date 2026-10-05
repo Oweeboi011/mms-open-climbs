@@ -52,14 +52,7 @@
   "src/pages/register/ConfirmSubmitModal.jsx",
   "src/pages/register/FeeBreakdownCard.jsx",
   "src/pages/register/FeeTableBody.jsx",
-  "src/pages/register/FormErrorSummary.jsx",
   "src/pages/register/GcashDetails.jsx",
-  "src/pages/register/GcashPaymentSection.jsx",
   "src/pages/register/PaymentProofField.jsx",
-  "src/pages/register/PersonalInfoSection.jsx",
-  "src/pages/register/RegisterBlocked.jsx",
-  "src/pages/register/RegisterSuccess.jsx",
-  "src/pages/register/RequiredDocsSection.jsx",
-  "src/pages/register/TrailPhotosStrip.jsx",
-  "src/pages/register/WaiverSection.jsx"
+  "src/pages/register/RegisterSuccess.jsx"
 ]

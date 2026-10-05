@@ -53,6 +53,10 @@ function collectionRef(name) {
       store[id] = data;
       return { id };
     },
+    doc: () => {
+      const id = `job-${Object.keys(store).length + 1}`;
+      return { id, path: `${name}/${id}` };
+    },
     get: async () => ({
       docs: Object.entries(store).map(([id, data]) => ({
         id,
@@ -73,9 +77,23 @@ function collectionRef(name) {
   };
 }
 
+// Runs the callback straight through; writes land in the stores.
+async function runTransaction(fn) {
+  const tx = {
+    get: (ref) => docRef(ref.path).get(),
+    set: (ref, data) => {
+      const [col, id] = ref.path.split("/");
+      storeFor(col)[id] = data;
+    },
+    update: (ref, patch) => docRef(ref.path).update(patch),
+  };
+  return fn(tx);
+}
+
 const mockDb = {
-  doc: jest.fn((path) => docRef(path)),
+  doc: jest.fn((path) => ({ ...docRef(path), path })),
   collection: jest.fn((name) => collectionRef(name)),
+  runTransaction: jest.fn(runTransaction),
 };
 
 jest.mock("firebase-admin/app", () => ({ initializeApp: jest.fn() }));
@@ -117,7 +135,8 @@ const { FieldValue } = require("firebase-admin/firestore");
 
 beforeEach(() => {
   resetStores();
-  mockDb.doc.mockImplementation((path) => docRef(path));
+  mockDb.doc.mockImplementation((path) => ({ ...docRef(path), path }));
+  mockDb.runTransaction.mockImplementation(runTransaction);
   mockDb.collection.mockImplementation((name) => collectionRef(name));
   FieldValue.serverTimestamp.mockImplementation(() => "SERVER_TS");
   process.env.BREVO_API_KEY = "k";
@@ -178,14 +197,63 @@ describe("sendReleaseNoteEmail callable", () => {
     // admin-1 has no email, m2 has none: one recipient.
     expect(result).toEqual({ jobId: "job-1", total: 1 });
     expect(jobsStore["job-1"]).toMatchObject({ releaseNoteId: "rn1", status: "queued", total: 1, sent: 0, createdBy: "admin-1" });
-    expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-1", status: "queued" });
+    expect(releaseNotesStore["rn1"].emailJob).toMatchObject({ id: "job-1", status: "queued" });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("refuses while a send for the same note is still running", async () => {
     sender();
-    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
+    releaseNotesStore["rn1"] = {
+      status: "published",
+      title: "T",
+      body: "B",
+      emailJob: { id: "j0", status: "sending" },
+    };
+    jobsStore["j0"] = { status: "sending", queuedAt: Date.now() - 20 * 60 * 1000, heartbeatAt: Date.now() };
     await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+
+  it("keeps the lock while an earlier job waits in the queue", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "queued" } };
+    jobsStore["j0"] = { status: "queued", queuedAt: Date.now() - 20 * 60 * 1000 };
+    await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+
+  it("ignores a lock left by a job that died long ago", async () => {
+    sender();
+    releaseNotesStore["rn1"] = {
+      status: "published",
+      title: "T",
+      body: "B",
+      emailJob: { id: "j0", status: "sending" },
+    };
+    jobsStore["j0"] = { status: "sending", queuedAt: Date.now() - 60 * 60 * 1000, heartbeatAt: Date.now() - 30 * 60 * 1000 };
+    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-2" });
+  });
+
+  it("resumes after the last member a stalled job reached", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
+    jobsStore["j0"] = { status: "sending", lastCursor: { at: 0, id: "m2" }, heartbeatAt: Date.now() - 30 * 60 * 1000 };
+    const { jobId } = await call({ releaseNoteId: "rn1" });
+    expect(jobsStore["j0"].status).toBe("failed");
+    expect(jobsStore[jobId].afterCursor).toEqual({ at: 0, id: "m2" });
+  });
+
+  it("keeps the resume point when a resume job itself fails early", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j1", status: "failed" } };
+    jobsStore["j1"] = { status: "failed", afterCursor: { at: 0, id: "m2" } };
+    const { jobId } = await call({ releaseNoteId: "rn1" });
+    expect(jobsStore[jobId].afterCursor).toEqual({ at: 0, id: "m2" });
+  });
+
+  it("can send again after a failed job", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "failed" } };
+    jobsStore["j0"] = { status: "failed" };
+    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-2" });
   });
 });
 
@@ -208,7 +276,7 @@ describe("release-note email job", () => {
   const noSleep = { sleep: async () => {} };
 
   it("sends to everyone, records progress and stamps the note", async () => {
-    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B" };
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
     jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
     usersStore["m1"] = { email: "a@a.com" };
     usersStore["m2"] = { email: "b@b.com" };
@@ -221,8 +289,8 @@ describe("release-note email job", () => {
   });
 
   it("retries a failed send once and counts what still fails", async () => {
-    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B" };
-    jobsStore["job-9"] = { releaseNoteId: "rn1" };
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
     usersStore["ok"] = { email: "ok@a.com" };
     usersStore["flaky"] = { email: "flaky@a.com" };
     usersStore["dead"] = { email: "dead@a.com" };
@@ -239,6 +307,92 @@ describe("release-note email job", () => {
     expect(calls).toEqual({ "ok@a.com": 1, "flaky@a.com": 2, "dead@a.com": 2 });
     expect(jobsStore["job-9"]).toMatchObject({ status: "done", sent: 2, failed: 1 });
     expect(releaseNotesStore["rn1"].emailSentCount).toBe(2);
+  });
+
+  it("releases the note's lock when the job crashes", async () => {
+    const { onReleaseNoteEmailJobCreated } = require("../src/triggers/releaseNoteEmailJobs");
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
+    usersStore["m1"] = { email: "a@a.com" };
+    mockDb.collection.mockImplementation((name) => {
+      if (name === "users") throw new Error("Firestore unavailable");
+      return collectionRef(name);
+    });
+
+    await onReleaseNoteEmailJobCreated({ params: { jobId: "job-9" }, data: { data: () => jobsStore["job-9"] } });
+
+    expect(jobsStore["job-9"].status).toBe("failed");
+    expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-9", status: "failed" });
+  });
+
+  it("does not send a job that a newer one replaced", async () => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-new", status: "sending" } };
+    jobsStore["job-old"] = { releaseNoteId: "rn1", status: "queued" };
+    usersStore["m1"] = { email: "a@a.com" };
+    await runReleaseNoteEmailJob("job-old", jobsStore["job-old"], noSleep);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(jobsStore["job-old"].status).toBe("superseded");
+    expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-new", status: "sending" });
+  });
+
+  it.each(["sending", "done"])("ignores a redelivered event while the job is %s", async (live) => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: live } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: live };
+    usersStore["m1"] = { email: "a@a.com" };
+    // The event carries the document as created, i.e. still "queued".
+    await runReleaseNoteEmailJob("job-9", { releaseNoteId: "rn1", status: "queued" }, noSleep);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(jobsStore["job-9"].status).toBe(live);
+    expect(releaseNotesStore["rn1"].emailJob.status).toBe(live);
+  });
+
+  it("treats a job with only createdAt as recently queued", async () => {
+    usersStore["admin-1"] = { role: "admin", canEmailMembers: true };
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "queued" } };
+    jobsStore["j0"] = { status: "queued", createdAt: { toMillis: () => Date.now() - 60_000 } };
+    await expect(
+      index.sendReleaseNoteEmail({ auth: { uid: "admin-1" }, data: { releaseNoteId: "rn1" } }),
+    ).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+
+  it("skips members a previous stalled job already reached", async () => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued", afterCursor: { at: 200, id: "m2" } };
+    const at = (ms) => ({ toMillis: () => ms });
+    usersStore["m1"] = { email: "m1@a.com", createdAt: at(100) };
+    usersStore["m2"] = { email: "m2@a.com", createdAt: at(200) };
+    usersStore["m3"] = { email: "m3@a.com", createdAt: at(300) };
+    // Signed up during the stall; its uid sorts first but its signup is last.
+    usersStore["a0"] = { email: "new@a.com", createdAt: at(999) };
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+    const to = global.fetch.mock.calls.map(([, init]) => JSON.parse(init.body).to[0].email);
+    expect(to).toEqual(["m3@a.com", "new@a.com"]);
+    expect(jobsStore["job-9"]).toMatchObject({ status: "done", lastCursor: { at: 999, id: "a0" } });
+  });
+
+  it("does not send a note that was unpublished after queueing", async () => {
+    releaseNotesStore["rn1"] = { status: "draft", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
+    usersStore["m1"] = { email: "a@a.com" };
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(jobsStore["job-9"].status).toBe("failed");
+  });
+
+  it("keeps a finished job done when only the closing stamp fails", async () => {
+    const { onReleaseNoteEmailJobCreated } = require("../src/triggers/releaseNoteEmailJobs");
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
+    usersStore["m1"] = { email: "a@a.com" };
+    let transactions = 0;
+    mockDb.runTransaction.mockImplementation((fn) => {
+      transactions++;
+      // claim succeeds; the final note stamp (2nd transaction) fails.
+      if (transactions === 2) return Promise.reject(new Error("deadline exceeded"));
+      return runTransaction(fn);
+    });
+    await onReleaseNoteEmailJobCreated({ params: { jobId: "job-9" }, data: { data: () => ({ releaseNoteId: "rn1", status: "queued" }) } });
+    expect(jobsStore["job-9"].status).toBe("done");
   });
 
   it("fails the job when the note was deleted", async () => {

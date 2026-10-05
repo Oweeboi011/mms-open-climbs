@@ -35,11 +35,16 @@ export default function Modal({
   children,
 }) {
   const dialogRef = useRef(null);
+  // Escape uses the current onClose (a busy dialog passes undefined to block it).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
     const previouslyFocused = document.activeElement;
-    const entry = { dialog, onClose };
+    const entry = { dialog };
     modalStack.push(entry);
 
     if (scrollLockCount === 0) {
@@ -55,7 +60,7 @@ export default function Modal({
       if (modalStack[modalStack.length - 1] !== entry) return;
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (e.key === "Tab" && dialog) {
@@ -91,8 +96,8 @@ export default function Modal({
       }
       previouslyFocused?.focus?.({ preventScroll: true });
     };
-    // onClose / refs are read fresh via the entry closure on each keydown; the
-    // effect intentionally runs once per mount.
+    // onClose is read through onCloseRef on each keydown; the effect
+    // intentionally runs once per mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

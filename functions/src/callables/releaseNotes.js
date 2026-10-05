@@ -37,9 +37,26 @@ async function loadPublishedNote(releaseNoteId) {
   return note;
 }
 
+// Send order and resume cursor: signup time, then uid. Members who sign up
+// while a send is stalled sort last, so a resumed job still reaches them.
+const cursorOf = (u) => ({ at: u.createdAt?.toMillis?.() ?? 0, id: u.id });
+function isAfter(u, cursor) {
+  if (!cursor) return true;
+  const k = cursorOf(u);
+  return k.at > cursor.at || (k.at === cursor.at && k.id > cursor.id);
+}
+const byCursor = (a, b) => {
+  const x = cursorOf(a);
+  const y = cursorOf(b);
+  return x.at - y.at || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0);
+};
+
 async function emailRecipients() {
   const usersSnap = await db.collection("users").get();
-  return usersSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => u.email);
+  return usersSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((u) => u.email)
+    .sort(byCursor);
 }
 
 function renderReleaseNoteEmail(note) {
@@ -50,7 +67,18 @@ function renderReleaseNoteEmail(note) {
   };
 }
 
-const ACTIVE_JOB = ["queued", "sending"];
+// The job document is the lock. A queued job may wait behind others (the
+// trigger runs one at a time); a sending job writes heartbeatAt every batch.
+// Past these limits it died without cleaning up, and no longer blocks.
+const QUEUED_LIMIT_MS = 60 * 60 * 1000;
+const SILENT_LIMIT_MS = 15 * 60 * 1000;
+
+function isLocked(job, now = Date.now()) {
+  const since = job?.queuedAt || job?.createdAt?.toMillis?.() || 0;
+  if (job?.status === "queued") return now - since < QUEUED_LIMIT_MS;
+  if (job?.status === "sending") return now - (job.heartbeatAt || since) < SILENT_LIMIT_MS;
+  return false;
+}
 
 // What members would receive, and how many of them — shown before sending.
 exports.previewReleaseNoteEmail = onCall(async (request) => {
@@ -64,23 +92,38 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
   try {
     await requireEmailSender(request.auth?.uid);
     const { releaseNoteId } = request.data || {};
-    const note = await loadPublishedNote(releaseNoteId);
-    if (ACTIVE_JOB.includes(note.emailJob?.status)) {
-      throw new HttpsError("failed-precondition", "This note is already being sent.");
-    }
+    await loadPublishedNote(releaseNoteId);
     const recipients = await emailRecipients();
-    const job = await db.collection("releaseNoteEmailJobs").add({
-      releaseNoteId,
-      status: "queued",
-      total: recipients.length,
-      sent: 0,
-      failed: 0,
-      createdBy: request.auth.uid,
-      createdAt: FieldValue.serverTimestamp(),
+    const noteRef = db.doc(`releaseNotes/${releaseNoteId}`);
+    const jobRef = db.collection("releaseNoteEmailJobs").doc();
+    // One transaction, so two simultaneous clicks can't both queue a send.
+    await db.runTransaction(async (tx) => {
+      const current = (await tx.get(noteRef)).data()?.emailJob?.id;
+      const currentJob = current ? (await tx.get(db.doc(`releaseNoteEmailJobs/${current}`))).data() : null;
+      if (isLocked(currentJob)) {
+        throw new HttpsError("failed-precondition", "This note is already being sent.");
+      }
+      // A job that stalled mid-send (e.g. hit the 9-minute limit): close it and
+      // carry on after the last member it reached, so nobody gets it twice.
+      const unfinished = currentJob && !["done", "superseded"].includes(currentJob.status);
+      const resume = unfinished ? currentJob.lastCursor || currentJob.afterCursor || null : null;
+      if (["queued", "sending"].includes(currentJob?.status)) {
+        tx.update(db.doc(`releaseNoteEmailJobs/${current}`), { status: "failed", error: "Stalled; resumed by a new job." });
+      }
+      tx.set(jobRef, {
+        ...(resume ? { afterCursor: resume } : {}),
+        releaseNoteId,
+        status: "queued",
+        total: recipients.length,
+        sent: 0,
+        failed: 0,
+        createdBy: request.auth.uid,
+        createdAt: FieldValue.serverTimestamp(),
+        queuedAt: Date.now(),
+      });
+      tx.update(noteRef, { emailJob: { id: jobRef.id, status: "queued" } });
     });
-    await db.doc(`releaseNotes/${releaseNoteId}`).update({
-      emailJob: { id: job.id, status: "queued" },
-    });
+    const job = jobRef;
     logger.info("[sendReleaseNoteEmail] Queued", { releaseNoteId, jobId: job.id, total: recipients.length });
     return { jobId: job.id, total: recipients.length };
   } catch (err) {
@@ -90,7 +133,7 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
   }
 });
 
-Object.assign(module.exports, { emailRecipients, renderReleaseNoteEmail });
+Object.assign(module.exports, { emailRecipients, renderReleaseNoteEmail, cursorOf, isAfter });
 
 // ── Release note draft generation from GitHub commit history ──────────────────
 const GITHUB_REPO_OWNER = "Oweeboi011";

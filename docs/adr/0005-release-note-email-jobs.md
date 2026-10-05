@@ -1,4 +1,4 @@
-# ADR 0005: All-member email as a job, behind a two-admin permission
+# ADR 0005: All-member email as a resumable job, behind an owner-granted permission
 
 **Status**: Accepted (implemented)
 **Date**: 2026-10-05
@@ -37,15 +37,20 @@ sequenceDiagram
     T->>J: status done
 ```
 
-- **Send is a job.** The callable validates and queues a document; a
-  Firestore trigger (9-minute budget, one instance) sends in batches with a
-  retry and writes progress after each batch. A second send for the same note
-  is refused while one is running.
+- **Send is a job.** The callable validates and queues a document in a
+  transaction; a Firestore trigger (9-minute budget, one instance) claims it —
+  still queued, still the note's current job, note still published — then
+  sends in batches with a retry, writing progress and a heartbeat after each.
+  A second send is refused while one is live. A job that stalls (timeout) is
+  closed by the next send, which resumes after the last member it reached
+  (recipients go in signup order, so late signups still sort after the cursor), so nobody is emailed twice.
 - **Preview first.** The admin sees the rendered email and the recipient
   count before confirming.
-- **Two-person permission.** Sending needs `users/{uid}.canEmailMembers` on top
-  of the admin role. Firestore rules let an admin set that flag only on
-  *another* user, so granting it takes two admins.
+- **Owner-granted permission.** Sending needs `users/{uid}.canEmailMembers` on
+  top of the admin role. No client can write that flag: any admin can create
+  admins, so an in-app grant (even "another admin only") could be self-served
+  with a second account. The project owner grants it with
+  `functions/scripts/grant-email-members.mjs`, which needs Google Cloud access.
 
 ## Alternatives rejected
 
@@ -55,14 +60,16 @@ sequenceDiagram
 - **A separate "release manager" role** — a new role touches every rule and
   guard; one capability flag on admins covers the actual risk.
 - **Approval workflow (draft → review → published)** — heavier than the risk
-  warrants; preview + the two-person grant address accidental and single-account
+  warrants; preview + the owner-held grant address accidental and single-account
   misuse.
+- **"Another admin grants it" in the app** — tried first; a single admin can
+  mint a second admin account and approve themselves.
 
 ## Consequences
 
 - New collection `releaseNoteEmailJobs` (admin read, Functions write) and
   fields `users.canEmailMembers`, `releaseNotes.emailJob`.
-- Existing admins can't send until another admin grants the permission —
-  a deliberate one-time step after deploy.
-- One job covers a few thousand recipients; beyond that the trigger would need
-  to continue across invocations.
+- Existing admins can't send until the owner runs the grant script — a
+  deliberate one-time step after deploy.
+- One job covers a few thousand recipients; a larger list stalls and an admin
+  resumes it with another Send (no automatic continuation).

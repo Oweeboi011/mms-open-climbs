@@ -29,7 +29,7 @@ flowchart LR
   `docs`/`test`/`chore`/`ci` noise; `npm run release-notes` does the same in a
   terminal.
 - Emailing everyone: preview → confirm → queued job with a progress bar.
-  Needs the `canEmailMembers` permission, granted by another admin.
+  Needs the `canEmailMembers` permission, granted by the project owner.
 
 Code: `src/pages/ReleaseNotes.jsx`, `src/pages/admin/ReleaseNote*.jsx` +
 `src/pages/admin/releaseNoteForm/`, `src/services/releaseNotes.js`,
@@ -39,12 +39,13 @@ Code: `src/pages/ReleaseNotes.jsx`, `src/pages/admin/ReleaseNote*.jsx` +
 
 ## After deploy
 
-One admin opens **Users**, picks another admin and ticks **Can email every
-member**; repeat in reverse if both should be able to send.
+The project owner grants senders from a terminal with Google Cloud access:
+`node functions/scripts/grant-email-members.mjs <admin email>` (`--revoke` to
+undo). The Users page shows who has it.
 
 ## Open
 
 | Risk | Status |
 |---|---|
-| More than a few thousand recipients exceeds one job's 9 minutes | Accepted at club scale; the trigger would need to continue across invocations |
+| More than a few thousand recipients exceeds one job's 9 minutes | The job stalls; pressing Send again (after 15 min) resumes after the last member reached. Automatic continuation not built |
 | `emailSentCount` counts Brevo acceptances, not deliveries | Accepted |

@@ -107,9 +107,10 @@ stateDiagram-v2
 ## Other collections
 
 - **users** — `displayName`, `email`, `role` (`member` default; `admin` via
-  `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`.
-  `canEmailMembers` allows the all-member release-note email; only another
-  admin can set it.
+  `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`;
+  nobody can change `createdAt` (it orders the all-member email send).
+  `canEmailMembers` allows the all-member release-note email; no client can
+  write it (`functions/scripts/grant-email-members.mjs`).
   `syncAdminClaim` mirrors it into an auth claim for Storage rules.
 - **feedback** — `rating` integer 1–5 and `comments`. The deterministic id is
   the one-per-member rule: a second submit becomes an update, which the rules
@@ -126,8 +127,12 @@ stateDiagram-v2
   `emailJob: { id, status }` points at the latest send; `emailSentAt` /
   `emailSentCount` are stamped when it finishes.
 - **releaseNoteEmailJobs** — `releaseNoteId`, `status`
-  (`queued`/`sending`/`done`/`failed`), `total`, `sent`, `failed`,
-  `createdBy`; written only by Functions, watched by the admin form.
+  (`queued`/`sending`/`done`/`failed`/`superseded`), `total`, `sent`, `failed`,
+  `createdBy`, `queuedAt`, `heartbeatAt` and `lastCursor` (every batch),
+  `afterCursor` on a resumed job. It is the send lock: a
+  queued job holds it up to 60 min, a sending one while its heartbeat is under
+  15 min old. A job only sends if it claims itself first (still queued, still
+  the note's current job), so an expired or replayed job never re-sends. Written only by Functions, watched by the admin form.
 - **pageViews** — `path`, `userId`, `createdAt`; admin views can be purged with
   `functions/scripts/purge-admin-pageviews.mjs`.
 

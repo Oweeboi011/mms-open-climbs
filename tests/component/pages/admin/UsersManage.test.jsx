@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithProviders, makeAdminAuth } from "@tests/helpers";
 import AdminUsersManage from "@/pages/admin/UsersManage";
-import { onSnapshot, updateDoc } from "firebase/firestore";
+import { onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { makeQuerySnapshot } from "@tests/setup";
 
@@ -247,24 +247,18 @@ describe("Admin UsersManage", () => {
     expect(await screen.findByText("Climbs & Activity")).toBeInTheDocument();
   });
 
-  it("lets an admin grant another admin the email-members permission", async () => {
+  it("shows the email-members permission read-only, with how to grant it", async () => {
     renderWithProviders(<AdminUsersManage />, makeAdminAuth());
     fireEvent.click(await screen.findByText("Maria Santos"));
-    const box = await screen.findByRole("checkbox", { name: /Can email every member/i });
-    expect(box).not.toBeChecked();
-    fireEvent.click(box);
-    await waitFor(() =>
-      expect(updateDoc).toHaveBeenCalledWith(
-        { path: "users/user-2" },
-        expect.objectContaining({ canEmailMembers: true }),
-      ),
-    );
+    expect(await screen.findByText(/Can email every member/i)).toHaveTextContent("No");
+    expect(screen.getByText(/grant-email-members\.mjs/)).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Can email every member/i })).not.toBeInTheDocument();
   });
 
   it("offers no permission switch for members", async () => {
     renderWithProviders(<AdminUsersManage />, makeAdminAuth());
     fireEvent.click(await screen.findByText("Juan Cruz"));
     await screen.findByText("Change Role");
-    expect(screen.queryByRole("checkbox", { name: /Can email every member/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Can email every member/i)).not.toBeInTheDocument();
   });
 });

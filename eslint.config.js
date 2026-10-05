@@ -288,7 +288,7 @@ export default [
     },
   },
   {
-    files: ["scripts/**/*.mjs", "*.config.{js,mjs,cjs}", "functions/*.cjs"],
+    files: ["scripts/**/*.mjs", "tools/**/*.{mjs,cjs}", "*.config.{js,mjs,cjs}", "functions/*.cjs"],
     languageOptions: { globals: { ...globals.node } },
     rules: { "no-console": "off" },
   },
