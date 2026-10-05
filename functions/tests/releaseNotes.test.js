@@ -53,6 +53,10 @@ function collectionRef(name) {
       store[id] = data;
       return { id };
     },
+    doc: () => {
+      const id = `job-${Object.keys(store).length + 1}`;
+      return { id, path: `${name}/${id}` };
+    },
     get: async () => ({
       docs: Object.entries(store).map(([id, data]) => ({
         id,
@@ -73,9 +77,23 @@ function collectionRef(name) {
   };
 }
 
+// Runs the callback straight through; writes land in the stores.
+async function runTransaction(fn) {
+  const tx = {
+    get: (ref) => docRef(ref.path).get(),
+    set: (ref, data) => {
+      const [col, id] = ref.path.split("/");
+      storeFor(col)[id] = data;
+    },
+    update: (ref, patch) => docRef(ref.path).update(patch),
+  };
+  return fn(tx);
+}
+
 const mockDb = {
-  doc: jest.fn((path) => docRef(path)),
+  doc: jest.fn((path) => ({ ...docRef(path), path })),
   collection: jest.fn((name) => collectionRef(name)),
+  runTransaction: jest.fn(runTransaction),
 };
 
 jest.mock("firebase-admin/app", () => ({ initializeApp: jest.fn() }));
@@ -117,7 +135,8 @@ const { FieldValue } = require("firebase-admin/firestore");
 
 beforeEach(() => {
   resetStores();
-  mockDb.doc.mockImplementation((path) => docRef(path));
+  mockDb.doc.mockImplementation((path) => ({ ...docRef(path), path }));
+  mockDb.runTransaction.mockImplementation(runTransaction);
   mockDb.collection.mockImplementation((name) => collectionRef(name));
   FieldValue.serverTimestamp.mockImplementation(() => "SERVER_TS");
   process.env.BREVO_API_KEY = "k";
@@ -178,14 +197,36 @@ describe("sendReleaseNoteEmail callable", () => {
     // admin-1 has no email, m2 has none: one recipient.
     expect(result).toEqual({ jobId: "job-1", total: 1 });
     expect(jobsStore["job-1"]).toMatchObject({ releaseNoteId: "rn1", status: "queued", total: 1, sent: 0, createdBy: "admin-1" });
-    expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-1", status: "queued" });
+    expect(releaseNotesStore["rn1"].emailJob).toMatchObject({ id: "job-1", status: "queued" });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("refuses while a send for the same note is still running", async () => {
     sender();
-    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
+    releaseNotesStore["rn1"] = {
+      status: "published",
+      title: "T",
+      body: "B",
+      emailJob: { id: "j0", status: "sending", queuedAt: Date.now() },
+    };
     await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+
+  it("ignores a lock left by a job that died long ago", async () => {
+    sender();
+    releaseNotesStore["rn1"] = {
+      status: "published",
+      title: "T",
+      body: "B",
+      emailJob: { id: "j0", status: "sending", queuedAt: Date.now() - 60 * 60 * 1000 },
+    };
+    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-1" });
+  });
+
+  it("can send again after a failed job", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "failed" } };
+    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-1" });
   });
 });
 
@@ -239,6 +280,22 @@ describe("release-note email job", () => {
     expect(calls).toEqual({ "ok@a.com": 1, "flaky@a.com": 2, "dead@a.com": 2 });
     expect(jobsStore["job-9"]).toMatchObject({ status: "done", sent: 2, failed: 1 });
     expect(releaseNotesStore["rn1"].emailSentCount).toBe(2);
+  });
+
+  it("releases the note's lock when the job crashes", async () => {
+    const { onReleaseNoteEmailJobCreated } = require("../src/triggers/releaseNoteEmailJobs");
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1" };
+    usersStore["m1"] = { email: "a@a.com" };
+    mockDb.collection.mockImplementation((name) => {
+      if (name === "users") throw new Error("Firestore unavailable");
+      return collectionRef(name);
+    });
+
+    await onReleaseNoteEmailJobCreated({ params: { jobId: "job-9" }, data: { data: () => jobsStore["job-9"] } });
+
+    expect(jobsStore["job-9"].status).toBe("failed");
+    expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-9", status: "failed" });
   });
 
   it("fails the job when the note was deleted", async () => {

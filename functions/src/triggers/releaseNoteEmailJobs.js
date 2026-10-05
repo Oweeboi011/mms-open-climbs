@@ -17,16 +17,17 @@ const { db } = require("../shared/admin");
 async function runJob(jobId, job, deps = {}) {
   const jobRef = db.doc(`releaseNoteEmailJobs/${jobId}`);
   const noteRef = db.doc(`releaseNotes/${job.releaseNoteId}`);
-  const setStatus = async (status, extra = {}) => {
-    await jobRef.update({ status, ...extra });
-    await noteRef.update({ emailJob: { id: jobId, status } });
-  };
-
   const noteSnap = await noteRef.get();
   if (!noteSnap.exists) {
     await jobRef.update({ status: "failed", error: "Release note no longer exists." });
     return;
   }
+  // Keep queuedAt so the stale-lock check in the callable still applies.
+  const queuedAt = noteSnap.data().emailJob?.queuedAt || Date.now();
+  const setStatus = async (status, extra = {}) => {
+    await jobRef.update({ status, ...extra });
+    await noteRef.update({ emailJob: { id: jobId, status, queuedAt } });
+  };
   const { subject, html } = renderReleaseNoteEmail(noteSnap.data());
   const recipients = await emailRecipients();
   await setStatus("sending", { total: recipients.length });
@@ -61,7 +62,12 @@ exports.onReleaseNoteEmailJobCreated = onDocumentCreated(
       await runJob(jobId, event.data.data());
     } catch (err) {
       logger.error("[releaseNoteEmailJobs] Failed", { jobId, err: err.message });
+      const job = event.data.data();
       await db.doc(`releaseNoteEmailJobs/${jobId}`).update({ status: "failed", error: err.message.slice(0, 300) });
+      // Release the note so an admin can send again.
+      if (job?.releaseNoteId) {
+        await db.doc(`releaseNotes/${job.releaseNoteId}`).update({ emailJob: { id: jobId, status: "failed" } });
+      }
       await logFailedRequest({ type: "email", source: "releaseNoteEmailJobs", message: err.message });
     }
   },

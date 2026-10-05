@@ -51,6 +51,11 @@ function renderReleaseNoteEmail(note) {
 }
 
 const ACTIVE_JOB = ["queued", "sending"];
+// Longer than the send trigger's 540s limit: a lock this old is a dead job.
+const STALE_JOB_MS = 15 * 60 * 1000;
+
+const isLocked = (job, now = Date.now()) =>
+  ACTIVE_JOB.includes(job?.status) && now - (job.queuedAt || 0) < STALE_JOB_MS;
 
 // What members would receive, and how many of them — shown before sending.
 exports.previewReleaseNoteEmail = onCall(async (request) => {
@@ -64,23 +69,28 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
   try {
     await requireEmailSender(request.auth?.uid);
     const { releaseNoteId } = request.data || {};
-    const note = await loadPublishedNote(releaseNoteId);
-    if (ACTIVE_JOB.includes(note.emailJob?.status)) {
-      throw new HttpsError("failed-precondition", "This note is already being sent.");
-    }
+    await loadPublishedNote(releaseNoteId);
     const recipients = await emailRecipients();
-    const job = await db.collection("releaseNoteEmailJobs").add({
-      releaseNoteId,
-      status: "queued",
-      total: recipients.length,
-      sent: 0,
-      failed: 0,
-      createdBy: request.auth.uid,
-      createdAt: FieldValue.serverTimestamp(),
+    const noteRef = db.doc(`releaseNotes/${releaseNoteId}`);
+    const jobRef = db.collection("releaseNoteEmailJobs").doc();
+    // One transaction, so two simultaneous clicks can't both queue a send.
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(noteRef);
+      if (isLocked(snap.data()?.emailJob)) {
+        throw new HttpsError("failed-precondition", "This note is already being sent.");
+      }
+      tx.set(jobRef, {
+        releaseNoteId,
+        status: "queued",
+        total: recipients.length,
+        sent: 0,
+        failed: 0,
+        createdBy: request.auth.uid,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      tx.update(noteRef, { emailJob: { id: jobRef.id, status: "queued", queuedAt: Date.now() } });
     });
-    await db.doc(`releaseNotes/${releaseNoteId}`).update({
-      emailJob: { id: job.id, status: "queued" },
-    });
+    const job = jobRef;
     logger.info("[sendReleaseNoteEmail] Queued", { releaseNoteId, jobId: job.id, total: recipients.length });
     return { jobId: job.id, total: recipients.length };
   } catch (err) {
