@@ -36,7 +36,7 @@ export default function CancelRegistrationModal({ reg, climb, currentUser, onClo
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="cancel-reg-title" contentStyle={{ maxWidth: 460 }}>
+    <Modal onClose={onClose} labelledBy="cancel-reg-title" size="md">
       <h3 id="cancel-reg-title" className="modal-heading">
         Cancel your registration?
       </h3>

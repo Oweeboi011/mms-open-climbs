@@ -15,9 +15,12 @@ flowchart LR
     push[push to develop] --> Q["quality<br/>npm run qa"]
     push --> I["integration<br/>rules on emulators"]
     push --> E["e2e<br/>Playwright smoke"]
-    Q & I & E --> P["promote<br/>merge develop → main"]
-    P --> D["deploy<br/>build with VITE_* secrets,<br/>firebase deploy --only<br/>firestore:rules,firestore:indexes,<br/>storage,functions,hosting"]
+    Q & I & E --> S["staging<br/>(when configured)"]
+    S --> P["promote<br/>merge develop → main"]
+    P --> D["deploy production<br/>build with VITE_* secrets,<br/>firebase deploy --only<br/>firestore:rules,firestore:indexes,<br/>storage,functions,hosting"]
 ```
+
+Both deploys run the same reusable `.github/workflows/deploy.yml`.
 
 - `promote` merges with the default `GITHUB_TOKEN` (auto-merge needs a paid
   plan on private repos); doing it in the same run lets `deploy` follow
@@ -29,17 +32,36 @@ flowchart LR
   `--only functions`) have shipped a hosting build without the
   `ogPrerender` app shell, and functions without their env config.
 
-Other workflows: `code-quality.yml` (npm audit, weekly too; advisory
-Semgrep), `codeql.yml`, `create-release.yml` (GitHub release on `main`),
+Other workflows: `code-quality.yml` (npm audit and Semgrep, weekly
+too), `codeql.yml`, `create-release.yml` (GitHub release on `main`),
 `pr-title-checker.yml`, `broken-links-checker.yml`, plus Dependabot
 (`.github/dependabot.yml`, weekly, into `develop`).
+
+## Staging
+
+Off until you turn it on; nothing else changes until then. To enable:
+
+1. Create a second Firebase project (Blaze plan) and repeat steps 1–3 of
+   [the setup below](#new-project-or-new-season-from-scratch) in it, with its
+   own Brevo sender and `APP_URL`.
+2. In GitHub → Settings → Environments, create **`staging`** and add the
+   same secret names as production (`VITE_FIREBASE_*`,
+   `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `GCP_SA_KEY`) with the
+   staging project's values. Environment secrets override the repo-level
+   ones, so production keeps using the repo secrets.
+3. Add the repo **variable** `STAGING_PROJECT_ID`.
+
+From the next push, develop deploys to staging first and promotion to
+`main` waits for it. Remove the variable to switch staging off again.
+Optionally add required reviewers to a `production` environment to make the
+production deploy wait for a click.
 
 ## Configuration
 
 | Where | What | Set with |
 |---|---|---|
 | GitHub Actions secrets | `VITE_FIREBASE_*`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `GCP_SA_KEY` | repo settings |
-| Firebase secrets | `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL` | `firebase functions:secrets:set NAME` |
+| Firebase secrets | `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL`, `GITHUB_TOKEN` (release-note drafts) | `firebase functions:secrets:set NAME` |
 | `.env` / `functions/.env` | local only, git-ignored | copy the `.example` files |
 
 `VITE_*` values are baked into the bundle at build time, so they must be
@@ -52,7 +74,7 @@ One-off, in order, for a fresh Firebase project:
 1. Enable Auth (Email/Password + Google), Firestore, Storage, Functions;
    App Check with reCAPTCHA Enterprise.
 2. Create the Firestore database named **`openclimbs`** (not `(default)`).
-3. Set the three Firebase secrets above, and the GitHub secrets.
+3. Set the Firebase secrets above, and the GitHub secrets.
 4. Push to `develop` — CI deploys rules, indexes, storage rules, functions and
    hosting.
 5. Apply bucket config once (not part of `firebase deploy`):
@@ -64,5 +86,6 @@ One-off, in order, for a fresh Firebase project:
    `node scripts/set-admin.mjs <uid> "<Name>" <email>` (uses your
    `firebase login`). Later admins are promoted from the Users page.
 
-Security-relevant follow-ups and why they exist:
-[security-cost-hardening-2026-09](../solution-plans/security-cost-hardening-2026-09.md).
+Also once, in the Cloud console: enforce App Check for Firestore and Storage,
+a monthly budget alert, and `npx firebase-tools functions:artifacts:setpolicy`
+so old function images don't accumulate. Why each exists: [SECURITY.md](SECURITY.md).

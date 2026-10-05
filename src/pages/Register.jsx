@@ -8,7 +8,7 @@ import DonationPledgeSection from "@/pages/register/DonationPledgeSection";
 import EmergencyContactSection from "@/pages/register/EmergencyContactSection";
 import FeeBreakdownCard from "@/pages/register/FeeBreakdownCard";
 import GcashPaymentSection from "@/pages/register/GcashPaymentSection";
-import GcashQrModal from "@/pages/register/GcashQrModal";
+import GcashQrModal from "@/components/GcashQrModal";
 import MedicalSection from "@/pages/register/MedicalSection";
 import PersonalInfoSection from "@/pages/register/PersonalInfoSection";
 import RegisterBlocked from "@/pages/register/RegisterBlocked";
@@ -209,7 +209,7 @@ export default function Register() {
         showConfirm={showConfirm}
       />
 
-      <GcashQrModal climb={climb} qrModalOpen={qrModalOpen} setQrModalOpen={setQrModalOpen} />
+      {qrModalOpen && <GcashQrModal climb={climb} onClose={() => setQrModalOpen(false)} />}
     </div>
   );
 }

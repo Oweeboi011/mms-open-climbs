@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Modal from "@/components/Modal";
+import GcashQrModal from "@/components/GcashQrModal";
 import DetailsPrompt, { detailsIncomplete } from "@/components/DetailsPrompt";
 import SignWaiverPrompt from "@/components/SignWaiverPrompt";
 import DocumentUploadModal from "@/components/DocumentUploadModal";
@@ -753,7 +754,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
             <Modal
               onClose={() => setShowConfirm(false)}
               label="Confirm Payment"
-              zIndex={1100}
+              layer="top"
             >
               <div>
                 <h3 style={{ margin: "0 0 4px", fontSize: "1.05rem" }}>
@@ -847,74 +848,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
           );
         })()}
 
-      {qrModalOpen && (
-        <Modal
-          onClose={() => setQrModalOpen(false)}
-          label="GCash QR Code"
-          zIndex={1100}
-          showClose={false}
-          overlayStyle={{ background: "rgba(0,0,0,0.75)", padding: 24 }}
-          contentStyle={{
-            background: "#fff",
-            borderRadius: 16,
-            maxWidth: 340,
-            textAlign: "center",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: 4 }}>
-              GCash QR Code
-            </div>
-            {climb?.gcashName && (
-              <div
-                style={{
-                  fontSize: "0.85rem",
-                  color: "var(--ink-soft)",
-                  marginBottom: 12,
-                }}
-              >
-                {climb.gcashName}
-                {climb.gcashNumber ? ` · ${climb.gcashNumber}` : ""}
-              </div>
-            )}
-            {climb?.gcashQrUrl ? (
-              <img
-                src={climb.gcashQrUrl}
-                alt="GCash QR Code"
-                style={{
-                  width: "100%",
-                  maxWidth: 260,
-                  height: "auto",
-                  objectFit: "contain",
-                  borderRadius: 8,
-                  display: "block",
-                  margin: "0 auto 16px",
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  padding: "24px 0 20px",
-                  color: "var(--ink-soft)",
-                  fontSize: "0.85rem",
-                }}
-              >
-                QR code has not been uploaded yet.
-                <br />
-                Please contact the climb officers for the GCash number.
-              </div>
-            )}
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => setQrModalOpen(false)}
-              style={{ width: "100%" }}
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
-      )}
+      {qrModalOpen && <GcashQrModal climb={climb} layer="top" onClose={() => setQrModalOpen(false)} />}
     </>
   );
 }

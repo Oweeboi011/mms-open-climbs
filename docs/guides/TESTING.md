@@ -7,7 +7,7 @@ honest. The gates these feed are in [CODE-QUALITY.md](CODE-QUALITY.md).
 
 ```mermaid
 flowchart TB
-    e2e["e2e — Playwright, real app on emulators<br/>a few smoke paths"]
+    e2e["e2e — Playwright, real app on emulators<br/>smoke paths + member and admin journeys"]
     integ["integration — security rules on emulators"]
     comp["component + accessibility — RTL + axe, SDK mocked"]
     unit["unit — pure utils, services contract, Functions logic"]
@@ -33,9 +33,9 @@ flowchart TB
 
 Integration and e2e start the Firebase emulators themselves
 (`firebase emulators:exec`), which needs **Java 21** on the `PATH`. e2e also
-needs a browser once: `npx playwright install chromium`. e2e seeds one open
-climb over the emulator REST API (`tests/e2e/seed.js`) and runs a single
-worker — parallel cold loads trip Vite's optimiser into reloads.
+needs a browser once: `npx playwright install chromium`. e2e seeds an open
+climb (and, per test, an admin or a registration) over the emulator REST APIs
+(`tests/e2e/seed.js`) and runs a single worker — parallel cold loads trip Vite's optimiser into reloads.
 
 ## Where a new test goes
 
@@ -47,7 +47,7 @@ worker — parallel cold loads trip Vite's optimiser into reloads.
 - A screen worth guarding for labels, names and roles → add it to
   `tests/accessibility/pages.a11y.test.jsx`.
 - A change to `firebase/firestore.rules` or `storage.rules` → **integration**.
-- A new critical journey a visitor or member takes → one **e2e** smoke, no more.
+- A new critical journey a visitor, member or admin takes → one **e2e** test, no more.
 
 ## Patterns
 

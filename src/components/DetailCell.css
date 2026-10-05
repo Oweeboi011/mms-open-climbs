@@ -1,0 +1,16 @@
+.detail-cell-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 1px;
+}
+
+.detail-cell-value {
+  font-size: 0.78rem;
+}
+
+.detail-cell-empty {
+  color: var(--ink-soft);
+}

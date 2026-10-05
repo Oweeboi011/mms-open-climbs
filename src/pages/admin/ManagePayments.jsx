@@ -37,12 +37,12 @@ export default function ManagePayments() {
   const [qrError, setQrError] = useState({});
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [recordingPaymentFor, setRecordingPaymentFor] = useState(null);
-  const fileRefs = useRef({});
+  const fileInputsRef = useRef({});
   function setFileInputRef(climbId, el) {
-    fileRefs.current[climbId] = el;
+    fileInputsRef.current[climbId] = el;
   }
   function clickFileInput(climbId) {
-    fileRefs.current[climbId]?.click();
+    fileInputsRef.current[climbId]?.click();
   }
 
   // Update climbs when Firestore QR changes

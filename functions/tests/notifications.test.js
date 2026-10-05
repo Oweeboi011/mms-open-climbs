@@ -131,8 +131,8 @@ let scheduleHandler;
 let userWrittenHandler;
 
 jest.mock("firebase-functions/v2/firestore", () => ({
-  onDocumentCreated: (_opts, fn) => {
-    createdHandler = fn;
+  onDocumentCreated: (opts, fn) => {
+    if (opts.document === "registrations/{regId}") createdHandler = fn;
     return fn;
   },
   onDocumentUpdated: (opts, fn) => {

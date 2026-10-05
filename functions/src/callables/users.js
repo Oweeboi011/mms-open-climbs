@@ -174,6 +174,7 @@ async function requireAdmin(callerUid) {
   if (!callerSnap.exists || callerSnap.data().role !== "admin") {
     throw new HttpsError("permission-denied", "Only admins can do this.");
   }
+  return callerSnap.data();
 }
 
 // ── Callable: admin corrects a user's name and/or email ───────────────────────

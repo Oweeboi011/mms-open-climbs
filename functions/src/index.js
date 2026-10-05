@@ -9,7 +9,13 @@ const { onClimbUpdated } = require("./triggers/climbs");
 const { sendReminderNotifications } = require("./scheduled/reminders");
 const { syncAdminClaim } = require("./triggers/adminClaim");
 const { ensureAdminClaim, createUser, updateUserProfile, deleteUserAccount } = require("./callables/users");
-const { sendReleaseNoteEmail, getReleaseNoteCommitOptions, generateReleaseNoteDraft } = require("./callables/releaseNotes");
+const {
+  sendReleaseNoteEmail,
+  previewReleaseNoteEmail,
+  getReleaseNoteCommitOptions,
+  generateReleaseNoteDraft,
+} = require("./callables/releaseNotes");
+const { onReleaseNoteEmailJobCreated } = require("./triggers/releaseNoteEmailJobs");
 const { getEmailStats, getStorageUsage, getFunctionHealth, getBillingCost } = require("./callables/insights");
 
 exports.onRegistrationCreated = onRegistrationCreated;
@@ -23,6 +29,8 @@ exports.createUser = createUser;
 exports.updateUserProfile = updateUserProfile;
 exports.deleteUserAccount = deleteUserAccount;
 exports.sendReleaseNoteEmail = sendReleaseNoteEmail;
+exports.previewReleaseNoteEmail = previewReleaseNoteEmail;
+exports.onReleaseNoteEmailJobCreated = onReleaseNoteEmailJobCreated;
 exports.getReleaseNoteCommitOptions = getReleaseNoteCommitOptions;
 exports.generateReleaseNoteDraft = generateReleaseNoteDraft;
 exports.getEmailStats = getEmailStats;
@@ -35,3 +43,6 @@ exports.getBillingCost = getBillingCost;
 // to Messenger/Facebook render a real card instead of a bare URL. See the
 // hosting rewrite in firebase.json.
 exports.ogPrerender = require("./ogPrerender").ogPrerender;
+
+// Content-Security-Policy violation reports (hosting rewrite /csp-report).
+exports.cspReport = require("./cspReport").cspReport;

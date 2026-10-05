@@ -23,31 +23,45 @@ permissions:
 
 jobs:
   supply-chain:
-    name: Dependency audit (high+)
+    name: Dependency audit (moderate+)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Audit app dependencies
-        run: npm audit --audit-level=high --omit=dev
+        run: npm audit --audit-level=moderate --omit=dev
       - name: Audit Cloud Functions dependencies
-        run: npm --prefix functions audit --audit-level=high --omit=dev
+        run: npm --prefix functions audit --audit-level=moderate --omit=dev
 
   patterns:
-    name: Semgrep (advisory)
+    name: Semgrep
     runs-on: ubuntu-latest
-    # Advisory: reported in the job summary, never blocks. CodeQL is the
-    # blocking security analysis; secretlint in `qa` is the blocking secret scan.
-    continue-on-error: true
+    permissions:
+      contents: read
+      security-events: write
+    # Pinned so the rules engine changes only through a reviewed bump.
     container:
-      image: semgrep/semgrep:latest
+      image: semgrep/semgrep:1.179.0
     steps:
-      - uses: actions/checkout@v4
-      - name: Scan with Semgrep rulesets
+      - uses: actions/checkout@v7
+      # Every finding goes to the Security tab beside CodeQL; ERROR-severity
+      # findings fail the job. A false positive gets a `nosemgrep` comment
+      # saying why — never a blanket exclude.
+      - name: Scan
         run: |
           semgrep scan \
             --config p/javascript --config p/react --config p/secrets \
-            --exclude dist --exclude coverage --exclude node_modules \
-            --text >> "$GITHUB_STEP_SUMMARY" || true
+            --exclude dist --exclude coverage --exclude node_modules --exclude public \
+            --sarif --output semgrep.sarif || true
+          semgrep scan \
+            --config p/javascript --config p/react --config p/secrets \
+            --exclude dist --exclude coverage --exclude node_modules --exclude public \
+            --severity ERROR --error --text
+      - name: Upload to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep

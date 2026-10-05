@@ -27,8 +27,9 @@ hook, not a fifty-step process.
 
 Measured at the end: frontend coverage floor 63 → 78% lines (actual 79.3%);
 functions 87.2% lines; duplication 4% ceiling → 0.32% actual (ceiling now 1%);
-frontend tests 712 → 744, plus 69 rules checks and 10 e2e runs (4 smoke
-paths + a sign-up → register → My Climbs journey, desktop and phone); initial load
+frontend tests 712 → 744, plus 69 rules checks and 11 e2e runs (4 smoke
+paths + a sign-up → register → My Climbs journey on desktop and phone, and an
+admin payment-verification journey on desktop); initial load
 270.6 kB gzip (+2 kB from the services layer).
 
 ## Keeping it working
@@ -37,13 +38,14 @@ paths + a sign-up → register → My Climbs journey, desktop and phone); initia
 - Raise coverage floors and lower budgets when reality improves; never the
   reverse to go green.
 - Dependabot PRs land on `develop` weekly; the audit job is the backstop.
-- Re-check the pinned tools (knip 5.55, jscpd 4) once contributors' machines
-  no longer block native binaries.
+- Re-check the knip 5.55.1 pin once contributors' machines no longer block
+  native binaries (see CODE-QUALITY Known limits).
 
 ## Not done / next
 
 - Work down `LEGACY`: `ClimbPaymentCard`, `RegistrantRow`, `AllRegistrations`,
   `Analytics`, `ClimbDetail`, `MyRegistrations`, then the functions triggers.
-- Replace remaining inline styles with design tokens (convention, not yet a gate).
+- Replace remaining inline styles with design tokens — gated for new files;
+  89 legacy files listed in `tools/inline-styles-legacy.json`.
 - Grow `TextField` adoption across the other ~100 hand-written form groups.
 - Consider Stryker once coverage is consistently above 80%.

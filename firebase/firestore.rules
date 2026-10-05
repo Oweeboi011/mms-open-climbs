@@ -64,8 +64,11 @@ service cloud.firestore {
       // Owners may maintain their own profile but never their own role —
       // `create` pins it to 'member', and without this an update could hand
       // the whole admin surface to anyone with a browser console.
-      allow update: if isAdmin() ||
-        (isOwner(userId) && !affected().hasAny(['role']));
+      // canEmailMembers (send a release note to everyone) takes two people:
+      // an admin may grant it to someone else, never to themselves.
+      allow update: if (isAdmin() &&
+          (!affected().hasAny(['canEmailMembers']) || request.auth.uid != userId)) ||
+        (isOwner(userId) && !affected().hasAny(['role', 'canEmailMembers']));
       allow delete: if isAdmin();
     }
 
@@ -332,6 +335,13 @@ service cloud.firestore {
     match /releaseNotes/{noteId} {
       allow read: if isSignedIn() && (resource.data.status == 'published' || isAdmin());
       allow write: if isAdmin();
+    }
+
+    // Email send jobs: queued by the sendReleaseNoteEmail callable, worked by
+    // a trigger (both Admin SDK). Admins watch progress; nobody writes.
+    match /releaseNoteEmailJobs/{jobId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /auditLog/{id} {

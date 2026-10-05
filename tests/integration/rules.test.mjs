@@ -34,6 +34,8 @@ async function seed() {
   await env.withSecurityRulesDisabled(async (c) => {
     const db = c.firestore();
     await db.doc("users/admin").set({ role: "admin" });
+    await db.doc("users/admin2").set({ role: "admin" });
+    await db.doc("releaseNoteEmailJobs/j1").set({ releaseNoteId: "rn1", status: "sending" });
     await db.doc("users/m1").set({ role: "member" });
     await db.doc("users/m2").set({ role: "member" });
     await db.doc("climbs/c1").set({ status: "open", title: "Pulag" });
@@ -134,6 +136,14 @@ await ok("guest page view without expireAt", () => anon().collection("pageViews"
 await no("page view expireAt 5y out denied", () => anon().collection("pageViews").add({ ...pv, expireAt: TS.fromMillis(Date.now() + 5 * 365 * 864e5) }));
 await ok("failed request with expireAt", () => anon().collection("failedRequests").add({ type: "client", source: "x", message: "m", userId: null, createdAt: FV.serverTimestamp(), expireAt: TS.fromMillis(Date.now() + 90 * 864e5) }));
 await no("member cannot self-promote", () => m1().doc("users/m1").update({ role: "admin" }));
+await no("member cannot grant themselves canEmailMembers", () => m1().doc("users/m1").update({ canEmailMembers: true }));
+await no("admin cannot grant themselves canEmailMembers", () => admin().doc("users/admin").update({ canEmailMembers: true }));
+await ok("admin grants canEmailMembers to another admin", () => admin().doc("users/admin2").update({ canEmailMembers: true }));
+await ok("admin still edits their own profile", () => admin().doc("users/admin").update({ displayName: "Ada" }));
+await ok("admin reads an email job", () => admin().doc("releaseNoteEmailJobs/j1").get());
+await no("member cannot read an email job", () => m1().doc("releaseNoteEmailJobs/j1").get());
+await no("admin cannot forge an email job", () => admin().collection("releaseNoteEmailJobs").add({ releaseNoteId: "rn1", status: "queued" }));
+await ok("admin deletes a release note", () => admin().doc("releaseNotes/rn-x").delete());
 
 console.log("Storage");
 const png = new Uint8Array([137, 80, 78, 71]);

@@ -9,7 +9,7 @@ Event management portal for the Metropolitan Mountaineering Society (MMS). Membe
 ```mermaid
 graph TB
     subgraph Browser["User Browser"]
-        SPA["React SPA\n(Vite + React 18)"]
+        SPA["React SPA\n(Vite + React 19)"]
     end
 
     subgraph Firebase["Firebase Platform"]
@@ -35,7 +35,7 @@ graph TB
 
 | Layer               | Technology                        |
 | ------------------- | --------------------------------- |
-| Frontend            | React 18, Vite, React Router v6   |
+| Frontend            | React 19, Vite 8, React Router 7  |
 | Hosting             | Firebase Hosting                  |
 | Database            | Cloud Firestore (`openclimbs` DB) |
 | Authentication      | Firebase Auth (Email + Google)    |
@@ -129,12 +129,18 @@ src/
   services/         the only code that talks to Firebase (ADR 0004)
   utils/            pure domain logic (fees, payments, schedules)
   data/ styles/     static content, design tokens
+public/             static files served as-is at / (icons, manifest, logo)
 functions/          Cloud Functions: src/{triggers,scheduled,callables,email,shared}, tests/, scripts/
 firebase/           Firestore/Storage rules and indexes, CORS, storage lifecycle
 tests/              unit, component, accessibility, integration, e2e, performance
 scripts/            CLI helpers that use the web API key from .env
+tools/              configs for dependency-cruiser, jscpd, secretlint (knip's lives in package.json)
 docs/               guides/ (what it is) · solution-plans/ (how we deliver) · adr/ (why)
 ```
+
+The root keeps only what a tool must find there: `package.json`, the Vite,
+ESLint, editor and Firebase configs, `index.html` (Vite's entry), `CONTEXT.md`
+(read by the domain-modeling skill) and `skills-lock.json`.
 
 ---
 
@@ -159,6 +165,6 @@ Deploys happen from CI on push to `develop`: [DEPLOYMENT.md](docs/guides/DEPLOYM
 | How is it built? | [ARCHITECTURE](docs/guides/ARCHITECTURE.md) · [DATA](docs/guides/DATA.md) · [API](docs/guides/API.md) · [SECURITY](docs/guides/SECURITY.md) |
 | How do I work on it? | [CONTRIBUTING](docs/guides/CONTRIBUTING.md) · [TESTING](docs/guides/TESTING.md) · [CODE-QUALITY](docs/guides/CODE-QUALITY.md) · [TROUBLESHOOTING](docs/guides/TROUBLESHOOTING.md) |
 | How do I use it? | [USER_MANUAL](docs/guides/USER_MANUAL.md) |
-| How do we deliver it? | [docs/solution-plans/](docs/solution-plans/) — web plan, release notes, hardening, quality harness |
+| How do we deliver it? | [docs/solution-plans/](docs/solution-plans/) — web plan, release notes, quality harness |
 | Why is it like this? | [docs/adr/](docs/adr/README.md) |
 | What do the words mean? | [CONTEXT.md](CONTEXT.md) — domain glossary |

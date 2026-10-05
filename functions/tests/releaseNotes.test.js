@@ -13,17 +13,20 @@
 
 const releaseNotesStore = {};
 const usersStore = {};
+const jobsStore = {};
 const updates = [];
 
 function resetStores() {
   for (const k of Object.keys(releaseNotesStore)) delete releaseNotesStore[k];
   for (const k of Object.keys(usersStore)) delete usersStore[k];
+  for (const k of Object.keys(jobsStore)) delete jobsStore[k];
   updates.length = 0;
 }
 
 function storeFor(col) {
   if (col === "releaseNotes") return releaseNotesStore;
   if (col === "users") return usersStore;
+  if (col === "releaseNoteEmailJobs") return jobsStore;
   throw new Error(`Unmocked collection: ${col}`);
 }
 
@@ -45,6 +48,11 @@ function docRef(path) {
 function collectionRef(name) {
   const store = storeFor(name);
   return {
+    add: async (data) => {
+      const id = `job-${Object.keys(store).length + 1}`;
+      store[id] = data;
+      return { id };
+    },
     get: async () => ({
       docs: Object.entries(store).map(([id, data]) => ({
         id,
@@ -123,111 +131,121 @@ beforeEach(() => {
 });
 
 describe("sendReleaseNoteEmail callable", () => {
+  const sender = () => {
+    usersStore["admin-1"] = { role: "admin", canEmailMembers: true };
+  };
+  const call = (data, uid = "admin-1") => index.sendReleaseNoteEmail({ auth: uid ? { uid } : null, data });
+
   it("throws unauthenticated when caller has no auth", async () => {
-    await expect(
-      index.sendReleaseNoteEmail({ auth: null, data: {} }),
-    ).rejects.toMatchObject({ code: "unauthenticated" });
+    await expect(call({}, null)).rejects.toMatchObject({ code: "unauthenticated" });
   });
 
   it("throws permission-denied for a non-admin caller", async () => {
-    usersStore["u1"] = { role: "member" };
-    await expect(
-      index.sendReleaseNoteEmail({
-        auth: { uid: "u1" },
-        data: { releaseNoteId: "rn1" },
-      }),
-    ).rejects.toMatchObject({ code: "permission-denied" });
+    usersStore["u1"] = { role: "member", canEmailMembers: true };
+    await expect(call({ releaseNoteId: "rn1" }, "u1")).rejects.toMatchObject({ code: "permission-denied" });
+  });
+
+  it("throws permission-denied for an admin without canEmailMembers", async () => {
+    usersStore["admin-1"] = { role: "admin" };
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B" };
+    await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "permission-denied" });
   });
 
   it("throws invalid-argument when releaseNoteId is missing", async () => {
-    usersStore["admin-1"] = { role: "admin" };
-    await expect(
-      index.sendReleaseNoteEmail({ auth: { uid: "admin-1" }, data: {} }),
-    ).rejects.toMatchObject({ code: "invalid-argument" });
+    sender();
+    await expect(call({})).rejects.toMatchObject({ code: "invalid-argument" });
   });
 
   it("throws not-found when the release note doesn't exist", async () => {
-    usersStore["admin-1"] = { role: "admin" };
-    await expect(
-      index.sendReleaseNoteEmail({
-        auth: { uid: "admin-1" },
-        data: { releaseNoteId: "missing" },
-      }),
-    ).rejects.toMatchObject({ code: "not-found" });
+    sender();
+    await expect(call({ releaseNoteId: "missing" })).rejects.toMatchObject({ code: "not-found" });
   });
 
   it("throws failed-precondition when the note isn't published", async () => {
-    usersStore["admin-1"] = { role: "admin" };
+    sender();
     releaseNotesStore["rn1"] = { status: "draft", title: "Draft note" };
-    await expect(
-      index.sendReleaseNoteEmail({
-        auth: { uid: "admin-1" },
-        data: { releaseNoteId: "rn1" },
-      }),
-    ).rejects.toMatchObject({ code: "failed-precondition" });
+    await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "failed-precondition" });
   });
 
-  it("emails every user with an email and records the sent count", async () => {
-    usersStore["admin-1"] = { role: "admin" };
-    releaseNotesStore["rn1"] = {
-      status: "published",
-      title: "New feature",
-      body: "It works.",
-    };
-    usersStore["m1"] = { email: "a@a.com", displayName: "A" };
-    usersStore["m2"] = { email: "b@b.com" };
-    usersStore["m3"] = {}; // no email — should be skipped
+  it("queues a job for every user with an email and marks the note", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "New feature", body: "It works." };
+    usersStore["m1"] = { email: "a@a.com" };
+    usersStore["m2"] = {};
 
-    const result = await index.sendReleaseNoteEmail({
-      auth: { uid: "admin-1" },
-      data: { releaseNoteId: "rn1" },
-    });
+    const result = await call({ releaseNoteId: "rn1" });
 
-    expect(result).toEqual({ sent: 2, total: 2 });
-    expect(updates).toEqual([
-      {
-        path: "releaseNotes/rn1",
-        patch: { emailSentAt: "SERVER_TS", emailSentCount: 2 },
-      },
-    ]);
+    // admin-1 has no email, m2 has none: one recipient.
+    expect(result).toEqual({ jobId: "job-1", total: 1 });
+    expect(jobsStore["job-1"]).toMatchObject({ releaseNoteId: "rn1", status: "queued", total: 1, sent: 0, createdBy: "admin-1" });
+    expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-1", status: "queued" });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("keeps going and reports a partial count when one recipient's email fails", async () => {
-    usersStore["admin-1"] = { role: "admin" };
-    releaseNotesStore["rn1"] = {
-      status: "published",
-      title: "New feature",
-      body: "It works.",
-    };
+  it("refuses while a send for the same note is still running", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
+    await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+});
+
+describe("previewReleaseNoteEmail callable", () => {
+  it("returns the rendered email and the recipient count", async () => {
+    usersStore["admin-1"] = { role: "admin", canEmailMembers: true, email: "me@a.com" };
+    usersStore["m1"] = { email: "a@a.com" };
+    releaseNotesStore["rn1"] = { status: "published", title: "Maps", body: "Now with maps." };
+
+    const result = await index.previewReleaseNoteEmail({ auth: { uid: "admin-1" }, data: { releaseNoteId: "rn1" } });
+
+    expect(result.subject).toBe("MMS Open Climbs Update: Maps");
+    expect(result.html).toContain("Now with maps.");
+    expect(result.recipients).toBe(2);
+  });
+});
+
+describe("release-note email job", () => {
+  const { runReleaseNoteEmailJob } = require("../src/triggers/releaseNoteEmailJobs");
+  const noSleep = { sleep: async () => {} };
+
+  it("sends to everyone, records progress and stamps the note", async () => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B" };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
     usersStore["m1"] = { email: "a@a.com" };
     usersStore["m2"] = { email: "b@b.com" };
 
-    let calls = 0;
-    global.fetch = jest.fn().mockImplementation(() => {
-      calls++;
-      if (calls === 1) return Promise.reject(new Error("network down"));
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
-    });
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
 
-    const result = await index.sendReleaseNoteEmail({
-      auth: { uid: "admin-1" },
-      data: { releaseNoteId: "rn1" },
-    });
-
-    expect(result).toEqual({ sent: 1, total: 2 });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(jobsStore["job-9"]).toMatchObject({ status: "done", sent: 2, failed: 0, total: 2 });
+    expect(releaseNotesStore["rn1"]).toMatchObject({ emailSentCount: 2, emailJob: { id: "job-9", status: "done" } });
   });
 
-  it("wraps an unexpected error as internal", async () => {
-    usersStore["admin-1"] = { role: "admin" };
-    mockDb.doc.mockImplementationOnce(() => {
-      throw new Error("boom");
+  it("retries a failed send once and counts what still fails", async () => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B" };
+    jobsStore["job-9"] = { releaseNoteId: "rn1" };
+    usersStore["ok"] = { email: "ok@a.com" };
+    usersStore["flaky"] = { email: "flaky@a.com" };
+    usersStore["dead"] = { email: "dead@a.com" };
+    const calls = {};
+    global.fetch = jest.fn(async (_url, init) => {
+      const to = JSON.parse(init.body).to[0].email;
+      calls[to] = (calls[to] || 0) + 1;
+      const fail = to === "dead@a.com" || (to === "flaky@a.com" && calls[to] === 1);
+      return { ok: !fail, status: fail ? 500 : 201, json: async () => ({}), text: async () => "err" };
     });
-    await expect(
-      index.sendReleaseNoteEmail({
-        auth: { uid: "admin-1" },
-        data: { releaseNoteId: "rn1" },
-      }),
-    ).rejects.toMatchObject({ code: "internal" });
+
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+
+    expect(calls).toEqual({ "ok@a.com": 1, "flaky@a.com": 2, "dead@a.com": 2 });
+    expect(jobsStore["job-9"]).toMatchObject({ status: "done", sent: 2, failed: 1 });
+    expect(releaseNotesStore["rn1"].emailSentCount).toBe(2);
+  });
+
+  it("fails the job when the note was deleted", async () => {
+    jobsStore["job-9"] = { releaseNoteId: "gone" };
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+    expect(jobsStore["job-9"].status).toBe("failed");
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
 

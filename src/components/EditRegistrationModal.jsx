@@ -64,7 +64,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
     <Modal
       onClose={onClose}
       labelledBy="edit-registration-title"
-      contentStyle={{ maxWidth: 460 }}
+      size="md"
     >
       <div>
         <h3

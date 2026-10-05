@@ -1,6 +1,6 @@
 # Copilot instructions
 
-MMS Open Climbs: React 18 + Vite SPA on Firebase (Firestore `openclimbs`
+MMS Open Climbs: React 19 + Vite SPA on Firebase (Firestore `openclimbs`
 database, Auth, Storage, Cloud Functions v2). JavaScript only — no
 TypeScript, no CSS frameworks.
 

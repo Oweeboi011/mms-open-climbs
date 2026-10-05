@@ -1,9 +1,10 @@
 import js from "@eslint/js";
 import globals from "globals";
-import react from "eslint-plugin-react";
+import eslintReact from "@eslint-react/eslint-plugin";
 import reactHooks from "eslint-plugin-react-hooks";
-import importPlugin from "eslint-plugin-import";
+import importX from "eslint-plugin-import-x";
 import boundaries from "eslint-plugin-boundaries";
+import { readFileSync } from "node:fs";
 
 // Size / complexity limits every file must meet. See
 // docs/guides/CODE-QUALITY.md and ADR 0003.
@@ -33,8 +34,6 @@ const LEGACY = {
   "src/pages/admin/ClimbsManage.jsx": {functionLines: 896, complexity: 40, fileLines: 930},
   "src/pages/admin/Dashboard.jsx": {functionLines: 942, complexity: 33, fileLines: 1052},
   "src/pages/admin/ManagePayments.jsx": {functionLines: 388},
-  "src/pages/admin/ReleaseNoteForm.jsx": {functionLines: 361, complexity: 37},
-  "src/pages/admin/UsersManage.jsx": {functionLines: 860, complexity: 36, fileLines: 955},
   "src/pages/ClimbFeedback.jsx": {complexity: 24},
   "src/pages/MyRegistrations.jsx": {functionLines: 759, complexity: 55, fileLines: 1611},
   "src/pages/Schedule.jsx": {functionLines: 333},
@@ -49,6 +48,13 @@ const LEGACY = {
   "functions/src/triggers/climbs.js": {complexity: 30},
   "functions/src/triggers/registrations.js": {functionLines: 284, complexity: 69},
 };
+
+// Files that still use inline `style={{…}}`. New code uses classes and the
+// tokens in src/styles/globals.css. Shrink-only, like LEGACY: drop a file when
+// its last inline style goes; never add one.
+const INLINE_STYLE_LEGACY = JSON.parse(
+  readFileSync(new URL("./tools/inline-styles-legacy.json", import.meta.url), "utf8"),
+);
 
 const LAYERS = [
   { type: "pages", pattern: "src/pages/**", partialMatch: false },
@@ -87,6 +93,32 @@ const NO_FIREBASE_SDK = {
   message: "Reach Firebase through src/services (ADR 0004).",
 };
 
+const NO_RAW_HTML = {
+  selector: "AssignmentExpression > MemberExpression.left[property.name=/^(inner|outer)HTML$/]",
+  message: "Render through React; raw HTML assignment is an XSS sink.",
+};
+// Inline styles: only CSS custom properties may be passed (for values that
+// really are dynamic, e.g. style={{ "--pct": "40%" }}); the CSS reads them.
+const STYLE_ATTR = "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='style'] > JSXExpressionContainer";
+const INLINE_STYLE_MESSAGE =
+  "Use a class and the tokens in src/styles/globals.css; pass dynamic values as CSS custom properties.";
+const NO_INLINE_STYLE = [
+  `${STYLE_ATTR} > :not(ObjectExpression)`,
+  `${STYLE_ATTR} > ObjectExpression > SpreadElement`,
+  `${STYLE_ATTR} > ObjectExpression > Property[key.type='Identifier']`,
+  `${STYLE_ATTR} > ObjectExpression > Property[key.type='Literal'][key.value!=/^--/]`,
+].map((selector) => ({ selector, message: INLINE_STYLE_MESSAGE }));
+
+// @eslint-react re-implements the React Compiler hook rules; the official
+// react-hooks plugin owns those, so drop the duplicates.
+const HOOK_RULES = ["error-boundaries", "exhaustive-deps", "globals", "immutability", "purity", "refs",
+  "rules-of-hooks", "set-state-in-effect", "set-state-in-render", "static-components", "unsupported-syntax", "use-memo"];
+const REACT_RULES = Object.fromEntries(
+  Object.entries(eslintReact.configs.recommended.rules).filter(
+    ([name]) => !HOOK_RULES.includes(name.replace("@eslint-react/", "")),
+  ),
+);
+
 const sizeRules = (c) => ({
   "max-lines": ["error", { max: c.fileLines, skipBlankLines: true, skipComments: true }],
   "max-lines-per-function": ["error", { max: c.functionLines, skipBlankLines: true, skipComments: true }],
@@ -110,9 +142,7 @@ export default [
       "functions/coverage/**",
       "functions/appShell.generated.js",
       ".firebase/**",
-      "images/**",
-      "playwright-report/**",
-      "test-results/**",
+      "public/**",
     ],
   },
 
@@ -128,14 +158,15 @@ export default [
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
     settings: {
-      react: { version: "18.3" },
       "import/resolver": { node: { extensions: [".js", ".jsx"] } },
       "boundaries/elements": LAYERS,
     },
-    plugins: { react, "react-hooks": reactHooks, import: importPlugin, boundaries },
+    plugins: { ...eslintReact.configs.recommended.plugins, "react-hooks": reactHooks, "import-x": importX, boundaries },
     rules: {
-      ...react.configs.flat.recommended.rules,
-      ...react.configs.flat["jsx-runtime"].rules,
+      ...REACT_RULES,
+      // Index keys are right for the read-only lists here and for the
+      // controlled-input row editors; a reorderable list needs an id.
+      "@eslint-react/no-array-index-key": "off",
       ...reactHooks.configs.recommended.rules,
 
       // --- Correctness -------------------------------------------------
@@ -144,9 +175,12 @@ export default [
       eqeqeq: ["error", "smart"],
       "no-var": "error",
       "prefer-const": "error",
-      "react/prop-types": "off",
-      // Apostrophes in user-facing copy are fine; only flag what breaks JSX.
-      "react/no-unescaped-entities": ["error", { forbid: [">", "}"] }],
+
+      // --- Naming ------------------------------------------------------
+      // Firestore field names arrive as properties, hence "never".
+      camelcase: ["error", { properties: "never", ignoreDestructuring: true, ignoreImports: true }],
+      "@eslint-react/naming-convention-context-name": "error",
+      "@eslint-react/naming-convention-ref-name": "error",
 
       // React Compiler purity rules: real signal, but every current hit needs
       // a behavioural refactor, so advisory for now — see ADR 0002.
@@ -162,24 +196,19 @@ export default [
       "no-eval": "error",
       "no-implied-eval": "error",
       "no-new-func": "error",
-      "react/no-danger": "error",
-      "react/jsx-no-target-blank": ["error", { allowReferrer: false, enforceDynamicLinks: "always" }],
+      "@eslint-react/dom-no-dangerously-set-innerhtml": "error",
+      "@eslint-react/dom-no-unsafe-target-blank": "error",
+      "@eslint-react/dom-no-script-url": "error",
       "no-restricted-properties": [
         "error",
         { object: "document", property: "write", message: "Never use document.write." },
       ],
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "AssignmentExpression > MemberExpression.left[property.name=/^(inner|outer)HTML$/]",
-          message: "Render through React; raw HTML assignment is an XSS sink.",
-        },
-      ],
+      "no-restricted-syntax": ["error", NO_RAW_HTML],
 
       // --- Banned imports (cycles are dependency-cruiser's job) ----------
       "no-restricted-imports": ["error", { patterns: [NO_DEEP_RELATIVE] }],
-      "import/no-self-import": "error",
-      "import/no-useless-path-segments": "error",
+      "import-x/no-self-import": "error",
+      "import-x/no-useless-path-segments": "error",
 
       ...sizeRules(STRICT),
     },
@@ -191,10 +220,9 @@ export default [
     // Without this, boundaries silently skips every
     // '@/…' import — i.e. most of the graph.
     settings: {
-      "import/resolver": {
-        alias: { map: [["@", "./src"], ["@tests", "./tests"]], extensions: [".js", ".jsx"] },
-        node: { extensions: [".js", ".jsx"] },
-      },
+      // Reads the "@/" and "@tests/" paths from jsconfig.json.
+      "import/resolver": { typescript: { project: "./jsconfig.json" } },
+      "import-x/resolver": { typescript: { project: "./jsconfig.json" } },
     },
   },
   {
@@ -210,6 +238,8 @@ export default [
           })),
         },
       ],
+      // Design tokens and classes, not inline styles.
+      "no-restricted-syntax": ["error", NO_RAW_HTML, ...NO_INLINE_STYLE],
       "no-restricted-globals": [
         "error",
         { name: "localStorage", message: "Use src/services/browserStorage.js." },
@@ -230,6 +260,7 @@ export default [
   },
 
   ...legacyOverrides,
+  { files: INLINE_STYLE_LEGACY, rules: { "no-restricted-syntax": ["error", NO_RAW_HTML] } },
 
   // --- Cloud Functions (CommonJS, Node) ---------------------------------
   {

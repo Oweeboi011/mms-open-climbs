@@ -82,7 +82,7 @@ export default function DetailsPrompt({ reg, currentUser, onClose, onSaved }) {
     <Modal
       onClose={onClose}
       labelledBy="details-prompt-title"
-      contentStyle={{ maxWidth: 460 }}
+      size="md"
     >
       <div>
         <h3

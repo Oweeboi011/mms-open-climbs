@@ -20,7 +20,7 @@ flowchart LR
     C -->|CI parallel| F[e2e: Playwright smoke]
     D & E & F --> G{all green?}
     G -->|develop| H[promote to main + deploy]
-    C -.->|world-state, never blocks a hotfix| I[npm audit · CodeQL · Semgrep advisory]
+    C -.->|world-state, never blocks a hotfix| I[npm audit · CodeQL · Semgrep]
 ```
 
 | Check | Tool | Stage | Threshold | When it fails |
@@ -29,6 +29,8 @@ flowchart LR
 | Layering (Clean Architecture) | `eslint-plugin-boundaries` | pre-commit + `qa` | see [ADR 0004](../adr/0004-services-layer.md) | Move the code to the right layer, or go through `src/services` |
 | Firebase only via services | ESLint `no-restricted-imports` | pre-commit + `qa` | no exceptions | Add or reuse a function in `src/services/` |
 | Complexity / size | ESLint `complexity`, `max-lines(-per-function)`, `max-depth`, `max-params` | pre-commit + `qa` | 20 / 600 file / 200 fn / 4 / 6 | Split it. Legacy files are pinned in `LEGACY` (see below) |
+| Inline styles in new files | ESLint `react/forbid-dom-props` | pre-commit + `qa` | 0 outside `tools/inline-styles-legacy.json` | Use a class and the tokens in `src/styles/globals.css` |
+| Naming: camelCase identifiers, PascalCase components | ESLint `camelcase`, `react/jsx-pascal-case` | pre-commit + `qa` | 0 | Rename. Firestore field names are exempt (properties) |
 | Circular deps, unresolvable imports, dev-deps or `firebase-admin` in the bundle | dependency-cruiser (`npm run arch`) | `qa` | 0 | Break the cycle by extracting the shared piece |
 | Duplication | jscpd (`npm run dupes`) | `qa` | ≤ 1% | Extract a component, hook or util |
 | Dead code: unused files, exports, deps | knip (`npm run deadcode`) | `qa` | 0 | Delete it (git keeps history) |
@@ -38,9 +40,9 @@ flowchart LR
 | Bundle size | `npm run test:perf` | `qa` | 300 kB initial, 85 kB/chunk (gzip) | Lazy-load it; don't raise the budget to go green |
 | Security rules | `npm run test:integration` | CI | all pass | Fix the rule or the test, never both at once |
 | User flows | `npm run test:e2e` | CI | all pass | Open the Playwright trace artifact |
-| Vulnerable packages | `npm audit --audit-level=high --omit=dev` | CI, weekly | 0 high | Patch, or `overrides` for a transitive dep |
+| Vulnerable packages | `npm audit --audit-level=moderate --omit=dev` | CI, weekly | 0 moderate+ | Patch, or `overrides` for a transitive dep |
 | Injection / XSS taint | CodeQL `security-extended` | CI, weekly | 0 | Fix the flow it reports |
-| Broader patterns | Semgrep | CI, advisory | — | Triage; promote real hits to an ESLint rule |
+| Broader patterns | Semgrep (pinned image; `p/javascript`, `p/react`, `p/secrets`) | CI, weekly | 0 ERROR-severity; all findings in the Security tab | Fix it, or a `nosemgrep` comment saying why; promote recurring hits to an ESLint rule |
 | Format | `.editorconfig` | editor | — | No Prettier, see ADR 0003 |
 
 ## Ratchets: legacy can't get worse, new code starts clean
@@ -48,6 +50,8 @@ flowchart LR
 - `eslint.config.js` → `LEGACY` pins each file that predates the strict
   limits at its measured worst. **Numbers only go down**: when you split a
   file, lower or delete its entry in the same commit. New files never go in.
+- `tools/inline-styles-legacy.json` lists the files that still use inline
+  styles. Remove a file once its last `style={{…}}` is gone; never add one.
 - Coverage thresholds sit just under today's actuals. Raise them when
   coverage improves; never lower them.
 - The jscpd threshold and bundle budgets work the same way.
@@ -72,8 +76,15 @@ Integration and e2e need Java 21 (the Firebase emulators); see
 ## Known limits
 
 - **Windows Application Control** on some machines blocks native `.node`
-  binaries. knip is pinned to 5.55 and jscpd to 4.x because those versions are
-  pure JavaScript. Upgrade when that's no longer a constraint.
+  binaries. knip is pinned to exactly **5.55.1**: later versions load the
+  native `oxc-resolver`, and its WebAssembly fallback can't read Windows paths.
+  Dependabot ignores knip for that reason.
+- **TypeScript stays on 5.x.** It is installed only as knip's parser, and
+  TypeScript 7 (the native compiler) drops the JavaScript API knip uses.
+- **Dev-only advisories:** `npm audit` (all deps) reports `braces` /
+  `micromatch` via secretlint, boundaries and knip — no patched `braces`
+  exists yet. These run only on our own source; the CI gate audits production
+  dependencies (`--omit=dev`), which are clean.
 - **Type checking** is deliberately absent (JavaScript by decision). ESLint,
   layering and tests are the safety net; `typescript` is installed only as
   knip's parser.
