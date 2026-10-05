@@ -362,7 +362,7 @@ Publish "what's new" updates for members from **Admin > Release Notes**:
 - Published notes appear on the member-facing **Release Notes** page for everyone signed in — see [Section 11](#11-whats-new-release-notes).
 - A release note must be **Published** before it can be emailed — the send button is disabled for drafts.
 - **Preview & Send** shows the exact email and how many members will get it before anything is sent; after you confirm, a progress bar shows the send as it happens.
-- Emailing everyone needs the **Can email every member** permission. Another admin turns it on for you under **Users** (open your profile there); you can't grant it to yourself.
+- Emailing everyone needs the **Can email every member** permission. The project owner grants it; the **Users** page shows who has it.
 - **Delete** removes a note from the history page. Emails already sent can't be recalled.
 
 ---

@@ -39,7 +39,10 @@ async function loadPublishedNote(releaseNoteId) {
 
 async function emailRecipients() {
   const usersSnap = await db.collection("users").get();
-  return usersSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => u.email);
+  return usersSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((u) => u.email)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function renderReleaseNoteEmail(note) {
@@ -86,7 +89,14 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
       if (isLocked(currentJob)) {
         throw new HttpsError("failed-precondition", "This note is already being sent.");
       }
+      // A job that stalled mid-send (e.g. hit the 9-minute limit): close it and
+      // carry on after the last member it reached, so nobody gets it twice.
+      const resume = currentJob?.status === "sending" ? currentJob.lastUid || null : null;
+      if (currentJob?.status === "sending") {
+        tx.update(db.doc(`releaseNoteEmailJobs/${current}`), { status: "failed", error: "Stalled; resumed by a new job." });
+      }
       tx.set(jobRef, {
+        ...(resume ? { afterUid: resume } : {}),
         releaseNoteId,
         status: "queued",
         total: recipients.length,

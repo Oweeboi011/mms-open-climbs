@@ -65,10 +65,10 @@ service cloud.firestore {
       // Owners may maintain their own profile but never their own role —
       // `create` pins it to 'member', and without this an update could hand
       // the whole admin surface to anyone with a browser console.
-      // canEmailMembers (send a release note to everyone) takes two people:
-      // an admin may grant it to someone else, never to themselves.
-      allow update: if (isAdmin() &&
-          (!affected().hasAny(['canEmailMembers']) || request.auth.uid != userId)) ||
+      // canEmailMembers (email every member) is never written by a client —
+      // any admin can mint admins, so an in-app grant could be self-served.
+      // The project owner sets it: functions/scripts/grant-email-members.mjs.
+      allow update: if (isAdmin() && !affected().hasAny(['canEmailMembers'])) ||
         (isOwner(userId) && !affected().hasAny(['role', 'canEmailMembers']));
       allow delete: if isAdmin();
     }

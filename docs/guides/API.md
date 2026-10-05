@@ -161,8 +161,10 @@ gets it and the rest are CC'd.
 - `updateUserProfile` changes Auth and `users/{uid}` together.
   `deleteUserAccount` keeps the user's past registrations (they carry their
   own name/email) and refuses to delete the caller.
-- Emailing every member needs `canEmailMembers` on top of the admin role,
-  granted by a *different* admin (the rules refuse a self-grant).
+- Emailing every member needs `canEmailMembers` on top of the admin role;
+  no client may write it — the owner grants it with
+  `functions/scripts/grant-email-members.mjs` ([ADR 0005](../adr/0005-release-note-email-jobs.md)).
+  A stalled job is resumed after its `lastUid` rather than restarted.
   `sendReleaseNoteEmail` only queues `releaseNoteEmailJobs/{id}` and refuses
   while one for the note is still running; the trigger sends 10 at a time,
   retries a failure once, and updates `sent`/`failed` per batch — one job

@@ -143,7 +143,7 @@ describe("Admin ReleaseNoteForm", () => {
     openEdit(makeAdminAuth());
     await waitFor(() => expect(screen.getByDisplayValue("Existing Note")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /Preview & Send/i })).toBeDisabled();
-    expect(screen.getByText(/ask another admin to grant it/i)).toBeInTheDocument();
+    expect(screen.getByText(/project owner grants/i)).toBeInTheDocument();
   });
 
   it("previews the email, sends after confirmation and shows progress", async () => {
