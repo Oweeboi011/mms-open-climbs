@@ -60,7 +60,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAdmin() || isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.role == 'member';
+      allow create: if isOwner(userId) && request.resource.data.role == 'member' &&
+        !('canEmailMembers' in request.resource.data);
       // Owners may maintain their own profile but never their own role —
       // `create` pins it to 'member', and without this an update could hand
       // the whole admin surface to anyone with a browser console.
