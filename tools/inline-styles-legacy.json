@@ -55,7 +55,6 @@
   "src/pages/register/FormErrorSummary.jsx",
   "src/pages/register/GcashDetails.jsx",
   "src/pages/register/GcashPaymentSection.jsx",
-  "src/pages/register/GcashQrModal.jsx",
   "src/pages/register/PaymentProofField.jsx",
   "src/pages/register/PersonalInfoSection.jsx",
   "src/pages/register/RegisterBlocked.jsx",
