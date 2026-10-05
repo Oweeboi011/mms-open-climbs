@@ -19,7 +19,8 @@ permissions:
 
 env:
   PROJECT: mms-open-climbs
-  CSP_SINCE: "2026-10-05T00:00:00Z"
+  # After the deploy smoke test that posted a fake report.
+  CSP_SINCE: "2026-10-05T15:00:00Z"
   CSP_WATCH_DAYS: "14"
   ISSUE_TITLE: "CSP violations (report-only)"
 
@@ -79,6 +80,14 @@ jobs:
           } > body.md
           n=$(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" --json number -q '.[0].number')
           if [ -n "$n" ]; then gh issue edit "$n" --body-file body.md; else gh issue create --title "$ISSUE_TITLE" --body-file body.md; fi
+
+      - name: Close the issue when the period is clean
+        if: steps.mode.outputs.reportOnly == 'true' && steps.read.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" --json number -q '.[0].number')
+          if [ -n "$n" ]; then gh issue close "$n" --comment "No violations since $CSP_SINCE."; fi
 
       - name: Propose enforcing after a clean period
         if: >-
