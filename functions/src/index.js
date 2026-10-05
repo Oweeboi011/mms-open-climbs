@@ -35,3 +35,6 @@ exports.getBillingCost = getBillingCost;
 // to Messenger/Facebook render a real card instead of a bare URL. See the
 // hosting rewrite in firebase.json.
 exports.ogPrerender = require("./ogPrerender").ogPrerender;
+
+// Content-Security-Policy violation reports (hosting rewrite /csp-report).
+exports.cspReport = require("./cspReport").cspReport;

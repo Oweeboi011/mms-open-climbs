@@ -15,9 +15,12 @@ flowchart LR
     push[push to develop] --> Q["quality<br/>npm run qa"]
     push --> I["integration<br/>rules on emulators"]
     push --> E["e2e<br/>Playwright smoke"]
-    Q & I & E --> P["promote<br/>merge develop → main"]
-    P --> D["deploy<br/>build with VITE_* secrets,<br/>firebase deploy --only<br/>firestore:rules,firestore:indexes,<br/>storage,functions,hosting"]
+    Q & I & E --> S["staging<br/>(when configured)"]
+    S --> P["promote<br/>merge develop → main"]
+    P --> D["deploy production<br/>build with VITE_* secrets,<br/>firebase deploy --only<br/>firestore:rules,firestore:indexes,<br/>storage,functions,hosting"]
 ```
+
+Both deploys run the same reusable `.github/workflows/deploy.yml`.
 
 - `promote` merges with the default `GITHUB_TOKEN` (auto-merge needs a paid
   plan on private repos); doing it in the same run lets `deploy` follow
@@ -33,6 +36,25 @@ Other workflows: `code-quality.yml` (npm audit, weekly too; advisory
 Semgrep), `codeql.yml`, `create-release.yml` (GitHub release on `main`),
 `pr-title-checker.yml`, `broken-links-checker.yml`, plus Dependabot
 (`.github/dependabot.yml`, weekly, into `develop`).
+
+## Staging
+
+Off until you turn it on; nothing else changes until then. To enable:
+
+1. Create a second Firebase project (Blaze plan) and repeat steps 1–3 of
+   [the setup below](#new-project-or-new-season-from-scratch) in it, with its
+   own Brevo sender and `APP_URL`.
+2. In GitHub → Settings → Environments, create **`staging`** and add the
+   same secret names as production (`VITE_FIREBASE_*`,
+   `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `GCP_SA_KEY`) with the
+   staging project's values. Environment secrets override the repo-level
+   ones, so production keeps using the repo secrets.
+3. Add the repo **variable** `STAGING_PROJECT_ID`.
+
+From the next push, develop deploys to staging first and promotion to
+`main` waits for it. Remove the variable to switch staging off again.
+Optionally add required reviewers to a `production` environment to make the
+production deploy wait for a click.
 
 ## Configuration
 

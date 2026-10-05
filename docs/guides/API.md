@@ -48,6 +48,7 @@ graph LR
 | `getReleaseNoteCommitOptions` / `generateReleaseNoteDraft` | `callables/releaseNotes.js` | callable | Draft a note from conventional commits via GitHub (`GITHUB_TOKEN`) |
 | `getEmailStats` / `getStorageUsage` / `getFunctionHealth` / `getBillingCost` | `callables/insights.js` | callable | App Insights dashboard data |
 | `ogPrerender` | `ogPrerender.js` | HTTP (hosting rewrite `/event/**`) | Per-climb Open Graph tags for shared links |
+| `cspReport` | `cspReport.js` | HTTP (hosting rewrite `/csp-report`) | Logs Content-Security-Policy violation reports; stores nothing |
 
 Every callable is admin-only through `requireAdmin` (`callables/users.js`),
 which reads `users/{uid}.role` — a role change applies on the next call, no
