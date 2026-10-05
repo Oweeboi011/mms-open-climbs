@@ -207,8 +207,16 @@ describe("sendReleaseNoteEmail callable", () => {
       status: "published",
       title: "T",
       body: "B",
-      emailJob: { id: "j0", status: "sending", queuedAt: Date.now() },
+      emailJob: { id: "j0", status: "sending" },
     };
+    jobsStore["j0"] = { status: "sending", queuedAt: Date.now() - 20 * 60 * 1000, heartbeatAt: Date.now() };
+    await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+
+  it("keeps the lock while an earlier job waits in the queue", async () => {
+    sender();
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "queued" } };
+    jobsStore["j0"] = { status: "queued", queuedAt: Date.now() - 20 * 60 * 1000 };
     await expect(call({ releaseNoteId: "rn1" })).rejects.toMatchObject({ code: "failed-precondition" });
   });
 
@@ -218,15 +226,17 @@ describe("sendReleaseNoteEmail callable", () => {
       status: "published",
       title: "T",
       body: "B",
-      emailJob: { id: "j0", status: "sending", queuedAt: Date.now() - 60 * 60 * 1000 },
+      emailJob: { id: "j0", status: "sending" },
     };
-    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-1" });
+    jobsStore["j0"] = { status: "sending", queuedAt: Date.now() - 60 * 60 * 1000, heartbeatAt: Date.now() - 30 * 60 * 1000 };
+    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-2" });
   });
 
   it("can send again after a failed job", async () => {
     sender();
     releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "failed" } };
-    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-1" });
+    jobsStore["j0"] = { status: "failed" };
+    await expect(call({ releaseNoteId: "rn1" })).resolves.toMatchObject({ jobId: "job-2" });
   });
 });
 
@@ -249,7 +259,7 @@ describe("release-note email job", () => {
   const noSleep = { sleep: async () => {} };
 
   it("sends to everyone, records progress and stamps the note", async () => {
-    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B" };
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
     jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued" };
     usersStore["m1"] = { email: "a@a.com" };
     usersStore["m2"] = { email: "b@b.com" };
@@ -296,6 +306,15 @@ describe("release-note email job", () => {
 
     expect(jobsStore["job-9"].status).toBe("failed");
     expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-9", status: "failed" });
+  });
+
+  it("leaves a newer job's lock alone when an older job finishes", async () => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-new", status: "sending" } };
+    jobsStore["job-old"] = { releaseNoteId: "rn1" };
+    usersStore["m1"] = { email: "a@a.com" };
+    await runReleaseNoteEmailJob("job-old", jobsStore["job-old"], noSleep);
+    expect(jobsStore["job-old"].status).toBe("done");
+    expect(releaseNotesStore["rn1"].emailJob).toEqual({ id: "job-new", status: "sending" });
   });
 
   it("fails the job when the note was deleted", async () => {
