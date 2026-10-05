@@ -40,7 +40,7 @@ flowchart LR
 | Bundle size | `npm run test:perf` | `qa` | 300 kB initial, 85 kB/chunk (gzip) | Lazy-load it; don't raise the budget to go green |
 | Security rules | `npm run test:integration` | CI | all pass | Fix the rule or the test, never both at once |
 | User flows | `npm run test:e2e` | CI | all pass | Open the Playwright trace artifact |
-| Vulnerable packages | `npm audit --audit-level=high --omit=dev` | CI, weekly | 0 high | Patch, or `overrides` for a transitive dep |
+| Vulnerable packages | `npm audit --audit-level=moderate --omit=dev` | CI, weekly | 0 moderate+ | Patch, or `overrides` for a transitive dep |
 | Injection / XSS taint | CodeQL `security-extended` | CI, weekly | 0 | Fix the flow it reports |
 | Broader patterns | Semgrep | CI, advisory | — | Triage; promote real hits to an ESLint rule |
 | Format | `.editorconfig` | editor | — | No Prettier, see ADR 0003 |
@@ -76,8 +76,15 @@ Integration and e2e need Java 21 (the Firebase emulators); see
 ## Known limits
 
 - **Windows Application Control** on some machines blocks native `.node`
-  binaries. knip is pinned to 5.55 and jscpd to 4.x because those versions are
-  pure JavaScript. Upgrade when that's no longer a constraint.
+  binaries. knip is pinned to exactly **5.55.1**: later versions load the
+  native `oxc-resolver`, and its WebAssembly fallback can't read Windows paths.
+  Dependabot ignores knip for that reason.
+- **TypeScript stays on 5.x.** It is installed only as knip's parser, and
+  TypeScript 7 (the native compiler) drops the JavaScript API knip uses.
+- **Dev-only advisories:** `npm audit` (all deps) reports `braces` /
+  `micromatch` via secretlint, boundaries and knip — no patched `braces`
+  exists yet. These run only on our own source; the CI gate audits production
+  dependencies (`--omit=dev`), which are clean.
 - **Type checking** is deliberately absent (JavaScript by decision). ESLint,
   layering and tests are the safety net; `typescript` is installed only as
   knip's parser.

@@ -21,18 +21,18 @@
     "qa": "npm run quality && npm run build && npm run test:perf && npm run test:strict",
     "release-notes": "node scripts/generate-release-notes.mjs",
     "secrets": "secretlint --secretlintrc tools/secretlintrc.json --secretlintignore tools/secretlintignore \"**/*\"",
-    "audit:deps": "npm audit --audit-level=high --omit=dev && npm --prefix functions audit --audit-level=high --omit=dev",
-    "deadcode": "knip --config tools/knip.json",
+    "audit:deps": "npm audit --audit-level=moderate --omit=dev && npm --prefix functions audit --audit-level=moderate --omit=dev",
+    "deadcode": "knip",
     "test:integration": "npx -y firebase-tools@15 emulators:exec --only firestore,storage --project demo-rules \"node tests/integration/rules.test.mjs\"",
     "test:e2e": "npx -y firebase-tools@15 emulators:exec --only auth,firestore --project demo-e2e \"playwright test -c tests/e2e/playwright.config.js\"",
     "test:perf": "node tests/performance/bundle-budget.mjs",
     "prepare": "husky"
   },
   "dependencies": {
-    "firebase": "^12.14.0",
-    "jszip": "^3.10.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "firebase": "^12.19.0",
+    "jszip": "^3.10.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4"
   },
   "overrides": {
@@ -40,37 +40,77 @@
     "@grpc/grpc-js": "^1.14.5"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint-react/eslint-plugin": "^5.24.4",
+    "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.63.0",
     "@secretlint/secretlint-rule-pattern": "^13.0.7",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.7",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
-    "@vitejs/plugin-react": "^4.3.0",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/coverage-v8": "^5.0.3",
     "axe-core": "^4.13.0",
-    "dependency-cruiser": "^18.1.1",
-    "eslint": "^9.39.5",
-    "eslint-import-resolver-alias": "^1.1.2",
-    "eslint-plugin-boundaries": "^7.1.0",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-react": "^7.37.5",
+    "dependency-cruiser": "^18.5.0",
+    "eslint": "^10.12.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.9.0",
+    "globals": "^17.13.0",
     "husky": "^9.1.7",
     "jscpd": "^4.3.0",
-    "jsdom": "^29.1.1",
-    "knip": "~5.55.1",
+    "jsdom": "^30.1.2",
+    "knip": "5.55.1",
     "lint-staged": "^17.6.0",
     "secretlint": "^13.0.7",
     "typescript": "^5.9.3",
-    "vite": "^5.2.0",
-    "vitest": "^4.1.7"
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs}": "eslint --max-warnings 0 --no-warn-ignored",
     "*": "secretlint --secretlintrc tools/secretlintrc.json --secretlintignore tools/secretlintignore"
+  },
+  "knip": {
+    "ignoreBinaries": [
+      "firebase",
+      "firebase-tools",
+      "dot"
+    ],
+    "workspaces": {
+      ".": {
+        "entry": [
+          "src/main.jsx",
+          "scripts/*.mjs",
+          "tests/**/*.{js,jsx,mjs}"
+        ],
+        "project": [
+          "src/**/*.{js,jsx}",
+          "scripts/**/*.mjs",
+          "tests/**/*.{js,jsx,mjs}"
+        ],
+        "ignoreDependencies": [
+          "@secretlint/secretlint-rule-.*",
+          "eslint-import-resolver-typescript"
+        ]
+      },
+      "functions": {
+        "entry": [
+          "src/index.js",
+          "scripts/*.mjs",
+          "tests/**/*.test.js"
+        ],
+        "project": [
+          "src/**/*.js",
+          "scripts/**/*.mjs",
+          "tests/**/*.js"
+        ],
+        "ignoreUnresolved": [
+          "../appShell.generated"
+        ]
+      }
+    }
   }
 }

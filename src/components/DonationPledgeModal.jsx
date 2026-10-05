@@ -13,12 +13,12 @@ import { logFailedRequest } from "@/services/logFailedRequest";
 
 // My Climbs: add, change or withdraw a donation pledge after registering.
 export default function DonationPledgeModal({ reg, drive, climb, currentUser, onClose }) {
-  const [value, setValue] = useState({
+  const [value, setValue] = useState(() => ({
     cashPledge: reg.donation?.cashPledge ?? "",
     inKind: reg.donation?.inKind ?? "",
     payWithFees: reg.donation?.payWithFees ?? true,
     itemQty: itemQtyMap(reg.donation?.itemPledges),
-  });
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 

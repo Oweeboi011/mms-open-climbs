@@ -13,9 +13,9 @@ const passwordUser = (over = {}) => ({
 
 function renderBanner(user, resendVerification = vi.fn(() => Promise.resolve())) {
   render(
-    <AuthContext.Provider value={{ currentUser: user, resendVerification }}>
+    <AuthContext value={{ currentUser: user, resendVerification }}>
       <VerifyEmailBanner />
-    </AuthContext.Provider>,
+    </AuthContext>,
   );
   return resendVerification;
 }

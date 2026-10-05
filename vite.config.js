@@ -43,14 +43,18 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Firebase SDK split by package
-          "firebase-app": ["firebase/app", "firebase/app-check"],
-          "firebase-auth": ["firebase/auth"],
-          "firebase-firestore": ["firebase/firestore"],
-          "firebase-functions": ["firebase/functions"],
-          // React runtime
-          vendor: ["react", "react-dom", "react-router-dom"],
+        // Firebase split by package, React runtime on its own: each changes
+        // on its own schedule, so the others stay cached.
+        manualChunks(id) {
+          // Last node_modules segment: firebase nests its own @firebase/* copies.
+          const pkg = id.match(/.*node_modules[\\/](@[^\\/]+[\\/][^\\/]+|[^\\/]+)/)?.[1]?.replace("\\", "/");
+          if (!pkg) return undefined;
+          if (["@firebase/app", "@firebase/app-check", "@firebase/component", "@firebase/util", "@firebase/logger"].includes(pkg)) return "firebase-app";
+          if (pkg === "@firebase/auth") return "firebase-auth";
+          if (pkg === "@firebase/firestore") return "firebase-firestore";
+          if (pkg === "@firebase/functions") return "firebase-functions";
+          if (["react", "react-dom", "react-router", "react-router-dom", "scheduler"].includes(pkg)) return "vendor";
+          return undefined;
         },
       },
     },

@@ -19,7 +19,7 @@ function getSessionId() {
 export function usePageTracking() {
   const location = useLocation();
   const { currentUser, userProfile } = useAuth();
-  const lastTracked = useRef(null);
+  const lastTrackedRef = useRef(null);
 
   useEffect(() => {
     // Do not track admin pages
@@ -27,8 +27,8 @@ export function usePageTracking() {
 
     // Avoid double-counting same path within the same render cycle (React Strict Mode etc.)
     const key = location.pathname;
-    if (lastTracked.current === key) return;
-    lastTracked.current = key;
+    if (lastTrackedRef.current === key) return;
+    lastTrackedRef.current = key;
 
     const climbMatch = location.pathname.match(/^\/event\/(.+)/);
     const climbId = climbMatch ? climbMatch[1] : null;

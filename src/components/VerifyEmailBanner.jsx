@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useReducer, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Email/password accounts start unverified. Confirmations, receipts and
@@ -15,7 +15,7 @@ export function needsEmailVerification(user) {
 export default function VerifyEmailBanner() {
   const { currentUser, resendVerification } = useAuth();
   const [state, setState] = useState("idle"); // idle | sending | sent | error
-  const [, forceRender] = useState(0);
+  const [, forceRender] = useReducer((n) => n + 1, 0);
 
   if (!needsEmailVerification(currentUser)) return null;
 
@@ -33,7 +33,7 @@ export default function VerifyEmailBanner() {
     try {
       await currentUser.reload();
     } finally {
-      forceRender((n) => n + 1);
+      forceRender();
     }
   }
 

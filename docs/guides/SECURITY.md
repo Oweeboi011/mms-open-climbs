@@ -66,7 +66,7 @@ rotate it — removing it from history is not enough.
   never document data. `ogPrerender` attribute-escapes climb text.
 - In the app: `dangerouslySetInnerHTML`, `innerHTML`, `eval` and
   `document.write` are lint errors; markdown renders to React nodes only.
-- Dependency audit (high+) on every push and weekly; CodeQL on every push
+- Dependency audit (moderate+) on every push and weekly; CodeQL on every push
   that touches code.
 - Deleting an account strips health/contact fields from the member's
   registrations and removes their notifications and uploads.
@@ -81,4 +81,4 @@ rotate it — removing it from history is not enough.
 | Officer phone numbers are on the public climb doc | No doc every signed-in member can read yet ([DATA.md](DATA.md#climbs)) |
 | Any admin can email every member (`sendReleaseNoteEmail`) | No narrower role yet; see the [release-notes plan](../solution-plans/release-notes.md) |
 | No script/style Content-Security-Policy | Needs browser testing against Maps, Google sign-in, Storage and fonts |
-| Moderate `npm audit` items remain | Need breaking upgrades; the gate is at high |
+| Dev-tool advisories (`braces`) remain | No patched release yet; tools only scan our own code |
