@@ -40,7 +40,7 @@
     "@grpc/grpc-js": "^1.14.5"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.63.0",
     "@secretlint/secretlint-rule-pattern": "^13.0.7",
