@@ -65,7 +65,7 @@
     "knip": "~5.55.1",
     "lint-staged": "^17.6.0",
     "secretlint": "^13.0.7",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vite": "^5.2.0",
     "vitest": "^4.1.7"
   },
