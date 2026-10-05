@@ -129,6 +129,7 @@ src/
   services/         the only code that talks to Firebase (ADR 0004)
   utils/            pure domain logic (fees, payments, schedules)
   data/ styles/     static content, design tokens
+public/             static files served as-is at / (icons, manifest, logo)
 functions/          Cloud Functions: src/{triggers,scheduled,callables,email,shared}, tests/, scripts/
 firebase/           Firestore/Storage rules and indexes, CORS, storage lifecycle
 tests/              unit, component, accessibility, integration, e2e, performance
@@ -136,6 +137,10 @@ scripts/            CLI helpers that use the web API key from .env
 tools/              configs for dependency-cruiser, jscpd, secretlint (knip's lives in package.json)
 docs/               guides/ (what it is) · solution-plans/ (how we deliver) · adr/ (why)
 ```
+
+The root keeps only what a tool must find there: `package.json`, the Vite,
+ESLint, editor and Firebase configs, `index.html` (Vite's entry), `CONTEXT.md`
+(read by the domain-modeling skill) and `skills-lock.json`.
 
 ---
 

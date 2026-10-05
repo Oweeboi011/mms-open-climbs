@@ -7,6 +7,8 @@ const PORT = 5174;
 export default defineConfig({
   testDir: ".",
   testMatch: "*.spec.js",
+  // Traces and screenshots go with the other reports, not the repo root.
+  outputDir: "../../coverage/e2e",
   globalSetup: "./seed.js",
   // One worker: parallel cold loads on the Vite dev server trip its
   // dependency optimiser into reloading pages mid-test.
