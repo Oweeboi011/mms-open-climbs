@@ -14,6 +14,14 @@ const { sendInBatches } = require("../shared/batchSend");
 const { emailRecipients, renderReleaseNoteEmail } = require("../callables/releaseNotes");
 const { db } = require("../shared/admin");
 
+// Point the note at this job's status — unless a newer job has taken over.
+function setNoteJob(noteRef, jobId, status) {
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(noteRef);
+    if (snap.exists && snap.data().emailJob?.id === jobId) tx.update(noteRef, { emailJob: { id: jobId, status } });
+  });
+}
+
 async function runJob(jobId, job, deps = {}) {
   const jobRef = db.doc(`releaseNoteEmailJobs/${jobId}`);
   const noteRef = db.doc(`releaseNotes/${job.releaseNoteId}`);
@@ -22,11 +30,9 @@ async function runJob(jobId, job, deps = {}) {
     await jobRef.update({ status: "failed", error: "Release note no longer exists." });
     return;
   }
-  // Keep queuedAt so the stale-lock check in the callable still applies.
-  const queuedAt = noteSnap.data().emailJob?.queuedAt || Date.now();
   const setStatus = async (status, extra = {}) => {
-    await jobRef.update({ status, ...extra });
-    await noteRef.update({ emailJob: { id: jobId, status, queuedAt } });
+    await jobRef.update({ status, heartbeatAt: Date.now(), ...extra });
+    await setNoteJob(noteRef, jobId, status);
   };
   const { subject, html } = renderReleaseNoteEmail(noteSnap.data());
   const recipients = await emailRecipients();
@@ -34,7 +40,7 @@ async function runJob(jobId, job, deps = {}) {
 
   const result = await sendInBatches(recipients, {
     send: (u) => sendEmail({ to: u.email, toName: u.displayName || u.email, subject, html }),
-    onProgress: ({ sent, failed }) => jobRef.update({ sent, failed }),
+    onProgress: ({ sent, failed }) => jobRef.update({ sent, failed, heartbeatAt: Date.now() }),
     onFailure: (u, message) =>
       logFailedRequest({ type: "email", source: "releaseNoteEmailJobs", message, userId: u.id }),
     ...deps,
@@ -66,7 +72,7 @@ exports.onReleaseNoteEmailJobCreated = onDocumentCreated(
       await db.doc(`releaseNoteEmailJobs/${jobId}`).update({ status: "failed", error: err.message.slice(0, 300) });
       // Release the note so an admin can send again.
       if (job?.releaseNoteId) {
-        await db.doc(`releaseNotes/${job.releaseNoteId}`).update({ emailJob: { id: jobId, status: "failed" } });
+        await setNoteJob(db.doc(`releaseNotes/${job.releaseNoteId}`), jobId, "failed");
       }
       await logFailedRequest({ type: "email", source: "releaseNoteEmailJobs", message: err.message });
     }

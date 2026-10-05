@@ -127,7 +127,9 @@ stateDiagram-v2
   `emailSentCount` are stamped when it finishes.
 - **releaseNoteEmailJobs** — `releaseNoteId`, `status`
   (`queued`/`sending`/`done`/`failed`), `total`, `sent`, `failed`,
-  `createdBy`; written only by Functions, watched by the admin form.
+  `createdBy`, `queuedAt`, `heartbeatAt` (every batch). It is the send lock: a
+  queued job holds it up to 60 min, a sending one while its heartbeat is under
+  15 min old. Written only by Functions, watched by the admin form.
 - **pageViews** — `path`, `userId`, `createdAt`; admin views can be purged with
   `functions/scripts/purge-admin-pageviews.mjs`.
 
