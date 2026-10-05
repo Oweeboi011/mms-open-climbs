@@ -60,7 +60,7 @@ if (!probe.ok && probe.status !== 404) {
 }
 const exists = probe.ok;
 // Create only if still absent; never overwrite an existing profile.
-const res = await fetch(exists ? `${url}?updateMask.fieldPaths=role` : `${url}?currentDocument.exists=false`, {
+const res = await fetch(exists ? `${url}?updateMask.fieldPaths=role&currentDocument.exists=true` : `${url}?currentDocument.exists=false`, {
   method: 'PATCH',
   headers,
   body: JSON.stringify(exists ? { fields: { role: body.fields.role } } : body),
@@ -71,4 +71,5 @@ if (res.ok) {
 } else {
   const err = await res.text();
   console.error('Failed:', res.status, err);
+  process.exit(1);
 }
