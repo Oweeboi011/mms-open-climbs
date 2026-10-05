@@ -32,8 +32,8 @@ Both deploys run the same reusable `.github/workflows/deploy.yml`.
   `--only functions`) have shipped a hosting build without the
   `ogPrerender` app shell, and functions without their env config.
 
-Other workflows: `code-quality.yml` (npm audit, weekly too; advisory
-Semgrep), `codeql.yml`, `create-release.yml` (GitHub release on `main`),
+Other workflows: `code-quality.yml` (npm audit and Semgrep, weekly
+too), `codeql.yml`, `create-release.yml` (GitHub release on `main`),
 `pr-title-checker.yml`, `broken-links-checker.yml`, plus Dependabot
 (`.github/dependabot.yml`, weekly, into `develop`).
 
