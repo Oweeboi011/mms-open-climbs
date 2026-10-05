@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { subscribeToPublishedReleaseNotes } from "@/services/releaseNotes";
+import { RELEASE_NOTES_PAGE, subscribeToPublishedReleaseNotes } from "@/services/releaseNotes";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -12,16 +12,24 @@ export default function ReleaseNotes() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  const [count, setCount] = useState(RELEASE_NOTES_PAGE);
 
   useEffect(() => {
-    return subscribeToPublishedReleaseNotes((docs) => {
-      setNotes(docs);
-      setExpandedId((prev) =>
-        prev && docs.some((n) => n.id === prev) ? prev : docs[0]?.id ?? null,
-      );
-      setLoading(false);
-    }, () => setLoading(false));
-  }, []);
+    return subscribeToPublishedReleaseNotes(
+      (docs) => {
+        setNotes(docs);
+        setExpandedId((prev) =>
+          prev && docs.some((n) => n.id === prev) ? prev : docs[0]?.id ?? null,
+        );
+        setLoading(false);
+      },
+      () => setLoading(false),
+      count,
+    );
+  }, [count]);
+
+  // A full page back means there may be older notes to load.
+  const mayHaveMore = notes.length === count;
 
   return (
     <div className="myreg-page">
@@ -105,6 +113,17 @@ export default function ReleaseNotes() {
                 </div>
               );
             })}
+          </div>
+        )}
+        {!loading && mayHaveMore && (
+          <div className="rn-more">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => setCount((c) => c + RELEASE_NOTES_PAGE)}
+            >
+              Show older updates
+            </button>
           </div>
         )}
       </main>

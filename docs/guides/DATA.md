@@ -30,6 +30,7 @@ erDiagram
 | `pageViews`, `failedRequests` | event | admin | **public create** (logging before sign-in) |
 | `auditLog` | admin action | admin | admin create — append-only |
 | `releaseNotes` | announcement | signed-in (drafts: admin) | admin |
+| `releaseNoteEmailJobs` | all-member email send | admin | Functions only |
 
 The `climbPrivate` / `climbInternal` / `climbExpenses` split exists only
 because `climbs` is world-readable: anything private needs its own document.
@@ -107,6 +108,8 @@ stateDiagram-v2
 
 - **users** — `displayName`, `email`, `role` (`member` default; `admin` via
   `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`.
+  `canEmailMembers` allows the all-member release-note email; only another
+  admin can set it.
   `syncAdminClaim` mirrors it into an auth claim for Storage rules.
 - **feedback** — `rating` integer 1–5 and `comments`. The deterministic id is
   the one-per-member rule: a second submit becomes an update, which the rules
@@ -120,7 +123,11 @@ stateDiagram-v2
   `payment_status_verified`), `target{Type,Id,Label}`, `details`. Written by
   `logAuditEvent`; never blocks the action.
 - **releaseNotes** — `status` `draft`/`published`; `publishedAt` orders them;
-  `emailSentAt`/`emailSentCount` set by `sendReleaseNoteEmail`.
+  `emailJob: { id, status }` points at the latest send; `emailSentAt` /
+  `emailSentCount` are stamped when it finishes.
+- **releaseNoteEmailJobs** — `releaseNoteId`, `status`
+  (`queued`/`sending`/`done`/`failed`), `total`, `sent`, `failed`,
+  `createdBy`; written only by Functions, watched by the admin form.
 - **pageViews** — `path`, `userId`, `createdAt`; admin views can be purged with
   `functions/scripts/purge-admin-pageviews.mjs`.
 

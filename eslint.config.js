@@ -34,8 +34,6 @@ const LEGACY = {
   "src/pages/admin/ClimbsManage.jsx": {functionLines: 896, complexity: 40, fileLines: 930},
   "src/pages/admin/Dashboard.jsx": {functionLines: 942, complexity: 33, fileLines: 1052},
   "src/pages/admin/ManagePayments.jsx": {functionLines: 388},
-  "src/pages/admin/ReleaseNoteForm.jsx": {functionLines: 361, complexity: 37},
-  "src/pages/admin/UsersManage.jsx": {functionLines: 860, complexity: 36, fileLines: 955},
   "src/pages/ClimbFeedback.jsx": {complexity: 24},
   "src/pages/MyRegistrations.jsx": {functionLines: 759, complexity: 55, fileLines: 1611},
   "src/pages/Schedule.jsx": {functionLines: 333},

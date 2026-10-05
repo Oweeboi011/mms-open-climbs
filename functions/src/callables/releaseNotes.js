@@ -3,90 +3,94 @@
 const logger = require("firebase-functions/logger");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { FieldValue } = require("firebase-admin/firestore");
-const { sendEmail } = require("../email/sendEmail");
 const { tplReleaseNote } = require("../email/templates");
 const { logFailedRequest } = require("../shared/registrationOps");
 const { requireAdmin } = require("../callables/users");
 const { db } = require("../shared/admin");
 
-// ── Callable: admin emails all members about a published release note ────────
-exports.sendReleaseNoteEmail = onCall(
-  { secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"] },
-  async (request) => {
-    try {
-      await requireAdmin(request.auth?.uid);
+// ── Emailing every member about a published release note ─────────────────────
+// Sending is a job: the callable queues releaseNoteEmailJobs/{id} and returns
+// at once; triggers/releaseNoteEmailJobs.js sends in batches and writes
+// progress the admin form watches. Only admins who another admin has granted
+// `canEmailMembers` may queue one (the rules stop self-granting).
 
-      const { releaseNoteId } = request.data;
-      if (!releaseNoteId) {
-        throw new HttpsError("invalid-argument", "releaseNoteId is required.");
-      }
+async function requireEmailSender(uid) {
+  const caller = await requireAdmin(uid);
+  if (caller?.canEmailMembers !== true) {
+    throw new HttpsError(
+      "permission-denied",
+      "Emailing every member needs the \"Can email members\" permission, granted by another admin.",
+    );
+  }
+}
 
-      const noteRef = db.doc(`releaseNotes/${releaseNoteId}`);
-      const noteSnap = await noteRef.get();
-      if (!noteSnap.exists) {
-        throw new HttpsError("not-found", "Release note not found.");
-      }
-      const note = noteSnap.data();
-      if (note.status !== "published") {
-        throw new HttpsError(
-          "failed-precondition",
-          "Only published release notes can be emailed.",
-        );
-      }
+async function loadPublishedNote(releaseNoteId) {
+  if (!releaseNoteId) {
+    throw new HttpsError("invalid-argument", "releaseNoteId is required.");
+  }
+  const snap = await db.doc(`releaseNotes/${releaseNoteId}`).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Release note not found.");
+  const note = snap.data();
+  if (note.status !== "published") {
+    throw new HttpsError("failed-precondition", "Only published release notes can be emailed.");
+  }
+  return note;
+}
 
-      const usersSnap = await db.collection("users").get();
-      const recipients = usersSnap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((u) => u.email);
+async function emailRecipients() {
+  const usersSnap = await db.collection("users").get();
+  return usersSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => u.email);
+}
 
-      const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
-      const html = tplReleaseNote({
-        title: note.title,
-        body: note.body,
-        appUrl,
-      });
+function renderReleaseNoteEmail(note) {
+  const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
+  return {
+    subject: `MMS Open Climbs Update: ${note.title}`,
+    html: tplReleaseNote({ title: note.title, body: note.body, appUrl }),
+  };
+}
 
-      let sent = 0;
-      for (const u of recipients) {
-        try {
-          await sendEmail({
-            to: u.email,
-            toName: u.displayName || u.email,
-            subject: `MMS Open Climbs Update: ${note.title}`,
-            html,
-          });
-          sent++;
-        } catch (emailErr) {
-          logger.error("[sendReleaseNoteEmail] Failed for recipient", {
-            email: u.email,
-            err: emailErr.message,
-          });
-          await logFailedRequest({
-            type: "email",
-            source: "sendReleaseNoteEmail",
-            message: emailErr.message,
-            userId: u.id,
-          });
-        }
-      }
+const ACTIVE_JOB = ["queued", "sending"];
 
-      await noteRef.update({
-        emailSentAt: FieldValue.serverTimestamp(),
-        emailSentCount: sent,
-      });
+// What members would receive, and how many of them — shown before sending.
+exports.previewReleaseNoteEmail = onCall(async (request) => {
+  await requireEmailSender(request.auth?.uid);
+  const note = await loadPublishedNote(request.data?.releaseNoteId);
+  const recipients = await emailRecipients();
+  return { ...renderReleaseNoteEmail(note), recipients: recipients.length };
+});
 
-      logger.info("[sendReleaseNoteEmail] Sent", {
-        releaseNoteId,
-        sent,
-        recipients: recipients.length,
-      });
-      return { sent, total: recipients.length };
-    } catch (err) {
-      if (err instanceof HttpsError) throw err;
-      throw new HttpsError("internal", err.message);
+exports.sendReleaseNoteEmail = onCall(async (request) => {
+  try {
+    await requireEmailSender(request.auth?.uid);
+    const { releaseNoteId } = request.data || {};
+    const note = await loadPublishedNote(releaseNoteId);
+    if (ACTIVE_JOB.includes(note.emailJob?.status)) {
+      throw new HttpsError("failed-precondition", "This note is already being sent.");
     }
-  },
-);
+    const recipients = await emailRecipients();
+    const job = await db.collection("releaseNoteEmailJobs").add({
+      releaseNoteId,
+      status: "queued",
+      total: recipients.length,
+      sent: 0,
+      failed: 0,
+      createdBy: request.auth.uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    await db.doc(`releaseNotes/${releaseNoteId}`).update({
+      emailJob: { id: job.id, status: "queued" },
+    });
+    logger.info("[sendReleaseNoteEmail] Queued", { releaseNoteId, jobId: job.id, total: recipients.length });
+    return { jobId: job.id, total: recipients.length };
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    await logFailedRequest({ type: "email", source: "sendReleaseNoteEmail", message: err.message });
+    throw new HttpsError("internal", err.message);
+  }
+});
+
+Object.assign(module.exports, { emailRecipients, renderReleaseNoteEmail });
 
 // ── Release note draft generation from GitHub commit history ──────────────────
 const GITHUB_REPO_OWNER = "Oweeboi011";
