@@ -12,7 +12,7 @@ firestore-debug.log
 ui-debug.log
 pubsub-debug.log
 scripts/.release-notes-state.json
-.jscpd/
+
 .eslintcache
 docs/dependency-graph.svg
 coverage/

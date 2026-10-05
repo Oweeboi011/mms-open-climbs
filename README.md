@@ -133,6 +133,7 @@ functions/          Cloud Functions: src/{triggers,scheduled,callables,email,sha
 firebase/           Firestore/Storage rules and indexes, CORS, storage lifecycle
 tests/              unit, component, accessibility, integration, e2e, performance
 scripts/            CLI helpers that use the web API key from .env
+tools/              configs for dependency-cruiser, jscpd, knip, secretlint
 docs/               guides/ (what it is) · solution-plans/ (how we deliver) · adr/ (why)
 ```
 
