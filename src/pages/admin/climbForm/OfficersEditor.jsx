@@ -70,9 +70,10 @@ export default function OfficersEditor({
                   updateListItem("officers", i, {
                     ...o,
                     userId: uid,
-                    name: user.displayName || o.name,
-                    email: user.email || o.email,
-                    contact: user.phone || user.contact || o.contact,
+                    name: user.displayName || o.name || "",
+                    email: user.email || o.email || "",
+                    // Older officer rows have no contact field at all.
+                    contact: user.phone || user.contact || o.contact || "",
                   });
                 }
               }}
