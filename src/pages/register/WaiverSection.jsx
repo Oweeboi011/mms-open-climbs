@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import WaiverText from "@/components/WaiverText";
 import { FieldError } from "@/pages/register/registerShared";
+import "./register.css";
 
 export default function WaiverSection({
   bindField,
@@ -19,24 +20,10 @@ export default function WaiverSection({
     <>
       {/* Waiver */}
       <div className="register-form-card">
-        <div className="form-section-title">
-          Waiver &amp; Release of Liability
-        </div>
-        <p
-          style={{
-            fontSize: "0.8rem",
-            color: "var(--ink-soft)",
-            marginBottom: 12,
-          }}
-        >
-          Please read the following waiver carefully before signing.
-        </p>
+        <div className="form-section-title">Waiver &amp; Release of Liability</div>
+        <p className="waiver-intro">Please read the following waiver carefully before signing.</p>
         <div className="waiver-box">
-          <WaiverText
-            climbTitle={climb.title}
-            climbDate={climb.dateLabel}
-            climbLocation={climb.location}
-          />
+          <WaiverText climbTitle={climb.title} climbDate={climb.dateLabel} climbLocation={climb.location} />
         </div>
 
         <label className="waiver-check">
@@ -52,10 +39,8 @@ export default function WaiverSection({
             }}
           />
           <span className="waiver-check-label">
-            I have read, understood, and voluntarily agree to all terms of
-            this Waiver and Release of Liability. I confirm that all
-            information provided in this registration is accurate and
-            complete.
+            I have read, understood, and voluntarily agree to all terms of this Waiver and Release of Liability. I
+            confirm that all information provided in this registration is accurate and complete.
           </span>
         </label>
         <FieldError message={fieldErrors.waiverAgreed} />
@@ -73,8 +58,8 @@ export default function WaiverSection({
             }}
           />
           <span className="waiver-check-label">
-            I consent to MMS collecting and processing my personal and
-            health information for this climb, as described in the{" "}
+            I consent to MMS collecting and processing my personal and health information for this climb, as described
+            in the{" "}
             <Link to="/privacy" target="_blank" rel="noopener">
               Privacy Notice
             </Link>
@@ -84,17 +69,14 @@ export default function WaiverSection({
         <FieldError message={fieldErrors.privacyConsent} />
 
         <div className="form-group">
-          <label className="form-label required">
-            Digital Signature — Type your full name
-          </label>
+          <label className="form-label required">Digital Signature — Type your full name</label>
           <input
             type="text"
             ref={bindField("sigName")}
-            className={inputClass("sigName")}
+            className={`${inputClass("sigName")} waiver-signature-input`}
             required
             aria-invalid={!!fieldErrors.sigName}
             placeholder="Type your complete legal name"
-            style={{ fontStyle: "italic", fontSize: "1rem" }}
             value={sigName}
             onChange={(e) => {
               setSigName(e.target.value);
@@ -102,9 +84,8 @@ export default function WaiverSection({
             }}
           />
           <div className="form-hint">
-            By typing your name above you are signing this waiver
-            electronically. This is legally equivalent to a handwritten
-            signature.
+            By typing your name above you are signing this waiver electronically. This is legally equivalent to a
+            handwritten signature.
           </div>
         </div>
       </div>

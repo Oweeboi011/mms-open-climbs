@@ -17,7 +17,7 @@
     "arch": "depcruise src tests scripts functions/src functions/scripts --config tools/dependency-cruiser.cjs",
     "arch:graph": "depcruise src --include-only \"^src/\" --config tools/dependency-cruiser.cjs --output-type dot | dot -T svg > docs/dependency-graph.svg",
     "dupes": "jscpd --config tools/jscpd.json src functions/src",
-    "quality": "run-p --print-label lint arch css dupes deadcode secrets",
+    "quality": "run-p --max-parallel 3 --print-label lint arch css dupes deadcode secrets",
     "qa": "npm run quality && npm run build && npm run test:perf && npm run test:strict",
     "release-notes": "node scripts/generate-release-notes.mjs",
     "secrets": "secretlint --secretlintrc tools/secretlintrc.json --secretlintignore tools/secretlintignore \"**/*\"",
@@ -72,7 +72,7 @@
     "vitest": "^5.0.3"
   },
   "lint-staged": {
-    "*.{js,jsx,mjs,cjs}": "eslint --max-warnings 0 --no-warn-ignored",
+    "*.{js,jsx,mjs,cjs}": "eslint --cache --max-warnings 0 --no-warn-ignored",
     "*": "secretlint --secretlintrc tools/secretlintrc.json --secretlintignore tools/secretlintignore"
   },
   "knip": {

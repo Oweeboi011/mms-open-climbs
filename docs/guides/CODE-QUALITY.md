@@ -69,12 +69,13 @@ Kept cheap on purpose: if a gate is slow, people stop running it.
 | Stage | Time (local, warm) |
 |---|---|
 | pre-commit (lint-staged: ESLint + secretlint on staged files) | ~2–3 s |
-| `npm run quality` (6 static checks in parallel) | ~4 s |
-| `npm run qa` (quality, build, bundle budget, both test suites with coverage) | ~20 s |
+| `npm run quality` (6 static checks, 3 at a time) | ~5 s, <1 GB RAM |
+| `npm run qa` (quality, build, bundle budget, both test suites with coverage) | ~20 s, <2 GB RAM |
 | CI integration / e2e jobs | run in parallel with `qa`; emulator JARs and the Playwright browser are cached |
 
-What keeps it there: static checks run concurrently (`run-p`), Vitest
-reuses workers across files (`pool: "vmThreads"`), ESLint caches results,
+What keeps it there: static checks run 3 at a time (`run-p`), Vitest
+reuses 4 workers across files (`pool: "vmThreads"`, `maxWorkers: 4` — more
+only costs RAM), ESLint caches results (pre-commit too),
 and each concern has exactly one tool. Before adding a check, time it; a
 new gate that adds more than a few seconds to `qa` needs a reason in an ADR.
 
