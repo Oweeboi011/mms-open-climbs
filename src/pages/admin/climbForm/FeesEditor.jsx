@@ -107,7 +107,7 @@ export default function FeesEditor({
                     optional: e.target.checked,
                     // Sharing only makes sense for something a
                     // registrant opts into.
-                    shareable: e.target.checked ? fee.shareable : false,
+                    shareable: e.target.checked ? fee.shareable === true : false,
                   })
                 }
               />

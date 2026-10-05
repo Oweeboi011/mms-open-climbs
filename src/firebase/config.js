@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
@@ -40,7 +40,9 @@ if (appCheckSiteKey && !useEmulators) {
 }
 
 export const auth      = getAuth(app);
-export const db        = getFirestore(app, 'openclimbs');
+// ignoreUndefinedProperties: an undefined field (e.g. from an old record
+// missing a newer field) is skipped instead of failing the whole save.
+export const db        = initializeFirestore(app, { ignoreUndefinedProperties: true }, 'openclimbs');
 export const functions = getFunctions(app);
 export const storage   = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
