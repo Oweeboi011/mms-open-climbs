@@ -13,6 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   issues: write
   pull-requests: write
@@ -83,15 +84,25 @@ jobs:
 
       - name: Close the issue when the period is clean
         if: steps.mode.outputs.reportOnly == 'true' && steps.read.outputs.count == '0'
+        id: clean
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          n=$(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" --json number -q '.[0].number')
+          # Logs expire after 30 days, so zero rows can mean "aged out", not "clean".
+          # An issue updated after CSP_SINCE saw violations this period: keep it
+          # open (and don't propose enforcing) until someone moves CSP_SINCE.
+          read -r n updated < <(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" \
+            --json number,updatedAt -q '.[0] // empty | "\(.number) \(.updatedAt)"') || true
+          if [ -n "$n" ] && [[ "$updated" > "$CSP_SINCE" ]]; then
+            echo "Issue #$n has violations from this period (logs may have expired); not clean."
+            exit 0
+          fi
           if [ -n "$n" ]; then gh issue close "$n" --comment "No violations since $CSP_SINCE."; fi
+          echo "clean=true" >> "$GITHUB_OUTPUT"
 
       - name: Propose enforcing after a clean period
         if: >-
-          steps.mode.outputs.reportOnly == 'true' && steps.read.outputs.count == '0' &&
+          steps.clean.outputs.clean == 'true' &&
           fromJSON(steps.read.outputs.days) >= fromJSON(env.CSP_WATCH_DAYS)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -125,3 +136,6 @@ jobs:
           gh pr create --base develop --head "$branch" \
             --title "feat(security): enforce the Content-Security-Policy" \
             --body "csp-watch found no Report-Only violations since $CSP_SINCE. Merging switches the header to enforce (report-uri stays). Close it if you'd rather wait; it won't be re-proposed until CSP_SINCE moves."
+          # PRs opened with GITHUB_TOKEN don't trigger pull_request workflows;
+          # workflow_dispatch is exempt, so run the quality gates on the branch.
+          gh workflow run code-quality.yml --ref "$branch"
