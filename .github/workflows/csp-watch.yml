@@ -97,16 +97,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           branch=csp-enforce
-          if gh pr list --head "$branch" --state open --json number -q '.[0].number' | grep -q .; then
-            echo "Enforce PR already open."; exit 0
+          # An open PR, or one closed during this clean period (someone chose
+          # to wait), means don't propose again until CSP_SINCE moves.
+          if gh pr list --head "$branch" --state all --json state,closedAt \
+              -q '.[] | select(.state == "OPEN" or (.closedAt // "") >= env.CSP_SINCE) | .state' | grep -q .; then
+            echo "Enforce PR already open, or closed since $CSP_SINCE."; exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$branch"
-          sed -i 's/"Content-Security-Policy-Report-Only"/"Content-Security-Policy"/' firebase.json
+          # Replace the short enforced CSP with the full policy; renaming alone
+          # would leave two Content-Security-Policy entries in one block.
+          node -e '
+            const fs = require("fs");
+            const j = JSON.parse(fs.readFileSync("firebase.json", "utf8"));
+            for (const h of j.hosting.headers) {
+              if (!h.headers.some((x) => x.key === "Content-Security-Policy-Report-Only")) continue;
+              h.headers = h.headers
+                .filter((x) => x.key !== "Content-Security-Policy")
+                .map((x) => (x.key === "Content-Security-Policy-Report-Only" ? { ...x, key: "Content-Security-Policy" } : x));
+            }
+            fs.writeFileSync("firebase.json", JSON.stringify(j, null, 2) + "\n");
+          '
           git commit -am "feat(security): enforce the Content-Security-Policy" \
             -m "No violations reported since $CSP_SINCE (${{ steps.read.outputs.days }} days, checked by csp-watch)."
           git push -f origin "$branch"
           gh pr create --base develop --head "$branch" \
             --title "feat(security): enforce the Content-Security-Policy" \
-            --body "csp-watch found no Report-Only violations since $CSP_SINCE. Merging switches the header to enforce (report-uri stays). Close it if you'd rather wait."
+            --body "csp-watch found no Report-Only violations since $CSP_SINCE. Merging switches the header to enforce (report-uri stays). Close it if you'd rather wait; it won't be re-proposed until CSP_SINCE moves."
