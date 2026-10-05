@@ -164,7 +164,9 @@ gets it and the rest are CC'd.
 - Emailing every member needs `canEmailMembers` on top of the admin role;
   no client may write it — the owner grants it with
   `functions/scripts/grant-email-members.mjs` ([ADR 0005](../adr/0005-release-note-email-jobs.md)).
-  A stalled job is resumed after its `lastUid` rather than restarted.
+  Members are sent in signup order; a stalled job is resumed after its
+  `lastCursor` (carried through any number of retries) rather than restarted,
+  and late signups sort last so they are still reached.
   `sendReleaseNoteEmail` only queues `releaseNoteEmailJobs/{id}` and refuses
   while one for the note is still running; the trigger sends 10 at a time,
   retries a failure once, and updates `sent`/`failed` per batch — one job
