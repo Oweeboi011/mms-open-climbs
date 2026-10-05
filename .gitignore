@@ -23,3 +23,5 @@ __azurite_db_*.json
 *.rules.tmp
 .vite/
 __pycache__/
+
+.claude/settings.local.json
