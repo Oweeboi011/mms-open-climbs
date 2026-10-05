@@ -1,5 +1,5 @@
-# Blocking security analysis (taint tracking, injection, XSS). Semgrep in
-# code-quality.yml is the advisory complement. See docs/guides/CODE-QUALITY.md.
+# Security analysis (taint tracking, injection, XSS). Semgrep in
+# code-quality.yml adds pattern rules. See docs/guides/CODE-QUALITY.md.
 name: CodeQL
 
 on:

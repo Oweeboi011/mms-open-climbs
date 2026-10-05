@@ -20,7 +20,7 @@ flowchart LR
     C -->|CI parallel| F[e2e: Playwright smoke]
     D & E & F --> G{all green?}
     G -->|develop| H[promote to main + deploy]
-    C -.->|world-state, never blocks a hotfix| I[npm audit · CodeQL · Semgrep advisory]
+    C -.->|world-state, never blocks a hotfix| I[npm audit · CodeQL · Semgrep]
 ```
 
 | Check | Tool | Stage | Threshold | When it fails |
@@ -42,7 +42,7 @@ flowchart LR
 | User flows | `npm run test:e2e` | CI | all pass | Open the Playwright trace artifact |
 | Vulnerable packages | `npm audit --audit-level=moderate --omit=dev` | CI, weekly | 0 moderate+ | Patch, or `overrides` for a transitive dep |
 | Injection / XSS taint | CodeQL `security-extended` | CI, weekly | 0 | Fix the flow it reports |
-| Broader patterns | Semgrep | CI, advisory | — | Triage; promote real hits to an ESLint rule |
+| Broader patterns | Semgrep (pinned image; `p/javascript`, `p/react`, `p/secrets`) | CI, weekly | 0 ERROR-severity; all findings in the Security tab | Fix it, or a `nosemgrep` comment saying why; promote recurring hits to an ESLint rule |
 | Format | `.editorconfig` | editor | — | No Prettier, see ADR 0003 |
 
 ## Ratchets: legacy can't get worse, new code starts clean
