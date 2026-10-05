@@ -14,29 +14,47 @@ const { sendInBatches } = require("../shared/batchSend");
 const { emailRecipients, renderReleaseNoteEmail } = require("../callables/releaseNotes");
 const { db } = require("../shared/admin");
 
-// Point the note at this job's status — unless a newer job has taken over.
-function setNoteJob(noteRef, jobId, status) {
+// Point the note at this job's status (plus any extra fields) — unless a
+// newer job has taken over.
+function setNoteJob(noteRef, jobId, status, extra = {}) {
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(noteRef);
-    if (snap.exists && snap.data().emailJob?.id === jobId) tx.update(noteRef, { emailJob: { id: jobId, status } });
+    if (snap.exists && snap.data().emailJob?.id === jobId) tx.update(noteRef, { emailJob: { id: jobId, status }, ...extra });
+  });
+}
+
+// Start only if this job is still queued and still the note's current job.
+// A job whose lock expired and was replaced (or an event delivered twice)
+// stops here instead of emailing everyone again.
+function claim(jobRef, noteRef, jobId) {
+  return db.runTransaction(async (tx) => {
+    const job = (await tx.get(jobRef)).data();
+    const note = await tx.get(noteRef);
+    if (!note.exists) return "missing";
+    if (job?.status !== "queued" || note.data().emailJob?.id !== jobId) return "superseded";
+    tx.update(jobRef, { status: "sending", heartbeatAt: Date.now() });
+    tx.update(noteRef, { emailJob: { id: jobId, status: "sending" } });
+    return "claimed";
   });
 }
 
 async function runJob(jobId, job, deps = {}) {
   const jobRef = db.doc(`releaseNoteEmailJobs/${jobId}`);
   const noteRef = db.doc(`releaseNotes/${job.releaseNoteId}`);
-  const noteSnap = await noteRef.get();
-  if (!noteSnap.exists) {
+  const claimed = await claim(jobRef, noteRef, jobId);
+  if (claimed === "missing") {
     await jobRef.update({ status: "failed", error: "Release note no longer exists." });
     return;
   }
-  const setStatus = async (status, extra = {}) => {
-    await jobRef.update({ status, heartbeatAt: Date.now(), ...extra });
-    await setNoteJob(noteRef, jobId, status);
-  };
+  if (claimed === "superseded") {
+    if (job.status === "queued") await jobRef.update({ status: "superseded" });
+    logger.info("[releaseNoteEmailJobs] Skipped superseded job", { jobId });
+    return;
+  }
+  const noteSnap = await noteRef.get();
   const { subject, html } = renderReleaseNoteEmail(noteSnap.data());
   const recipients = await emailRecipients();
-  await setStatus("sending", { total: recipients.length });
+  await jobRef.update({ total: recipients.length, heartbeatAt: Date.now() });
 
   const result = await sendInBatches(recipients, {
     send: (u) => sendEmail({ to: u.email, toName: u.displayName || u.email, subject, html }),
@@ -46,8 +64,8 @@ async function runJob(jobId, job, deps = {}) {
     ...deps,
   });
 
-  await setStatus("done", { finishedAt: FieldValue.serverTimestamp() });
-  await noteRef.update({ emailSentAt: FieldValue.serverTimestamp(), emailSentCount: result.sent });
+  await jobRef.update({ status: "done", heartbeatAt: Date.now(), finishedAt: FieldValue.serverTimestamp() });
+  await setNoteJob(noteRef, jobId, "done", { emailSentAt: FieldValue.serverTimestamp(), emailSentCount: result.sent });
   logger.info("[releaseNoteEmailJobs] Done", { jobId, ...result });
 }
 
