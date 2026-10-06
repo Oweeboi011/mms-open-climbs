@@ -40,6 +40,7 @@ Without that flag `npm run dev` talks to the **real** Firebase project.
 ```bash
 node scripts/set-admin.mjs <uid> "<Name>" <email>    # uses your firebase login
 node scripts/seed-climbs.mjs                          # sample climbs
+node functions/scripts/grant-email-members.mjs <uid|email> [--revoke]   # owner only: all-member email
 node functions/scripts/purge-admin-pageviews.mjs      # admin SDK scripts live in functions/scripts
 ```
 
@@ -74,7 +75,7 @@ node functions/scripts/purge-admin-pageviews.mjs      # admin SDK scripts live i
 
 - Live data via `subscribeTo…` service functions; return the unsubscribe from `useEffect`.
 - Payment proofs and documents upload to `{prefix}/{climbId}/{userId|regId}/{timestamp}_{name}`; each payment is appended to the registration's `payments` array (see `src/utils/payments.js`).
-- Collections: `climbs`, `climbPrivate`, `climbInternal`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, `releaseNotes` — schema in `docs/guides/DATA.md`.
+- Collections: `climbs`, `climbPrivate`, `climbInternal`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, `releaseNotes`, `releaseNoteEmailJobs` — schema in `docs/guides/DATA.md`.
 - Firestore writes trigger Cloud Functions that email members, officers and admin CCs via Brevo.
 
 ## Testing
@@ -83,8 +84,8 @@ node functions/scripts/purge-admin-pageviews.mjs      # admin SDK scripts live i
 
 ## Environment
 
-- `.env`: `VITE_FIREBASE_*`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `VITE_APP_URL`, `VITE_USE_FIREBASE_EMULATOR`.
-- Functions secrets (Firebase, not `.env` in production): `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL`; optional `BILLING_EXPORT_TABLE`.
+- `.env`: `VITE_FIREBASE_*`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `VITE_USE_FIREBASE_EMULATOR`; dev-only `VITE_APPCHECK_DEBUG_TOKEN`.
+- Functions secrets (`firebase functions:secrets:set`): `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `GITHUB_TOKEN`. Plain env (optional): `APP_URL` (email links; defaults to the production URL), `BILLING_EXPORT_TABLE`.
 - Scripts read `VITE_FIREBASE_API_KEY` from `.env` — never hard-code keys (secretlint blocks them).
 
 ## Deploying

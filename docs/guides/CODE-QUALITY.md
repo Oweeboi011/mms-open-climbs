@@ -38,7 +38,7 @@ flowchart LR
 | Secrets | secretlint (+ Brevo / Google key patterns) | pre-commit + `qa` | 0 | Move it to `.env` or a Firebase secret; **rotate it** if it was ever pushed |
 | Unit, component, a11y tests + coverage | Vitest (`test:strict`) | `qa` | ratchet, see `vite.config.js` | Add the missing test |
 | Functions tests + coverage | Jest (`test:strict`) | `qa` | ratchet, see `functions/jest.config.cjs` | Add the missing test |
-| Bundle size | `npm run test:perf` | `qa` | 300 kB initial, 85 kB/chunk (gzip) | Lazy-load it; don't raise the budget to go green |
+| Bundle size | `npm run test:perf` | `qa` | 300 kB initial, 135 kB/chunk (gzip; the Firestore SDK chunk alone is ~126 kB) | Lazy-load it; don't raise the budget to go green |
 | Security rules | `npm run test:integration` | CI | all pass | Fix the rule or the test, never both at once |
 | User flows | `npm run test:e2e` | CI | all pass | Open the Playwright trace artifact |
 | Vulnerable packages | `npm audit --audit-level=moderate --omit=dev` | CI, weekly | 0 moderate+ | Patch, or `overrides` for a transitive dep |
@@ -57,9 +57,10 @@ flowchart LR
   coverage improves; never lower them.
 - The jscpd threshold and bundle budgets work the same way.
 
-Current debt (largest first): `ClimbPaymentCard`, `RegistrantRow`,
-`AllRegistrations`, `Analytics`, `ClimbDetail`, `MyRegistrations`, and
-the Cloud Functions trigger handlers (complexity up to 77). The full list is
+Current debt (longest functions first): `Analytics`, `ClimbDetail`,
+`AllRegistrations`, `Dashboard`, `ClimbPaymentCard`, `ClimbsManage`,
+`RegistrantRow`, `MyRegistrations`, and the Cloud Functions handlers
+(complexity up to 77 in `scheduled/reminders.js`). The full list is
 `LEGACY` itself.
 
 ## What it costs

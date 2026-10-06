@@ -33,9 +33,13 @@ Both deploys run the same reusable `.github/workflows/deploy.yml`.
   `ogPrerender` app shell, and functions without their env config.
 
 Other workflows: `code-quality.yml` (npm audit and Semgrep, weekly
-too), `codeql.yml`, `create-release.yml` (GitHub release on `main`),
-`pr-title-checker.yml`, `broken-links-checker.yml`, plus Dependabot
-(`.github/dependabot.yml`, weekly, into `develop`).
+too), `codeql.yml`, `create-release.yml` (semantic-release tags `vX.Y.Z` and
+publishes a GitHub release on a push to `main`; config in
+`tools/release.config.cjs` — a promotion merged by CI's `GITHUB_TOKEN` does
+not trigger it), `csp-watch.yml` (daily CSP report check, see
+[SECURITY.md](SECURITY.md#platform-controls)), `pr-title-checker.yml`,
+`broken-links-checker.yml`, plus Dependabot (`.github/dependabot.yml`,
+weekly, into `develop`).
 
 ## Staging
 
@@ -43,7 +47,8 @@ Off until you turn it on; nothing else changes until then. To enable:
 
 1. Create a second Firebase project (Blaze plan) and repeat steps 1–3 of
    [the setup below](#new-project-or-new-season-from-scratch) in it, with its
-   own Brevo sender and `APP_URL`.
+   own Brevo sender, and commit `functions/.env.<staging project id>` with
+   `APP_URL=<staging URL>` — otherwise staging emails link to production.
 2. In GitHub → Settings → Environments, create **`staging`** and add the
    same secret names as production (`VITE_FIREBASE_*`,
    `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `GCP_SA_KEY`) with the
@@ -61,7 +66,8 @@ production deploy wait for a click.
 | Where | What | Set with |
 |---|---|---|
 | GitHub Actions secrets | `VITE_FIREBASE_*`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_APPCHECK_SITE_KEY`, `GCP_SA_KEY` | repo settings |
-| Firebase secrets | `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL`, `GITHUB_TOKEN` (release-note drafts) | `firebase functions:secrets:set NAME` |
+| Firebase secrets | `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `GITHUB_TOKEN` (release-note drafts) | `firebase functions:secrets:set NAME` |
+| `functions/.env.<projectId>` | optional plain env: `APP_URL` (defaults to the production URL), `BILLING_EXPORT_TABLE` — committed, never secrets | a file per project, deployed with the functions |
 | `.env` / `functions/.env` | local only, git-ignored | copy the `.example` files |
 
 `VITE_*` values are baked into the bundle at build time, so they must be

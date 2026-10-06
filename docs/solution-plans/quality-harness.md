@@ -43,9 +43,10 @@ admin payment-verification journey on desktop); initial load
 
 ## Not done / next
 
-- Work down `LEGACY`: `ClimbPaymentCard`, `RegistrantRow`, `AllRegistrations`,
-  `Analytics`, `ClimbDetail`, `MyRegistrations`, then the functions triggers.
+- Work down `LEGACY`: `Analytics`, `ClimbDetail`, `AllRegistrations`,
+  `Dashboard`, `ClimbPaymentCard`, `ClimbsManage`, `RegistrantRow`,
+  `MyRegistrations`, then the functions handlers.
 - Replace remaining inline styles with design tokens — gated for new files;
-  89 legacy files listed in `tools/inline-styles-legacy.json`.
+  56 legacy files listed in `tools/inline-styles-legacy.json` (2026-10-07).
 - Grow `TextField` adoption across the other ~100 hand-written form groups.
 - Consider Stryker once coverage is consistently above 80%.

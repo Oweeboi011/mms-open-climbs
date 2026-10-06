@@ -98,4 +98,4 @@ sequenceDiagram
 | GCash proof, not card processing | Fits how the club takes money; the app records, admins verify |
 | Brevo instead of a Firebase extension | Full control of HTML, CC rules and officer routing |
 | JavaScript, not TypeScript | Small team; ESLint, layering and tests are the safety net ([ADR 0003](../adr/0003-minimum-viable-quality-harness.md)) |
-| Release-note email is one synchronous callable | Simplest path at today's membership; async redesign tracked in the [release-notes plan](../solution-plans/release-notes.md) |
+| Bulk email as a Firestore job document, not Cloud Tasks | The job doc is lock, progress feed and resume point in one ([ADR 0005](../adr/0005-release-note-email-jobs.md)) |

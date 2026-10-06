@@ -29,7 +29,11 @@ flowchart LR
   `docs`/`test`/`chore`/`ci` noise; `npm run release-notes` does the same in a
   terminal.
 - Emailing everyone: preview → confirm → queued job with a progress bar.
-  Needs the `canEmailMembers` permission, granted by the project owner.
+  Needs the `canEmailMembers` permission, granted by the project owner and
+  dropped automatically when the account stops being an admin.
+- A send that stops partway shows as stalled on the card; sending again
+  carries on with the members left (the preview and confirm button say how
+  many), and the note's sent count covers the whole send.
 
 Code: `src/pages/ReleaseNotes.jsx`, `src/pages/admin/ReleaseNote*.jsx` +
 `src/pages/admin/releaseNoteForm/`, `src/services/releaseNotes.js`,
@@ -40,12 +44,12 @@ Code: `src/pages/ReleaseNotes.jsx`, `src/pages/admin/ReleaseNote*.jsx` +
 ## After deploy
 
 The project owner grants senders from a terminal with Google Cloud access:
-`node functions/scripts/grant-email-members.mjs <admin email>` (`--revoke` to
-undo). The Users page shows who has it.
+`node functions/scripts/grant-email-members.mjs <uid|email>` (`--revoke` to
+undo). The Users page shows who has it and the exact command.
 
 ## Open
 
 | Risk | Status |
 |---|---|
-| More than a few thousand recipients exceeds one job's 9 minutes | The job stalls; pressing Send again (after 15 min) resumes after the last member reached. Automatic continuation not built |
+| More than a few thousand recipients exceeds one job's 9 minutes | The job stalls; the card says so, and Send (enabled again after 15 min) resumes after the last finished batch — that batch's members may get it twice. Automatic continuation not built |
 | `emailSentCount` counts Brevo acceptances, not deliveries | Accepted |

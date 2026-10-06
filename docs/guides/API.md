@@ -40,7 +40,7 @@ graph LR
 | `onRegistrationUpdated` | `triggers/registrations.js` | trigger (with auth context) | Forged-payment guard, payment/status notifications, counters, status email |
 | `onRegistrationDeleted` | `triggers/registrations.js` | trigger | Keeps roster and `docsCompleteCount` honest on hard delete; no email |
 | `onClimbUpdated` | `triggers/climbs.js` | trigger | Requirement flips, cancellation/postponement email, announcements (bell only) |
-| `syncAdminClaim` | `triggers/adminClaim.js` | trigger | Mirrors `users/{uid}.role` into the `admin` custom claim Storage rules read |
+| `syncAdminClaim` | `triggers/adminClaim.js` | trigger | Mirrors `users/{uid}.role` into the `admin` custom claim Storage rules read; on demotion cuts the session and drops `canEmailMembers` |
 | `sendReminderNotifications` | `scheduled/reminders.js` | schedule | Daily nags, officer summary, one-time thank-you + feedback request |
 | `ensureAdminClaim` | `callables/users.js` | callable | Issues the claim for an admin promoted before `syncAdminClaim` existed |
 | `createUser` / `updateUserProfile` / `deleteUserAccount` | `callables/users.js` | callable | Admin user management; Auth and `users/` kept in step |
@@ -166,7 +166,13 @@ gets it and the rest are CC'd.
   `functions/scripts/grant-email-members.mjs` ([ADR 0005](../adr/0005-release-note-email-jobs.md)).
   Members are sent in signup order; a stalled job is resumed after its
   `lastCursor` (carried through any number of retries) rather than restarted,
-  and late signups sort last so they are still reached.
+  and late signups sort last so they are still reached. The cursor moves per
+  finished batch, so members in the batch that was in flight when a job died
+  may get the email twice; members whose send failed twice are in
+  `failedRequests`, not retried by the resume. When a send would resume,
+  `previewReleaseNoteEmail` returns `resuming`, `alreadySent` and the
+  remaining count, and the admin card says the job stalled (same 60/15-minute
+  limits as the lock).
   `sendReleaseNoteEmail` only queues `releaseNoteEmailJobs/{id}` and refuses
   while one for the note is still running; the trigger sends 10 at a time,
   retries a failure once, and updates `sent`/`failed` per batch — one job
@@ -206,10 +212,14 @@ Change both copies together:
 ## Failures and secrets
 
 `logFailedRequest` writes to `failedRequests` so admins see backend failures
-in-app (from the registration, climb and admin-claim triggers and the user and
-release-note callables); the rest, including the daily schedule, logs to Cloud
-Logging only.
+in-app (from the registration, climb, admin-claim and release-note email job
+triggers and the user and release-note callables); the rest, including the
+daily schedule, logs to Cloud Logging only. Entries expire after 90 days.
 
 Secrets (`firebase functions:secrets:set …`): `BREVO_API_KEY`,
-`BREVO_FROM_EMAIL`, `APP_URL`, `GITHUB_TOKEN`. Optional plain env:
-`BILLING_EXPORT_TABLE`. The emulator reads `functions/.env`.
+`BREVO_FROM_EMAIL`, `GITHUB_TOKEN`. Optional plain env: `APP_URL` (base of
+every email link; defaults to `https://mms-open-climbs.web.app`) and
+`BILLING_EXPORT_TABLE`. CI deploys don't carry the git-ignored
+`functions/.env`, so set these per project in a committed
+`functions/.env.<projectId>` (non-secret values only). The emulator reads
+`functions/.env`.
