@@ -15,6 +15,7 @@ import MyRegistrations from "@/pages/MyRegistrations";
 import {
   renderWithProviders,
   makeMemberAuth,
+  makeAdminAuth,
   registrationFixture,
   climbFixture,
   mockLiveSnapshot,
@@ -905,6 +906,30 @@ describe("MyRegistrations page", () => {
         screen.getAllByText(/Assigned as Officer/i).length,
       ).toBeGreaterThan(0),
     );
+  });
+
+  it("links officers to the registrant list only when they are admins", async () => {
+    getDocs.mockResolvedValue(
+      makeQuerySnapshot([
+        {
+          id: "c1",
+          data: {
+            title: "Officer Climb",
+            officers: [{ userId: "user-1", role: "Safety Officer" }],
+            officerIds: ["user-1"],
+            startDate: { toDate: () => new Date(Date.now() + 30 * 86400000) },
+          },
+        },
+      ]),
+    );
+    // The registrant list sits behind AdminRoute, which would bounce a member home.
+    const { unmount } = renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() => expect(screen.getAllByText(/Assigned as Officer/i).length).toBeGreaterThan(0));
+    expect(screen.queryByRole("link", { name: "Registrants" })).not.toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<MyRegistrations />, makeAdminAuth({ currentUser: { uid: "user-1", email: "a@x.com" } }));
+    expect(await screen.findByRole("link", { name: "Registrants" })).toHaveAttribute("href", "/admin/climbs/c1");
   });
 
   describe("paying while an earlier payment is still awaiting review", () => {
