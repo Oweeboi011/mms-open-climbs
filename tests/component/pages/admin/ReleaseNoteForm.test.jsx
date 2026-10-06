@@ -155,7 +155,7 @@ describe("Admin ReleaseNoteForm", () => {
     onSnapshot.mockImplementation((ref, cb) => {
       cb(
         ref?.path === "releaseNoteEmailJobs/job-1"
-          ? makeSnapshot("job-1", { status: "sending", total: 5, sent: 2, failed: 0 })
+          ? makeSnapshot("job-1", { status: "sending", total: 5, sent: 2, failed: 0, queuedAt: Date.now(), heartbeatAt: Date.now() })
           : makeQuerySnapshot([]),
       );
       return vi.fn();
@@ -185,5 +185,29 @@ describe("Admin ReleaseNoteForm", () => {
     openEdit(sender());
     expect(await screen.findByText(/replaced by a newer one/i)).toBeInTheDocument();
     expect(screen.queryByText(/Sending…/)).not.toBeInTheDocument();
+  });
+
+  it("lets the admin carry on a send that stalled, naming what is left", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot("note-1", { title: "Existing Note", body: "B", status: "published", emailJob: { id: "job-old", status: "sending" } }),
+    );
+    // Killed mid-send: still "sending", but no heartbeat for half an hour.
+    const stalled = { status: "sending", total: 50, sent: 20, failed: 0, queuedAt: Date.now() - 3600_000, heartbeatAt: Date.now() - 1800_000 };
+    onSnapshot.mockImplementation((ref, cb) => {
+      cb(ref?.path === "releaseNoteEmailJobs/job-old" ? makeSnapshot("job-old", stalled) : makeQuerySnapshot([]));
+      return vi.fn();
+    });
+    callables.previewReleaseNoteEmail.mockResolvedValue({
+      data: { subject: "S", html: "<p>hi</p>", recipients: 30, resuming: true, alreadySent: 20 },
+    });
+
+    openEdit(sender());
+    expect(await screen.findByText(/stopped after 20 of 50 members/i)).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /Preview & Send/i });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("button", { name: "Send to the remaining 30 members" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveTextContent(/reaching 20 members/);
   });
 });

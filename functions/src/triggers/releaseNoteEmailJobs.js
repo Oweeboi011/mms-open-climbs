@@ -74,7 +74,9 @@ async function runJob(jobId, job, deps = {}) {
   });
 
   await jobRef.update({ status: "done", heartbeatAt: Date.now(), finishedAt: FieldValue.serverTimestamp() });
-  await setNoteJob(noteRef, jobId, "done", { emailSentAt: FieldValue.serverTimestamp(), emailSentCount: result.sent });
+  // A resumed job counts the members the stopped one(s) already reached.
+  const emailSentCount = (job.sentBefore || 0) + result.sent;
+  await setNoteJob(noteRef, jobId, "done", { emailSentAt: FieldValue.serverTimestamp(), emailSentCount });
   logger.info("[releaseNoteEmailJobs] Done", { jobId, ...result });
 }
 

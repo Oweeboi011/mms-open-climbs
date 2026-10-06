@@ -67,7 +67,11 @@ const res = await fetch(exists ? `${url}?updateMask.fieldPaths=role&currentDocum
 });
 
 if (res.ok) {
-  console.log(`✓ User ${email} (${uid}) set as admin in Firestore`);
+  console.log(
+    exists
+      ? `✓ ${uid} set as admin (existing profile kept; name and email not changed)`
+      : `✓ Profile created for ${email} (${uid}) as admin`,
+  );
 } else {
   const err = await res.text();
   console.error('Failed:', res.status, err);

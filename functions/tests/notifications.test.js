@@ -120,6 +120,7 @@ jest.mock("firebase-admin/firestore", () => ({
     increment: jest.fn((n) => ({ __increment: n })),
     arrayUnion: jest.fn((...vals) => ({ __arrayUnion: vals })),
     arrayRemove: jest.fn((...vals) => ({ __arrayRemove: vals })),
+    delete: () => "__delete",
   },
 }));
 
@@ -1430,6 +1431,17 @@ describe("syncAdminClaim", () => {
     // A live token would otherwise keep reading members' documents for up
     // to an hour, so the session is cut immediately.
     expect(authCalls.revoked).toEqual(["user-1"]);
+  });
+
+  it("drops the owner-held email grant when an admin is demoted", async () => {
+    authUsers["user-1"] = { uid: "user-1", customClaims: { admin: true } };
+
+    await userWrittenHandler(
+      evt({ role: "admin", canEmailMembers: true }, { role: "member", canEmailMembers: true }),
+    );
+
+    // Otherwise any admin could restore it just by re-promoting the account.
+    expect(climbUpdates).toContainEqual({ path: "users/user-1", patch: { canEmailMembers: "__delete" } });
   });
 
   it("revokes the claim when the user doc is deleted outright", async () => {

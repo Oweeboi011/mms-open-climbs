@@ -11,7 +11,7 @@ const { db } = require("../shared/admin");
 // ── Emailing every member about a published release note ─────────────────────
 // Sending is a job: the callable queues releaseNoteEmailJobs/{id} and returns
 // at once; triggers/releaseNoteEmailJobs.js sends in batches and writes
-// progress the admin form watches. Only admins who another admin has granted
+// progress the admin form watches. Only admins the project owner has granted
 // `canEmailMembers` may queue one (the rules stop self-granting).
 
 async function requireEmailSender(uid) {
@@ -19,7 +19,7 @@ async function requireEmailSender(uid) {
   if (caller?.canEmailMembers !== true) {
     throw new HttpsError(
       "permission-denied",
-      "Emailing every member needs the \"Can email members\" permission, granted by another admin.",
+      "Emailing every member needs the \"Can email members\" permission, which the project owner grants.",
     );
   }
 }
@@ -80,12 +80,33 @@ function isLocked(job, now = Date.now()) {
   return false;
 }
 
+// A job that stopped mid-send (hit the 9-minute limit, or crashed) is carried
+// on rather than restarted: the next send starts after the last batch it
+// finished. Members in the batch that was in flight may get it twice.
+function resumePoint(job) {
+  if (!job || ["done", "superseded"].includes(job.status)) return null;
+  const afterCursor = job.lastCursor || job.afterCursor || null;
+  if (!afterCursor) return null;
+  return { afterCursor, sentBefore: (job.sentBefore || 0) + (job.sent || 0) };
+}
+
+async function readJob(jobId) {
+  return jobId ? (await db.doc(`releaseNoteEmailJobs/${jobId}`).get()).data() || null : null;
+}
+
 // What members would receive, and how many of them — shown before sending.
+// When the send would resume a stopped one, the count is what is left.
 exports.previewReleaseNoteEmail = onCall(async (request) => {
   await requireEmailSender(request.auth?.uid);
   const note = await loadPublishedNote(request.data?.releaseNoteId);
-  const recipients = await emailRecipients();
-  return { ...renderReleaseNoteEmail(note), recipients: recipients.length };
+  const resume = resumePoint(await readJob(note.emailJob?.id));
+  const recipients = (await emailRecipients()).filter((u) => isAfter(u, resume?.afterCursor));
+  return {
+    ...renderReleaseNoteEmail(note),
+    recipients: recipients.length,
+    resuming: Boolean(resume),
+    alreadySent: resume?.sentBefore || 0,
+  };
 });
 
 exports.sendReleaseNoteEmail = onCall(async (request) => {
@@ -97,24 +118,22 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
     const noteRef = db.doc(`releaseNotes/${releaseNoteId}`);
     const jobRef = db.collection("releaseNoteEmailJobs").doc();
     // One transaction, so two simultaneous clicks can't both queue a send.
-    await db.runTransaction(async (tx) => {
+    const total = await db.runTransaction(async (tx) => {
       const current = (await tx.get(noteRef)).data()?.emailJob?.id;
       const currentJob = current ? (await tx.get(db.doc(`releaseNoteEmailJobs/${current}`))).data() : null;
       if (isLocked(currentJob)) {
         throw new HttpsError("failed-precondition", "This note is already being sent.");
       }
-      // A job that stalled mid-send (e.g. hit the 9-minute limit): close it and
-      // carry on after the last member it reached, so nobody gets it twice.
-      const unfinished = currentJob && !["done", "superseded"].includes(currentJob.status);
-      const resume = unfinished ? currentJob.lastCursor || currentJob.afterCursor || null : null;
+      const resume = resumePoint(currentJob);
       if (["queued", "sending"].includes(currentJob?.status)) {
         tx.update(db.doc(`releaseNoteEmailJobs/${current}`), { status: "failed", error: "Stalled; resumed by a new job." });
       }
+      const remaining = recipients.filter((u) => isAfter(u, resume?.afterCursor)).length;
       tx.set(jobRef, {
-        ...(resume ? { afterCursor: resume } : {}),
+        ...(resume || {}),
         releaseNoteId,
         status: "queued",
-        total: recipients.length,
+        total: remaining,
         sent: 0,
         failed: 0,
         createdBy: request.auth.uid,
@@ -122,10 +141,10 @@ exports.sendReleaseNoteEmail = onCall(async (request) => {
         queuedAt: Date.now(),
       });
       tx.update(noteRef, { emailJob: { id: jobRef.id, status: "queued" } });
+      return remaining;
     });
-    const job = jobRef;
-    logger.info("[sendReleaseNoteEmail] Queued", { releaseNoteId, jobId: job.id, total: recipients.length });
-    return { jobId: job.id, total: recipients.length };
+    logger.info("[sendReleaseNoteEmail] Queued", { releaseNoteId, jobId: jobRef.id, total });
+    return { jobId: jobRef.id, total };
   } catch (err) {
     if (err instanceof HttpsError) throw err;
     await logFailedRequest({ type: "email", source: "sendReleaseNoteEmail", message: err.message });

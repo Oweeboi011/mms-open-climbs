@@ -2,15 +2,23 @@ import { useEffect, useState } from "react";
 import { callFunction } from "@/services/callables";
 import { subscribeToEmailJob } from "@/services/releaseNotes";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { emailJobState } from "@/utils/releaseNoteEmail";
 
 const ACTIVE = ["queued", "sending"];
 
-function JobProgress({ job }) {
+function JobProgress({ job, state }) {
   if (!job) return null;
   const done = (job.sent || 0) + (job.failed || 0);
-  if (job.status === "superseded") return <div className="alert alert-info">This send was replaced by a newer one.</div>;
-  if (job.status === "failed") return <div className="alert alert-error">Sending stopped: {job.error || "unknown error"}.</div>;
-  if (job.status === "done") {
+  if (state === "superseded") return <div className="alert alert-info">This send was replaced by a newer one.</div>;
+  if (state === "failed") return <div className="alert alert-error">Sending stopped: {job.error || "unknown error"}.</div>;
+  if (state === "stalled") {
+    return (
+      <div className="alert alert-warning">
+        This send stopped after {done} of {job.total} members. Sending again carries on from where it stopped.
+      </div>
+    );
+  }
+  if (state === "done") {
     return (
       <div className="alert alert-success">
         Sent to {job.sent} of {job.total} members{job.failed ? ` — ${job.failed} failed (see Failed requests)` : ""}.
@@ -45,7 +53,7 @@ function LastSent({ note }) {
 }
 
 // Preview the real email, confirm the recipient count, then queue the send and
-// watch its progress. Needs `canEmailMembers`, granted by another admin.
+// watch its progress. Needs `canEmailMembers`, granted by the project owner.
 export default function EmailMembersCard({ noteId, note, published, canEmail }) {
   const [jobId, setJobId] = useState(note?.emailJob?.id || null);
   const [job, setJob] = useState(null);
@@ -55,7 +63,17 @@ export default function EmailMembersCard({ noteId, note, published, canEmail }) 
 
   useEffect(() => (jobId ? subscribeToEmailJob(jobId, setJob) : undefined), [jobId]);
 
-  const running = ACTIVE.includes(job?.status);
+  // A stalled job writes nothing more, so re-check the clock while one is live.
+  const [now, setNow] = useState(() => Date.now());
+  const live = ACTIVE.includes(job?.status);
+  useEffect(() => {
+    if (!live) return undefined;
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [live]);
+
+  const state = emailJobState(job, now);
+  const running = ACTIVE.includes(state);
 
   async function openPreview() {
     setBusy(true);
@@ -90,7 +108,7 @@ export default function EmailMembersCard({ noteId, note, published, canEmail }) 
     <div className="admin-card rn-email-card">
       <div className="admin-card-title">Send Email to Members</div>
       {error && !preview && <div className="alert alert-error">{error}</div>}
-      <JobProgress job={job} />
+      <JobProgress job={job} state={state} />
       {!running && <LastSent note={note} />}
       {blocked && <p className="form-hint">{blocked}</p>}
       <button type="button" className="btn btn-gold" disabled={Boolean(blocked) || running || busy} onClick={openPreview}>
@@ -100,12 +118,19 @@ export default function EmailMembersCard({ noteId, note, published, canEmail }) 
       {preview && (
         <ConfirmDialog
           title="Email every member?"
-          confirmLabel={`Send to ${preview.recipients} members`}
+          confirmLabel={
+            preview.resuming ? `Send to the remaining ${preview.recipients} members` : `Send to ${preview.recipients} members`
+          }
           busy={busy}
           error={error}
           onConfirm={send}
           onCancel={() => setPreview(null)}
         >
+          {preview.resuming && (
+            <p className="form-hint">
+              An earlier send stopped after reaching {preview.alreadySent} members; this carries on with the rest.
+            </p>
+          )}
           <p className="rn-preview-subject">
             <strong>Subject:</strong> {preview.subject}
           </p>

@@ -6,22 +6,23 @@
  * to an account they control. Only someone with Google Cloud access to the
  * project (the owner) can run this.
  *
- * The email is resolved through Firebase Auth, where emails are unique — the
- * users/ profile's email field is editable by admins and is not trusted.
+ * The account is resolved through Firebase Auth (by uid, or by email, which
+ * Auth keeps unique) — the users/ profile's email field is editable by admins
+ * and is not trusted. Demoting an admin drops the grant (syncAdminClaim).
  *
  * Run from repo root (gcloud Application Default Credentials):
- *   node functions/scripts/grant-email-members.mjs <email>            # grant
- *   node functions/scripts/grant-email-members.mjs <email> --revoke   # revoke
+ *   node functions/scripts/grant-email-members.mjs <uid|email>            # grant
+ *   node functions/scripts/grant-email-members.mjs <uid|email> --revoke   # revoke
  */
 
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
-const email = process.argv[2];
+const who = process.argv[2];
 const revoke = process.argv.includes("--revoke");
-if (!email || email.startsWith("--")) {
-  console.error("Usage: node functions/scripts/grant-email-members.mjs <email> [--revoke]");
+if (!who || who.startsWith("--")) {
+  console.error("Usage: node functions/scripts/grant-email-members.mjs <uid|email> [--revoke]");
   process.exit(1);
 }
 
@@ -31,16 +32,22 @@ db.settings({ databaseId: "openclimbs" });
 
 let account;
 try {
-  account = await getAuth().getUserByEmail(email);
+  account = who.includes("@") ? await getAuth().getUserByEmail(who) : await getAuth().getUser(who);
 } catch {
-  console.error(`No sign-in account with email ${email}.`);
+  console.error(`No sign-in account for ${who}.`);
   process.exit(1);
 }
+const label = `${account.displayName || account.email} (${account.uid})`;
 const ref = db.doc(`users/${account.uid}`);
 const profile = (await ref.get()).data();
-if (profile?.role !== "admin") {
-  console.error(`${email} (${account.uid}) is not an admin; make them one first.`);
+// Revoking works on anyone; granting only on a current admin.
+if (!revoke && profile?.role !== "admin") {
+  console.error(`${label} is not an admin; make them one first.`);
   process.exit(1);
 }
-await ref.update({ canEmailMembers: !revoke });
-console.log(`${revoke ? "Revoked" : "Granted"} canEmailMembers for ${account.displayName || email} (${account.uid}).`);
+if (revoke && !profile) {
+  console.log(`${label} has no profile; nothing to revoke.`);
+  process.exit(0);
+}
+await ref.update({ canEmailMembers: revoke ? FieldValue.delete() : true });
+console.log(`${revoke ? "Revoked" : "Granted"} canEmailMembers for ${label}.`);
