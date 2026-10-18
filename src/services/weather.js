@@ -1,4 +1,4 @@
-import { formatForecastDate, getWeatherLabel, toIsoDate } from "@/utils/weather";
+import { formatForecastDate, getWeatherLabel } from "@/utils/weather";
 
 // Open-Meteo: free, keyless and CORS-enabled, so the browser calls it directly.
 
@@ -42,9 +42,10 @@ export async function geocodePlace(query) {
 const DAILY_FIELDS =
   "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max";
 
-export async function fetchDailyForecast(coords, startDate, endDate) {
+// startDay and endDay are "YYYY-MM-DD" Philippine calendar days (planForecast).
+export async function fetchDailyForecast(coords, startDay, endDay) {
   const response = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&daily=${DAILY_FIELDS}&timezone=auto&start_date=${toIsoDate(startDate)}&end_date=${toIsoDate(endDate)}`,
+    `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&daily=${DAILY_FIELDS}&timezone=auto&start_date=${startDay}&end_date=${endDay}`,
   );
   if (!response.ok) throw new Error("Weather forecast request failed.");
   const { daily = {} } = await response.json();
