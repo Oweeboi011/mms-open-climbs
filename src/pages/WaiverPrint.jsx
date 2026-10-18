@@ -5,6 +5,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import WaiverText from '@/components/WaiverText';
 
+// The typed signature, or — when an admin recorded a paper or in-person
+// waiver instead — that record, never presented as a digital signature.
+function SignatureLines({ reg, signedDate }) {
+  const offline = reg.waiverReceivedOffline;
+  if (reg.waiverSigned || !offline) {
+    return (
+      <>
+        <div className="waiver-signature-name">{reg.waiverSignedName}</div>
+        <div className="waiver-signature-meta">Signed electronically on {signedDate}</div>
+      </>
+    );
+  }
+  const markedOn = offline.markedAt?.toDate?.().toLocaleDateString("en-PH", { dateStyle: "long" });
+  return (
+    <div className="waiver-signature-meta">
+      Not signed electronically. Received offline: {offline.note} (recorded by{" "}
+      {offline.markedBy || "an admin"}
+      {markedOn ? `, ${markedOn}` : ""}).
+    </div>
+  );
+}
+
 export default function WaiverPrint() {
   const { registrationId } = useParams();
   const { currentUser, isAdmin } = useAuth();
@@ -98,10 +120,7 @@ export default function WaiverPrint() {
           <div style={{ marginBottom: 14, fontSize: '0.72rem', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
             Digital Signature
           </div>
-          <div className="waiver-signature-name">{reg.waiverSignedName}</div>
-          <div className="waiver-signature-meta">
-            Signed electronically on {signedDate}
-          </div>
+          <SignatureLines reg={reg} signedDate={signedDate} />
         </div>
 
         <div style={{ marginTop: 32, fontSize: '0.72rem', color: 'var(--ink-soft)', textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 16 }}>

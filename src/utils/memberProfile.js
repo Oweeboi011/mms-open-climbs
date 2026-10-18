@@ -1,3 +1,4 @@
+import { waiverStatus } from "@/data/requiredDocTypes";
 import { getOutstanding, getCountedPaid, serviceGroupsFromDoc } from "@/utils/registrationFees";
 import { getRefundedTotal } from "@/utils/payments";
 import { climbEndOf } from "@/utils/climbGrouping";
@@ -44,7 +45,7 @@ export function buildMemberClimbs(regs = [], climbsById = {}, privateById = {}, 
         refunded: getRefundedTotal(reg),
         owed: active ? getOutstanding(reg, climb, groups) : 0,
         attendance: attendanceOf(reg, climb, now),
-        waiverSigned: !!reg.waiverSigned,
+        waiverStatus: waiverStatus(reg),
         donation: reg.donation || null,
         donationReceived: reg.donationReceived || null,
         memberType: reg.memberType || "",

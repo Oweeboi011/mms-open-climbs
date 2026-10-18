@@ -188,7 +188,7 @@ export default function MemberProfile({ uid }) {
                     <td className={r.attendance === "no-show" ? "daysheet-flag" : undefined}>
                       {r.attendance}
                     </td>
-                    <td>{r.waiverSigned ? "Signed" : "Not signed"}</td>
+                    <td>{r.waiverStatus}</td>
                     <td>
                       {r.donationReceived
                         ? `${formatPeso(r.donationReceived.cash)}${r.donationReceived.items ? " + items" : ""} received`

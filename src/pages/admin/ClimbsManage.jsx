@@ -26,6 +26,7 @@ import BalanceDueTable, {
   sumAmounts,
 } from "@/components/admin/BalanceDueTable";
 import ClimbRatingCells from "@/components/admin/ClimbRatingCells";
+import OfficerSummary from "@/components/admin/OfficerSummary";
 import { TRAIL_CLASS_LABELS } from "@/utils/trailClass";
 import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { getEffectiveStatus } from "@/utils/climbStatus";
@@ -354,9 +355,22 @@ export default function AdminClimbsManage() {
                                             gap: 6,
                                           }}
                                         >
-                                          <span style={{ fontWeight: 600 }}>
+                                          <Link
+                                            to={`/admin/climbs/${climb.id}`}
+                                            className="climb-row-title"
+                                            title="Registrants: manage registrations and payments"
+                                          >
                                             {climb.title}
-                                          </span>
+                                          </Link>
+                                          <Link
+                                            to={`/event/${climb.id}`}
+                                            target="_blank"
+                                            className="climb-row-public"
+                                            title="Open the public event page in a new tab"
+                                            aria-label={`Open the public page for ${climb.title}`}
+                                          >
+                                            &#8599;
+                                          </Link>
                                           <span
                                             style={{
                                               fontSize: "0.7rem",
@@ -405,45 +419,31 @@ export default function AdminClimbsManage() {
                                               due
                                             </span>
                                           )}
+                                          {REQUIRED_DOC_TYPES.filter(
+                                            (docType) =>
+                                              climb[docType.requiresField],
+                                          ).map((docType) => (
+                                            <span
+                                              key={docType.key}
+                                              style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 3,
+                                                fontSize: "0.58rem",
+                                                fontWeight: 700,
+                                                padding: "1px 7px",
+                                                borderRadius: 6,
+                                                background: docType.pillBg,
+                                                color: docType.pillColor,
+                                                border: `1px solid ${docType.pillBorder}`,
+                                                whiteSpace: "nowrap",
+                                              }}
+                                            >
+                                              {docType.pillIcon}{" "}
+                                              {docType.pillLabel}
+                                            </span>
+                                          ))}
                                         </div>
-                                        {REQUIRED_DOC_TYPES.some(
-                                          (docType) =>
-                                            climb[docType.requiresField],
-                                        ) && (
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              gap: 4,
-                                              marginTop: 4,
-                                              flexWrap: "wrap",
-                                            }}
-                                          >
-                                            {REQUIRED_DOC_TYPES.filter(
-                                              (docType) =>
-                                                climb[docType.requiresField],
-                                            ).map((docType) => (
-                                              <span
-                                                key={docType.key}
-                                                style={{
-                                                  display: "inline-flex",
-                                                  alignItems: "center",
-                                                  gap: 3,
-                                                  fontSize: "0.58rem",
-                                                  fontWeight: 700,
-                                                  padding: "1px 7px",
-                                                  borderRadius: 6,
-                                                  background: docType.pillBg,
-                                                  color: docType.pillColor,
-                                                  border: `1px solid ${docType.pillBorder}`,
-                                                  whiteSpace: "nowrap",
-                                                }}
-                                              >
-                                                {docType.pillIcon}{" "}
-                                                {docType.pillLabel}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                   </td>
@@ -464,9 +464,9 @@ export default function AdminClimbsManage() {
                                         marginTop: 1,
                                       }}
                                     >
+                                      {/* Difficulty shows under Rating. */}
                                       {[
                                         climb.type,
-                                        climb.difficulty,
                                         climb.roundTripDistance
                                           ? `${climb.roundTripDistance} RT`
                                           : climb.distanceToSummit
@@ -639,43 +639,7 @@ export default function AdminClimbsManage() {
                                   </td>
                                   <td>
                                     {climb.officers?.length > 0 ? (
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          flexDirection: "column",
-                                          gap: 3,
-                                        }}
-                                      >
-                                        {climb.officers.map((o, i) => (
-                                          <div
-                                            key={i}
-                                            style={{ lineHeight: 1.25 }}
-                                            title={o.role || ""}
-                                          >
-                                            <span
-                                              style={{
-                                                fontWeight: 700,
-                                                fontSize: "0.78rem",
-                                                whiteSpace: "nowrap",
-                                              }}
-                                            >
-                                              {o.name}
-                                            </span>
-                                            {o.role && (
-                                              <span
-                                                style={{
-                                                  display: "block",
-                                                  fontSize: "0.64rem",
-                                                  color: "var(--ink-soft)",
-                                                  whiteSpace: "nowrap",
-                                                }}
-                                              >
-                                                {o.role}
-                                              </span>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
+                                      <OfficerSummary officers={climb.officers} />
                                     ) : (
                                       <span
                                         style={{
@@ -694,22 +658,9 @@ export default function AdminClimbsManage() {
                                     )}
                                   </td>
                                   <td>
+                                    {/* The climb name opens Registrants and
+                                        its ↗ the public page. */}
                                     <div className="admin-table-actions">
-                                      <Link
-                                        to={`/event/${climb.id}`}
-                                        className="btn btn-outline btn-sm"
-                                        target="_blank"
-                                        title="Open the public event page in a new tab"
-                                      >
-                                        View
-                                      </Link>
-                                      <Link
-                                        to={`/admin/climbs/${climb.id}`}
-                                        className="btn btn-outline btn-sm"
-                                        title="View and manage all registrations for this climb"
-                                      >
-                                        Registrants
-                                      </Link>
                                       <Link
                                         to={`/admin/climbs/${climb.id}/edit`}
                                         className="btn btn-accent btn-sm"

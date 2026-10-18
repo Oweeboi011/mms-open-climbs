@@ -40,7 +40,7 @@ import {
   STATUS_STYLE,
   EXPERIENCE_LABELS,
 } from "@/components/admin/registrantShared";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted, isWaiverDone } from "@/data/requiredDocTypes";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 
@@ -50,7 +50,7 @@ const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 function hasMissingRequiredDocs(reg, climb) {
   if (!climb) return false;
   return REQUIRED_DOC_TYPES.some(
-    (docType) => climb[docType.requiresField] && !reg[docType.uploadField]?.url,
+    (docType) => climb[docType.requiresField] && !isDocSubmitted(reg[docType.uploadField]),
   );
 }
 
@@ -577,7 +577,7 @@ export default function AllRegistrations() {
                         climb,
                         serviceGroups,
                       );
-                      const hasWaiver = !!reg.waiverSignedName;
+                      const hasWaiver = isWaiverDone(reg);
                       const hasAllDocs = !hasMissingRequiredDocs(reg, climb);
                       // An admin-added participant starts with no waiver and
                       // no details, so both gaps have to show here.
@@ -730,7 +730,7 @@ export default function AllRegistrations() {
                                 ).map((docType) => (
                                   <ComplianceCheck
                                     key={docType.key}
-                                    ok={!!reg[docType.uploadField]?.url}
+                                    ok={isDocSubmitted(reg[docType.uploadField])}
                                     label={docType.badgeLabel}
                                     href={
                                       reg[docType.uploadField]?.url ||
@@ -1114,10 +1114,10 @@ export default function AllRegistrations() {
                                       ).map((docType) => (
                                         <ComplianceCheck
                                           key={docType.key}
-                                          ok={!!reg[docType.uploadField]?.url}
+                                          ok={isDocSubmitted(reg[docType.uploadField])}
                                           label={
-                                            reg[docType.uploadField]?.url
-                                              ? `${docType.panelLabel} Uploaded`
+                                            isDocSubmitted(reg[docType.uploadField])
+                                              ? `${docType.panelLabel} ${reg[docType.uploadField]?.url ? "Uploaded" : "Received"}`
                                               : `${docType.panelLabel} Missing`
                                           }
                                           href={

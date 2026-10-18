@@ -27,12 +27,32 @@ describe("planForecast", () => {
     const plan = planForecast(day(14), day(18), NOW);
     expect(plan.status).toBeUndefined();
     expect(plan.truncated).toBe(true);
-    expect(plan.requestEnd < day(18)).toBe(true);
+    expect(plan.requestEnd).toBe("2026-10-20");
   });
 
   it("accepts Firestore timestamps", () => {
     const ts = { toDate: () => day(2) };
     expect(planForecast(ts, ts, NOW).truncated).toBe(false);
+  });
+
+  it("requests the climb's Philippine calendar days, whatever the viewer's time zone", () => {
+    // 11:00 on Oct 20 in Manila. A date picked on the climb form is stored as
+    // "YYYY-MM-DD"; a Timestamp may sit at Manila midnight (16:00 UTC the day before).
+    const now = new Date("2026-10-20T03:00:00Z");
+    expect(planForecast("2026-10-24", "2026-10-26", now)).toEqual({
+      eventStart: "2026-10-24",
+      requestEnd: "2026-10-26",
+      truncated: false,
+    });
+    const manilaMidnight = { toDate: () => new Date("2026-10-23T16:00:00Z") };
+    expect(planForecast(manilaMidnight, manilaMidnight, now).eventStart).toBe("2026-10-24");
+  });
+
+  it("counts today in Manila time for the 16-day horizon", () => {
+    // 01:00 on Oct 10 in Manila is still Oct 9 in UTC.
+    const now = new Date("2026-10-09T17:00:00Z");
+    expect(planForecast("2026-10-25", "2026-10-26", now).status).toBeUndefined();
+    expect(planForecast("2026-10-26", "2026-10-26", now).status).toBe("scheduled");
   });
 
   it("labels unknown weather codes generically", () => {

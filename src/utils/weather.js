@@ -36,14 +36,26 @@ function getClimbDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function startOfDay(date) {
-  const normalized = new Date(date);
-  normalized.setHours(0, 0, 0, 0);
-  return normalized;
+// Climb days are Philippine calendar days. Working them out in the viewer's
+// own time zone (then converting to UTC) asked Open-Meteo for the day before
+// the climb in Manila, and for other days again elsewhere.
+const CLIMB_TIME_ZONE = "Asia/Manila";
+const ISO_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: CLIMB_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+// "YYYY-MM-DD" for the Philippine calendar day this moment falls on.
+function toIsoDate(date) {
+  return ISO_DAY.format(date);
 }
 
-export function toIsoDate(date) {
-  return startOfDay(date).toISOString().slice(0, 10);
+const dayNumber = (isoDate) => Date.parse(`${isoDate}T00:00:00Z`) / 86400000;
+
+function addDays(isoDate, days) {
+  return new Date((dayNumber(isoDate) + days) * 86400000).toISOString().slice(0, 10);
 }
 
 export function formatForecastDate(dateString) {
@@ -64,29 +76,28 @@ export function getWeatherLabel(code) {
 const FORECAST_DAYS_AHEAD = 15;
 
 // Whether a forecast can be shown for these event dates, and over which
-// window. Returns `{ status, message }` when it can't, or the dates to
-// request when it can.
+// window. Returns `{ status, message }` when it can't, or the days to
+// request ("YYYY-MM-DD", Philippine time) when it can.
 export function planForecast(startValue, endValue, now = new Date()) {
   const startDate = getClimbDate(startValue);
   const endDate = getClimbDate(endValue) || startDate;
   if (!startDate || !endDate) {
     return { status: "unavailable", message: "Weather forecast will appear once the event dates are set." };
   }
-  const today = startOfDay(now);
-  const eventStart = startOfDay(startDate);
-  const eventEnd = startOfDay(endDate);
+  const today = toIsoDate(now);
+  const eventStart = toIsoDate(startDate);
+  const eventEnd = toIsoDate(endDate);
   if (eventEnd < today) {
     return { status: "unavailable", message: "Live forecast is no longer shown for past event dates." };
   }
-  if (Math.round((eventStart - today) / 86400000) > FORECAST_DAYS_AHEAD) {
+  if (dayNumber(eventStart) - dayNumber(today) > FORECAST_DAYS_AHEAD) {
     return {
       status: "scheduled",
       message:
         "Detailed forecast becomes available automatically within 16 days of the event start date.",
     };
   }
-  const cutoff = new Date(today);
-  cutoff.setDate(cutoff.getDate() + FORECAST_DAYS_AHEAD);
+  const cutoff = addDays(today, FORECAST_DAYS_AHEAD);
   return {
     eventStart,
     requestEnd: eventEnd > cutoff ? cutoff : eventEnd,

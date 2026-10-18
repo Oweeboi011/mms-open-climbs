@@ -8,13 +8,13 @@ import TextField from "@/components/TextField";
 // An admin registering someone can only record their best guess at a mobile
 // number, next of kin and medical history — so the participant confirms their
 // own. Editable any time, not once-only like the waiver: numbers change.
+// Medical conditions are optional: a blank means none stated, not a gap.
 export function detailsIncomplete(reg) {
   return (
     !reg.mobile?.trim() ||
     !reg.emergencyContact?.name?.trim() ||
     !reg.emergencyContact?.mobile?.trim() ||
-    !reg.emergencyContact?.relationship?.trim() ||
-    !reg.medicalConditions?.trim()
+    !reg.emergencyContact?.relationship?.trim()
   );
 }
 
@@ -41,9 +41,6 @@ export default function DetailsPrompt({ reg, currentUser, onClose, onSaved }) {
     if (!form.ecName.trim()) missing.push("your emergency contact's name");
     if (!form.ecMobile.trim()) missing.push("their mobile number");
     if (!form.ecRelationship.trim()) missing.push("your relationship to them");
-    if (!form.medicalConditions.trim()) {
-      missing.push('medical conditions (write "None" if you have none)');
-    }
     if (missing.length) {
       setError(`Please provide ${missing.join(", ")}.`);
       return;
@@ -141,17 +138,11 @@ export default function DetailsPrompt({ reg, currentUser, onClose, onSaved }) {
           </div>
           <TextField
             label="Medical Conditions / Allergies"
-            required
             value={form.medicalConditions}
             onChange={(v) => set("medicalConditions", v)}
             rows={2}
-            placeholder='e.g. asthma, peanut allergy — or "None"'
-            hint={
-              <>
-                Confidential and used only in an emergency. Write <strong>None</strong> if you
-                have none.
-              </>
-            }
+            placeholder="e.g. asthma, peanut allergy"
+            hint="Optional. Confidential and used only in an emergency; leave blank if you have none."
           />
 
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>

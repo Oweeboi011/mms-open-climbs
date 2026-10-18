@@ -19,7 +19,7 @@ const LEGACY = {
   "src/components/admin/ClimbPaymentCard.jsx": {functionLines: 941, fileLines: 954},
   "src/components/admin/MemberProfile.jsx": {functionLines: 229, complexity: 27},
   "src/components/admin/PaymentHistory.jsx": {functionLines: 298, complexity: 30},
-  "src/components/admin/RegistrantRow.jsx": {functionLines: 805, complexity: 56, fileLines: 835},
+  "src/components/admin/RegistrantRow.jsx": {functionLines: 703, complexity: 49, fileLines: 735},
   "src/components/admin/ServiceSharingCard.jsx": {functionLines: 267},
   "src/components/admin/SplitPaymentModal.jsx": {functionLines: 201},
   "src/components/ClimbCard.jsx": {complexity: 47},
@@ -29,9 +29,9 @@ const LEGACY = {
   "src/pages/admin/Analytics.jsx": {functionLines: 1404, complexity: 24, fileLines: 1480},
   "src/pages/admin/AppInsights.jsx": {functionLines: 611, complexity: 43, fileLines: 708},
   "src/pages/admin/ClimbDaySheet.jsx": {functionLines: 223, complexity: 21},
-  "src/pages/admin/ClimbDetail.jsx": {functionLines: 1213, complexity: 39, fileLines: 1301},
+  "src/pages/admin/ClimbDetail.jsx": {functionLines: 1211, complexity: 39, fileLines: 1299},
   "src/pages/admin/ClimbDonations.jsx": {functionLines: 314},
-  "src/pages/admin/ClimbsManage.jsx": {functionLines: 896, complexity: 40, fileLines: 930},
+  "src/pages/admin/ClimbsManage.jsx": {functionLines: 846, complexity: 39, fileLines: 881},
   "src/pages/admin/Dashboard.jsx": {functionLines: 942, complexity: 33, fileLines: 1052},
   "src/pages/admin/ManagePayments.jsx": {functionLines: 388},
   "src/pages/ClimbFeedback.jsx": {complexity: 24},
@@ -43,10 +43,10 @@ const LEGACY = {
   "src/utils/markdownLite.jsx": {complexity: 26},
   "src/utils/payments.js": {complexity: 21},
   "functions/src/callables/users.js": {complexity: 22},
-  "functions/src/scheduled/reminders.js": {functionLines: 248, complexity: 77},
+  "functions/src/scheduled/reminders.js": {functionLines: 238, complexity: 74},
   "functions/src/shared/registrationOps.js": {complexity: 31},
   "functions/src/triggers/climbs.js": {complexity: 30},
-  "functions/src/triggers/registrations.js": {functionLines: 284, complexity: 69},
+  "functions/src/triggers/registrations.js": {functionLines: 276, complexity: 66},
 };
 
 // Files that still use inline `style={{…}}`. New code uses classes and the

@@ -1,4 +1,5 @@
 import Modal from "@/components/Modal";
+import { describeOfflineDoc } from "@/data/requiredDocTypes";
 
 // Shared modal chrome + form for submitting/replacing required documents.
 // Used by both the member-facing flow (MyRegistrations.jsx's DocumentPrompt)
@@ -22,6 +23,7 @@ export default function DocumentUploadModal({
   labelRequired = false,
   getHint,
   renderSampleLink,
+  renderExtra,
   saveLabel = "Save",
   savingLabel = "Saving…",
 }) {
@@ -69,14 +71,22 @@ export default function DocumentUploadModal({
                 >
                   <span style={{ color: "var(--green-dark)" }}>
                     &#10003;{" "}
-                    <a
-                      href={reg[docType.uploadField].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {getLabel(docType)}
-                    </a>{" "}
-                    already submitted
+                    {reg[docType.uploadField].url ? (
+                      <>
+                        <a
+                          href={reg[docType.uploadField].url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {getLabel(docType)}
+                        </a>{" "}
+                        already submitted
+                      </>
+                    ) : (
+                      <>
+                        {getLabel(docType)} {describeOfflineDoc(reg[docType.uploadField])}
+                      </>
+                    )}
                   </span>
                   <button
                     type="button"
@@ -122,6 +132,7 @@ export default function DocumentUploadModal({
                 }
               />
               <div className="form-hint">{getHint(docType)}</div>
+              {renderExtra?.(docType)}
             </div>
           ))}
 

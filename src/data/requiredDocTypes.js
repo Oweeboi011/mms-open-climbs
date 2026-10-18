@@ -110,3 +110,31 @@ export const REQUIRED_DOC_TYPES = [
     notificationPrefix: "waiverdoc",
   },
 ];
+
+// A required document counts as submitted when a file was uploaded, or when
+// an admin recorded it as received without one (shown on climb day, handed
+// over on paper). The offline record sits in the same registration field as
+// a file would, as { receivedOffline: true, note, markedBy, markedAt }, so
+// checks that only ask "is anything there?" count it too.
+export function isDocSubmitted(upload) {
+  return !!(upload && (upload.url || upload.receivedOffline));
+}
+
+// How to describe a submitted document that has no file to open.
+export function describeOfflineDoc(upload) {
+  const by = upload?.markedBy ? ` by ${upload.markedBy}` : "";
+  return `received offline${by}${upload?.note ? `: ${upload.note}` : ""}`;
+}
+
+// The waiver is done when signed in the app, or when an admin recorded it as
+// received offline (a paper or in-person waiver) in waiverReceivedOffline.
+// waiverSigned itself only ever means a digital signature by the participant.
+export function isWaiverDone(reg) {
+  return !!reg?.waiverSigned || !!reg?.waiverReceivedOffline;
+}
+
+// "Signed", "Received offline" or "Not signed", for rosters and profiles.
+export function waiverStatus(reg) {
+  if (reg?.waiverSigned) return "Signed";
+  return reg?.waiverReceivedOffline ? "Received offline" : "Not signed";
+}

@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
+import ComplianceSummary from "@/components/admin/ComplianceSummary";
+import WaiverStatus from "@/components/admin/WaiverStatus";
 import PaymentHistory from "./PaymentHistory";
 import {
   getPaymentEntries,
@@ -23,7 +25,7 @@ import {
   STATUS_STYLE,
   PAYMENT_STYLE,
 } from "./registrantShared";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
 import { canMarkNoShow } from "@/utils/noShow";
 
 const statusStyleWithLabel = Object.fromEntries(
@@ -47,6 +49,7 @@ export default function RegistrantRow({
   onRecordPayment,
   onViewReceipt,
   onManageDocuments,
+  onWaiverReceivedOffline,
   toggleOptionalFee,
   onEdit,
   deleteRegistration,
@@ -77,25 +80,9 @@ export default function RegistrantRow({
 
         {/* Participant — name, email, type badge, note indicator */}
         <td>
-          <div style={{ fontWeight: 600, fontSize: "0.84rem" }}>{reg.name}</div>
-          <div
-            style={{
-              fontSize: "0.72rem",
-              color: "var(--ink-soft)",
-              marginTop: 1,
-            }}
-          >
-            {reg.email}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 5,
-              marginTop: 4,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
+          {/* Name and badges share a line; the email sits under them. */}
+          <div className="registrant-name-line">
+            <span className="registrant-name">{reg.name}</span>
             {reg.memberType && (
               <span
                 style={{
@@ -156,33 +143,12 @@ export default function RegistrantRow({
               </span>
             )}
           </div>
+          <div className="registrant-email">{reg.email}</div>
         </td>
 
-        {/* Compliance — waiver + required docs stacked */}
+        {/* Compliance — only what's missing */}
         <td>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 3,
-            }}
-          >
-            <ComplianceCheck ok={reg.waiverSigned} label="Waiver" />
-            {/* An admin-added participant starts with neither, so the gap has
-                to be visible to whoever chases them for it. */}
-            <ComplianceCheck ok={!detailsIncomplete(reg)} label="Details" />
-            {REQUIRED_DOC_TYPES.filter(
-              (docType) => climb?.[docType.requiresField],
-            ).map((docType) => (
-              <ComplianceCheck
-                key={docType.key}
-                ok={!!reg[docType.uploadField]?.url}
-                label={docType.badgeLabel}
-                href={reg[docType.uploadField]?.url}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ))}
-          </div>
+          <ComplianceSummary reg={reg} climb={climb} detailsComplete={!detailsIncomplete(reg)} />
         </td>
 
         {/* Payment — badge + proof count */}
@@ -193,18 +159,12 @@ export default function RegistrantRow({
             const paymentCount = getPaymentEntries(reg).length;
             if (proofCount === 0 && paymentCount < 2) return null;
             return (
-              <div
-                style={{
-                  fontSize: "0.62rem",
-                  color: "var(--ink-soft)",
-                  marginTop: 3,
-                }}
-              >
+              <span className="registrant-payment-meta">
                 {paymentCount > 1 && `${paymentCount} payments`}
                 {paymentCount > 1 && proofCount > 0 && " · "}
                 {proofCount > 0 &&
                   `${proofCount} file${proofCount > 1 ? "s" : ""}`}
-              </div>
+              </span>
             );
           })()}
         </td>
@@ -437,11 +397,11 @@ export default function RegistrantRow({
                       : "Not provided yet"
                   }
                 />
-                {/* Never "None declared" for a blank: nothing was declared
+                {/* "None stated", not "None declared": a blank declares nothing
                     either way, and officers read this on the trail. */}
                 <InfoCell
                   label="Medical"
-                  value={reg.medicalConditions || "Not provided yet"}
+                  value={reg.medicalConditions || "None stated"}
                 />
               </div>
 
@@ -464,10 +424,10 @@ export default function RegistrantRow({
                     ).map((docType) => (
                       <ComplianceCheck
                         key={docType.key}
-                        ok={!!reg[docType.uploadField]?.url}
+                        ok={isDocSubmitted(reg[docType.uploadField])}
                         label={
-                          reg[docType.uploadField]?.url
-                            ? `${docType.panelLabel} Uploaded`
+                          isDocSubmitted(reg[docType.uploadField])
+                            ? `${docType.panelLabel} ${reg[docType.uploadField]?.url ? "Uploaded" : "Received"}`
                             : `${docType.panelLabel} Missing`
                         }
                         href={reg[docType.uploadField]?.url || undefined}
@@ -545,69 +505,9 @@ export default function RegistrantRow({
                 </div>
               )}
 
-              {/* Waiver section */}
-              <div
-                style={{
-                  background: reg.waiverSigned ? "#e8f5e9" : "#fce8e8",
-                  border: `1px solid ${reg.waiverSigned ? "#a7d7b2" : "#fca5a5"}`,
-                  borderRadius: 8,
-                  padding: "14px 16px",
-                  marginBottom: 16,
-                  display: "flex",
-                  gap: 16,
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <SectionLabel>
-                    {reg.waiverSigned ? "\u2713" : "\u26A0"} Waiver & Release of
-                    Liability
-                  </SectionLabel>
-                  {reg.waiverSigned ? (
-                    <>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          color: "#1a6b2c",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        &#10003; Signed as &ldquo;
-                        {reg.waiverSignedName}&rdquo;
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.78rem",
-                          color: "var(--ink-soft)",
-                          marginTop: 2,
-                        }}
-                      >
-                        {reg.waiverSignedAt
-                          ?.toDate?.()
-                          .toLocaleString("en-PH") || "Date not recorded"}
-                      </div>
-                    </>
-                  ) : (
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        color: "#b91c1c",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      &#10005; Waiver not yet signed
-                    </div>
-                  )}
-                </div>
-                <Link
-                  to={`/waiver/${reg.id}`}
-                  className="btn btn-outline btn-sm"
-                  target="_blank"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  View / Print Waiver
-                </Link>
+              {/* Waiver: signed, received offline, or missing */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <WaiverStatus reg={reg} onMarkOffline={onWaiverReceivedOffline} />
               </div>
 
               {/* Payment proof section */}

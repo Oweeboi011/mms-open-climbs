@@ -90,6 +90,10 @@ await ok("legacy registration migrates on first new payment", () => m1().doc("re
 await seed();
 await no("reject legacy migration that inflates", () => m1().doc("registrations/r_legacy").update({ payments: [{ amount: 900, proofs: [], submittedAt: null, status: "verified" }, newPay(100)], amountPaid: 1000 }));
 await ok("member uploads document", () => m1().doc("registrations/r_hist").update({ medicalCertUpload: { url: "x", fileName: "a.pdf" } }));
+await no("member cannot mark their own document received offline", () => m1().doc("registrations/r_hist").update({ permitUpload: { receivedOffline: true, note: "trust me" } }));
+await no("member cannot mark their own waiver received offline", () => m1().doc("registrations/r_hist").update({ waiverReceivedOffline: { note: "trust me" } }));
+await ok("admin marks a document received offline", () => admin().doc("registrations/r_hist").update({ permitUpload: { receivedOffline: true, note: "Shown at the jump-off", markedBy: "Ada" } }));
+await ok("admin marks a waiver received offline", () => admin().doc("registrations/r_hist").update({ waiverReceivedOffline: { note: "Paper waiver", markedBy: "Ada" } }));
 await ok("member signs own waiver", () => m1().doc("registrations/r_unpaid").update({ waiverSigned: true, waiverSignedName: "Juan Cruz", waiverSignedAt: FV.serverTimestamp() }));
 await ok("member updates own details", () => m1().doc("registrations/r_hist").update({ mobile: "0917" }));
 await ok("member pledges a donation", () => m1().doc("registrations/r_hist").update({ donation: { cashPledge: 500, inKind: "10 notebooks" }, updatedAt: FV.serverTimestamp() }));

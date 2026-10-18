@@ -3,11 +3,24 @@ name: Create-Release
 # Runs semantic-release straight from npm: GitHub blocked the
 # codfish/semantic-release-action repository (ToS) in June 2026.
 # Config: tools/release.config.cjs.
+#
+# CI merges develop into main with the default GITHUB_TOKEN, and GitHub starts
+# no workflows from pushes made with that token, so the push trigger alone
+# only ever fired on hand pushes to main. workflow_run starts this after every
+# successful CI/CD run on develop, which is the run that merged and deployed.
 
 on:
   push:
     branches:
       - main
+  workflow_run:
+    workflows: ["Firebase CI/CD"]
+    types: [completed]
+    branches: [develop]
+
+concurrency:
+  group: create-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -17,10 +30,15 @@ permissions:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 0
           persist-credentials: false
 
@@ -39,6 +57,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_PATH: ${{ runner.temp }}/release/node_modules
+        # semantic-release reads the branch from GITHUB_REF, which is develop
+        # under workflow_run; what was checked out (and deployed) is main.
         run: >
+          GITHUB_REF=refs/heads/main
           "$RUNNER_TEMP/release/node_modules/.bin/semantic-release"
           --extends ./tools/release.config.cjs

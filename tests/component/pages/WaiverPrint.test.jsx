@@ -44,6 +44,18 @@ describe("WaiverPrint page", () => {
     );
   });
 
+  it("shows a waiver received offline as that, not as a digital signature", async () => {
+    render({}, {
+      waiverSigned: false,
+      waiverSignedName: null,
+      waiverReceivedOffline: { note: "Signed paper waiver at the jump-off", markedBy: "Owee" },
+    });
+    expect(await screen.findByText(/Not signed electronically/)).toHaveTextContent(
+      "Received offline: Signed paper waiver at the jump-off (recorded by Owee).",
+    );
+    expect(screen.queryByText(/Signed electronically on/)).not.toBeInTheDocument();
+  });
+
   it("renders the climb title", async () => {
     render();
     await waitFor(() =>

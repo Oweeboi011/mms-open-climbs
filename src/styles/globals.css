@@ -900,6 +900,15 @@ textarea {
   padding: 14px 32px;
   background: var(--white);
   border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.back-nav-admin {
+  display: flex;
+  gap: 8px;
 }
 .back-btn {
   display: inline-flex;
@@ -6036,4 +6045,86 @@ details[open] > .myreg-collapsible::before {
 .mydetails-account {
   font-weight: 600;
   margin: 0 0 20px;
+}
+
+/* Manage Climbs: compact row */
+.climb-row-title {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+.climb-row-title:hover,
+.climb-row-title:focus-visible {
+  color: var(--green-light);
+  text-decoration: underline;
+}
+.climb-row-public {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 0 2px;
+}
+.climb-row-public:hover,
+.climb-row-public:focus-visible {
+  color: var(--green-light);
+}
+.officer-summary {
+  line-height: 1.25;
+  cursor: default;
+}
+.officer-summary-name {
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.officer-summary-meta {
+  font-size: 0.64rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* Registrant list: compact row */
+.registrant-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.registrant-name {
+  font-weight: 600;
+  font-size: 0.84rem;
+}
+.registrant-email {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+.compliance-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.registrant-payment-meta {
+  font-size: 0.62rem;
+  color: var(--ink-soft);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+/* Admin: document received without a file */
+.offline-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.offline-receipt-toggle {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.reg-waiver-missing {
+  margin-top: 12px;
 }

@@ -138,6 +138,42 @@ describe("Admin ClimbsManage", () => {
     );
   });
 
+  it("links each climb's name to its registrants and its ↗ to the public page", async () => {
+    renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+    const name = await screen.findByRole("link", { name: "Mt. Pulag" });
+    expect(name).toHaveAttribute("href", `/admin/climbs/${climbFixture.id}`);
+    expect(
+      screen.getByRole("link", { name: "Open the public page for Mt. Pulag" }),
+    ).toHaveAttribute("href", `/event/${climbFixture.id}`);
+  });
+
+  it("shows the lead officer and how many more, with everyone on hover", async () => {
+    routeSnapshots({
+      climbs: [
+        {
+          ...climbDoc,
+          data: {
+            ...climbDoc.data,
+            officers: [
+              { name: "Jan La Valle", role: "Senior Team Leader" },
+              { name: "Owee Penaranda", role: "Team Leader" },
+              { name: "Jobirth Rodelas", role: "Scribe" },
+            ],
+          },
+        },
+      ],
+    });
+    renderWithProviders(<AdminClimbsManage />, makeAdminAuth());
+    const lead = await screen.findByText("Jan La Valle");
+    const summary = lead.closest(".officer-summary");
+    expect(within(summary).getByText("Senior Team Leader · +2 more")).toBeInTheDocument();
+    expect(summary).toHaveAttribute(
+      "title",
+      "Jan La Valle (Senior Team Leader)\nOwee Penaranda (Team Leader)\nJobirth Rodelas (Scribe)",
+    );
+    expect(screen.queryByText("Owee Penaranda")).not.toBeInTheDocument();
+  });
+
   it("groups the table by status, ordered by relevance", async () => {
     // Grouping is by status (Open → Draft → Closed → Completed → Cancelled),
     // not by date. Within a group, completed climbs sort most-recent-first

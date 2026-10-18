@@ -17,6 +17,7 @@ import {
   renderAtRoute,
   makeGuestAuth,
   makeMemberAuth,
+  makeAdminAuth,
   climbFixture,
 } from "@tests/helpers";
 import { makeSnapshot, makeQuerySnapshot } from "@tests/setup";
@@ -95,6 +96,18 @@ describe("Event page", () => {
     await waitFor(() =>
       expect(screen.getByText("Mt. Pulag")).toBeInTheDocument(),
     );
+  });
+
+  it("gives admins Edit Climb and Registrants links", async () => {
+    renderAtRoute(<Event />, "/event/:climbId", "/event/climb-1", makeAdminAuth());
+    expect(await screen.findByRole("link", { name: "Edit Climb" })).toHaveAttribute("href", "/admin/climbs/climb-1/edit");
+    expect(screen.getByRole("link", { name: "Registrants" })).toHaveAttribute("href", "/admin/climbs/climb-1");
+  });
+
+  it("shows members no admin links", async () => {
+    renderAtRoute(<Event />, "/event/:climbId", "/event/climb-1", makeMemberAuth());
+    await screen.findByText("Mt. Pulag");
+    expect(screen.queryByRole("link", { name: "Edit Climb" })).not.toBeInTheDocument();
   });
 
   it("shows remaining slots for an upcoming climb", async () => {

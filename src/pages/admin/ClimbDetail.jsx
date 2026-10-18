@@ -34,7 +34,7 @@ import { splitPayment, undoSplitPayment } from "@/services/splitPayment";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import ReceiptModal from "@/components/ReceiptModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted, isWaiverDone } from "@/data/requiredDocTypes";
 import {
   sanitizeFileNamePart,
   makeDatedDownloadName,
@@ -83,10 +83,10 @@ import { buildParticipantList, participantListDiffers } from "@/utils/participan
 // at.
 function missingCompliance(reg, climb) {
   const missing = [];
-  if (!reg.waiverSigned) missing.push("waiver");
+  if (!isWaiverDone(reg)) missing.push("waiver");
   if (detailsIncomplete(reg)) missing.push("details");
   REQUIRED_DOC_TYPES.forEach((docType) => {
-    if (climb?.[docType.requiresField] && !reg[docType.uploadField]?.url) {
+    if (climb?.[docType.requiresField] && !isDocSubmitted(reg[docType.uploadField])) {
       missing.push(`doc:${docType.key}`);
     }
   });
@@ -395,19 +395,17 @@ export default function AdminClimbDetail() {
     }
   }
 
-  async function saveAdminDocs(reg, patch) {
-    await updateRegistration(reg.id, {
-      ...patch,
-      updatedAt: serverTimestamp(),
-    });
+  // Also records a waiver received offline (paper / in person), under its own audit action.
+  async function saveAdminDocs(reg, patch, action = "documents_submitted_by_admin") {
+    await updateRegistration(reg.id, { ...patch, updatedAt: serverTimestamp() });
     logAuditEvent({
       actorUid: currentUser?.uid,
       actorName: currentUser?.displayName || currentUser?.email,
-      action: "documents_submitted_by_admin",
+      action,
       targetType: "registration",
       targetId: reg.id,
       targetLabel: reg.name || reg.id,
-      details: Object.keys(patch).join(", "),
+      details: patch.waiverReceivedOffline?.note || Object.keys(patch).join(", "),
     });
     setManagingDocsFor(null);
   }
@@ -1281,6 +1279,7 @@ export default function AdminClimbDetail() {
                         onRemoveRefund={deleteRefund}
                         onViewReceipt={setViewingReceiptFor}
                         onManageDocuments={setManagingDocsFor}
+                        onWaiverReceivedOffline={(r, note) => saveAdminDocs(r, { waiverReceivedOffline: { note, markedBy: currentUser?.displayName || currentUser?.email || "Admin", markedAt: serverTimestamp() } }, "waiver_received_offline")}
                         toggleOptionalFee={toggleOptionalFee}
                         onEdit={setEditingReg}
                         deleteRegistration={deleteRegistration}

@@ -270,6 +270,20 @@ service cloud.firestore {
         (payments.size() == 1 || d.get('amountPaid', null) in [null, 0]);
     }
 
+    // A member's document fields hold files they uploaded. Only an admin may
+    // record one as received without a file ({ receivedOffline: true, … }).
+    function memberUploadIsAFile(field) {
+      return !(field in affected()) ||
+        request.resource.data[field] == null ||
+        !('receivedOffline' in request.resource.data[field]);
+    }
+    function memberUploadsAreFiles() {
+      return memberUploadIsAFile('registrationFormUpload') &&
+        memberUploadIsAFile('medicalCertUpload') &&
+        memberUploadIsAFile('permitUpload') &&
+        memberUploadIsAFile('waiverDocUpload');
+    }
+
     match /registrations/{regId} {
       allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
       allow create: if isAdmin() ||
@@ -291,7 +305,8 @@ service cloud.firestore {
             'waiverDocUpload', 'updatedAt'
           ]) &&
           memberPaymentClaimIsHonest() &&
-          memberPaymentHistoryIsHonest()) ||
+          memberPaymentHistoryIsHonest() &&
+          memberUploadsAreFiles()) ||
         (isOwner(resource.data.userId) && memberIsSigningOwnWaiver()) ||
         (isOwner(resource.data.userId) && memberIsUpdatingOwnDetails()) ||
         (isOwner(resource.data.userId) && memberIsUpdatingOwnPledge()) ||
