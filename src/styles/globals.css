@@ -900,6 +900,15 @@ textarea {
   padding: 14px 32px;
   background: var(--white);
   border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.back-nav-admin {
+  display: flex;
+  gap: 8px;
 }
 .back-btn {
   display: inline-flex;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import DonationDriveInfo from "@/components/DonationDriveInfo";
 import EventFeesCard from "@/components/EventFeesCard";
 import Footer from "@/components/Footer";
@@ -151,6 +151,16 @@ export default function Event() {
         <button className="back-btn" onClick={() => navigate("/")}>
           &#8592; Back to Schedule
         </button>
+        {isAdmin && (
+          <span className="back-nav-admin">
+            <Link to={`/admin/climbs/${climbId}`} className="btn btn-outline btn-sm">
+              Registrants
+            </Link>
+            <Link to={`/admin/climbs/${climbId}/edit`} className="btn btn-accent btn-sm">
+              Edit Climb
+            </Link>
+          </span>
+        )}
       </nav>
 
       <EventHero
