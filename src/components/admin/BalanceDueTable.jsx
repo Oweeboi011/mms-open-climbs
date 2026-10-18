@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Modal from "@/components/Modal";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
 import PaymentHistory from "@/components/admin/PaymentHistory";
@@ -51,6 +51,35 @@ export function getExcessPayments(regs, climb, serviceGroups) {
     .sort((a, b) => b.amount - a.amount);
 }
 
+// Registrants with nothing left to pay, by name. Same known-fees rule as
+// excess payments, so a TBA fee never shows someone as settled; overpayers are
+// included (they're settled too) and also appear under Excess Payments.
+export function getFullyPaid(regs, climb, serviceGroups) {
+  return (regs || [])
+    .filter((reg) => reg.status !== "cancelled")
+    .map((reg) => {
+      const items = getFeeItems(reg, climb, serviceGroups);
+      const { total, hasTba } = sumFeeAmounts(items);
+      if (items.length === 0 || hasTba || total <= 0) return null;
+      const paid = getCountedPaid(reg);
+      return paid >= total ? { reg, expected: total, paid, amount: round2(paid) } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.reg.name || "").localeCompare(b.reg.name || ""));
+}
+
+// The three lists for one climb's money cards, recomputed as payments land.
+export function useClimbBalances(regs, climb, serviceGroups) {
+  return useMemo(
+    () => ({
+      balancesDue: getBalancesDue(regs, climb, serviceGroups),
+      fullyPaid: getFullyPaid(regs, climb, serviceGroups),
+      excessPayments: getExcessPayments(regs, climb, serviceGroups),
+    }),
+    [regs, climb, serviceGroups],
+  );
+}
+
 export function sumAmounts(rows) {
   return round2((rows || []).reduce((sum, row) => sum + row.amount, 0));
 }
@@ -62,6 +91,13 @@ const KINDS = {
     totalSuffix: "due",
     amountClass: "balance-due-amount",
     empty: "No one on this climb has a balance left to pay.",
+  },
+  // Paid is the amount here, so there's no separate amount column.
+  paid: {
+    title: "Fully Paid",
+    amountLabel: null,
+    totalSuffix: "paid",
+    empty: "No one on this climb has paid in full yet.",
   },
   excess: {
     title: "Excess Payments",
@@ -109,7 +145,7 @@ export default function BalanceDueTable({
               <th>Mobile</th>
               <th>Fees</th>
               <th>Paid</th>
-              <th>{config.amountLabel}</th>
+              {config.amountLabel && <th>{config.amountLabel}</th>}
               <th>Payment</th>
             </tr>
           </thead>
@@ -135,7 +171,9 @@ export default function BalanceDueTable({
                 <td className="balance-due-money">{reg.mobile || "—"}</td>
                 <td className="balance-due-money">{formatPeso(expected)}</td>
                 <td className="balance-due-money">{formatPeso(paid)}</td>
-                <td className={config.amountClass}>{formatPeso(amount)}</td>
+                {config.amountLabel && (
+                  <td className={config.amountClass}>{formatPeso(amount)}</td>
+                )}
                 <td>
                   <StatusBadge
                     status={reg.paymentStatus}
@@ -158,10 +196,15 @@ export default function BalanceDueTable({
         {viewing.reg.name || "Registrant"}
       </h3>
       <p className="balance-history-summary">
-        Fees {formatPeso(viewing.expected)} · Paid {formatPeso(viewing.paid)} ·{" "}
-        <strong className={config.amountClass}>
-          {config.amountLabel} {formatPeso(viewing.amount)}
-        </strong>
+        Fees {formatPeso(viewing.expected)} · Paid {formatPeso(viewing.paid)}
+        {config.amountLabel && (
+          <>
+            {" · "}
+            <strong className={config.amountClass}>
+              {config.amountLabel} {formatPeso(viewing.amount)}
+            </strong>
+          </>
+        )}
       </p>
       {kind === "excess" && (onSplitEntry || onRecordRefund) && (
         <p className="balance-history-summary">
