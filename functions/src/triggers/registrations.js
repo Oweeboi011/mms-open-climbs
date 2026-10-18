@@ -9,6 +9,7 @@ const { sendEmail } = require("../email/sendEmail");
 const { tplRegistrationConfirmation, tplStatusUpdate, tplOfficerNewRegistration, tplOfficerStatusUpdate } = require("../email/templates");
 const { updateRoster, syncParticipantList, SEAT_HOLDING_STATUSES, isClimbFull, promoteFromWaitlist, findOtherActiveRegistration, getNotifyLists, createNotification, logFailedRequest, regDocsComplete } = require("../shared/registrationOps");
 const { db } = require("../shared/admin");
+const { remindOutstandingPaperwork, clearPaperworkReminders } = require("../shared/paperworkReminders");
 
 // ── Trigger: new registration → send confirmation email ───────────────────────
 exports.onRegistrationCreated = onDocumentCreated(
@@ -102,19 +103,7 @@ exports.onRegistrationCreated = onDocumentCreated(
           id: `payment_${event.params.regId}`,
         });
       }
-      if (userId) {
-        for (const docType of REQUIRED_DOC_TYPES) {
-          if (!climb[docType.requiresField] || reg[docType.uploadField]) continue;
-          await createNotification({
-            userId,
-            type: "document_reminder",
-            title: `${docType.sentenceLabel} still needed`,
-            message: `Please upload your ${docType.label.toLowerCase()} for ${climb.title}.`,
-            link: "/my-registrations",
-            id: `${docType.notificationPrefix}_${event.params.regId}`,
-          });
-        }
-      }
+      await remindOutstandingPaperwork(reg, event.params.regId, climb, climb.title);
 
       const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
       const waiverUrl = `${appUrl}/waiver/${event.params.regId}`;
@@ -388,16 +377,8 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
       }
     }
 
-    // Required document uploaded → clear the corresponding nag notification.
-    for (const docType of REQUIRED_DOC_TYPES) {
-      if (!before[docType.uploadField] && after[docType.uploadField]) {
-        await db
-          .collection("notifications")
-          .doc(`${docType.notificationPrefix}_${regId}`)
-          .set({ read: true }, { merge: true })
-          .catch(() => {});
-      }
-    }
+    // Document uploaded or waiver signed → clear its reminder.
+    await clearPaperworkReminders(before, after, regId);
 
     if (
       before.status !== after.status ||

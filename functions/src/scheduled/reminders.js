@@ -10,6 +10,7 @@ const { tplThankYou, tplOfficerOutstandingSummary } = require("../email/template
 const { NO_SHOW_GRACE_MS, formatDueDate, shortName, getPaymentDueDate, getOfficerContacts, createNotification } = require("../shared/registrationOps");
 const { db } = require("../shared/admin");
 const { isClimbCancelled, isClimbOver, isClimbPostponed } = require("../shared/climbStatus");
+const { remindOutstandingPaperwork } = require("../shared/paperworkReminders");
 
 // ── Scheduled: daily reminders for unpaid registrations & upcoming climbs ─────
 const UPCOMING_REMINDER_DAYS = new Set([7, 5, 3, 1]);
@@ -101,19 +102,9 @@ exports.sendReminderNotifications = onSchedule(
         paymentReminders++;
       }
 
-      // Missing required-document nags — re-surface as unread each run.
+      // Missing documents and unsigned waivers — re-surface as unread each run.
       if (climb && !isClimbOver(climb, now)) {
-        for (const docType of REQUIRED_DOC_TYPES) {
-          if (!climb[docType.requiresField] || reg[docType.uploadField]) continue;
-          await createNotification({
-            userId: reg.userId,
-            type: "document_reminder",
-            title: `${docType.sentenceLabel} still needed`,
-            message: `Please upload your ${docType.label.toLowerCase()} for ${reg.climbTitle || climb.title || "your climb"}.`,
-            link: "/my-registrations",
-            id: `${docType.notificationPrefix}_${reg.id}`,
-          });
-        }
+        await remindOutstandingPaperwork(reg, reg.id, climb, reg.climbTitle || climb.title || "your climb");
       }
 
       // Upcoming-climb reminders for confirmed participants only.

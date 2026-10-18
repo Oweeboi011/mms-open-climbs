@@ -133,6 +133,7 @@ a notification must be able to rebuild its id.
 | `payment_submitted` | `submitted_{regId}_{adminId}` | One per admin per proof; cleared on review |
 | `payment_verified` | auto | On verify |
 | `document_reminder` | `{notificationPrefix}_{regId}` | One per missing required doc; cleared on upload or when the requirement is switched off |
+| `waiver_reminder` | `waiver_{regId}` | Daily while the waiver is unsigned (officer-added participants); cleared when they sign |
 | `status_update` | auto | confirmed / cancelled / waitlisted |
 | `upcoming{N}` | `upcoming{N}_{regId}` | Countdown |
 | `climb_status_change` | `climbstatus_{climbId}_{status}_{regId}` | Cancel/postpone |

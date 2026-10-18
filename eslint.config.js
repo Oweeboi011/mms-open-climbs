@@ -43,10 +43,10 @@ const LEGACY = {
   "src/utils/markdownLite.jsx": {complexity: 26},
   "src/utils/payments.js": {complexity: 21},
   "functions/src/callables/users.js": {complexity: 22},
-  "functions/src/scheduled/reminders.js": {functionLines: 248, complexity: 77},
+  "functions/src/scheduled/reminders.js": {functionLines: 238, complexity: 74},
   "functions/src/shared/registrationOps.js": {complexity: 31},
   "functions/src/triggers/climbs.js": {complexity: 30},
-  "functions/src/triggers/registrations.js": {functionLines: 284, complexity: 69},
+  "functions/src/triggers/registrations.js": {functionLines: 276, complexity: 66},
 };
 
 // Files that still use inline `style={{…}}`. New code uses classes and the
