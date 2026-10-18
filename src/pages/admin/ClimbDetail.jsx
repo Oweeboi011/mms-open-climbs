@@ -53,10 +53,7 @@ import {
 } from "@/utils/registrationFees";
 import ServiceSharingCard from "@/components/admin/ServiceSharingCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
-import BalanceDueTable, {
-  getBalancesDue,
-  getExcessPayments,
-} from "@/components/admin/BalanceDueTable";
+import BalanceDueTable, { useClimbBalances } from "@/components/admin/BalanceDueTable";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import {
   getPaymentEntries,
@@ -741,16 +738,9 @@ export default function AdminClimbDetail() {
     [regs, getOutstanding, donationPaidWithFees],
   );
 
-  // Who still owes, for the summary card under Expenses — the same figure as
-  // each registrant row's outstanding amount.
-  const balancesDue = useMemo(
-    () => getBalancesDue(regs, climb, serviceGroups),
-    [regs, climb, serviceGroups],
-  );
-  const excessPayments = useMemo(
-    () => getExcessPayments(regs, climb, serviceGroups),
-    [regs, climb, serviceGroups],
-  );
+  // Who still owes, who's settled, who overpaid — for the cards under Expenses;
+  // balances match each registrant row's outstanding amount.
+  const { balancesDue, fullyPaid, excessPayments } = useClimbBalances(regs, climb, serviceGroups);
   const refundPayee =
     refundingFor && excessPayments.find((row) => row.reg.id === refundingFor);
 
@@ -1001,6 +991,7 @@ export default function AdminClimbDetail() {
             {getEffectiveStatus(climb) !== "cancelled" && (
               <BalanceDueTable rows={balancesDue} card />
             )}
+            <BalanceDueTable kind="paid" rows={fullyPaid} card />
 
             <BalanceDueTable
               kind="excess"

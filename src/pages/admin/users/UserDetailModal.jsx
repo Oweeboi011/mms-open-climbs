@@ -119,7 +119,7 @@ function EmailPermission({ user }) {
       </p>
       <p className="form-hint">
         Granted outside the app by the project owner (
-        <code>node functions/scripts/grant-email-members.mjs {user.email}</code>
+        <code>node functions/scripts/grant-email-members.mjs {user.id}</code>
         {granted ? " --revoke" : ""}).
       </p>
     </Section>

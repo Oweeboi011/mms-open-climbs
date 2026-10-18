@@ -969,6 +969,8 @@ function DocumentPrompt({ reg, climb, currentUser, onClose, onSaved }) {
 }
 
 function OfficerCard({ climb, currentUser }) {
+  // The registrant list is an admin page; officers without the role get bounced.
+  const { isAdmin } = useAuth();
   const myEntry = (climb.officers || []).find(
     (o) => o.userId === currentUser.uid,
   );
@@ -997,12 +999,11 @@ function OfficerCard({ climb, currentUser }) {
         <Link to={`/event/${climb.id}`} className="btn btn-outline btn-sm">
           View Climb
         </Link>
-        <Link
-          to={`/admin/climbs/${climb.id}`}
-          className="btn btn-primary btn-sm"
-        >
-          Registrants
-        </Link>
+        {isAdmin && (
+          <Link to={`/admin/climbs/${climb.id}`} className="btn btn-primary btn-sm">
+            Registrants
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -42,7 +42,7 @@ non-obvious guarantees:
 | Private climb data stays private | `climbs` is public, so briefings live in `climbPrivate` (registrants only, via the `climbInternal` roster) and costs/officer emails in admin-only docs |
 | One feedback per member per climb | Deterministic id + no update/delete; author must be on the roster |
 | Notifications are server-made | Clients may only flip `read` on their own |
-| Emailing every member needs an owner-held grant | No client can write `canEmailMembers` (an admin could mint a second admin to approve themselves); the owner sets it with `functions/scripts/grant-email-members.mjs`; the callable checks it |
+| Emailing every member needs an owner-held grant | No client can write `canEmailMembers` (an admin could mint a second admin to approve themselves); the owner sets it with `functions/scripts/grant-email-members.mjs`; the callable checks it; demotion removes it (`syncAdminClaim`), so re-promoting doesn't restore it |
 | Member uploads are private | Storage: owner-or-admin read; members add files to their own folder only, never overwrite/delete; content types checked; admin-only for QR, images, templates |
 
 ## Secrets and keys
@@ -50,8 +50,8 @@ non-obvious guarantees:
 | Value | Where | Who sees it |
 |---|---|---|
 | `VITE_FIREBASE_*`, `VITE_APPCHECK_SITE_KEY` | `.env` → bundle | Public by design: identifies the project, rules do the protecting |
-| `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `APP_URL`, `GITHUB_TOKEN` | Firebase secrets | Functions only |
-| `BILLING_EXPORT_TABLE` | `functions/.env` | Functions only |
+| `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `GITHUB_TOKEN` | Firebase secrets | Functions only |
+| `APP_URL`, `BILLING_EXPORT_TABLE` | plain env, `functions/.env.<projectId>` (not secrets; `APP_URL` defaults to the production URL) | Functions only |
 
 `.env` files are git-ignored. **secretlint** (with extra Brevo and Google-key
 patterns) runs on every commit and in CI; if a secret was ever pushed,
@@ -83,7 +83,7 @@ of season), when someone with access leaves, or immediately if exposed.
   reads those logs: violations go into one issue; after 14 clean days it opens
   a PR that switches the header to enforce (a person merges it).
   `style-src` keeps `'unsafe-inline'` until the inline styles are gone.
-- Email templates escape every argument; links use the `APP_URL` secret,
+- Email templates escape every argument; links are built from `APP_URL`,
   never document data. `ogPrerender` attribute-escapes climb text.
 - In the app: `dangerouslySetInnerHTML`, `innerHTML`, `eval` and
   `document.write` are lint errors; markdown renders to React nodes only.

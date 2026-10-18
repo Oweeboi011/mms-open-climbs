@@ -27,7 +27,7 @@ erDiagram
 | `feedback` | member × climb, id `{climbId}_{userId}` | author, admin | author create only — immutable |
 | `users` | account, id = Auth uid | owner, admin | owner (never `role`), admin |
 | `notifications` | bell item | owner, admin | Functions; owner toggles `read` |
-| `pageViews`, `failedRequests` | event | admin | **public create** (logging before sign-in) |
+| `pageViews`, `failedRequests` | event, deleted after 90 days (TTL) | admin | **public create** (logging before sign-in) |
 | `auditLog` | admin action | admin | admin create — append-only |
 | `releaseNotes` | announcement | signed-in (drafts: admin) | admin |
 | `releaseNoteEmailJobs` | all-member email send | admin | Functions only |
@@ -110,7 +110,8 @@ stateDiagram-v2
   `scripts/set-admin.mjs` or `createUser`). Owners can't change `role`;
   nobody can change `createdAt` (it orders the all-member email send).
   `canEmailMembers` allows the all-member release-note email; no client can
-  write it (`functions/scripts/grant-email-members.mjs`).
+  write it (`functions/scripts/grant-email-members.mjs`), and `syncAdminClaim`
+  removes it when the account stops being an admin.
   `syncAdminClaim` mirrors it into an auth claim for Storage rules.
 - **feedback** — `rating` integer 1–5 and `comments`. The deterministic id is
   the one-per-member rule: a second submit becomes an update, which the rules
@@ -128,17 +129,22 @@ stateDiagram-v2
   `emailSentCount` are stamped when it finishes.
 - **releaseNoteEmailJobs** — `releaseNoteId`, `status`
   (`queued`/`sending`/`done`/`failed`/`superseded`), `total`, `sent`, `failed`,
-  `createdBy`, `queuedAt`, `heartbeatAt` and `lastCursor` (every batch),
-  `afterCursor` on a resumed job. It is the send lock: a
+  `createdBy`, `queuedAt`, `heartbeatAt` and `lastCursor` (every batch);
+  a resumed job also has `afterCursor` (where it starts) and `sentBefore`
+  (members the stopped jobs reached; added to the note's `emailSentCount`),
+  and its `total` is only the members left. It is the send lock: a
   queued job holds it up to 60 min, a sending one while its heartbeat is under
   15 min old. A job only sends if it claims itself first (still queued, still
   the note's current job), so an expired or replayed job never re-sends. Written only by Functions, watched by the admin form.
-- **pageViews** — `path`, `userId`, `createdAt`; admin views can be purged with
+- **pageViews** — `path`, `climbId`, `userId`, `userRole`, `sessionId`,
+  `timestamp`, `expireAt`; admin views can be purged with
   `functions/scripts/purge-admin-pageviews.mjs`.
 
 ## Retention
 
-Firestore data is kept indefinitely; member uploads (payment proofs and
+`pageViews` and `failedRequests` carry an `expireAt` 90 days out, and a
+Firestore TTL policy (`firebase/firestore.indexes.json`) deletes them; other
+Firestore data is kept indefinitely. Member uploads (payment proofs and
 required documents) are deleted after two years by
 `firebase/storage-lifecycle.json`. Registration CSV export: Admin › All
 Registrations. Sample climbs: `node scripts/seed-climbs.mjs`.

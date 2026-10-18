@@ -43,7 +43,7 @@ function mockRegistrantSnapshot(items) {
   mockLiveSnapshot(items);
 }
 
-// The Remaining Balances card repeats owing registrants' names and the
+// The Remaining Balances and Fully Paid cards repeat registrants' names and the
 // Balance header, so lookups meant for the registrants table are scoped to it.
 const IN_REGISTRANTS_TABLE = { selector: ".table-min-900 *" };
 
@@ -638,7 +638,7 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Maria Santos")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Maria Santos", IN_REGISTRANTS_TABLE)).toBeInTheDocument());
 
     const paymentFilter = screen.getByDisplayValue("All Payments");
     fireEvent.change(paymentFilter, { target: { value: "outstanding" } });
@@ -1088,7 +1088,7 @@ describe("Admin ClimbDetail", () => {
       ]);
     }
 
-    it("lists who paid more than they owe, right under Remaining Balances", async () => {
+    it("lists who paid more than they owe, after Remaining Balances and Fully Paid", async () => {
       mockOverpaid(FEES);
       render();
 
@@ -1102,7 +1102,26 @@ describe("Admin ClimbDetail", () => {
       const balances = screen
         .getByText(/^Remaining Balances/, { selector: ".admin-card-title" })
         .closest(".admin-card");
-      expect(balances.nextElementSibling).toBe(card);
+      const fullyPaid = screen
+        .getByText(/^Fully Paid/, { selector: ".admin-card-title" })
+        .closest(".admin-card");
+      expect(balances.nextElementSibling).toBe(fullyPaid);
+      expect(fullyPaid.nextElementSibling).toBe(card);
+    });
+
+    it("lists who has paid in full under Remaining Balances, overpayers included", async () => {
+      mockOverpaid(FEES);
+      render();
+
+      const title = await screen.findByText(/^Fully Paid — 1 registrant · /, {
+        selector: ".admin-card-title",
+      });
+      const card = title.closest(".admin-card");
+      expect(within(card).getByText("Juan Cruz")).toBeInTheDocument();
+      expect(within(card).queryByText("Pedro Reyes")).not.toBeInTheDocument();
+      // Paid is the figure here, so there's no Balance/Excess column.
+      expect(within(card).queryByText("Balance")).not.toBeInTheDocument();
+      expect(within(card).queryByText("Excess")).not.toBeInTheDocument();
     });
 
     it("lets the excess be split from the payer's payment history", async () => {

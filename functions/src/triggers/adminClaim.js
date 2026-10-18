@@ -3,7 +3,8 @@
 const logger = require("firebase-functions/logger");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logFailedRequest } = require("../shared/registrationOps");
-const { adminAuth } = require("../shared/admin");
+const { FieldValue } = require("firebase-admin/firestore");
+const { adminAuth, db } = require("../shared/admin");
 
 // ── Mirror the admin role onto an auth custom claim ──────────────────────────
 //
@@ -43,6 +44,12 @@ exports.syncAdminClaim = onDocumentWritten(
       // not keep reading members' documents for the rest of that hour, so cut
       // the session immediately.
       if (!isAdmin) await adminAuth.revokeRefreshTokens(uid);
+
+      // The owner-held email grant goes with the role, or any admin could
+      // restore it later just by re-promoting the account.
+      if (!isAdmin && after?.canEmailMembers) {
+        await db.doc(`users/${uid}`).update({ canEmailMembers: FieldValue.delete() });
+      }
 
       logger.info("[syncAdminClaim] claim updated", { uid, admin: isAdmin });
     } catch (err) {

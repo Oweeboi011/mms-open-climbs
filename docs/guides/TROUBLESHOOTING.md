@@ -35,7 +35,7 @@ Function logs: `firebase functions:log --only <functionName>`.
 | "Missing or insufficient permissions" | The rules deny that write — usually a field a member may not touch, or a non-admin admin action | Read the matching rule in `firebase/firestore.rules`; reproduce in `tests/integration/rules.test.mjs` |
 | Query error asking for an index | Composite index not deployed | Add it to `firebase/firestore.indexes.json`; CI deploys indexes |
 | Release notes page empty | No `published` note, or the `status`+`publishedAt` index missing | Publish one; check the index |
-| `registrationCount` / `docsCompleteCount` wrong | A trigger failed | Check the trigger's logs and Admin › Insights › failed requests; fix the count in the console |
+| `registrationCount` / `docsCompleteCount` wrong | A trigger failed | Check the trigger's logs and Admin › Analytics › Failed Requests; fix the count in the console |
 | Bell badge never clears | The `read` update included another field | Only `read` may change on a notification |
 | A `failedRequests` write silently missing | New `type` value not allowed by the rules | Add it to the rules' list |
 
@@ -45,7 +45,7 @@ Function logs: `firebase functions:log --only <functionName>`.
 |---|---|---|
 | Nothing sent, logs say "Brevo credentials not configured" | The function doesn't declare the Brevo secrets | Add `secrets: ["BREVO_API_KEY", "BREVO_FROM_EMAIL"]` to its options ([API.md](API.md#email)) |
 | Brevo rejects the send | `BREVO_FROM_EMAIL` isn't a verified sender | Verify it in Brevo |
-| Links in emails go to the wrong site | `APP_URL` secret wrong | `firebase functions:secrets:set APP_URL`, then redeploy via CI |
+| Links in emails go to the wrong site | `APP_URL` unset or wrong for that project (it defaults to the production URL) | Set it in `functions/.env.<projectId>` and redeploy via CI ([API.md](API.md#failures-and-secrets)) |
 | Shared event links show a bare URL, not a card | Hosting deployed without the staged app shell | Redeploy through CI, never `--only hosting` from a laptop |
 
 ## Payments and content

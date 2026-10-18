@@ -1,6 +1,6 @@
 # MMS Open Climbs — User Manual
 
-A complete guide to using MMS Open Climbs — the event management portal for the Metropolitan Mountaineering Society (MMS). This manual covers browsing climbs, creating an account, registering, paying via GCash, tracking your registrations, and the admin/officer tools.
+A complete guide to using MMS Open Climbs — the event management portal for the Metropolitan Mountaineering Society (MMS). This manual covers browsing climbs, creating an account, registering, paying via GCash, tracking your climbs, and the officer and admin tools.
 
 **App URL:** [https://mms-open-climbs.web.app](https://mms-open-climbs.web.app)
 
@@ -12,23 +12,22 @@ No installation is required — the app runs in your web browser on desktop, tab
 
 MMS Open Climbs lets you:
 
-- Browse the full climb schedule without needing an account
+- Browse the climb schedule without needing an account
 - Create a free account with email/password or Google Sign-In
-- Register for open climbs, sign a digital waiver, and submit GCash payment proof
-- Track the status of every climb you've registered for
+- Register for open climbs (or join the waitlist of a full one), sign a digital waiver, and send GCash payment proof — now or later
+- Upload any documents a climb requires (medical certificate, permit, …)
+- Track every climb you've registered for on **My Climbs**
 - Print your signed waiver at any time
 
-Officers and administrators additionally get tools to manage climbs, review registrations, verify payments, and manage user accounts — see [For Climb Officers](#12-for-climb-officers) and [For Administrators](#13-for-administrators).
+The header has **Schedule**, **My Climbs**, **What's New** and, for administrators, **Admin**. Officers and administrators also get tools to run climbs — see [For Climb Officers](#12-for-climb-officers) and [For Administrators](#13-for-administrators).
 
-Open the app at **[https://mms-open-climbs.web.app](https://mms-open-climbs.web.app)** to begin.
-
-**First-time welcome guide:** The first time you sign in, a step-by-step welcome guide walks you through browsing climbs, registering, uploading payment proof, tracking your registrations, and printing your waiver (administrators see additional steps covering climb management, payment verification, registrations/users, and analytics/release notes). It only appears automatically once per account per browser — after you dismiss it, you can reopen it any time via the help/guide icon in the header.
+**First-time welcome guide:** The first time you sign in, a step-by-step guide walks you through browsing climbs, registering, uploading payment proof, tracking your climbs, and printing your waiver (administrators see extra steps for climb management, payments, registrations/users, and analytics/release notes). It appears automatically once per account per browser; reopen it any time with the guide icon in the header.
 
 ---
 
 ## 2. Browsing the Climb Schedule
 
-The home page (**Schedule**) lists every upcoming climb as a card, grouped by month.
+The home page (**Schedule**) lists climbs as cards, grouped by month. Each year is its own season: use the season tabs to switch years (the current season opens by default).
 
 Each card shows, at a glance:
 
@@ -37,66 +36,64 @@ Each card shows, at a glance:
 - Difficulty rating
 - Trip distance
 - Climb type (Minor, Major, or Special)
+- The climb's Team Leader and Assistant Team Leader (or "No Officers Yet")
 
 **Filtering the schedule:**
 
-1. Use the filter bar near the top of the page.
-2. Filter by climb type — **All**, **Minor**, **Major**, or **Special**.
-3. Or filter by month — **July** through **December**.
-4. Click a card to open its full event page.
+1. Filter by climb type — **All**, **Minor**, **Major**, or **Special**. The stat tiles at the top (Total Climbs, Major, Minor, Special) work as the same filter.
+2. Or jump to a month — the month buttons list every month that has a climb in the season.
+3. Click a card to open its full event page.
 
-You do **not** need to sign in to browse the schedule or view climb details — only registering requires an account.
+You do **not** need to sign in to browse the schedule or open an event page — but some sections of the event page, and registering, need an account.
 
 ---
 
 ## 3. Viewing a Climb (Event Page)
 
-Clicking a climb card opens its event page, which includes:
+Clicking a climb card opens its event page. Everyone can see:
 
-- **Mountain profile** — summit elevation, difficulty, jump-off point, elevation gain, one-way/round-trip distance, and notable trail features
-- **Itinerary** — a day-by-day or hour-by-hour breakdown of the climb schedule
-- **Water source notes** — where to refill along the trail, if available
-- **Trail photo gallery** — scroll horizontally through trail photos; click any photo to open a full-screen lightbox viewer with keyboard (arrow key) navigation
-- **Weather forecast** — an automatically loaded forecast for the climb dates, once the climb's location and dates are set by the organizers
-- **Google Maps** — an embedded map of the jump-off point or trailhead
-- **External trail links** — where provided by organizers, direct links to the trail on [AllTrails](https://www.alltrails.com), [Komoot](https://www.komoot.com), or Google Maps for route details
-- **Registration status** — a **Register** button appears if registration is currently open for that climb; if registration is closed, full, or not yet open, the page will indicate that instead
+- **Mountain profile** — summit elevation, difficulty, trail class, jump-off point, elevation gain, distances, and notable trail features
+- **Photos** — scroll through trail photos; click one to open a full-screen viewer with arrow-key navigation
+- **Weather & Forecast** — loaded automatically once the climb's location and dates are set
+- **Fees** — what the climb costs, including optional fees and the Guest Fee for joiners
+- **Requirements** — any documents the climb requires (e.g. medical certificate, permit)
+- **Things to Bring** and **Leave No Trace** guidance
+- **Water Source Information**, where provided
+- **Outreach & Donations** — when the climb runs a donation drive, what it is collecting and how far along it is
+- **Announcements** from the organizers
+
+**Signed-in members** also see the **Itinerary**, **Trail Map** (Google Maps, AllTrails or Komoot), **Climb Officers** and their contact details, and the **Participants** list. Signed-out visitors see a "Sign in to view…" card in their place.
+
+**Registered participants** additionally see **Pre-climb meetings** (date, place, link, recording) and **Climb Resources** shared by the officers.
+
+**Registration button:** **Register Now** while registration is open; **Join the Waitlist** when the climb is full; otherwise a note explains that registration is closed, on hold (postponed), or that the climb was cancelled. Signed-out visitors get **Sign In to Register** and **Create a free account**. If you're already registered, the page shows your status instead.
 
 ---
 
 ## 4. Creating an Account
 
-You need an account to register for a climb. From any page, click **Sign Up** in the header.
-
-You can create an account in one of two ways:
+You need an account to register for a climb. Click **Create Account** in the header (or **Create a free account** on an event page).
 
 ### Option A — Email and Password
 
-1. Click **Sign Up**.
-2. Enter your email address.
-3. Choose a password.
-4. Submit the form.
+1. Enter your **Full Name**, **Email**, **Password**, and **Confirm Password**.
+2. Click **Create Account**.
+3. A verification email is sent; until you click its link, a banner reminds you and offers **Resend email**.
 
 ### Option B — Google Sign-In
 
-1. Click **Sign Up**.
-2. Click **Continue with Google**.
-3. Choose your Google account and approve the sign-in.
+1. Click **Continue with Google**.
+2. Choose your Google account and approve the sign-in.
 
-> **Important:** Google Sign-In requires opening the app in a full web browser (Chrome, Safari, Edge). It will **not** work inside an in-app browser — for example, if you tapped the link from Facebook, Instagram, or Messenger. If Google Sign-In fails or shows a blank/error screen, tap the "Open in Browser" option in your social app, or copy the link and paste it directly into Chrome or Safari.
+> **Important:** Google Sign-In needs a full web browser (Chrome, Safari, Edge). It does **not** work inside an in-app browser — for example, a link tapped in Facebook, Instagram, or Messenger. The app detects this and offers **Open in Browser**; otherwise copy the link into Chrome or Safari, or use email sign-up.
 
-Once your account is created, you're automatically signed in and taken to the Schedule page.
+Once your account is created you're signed in and taken back to where you were — straight to the registration form if you came from a climb's **Register** button.
 
 ---
 
-## 5. Logging In
+## 5. Signing In
 
-If you already have an account, click **Login** in the header and either:
-
-- Enter your email and password, or
-- Click **Continue with Google** (same in-app-browser caveat as above applies)
-
-After logging in, you'll see your name/email in the header, along with links to **My Registrations** and (if applicable) **Admin**.
+Click **Sign In** in the header and either enter your email and password, or click **Continue with Google** (same in-app-browser caveat as above).
 
 ---
 
@@ -104,26 +101,22 @@ After logging in, you'll see your name/email in the header, along with links to 
 
 If you signed up with email and password and can't remember it:
 
-1. Go to the **Login** page.
-2. Click **Forgot Password**.
-3. Enter the email address associated with your account.
-4. Submit the form.
-5. Check your email inbox (and spam/junk folder) for a password reset link.
-6. Follow the link to set a new password.
+1. On the **Sign In** page, click **Forgot password?**
+2. Enter the email address of your account and click **Send Reset Link**.
+3. Check your inbox (and spam/junk folder) and follow the link to set a new password.
 
-This only applies to email/password accounts. If you sign in with Google, your password is managed by your Google account, not by MMS Open Climbs.
+This only applies to email/password accounts. If you sign in with Google, your password is managed by Google.
 
 ---
 
 ## 7. Registering for a Climb
 
-1. Sign in to your account.
-2. Open the event page for a climb with **open** registration.
-3. Click **Register**.
-4. Complete the registration form (described below).
-5. Click **Submit Registration**.
+1. Sign in.
+2. Open the event page of a climb with **open** registration.
+3. Click **Register Now** (or **Join the Waitlist** if it's full — you'll be added to the waitlist and told if a slot opens).
+4. Complete the form (below), review the summary, and submit.
 
-If you're already registered for that climb (and your registration isn't cancelled), you'll be redirected straight to **My Registrations** instead of seeing the form again — you can only have one active registration per climb.
+If you already have an active registration for that climb, you're taken straight to **My Climbs** instead — one active registration per climb.
 
 ### 7.1 Personal Information
 
@@ -134,7 +127,7 @@ If you're already registered for that climb (and your registration isn't cancell
 | Date of Birth | No | |
 | Address | No | City, Province is enough |
 | Experience Level | Yes | Beginner (0–5 climbs), Intermediate (5–20 climbs), or Experienced (20+ climbs) |
-| Participant Type | Yes | **MMS Member** or **Joiner** — this affects the Guest Fee (see [Fee Breakdown](#75-fee-breakdown)) |
+| Participant Type | Yes | **MMS Member** or **Joiner** — this decides the Guest Fee (see [Fee Breakdown](#75-fee-breakdown)) |
 
 ### 7.2 Emergency Contact
 
@@ -146,223 +139,171 @@ If you're already registered for that climb (and your registration isn't cancell
 
 ### 7.3 Medical Information
 
-List any medical conditions, allergies, or medications relevant to outdoor activity. Write "None" if not applicable. This information is confidential and is used only for emergency purposes by climb officers.
+List any medical conditions, allergies, or medications relevant to outdoor activity. This is visible only to the climb's officers and administrators, for emergencies.
 
-### 7.4 Waiver & Release of Liability
+### 7.4 Required Documents
 
-1. Read the full waiver text shown on the form.
-2. Check the box confirming you have read, understood, and voluntarily agree to the waiver, and that your registration details are accurate.
-3. Type your full legal name into the **Digital Signature** field.
-
-Typing your name here is treated as legally equivalent to a handwritten signature. Your typed name, plus a timestamp, is stored with your registration and appears on your printable waiver.
+If the climb requires documents (registration form, medical certificate, permit, or a waiver document), you can upload them here — PDF, Word, or an image. They are **not** needed to submit: upload them later from **My Climbs**, and the notification bell reminds you of anything still missing.
 
 ### 7.5 Fee Breakdown
 
-The form automatically builds a fee table from the climb's configured expenses:
+The form builds a fee table from the climb's fees:
 
-- **Required fees** are marked with a checkmark and included automatically in the total.
-- **Optional fees** (e.g. transportation) show a checkbox — check any you want to avail.
-- The **Guest Fee**, if configured for the climb, is applied automatically only if you registered as a **Joiner**; MMS Members are not charged it.
-- The **Expected Total** at the bottom updates live as you check/uncheck optional fees. It's an estimate — organizers confirm the final amount.
+- **Required fees** are included automatically.
+- **Optional fees** (e.g. transportation) have a checkbox — tick the ones you'll avail.
+- The **Guest Fee**, if the climb has one, applies automatically to **Joiners** only; MMS Members are never charged it.
+- The total updates as you tick optional fees. Organizers may correct a fee later; My Climbs always shows the current amount.
 
-### 7.6 Payment via GCash
+### 7.6 Payment via GCash (Optional)
 
-See [Section 8 — Paying via GCash](#8-paying-via-gcash) below; this section of the form is where you enter your payment amount and upload proof.
+You can pay now, pay part now and the rest later, or pay entirely later from My Climbs — see [Section 8](#8-paying-via-gcash). If you enter an amount you must attach the receipt, and vice versa.
 
-### 7.7 Submitting
+### 7.7 Donation Pledge (Optional)
 
-The **Submit Registration** button is disabled until you have:
+When the climb runs a donation drive, you can pledge cash or items, and choose to pay a cash pledge together with your fees.
 
-- Agreed to the waiver
-- Entered a payment amount
-- Attached at least one payment proof file
+### 7.8 Waiver, Privacy, and Submitting
 
-On success, you'll see a confirmation screen with:
+1. Read the **Waiver & Release of Liability** and tick the box agreeing to it.
+2. Agree to the **Privacy Notice**.
+3. Type your full legal name in **Digital Signature** (at least 3 characters). Your typed name and a timestamp are stored with your registration and printed on your waiver.
 
-- A note that your registration is **pending confirmation**
-- Confirmation that an email was sent to your account's email address
-- A **Print Waiver** button
-- A **View My Registrations** button
+Submitting needs your name, mobile, emergency contact, the waiver and privacy agreements, and the signature; anything missing is listed at the top of the form. A summary of your fees and payment appears for a final check before the registration is sent.
+
+On success you'll see that your registration is **pending confirmation**, that a confirmation email was sent, and — if you haven't paid yet or still owe documents — a reminder that you can finish both from **My Climbs**.
 
 ---
 
 ## 8. Paying via GCash
 
-Each climb may have its own GCash QR code and account details, set by the organizers.
+Each climb has its own GCash QR code and account details, set by the organizers.
 
-1. On the registration form, find the **Payment via GCash** section.
-2. Tap/click the QR code image to open it full-screen for easier scanning.
-3. Scan the QR code with your GCash app, or manually send to the **GCash Number** / **Account Name** shown.
-4. **Use your full name as the payment reference or note** so organizers can match your payment to your registration.
-5. Back in the form, enter the **exact amount** you paid in the "Amount Paid via GCash" field — this should match your GCash receipt.
-6. Under "Upload Proof of Payment," select one or more files:
-   - Accepted formats: JPG, PNG (screenshots/photos), or PDF
-   - You can select multiple files at once (e.g. the receipt and a screenshot of the transaction history)
-7. Confirm the file thumbnails/names appear correctly before submitting.
+1. In the **Payment via GCash** section (registration form or the pay popup in My Climbs), tap the QR code to open it full-screen.
+2. Scan it with your GCash app, or send to the **GCash Number** / **Account Name** shown.
+3. **Use your full name as the payment reference** so organizers can match it.
+4. Enter the **exact amount** you sent — it must match your receipt.
+5. Upload the receipt — an image (screenshot/photo) or PDF; you can attach several files.
+6. Optionally add **Payment Notes** for the officers.
 
-If a climb's GCash details haven't been set up yet by the organizer, the form will say so — you can still fill out and submit your registration, and attach proof of payment once the QR/details are available. Contact the climb officers in the meantime for payment instructions.
-
-Your payment proof is reviewed by administrators (see [Section 13.4 — Payments](#134-payments)), who will mark it **Verified** or **Rejected**. If rejected, you may be asked to resubmit.
-
-If you skipped payment when registering (or your proof was rejected), you don't need to re-open the registration form — use the **Submit Payment** button on your registration card under **My Registrations** instead (see [Section 9](#9-my-registrations)). It opens the same fee breakdown and GCash QR/account details, plus the amount and proof-of-payment fields, in a popup.
+**You can pay in batches.** Each payment is reviewed on its own by an administrator, who marks it **Verified** or **Rejected**. To pay the rest of your balance, or to add an optional fee (like transportation) later, use **Submit Payment** / **Add Fees / Pay More** on your card in My Climbs. If the climb has a payment due date, the card shows **Due by …** or **Overdue**.
 
 ---
 
-## 9. My Registrations
+## 9. My Climbs
 
-Click **My Registrations** in the header to see every climb you've registered for. The page is titled **"My Climbs"**.
+Click **My Climbs** in the header to see every climb you've registered for.
 
-**Notification bell:** The bell icon in the header keeps you updated without needing to check My Registrations directly — it flags a badge with your unread count and shows things like payment reminders, upcoming-climb reminders (a few days and one day before a climb you're confirmed for), and status changes to your registration. Click a notification to jump straight to the relevant page, or use **Mark all read** to clear the badge.
+**Notification bell:** The bell in the header shows an unread count and keeps you posted: payment and document reminders, countdown reminders 7, 5, 3 and 1 days before a climb, status changes, payment verdicts, climb announcements, cancellations or postponements, and a feedback request after the climb. Click one to jump to the right page, or **Mark all read**.
 
-**Summary tiles:** At the top of the page, six stat tiles give you an at-a-glance count of:
+**Summary tiles:** Climbs Completed, Upcoming Climbs, Climbs as Officer, Tagged as Officer, Unpaid Climbs, and Cancelled Climbs.
 
-- **Climbs Completed** — registrations for climbs whose event date has passed
-- **Upcoming Climbs** — registrations for climbs that haven't happened yet
-- **Climbs as Officer** — climbs you were assigned to officer that have already happened
-- **Tagged as Officer** — climbs you're currently assigned to officer that haven't happened yet
-- **Unpaid Climbs** — active (non-cancelled) registrations still `Unpaid` or `Rejected`
-- **Cancelled Climbs** — registrations you or an admin cancelled
+**Upcoming vs. Past:** Registrations are split into **Upcoming Climbs** (soonest first) and a collapsed **Past Climbs** section. A climb counts as past only once its last day has ended.
 
-**Upcoming vs. Past:** Your registrations are split into an **Upcoming Climbs** section (soonest first) and a collapsed **Past Climbs** section (most recent first) that you can expand by clicking its heading. A climb only counts as "past" once its full event day (its end date, or start date for single-day climbs) has elapsed — same-day climbs still show as upcoming.
+Each registration card shows the climb, your **status** (`Pending`, `Confirmed`, `Waitlisted`, or `Cancelled`), your payment status and balance, a **Payment Log** of each payment and its verdict, your fee breakdown, and your submitted details.
 
-Each registration card shows:
+**Actions on a card** (each appears only when it applies):
 
-- Climb name, date, and location
-- **Status**: `Pending`, `Confirmed`, `Waitlisted`, or `Cancelled`
-- Your submitted details — name, mobile number, emergency contact, and the date you registered
-- A confirmation that your waiver was signed, and the name you signed with
+- **View Climb** — the climb's event page
+- **Print Waiver** — once signed; **Sign Waiver** if an admin added you and you haven't signed yet
+- **Complete Your Details** / **Update Details** — fill in or correct your mobile, emergency contact and medical information before climb day
+- **Submit Payment** / **Add Fees / Pay More** — opens the fee breakdown, GCash details and payment fields in a popup ([Section 8](#8-paying-via-gcash))
+- **View OR** — your submitted receipts
+- **Submit Required Documents** / **View Submitted Documents**
+- **Pledge a Donation** / **Edit Donation Pledge** — when the climb runs a donation drive
+- **Cancel Registration** — while pending, confirmed or waitlisted and before the climb. If you've paid, the organizers contact you about a refund under the climb's cancellation policy. Only an admin can undo a cancellation
+- **Leave Feedback** — after a climb you attended as a confirmed participant: a star rating and optional comments, once
 
-**Available actions per registration:**
+If you have no registrations yet, you'll see **Browse Climbs**.
 
-- **View Climb** — return to that climb's event page
-- **Print Waiver** — open your printable waiver (only shown once your waiver is signed)
-- **Submit Payment** — shown only while your payment is `Unpaid` or `Rejected`; opens a popup with your fee breakdown, the climb's GCash QR code and account details, and fields to enter the amount paid and upload proof (see [Section 8 — Paying via GCash](#8-paying-via-gcash))
-- **Cancel Registration** — withdraw yourself while your registration is pending, confirmed or waitlisted and the climb hasn't happened yet. If you've paid, the organizers will contact you about a refund under the climb's cancellation policy. Only an admin can undo a cancellation
-- **Leave Feedback** — after a climb you were confirmed for, rate it once
-
-If no registrations exist yet, you'll see a prompt to **Browse Climbs**.
-
-If you are assigned as an **officer** for any climb, an **"Assigned as Officer"** section appears below your personal registrations, itself split into an **Upcoming** list and a collapsed **Past** list, with quick links to **View Climb** and **Registrants** (the admin view of that climb's registration list) for each.
-
-**After the climb:** Once a climb's end date has passed, confirmed participants receive a one-time "Thank You" email recapping the climb and inviting them to check the schedule for what's next. This is sent automatically — there's nothing to do on your end.
+**After the climb:** Confirmed participants receive a one-time thank-you email and a feedback request automatically.
 
 ---
 
 ## 10. Your Signed Waiver
 
-Your digitally signed waiver is available at any time from **My Registrations** — click **Print Waiver** on the relevant registration card, or use the link on the confirmation screen right after you register.
-
-The printable waiver page includes:
-
-- The full waiver text
-- Your registration details
-- Your typed signature and the date/time it was signed
-
-Use your browser's print function (Ctrl+P / Cmd+P) to print it or save it as a PDF. Some climb organizers may ask to see a printed or digital copy on the day of the climb — check with your climb officers if unsure.
+Open it from **Print Waiver** on your card in My Climbs. It includes the full waiver text, your registration details, and your typed signature with the date and time it was signed. Use your browser's print function (Ctrl+P / Cmd+P) to print it or save it as a PDF.
 
 ---
 
 ## 11. What's New (Release Notes)
 
-Whenever the site adds a new feature or makes an important change, you can find it here:
-
-- **A "What's New" link** in the header takes you to the full **Release Notes** page (`/release-notes`) at any time, listing every published update with its date, newest first.
-
-You may also receive an email about a significant update — this is sent at an administrator's discretion, not automatically for every release note.
+**What's New** in the header opens the **Release Notes** page (`/release-notes`): every published update, newest first. You may also get an email about a significant update — sent at an administrator's discretion, not for every note.
 
 ---
 
 ## 12. For Climb Officers
 
-If an administrator assigns you as an officer for a specific climb, you'll see that climb under **"Assigned as Officer"** on your **My Registrations** page, with your role label (e.g. "Officer").
+When you're assigned as an officer of a climb, it appears under **Assigned as Officer** on **My Climbs** (upcoming and past), with your role (e.g. "Team Leader"). **View Climb** opens the event page. Officers who are also administrators get **Registrants**, which opens the climb's registrant list ([Section 13.3](#133-climb-detail-per-climb-registrants)).
 
-From there:
-
-- **View Climb** opens the public event page, exactly as members see it.
-- **Registrants** opens the admin **Climb Detail** view scoped to that climb, where you can:
-  - Review each participant's personal, emergency contact, and medical information
-  - View uploaded payment proof
-  - Confirm, waitlist, or cancel registrations
-  - Mark payments as verified, rejected, or reset to "submitted" for re-review
-  - Add private admin notes per participant
-  - Open a participant's printable waiver directly
-
-You'll also receive email notifications when someone registers for a climb you officer.
+Officers are emailed when someone registers or a registration changes status, and get a daily summary (bell and email) while a climb still has unpaid balances or missing documents.
 
 ---
 
 ## 13. For Administrators
 
-Administrators sign in with an account that has the `admin` role. An **Admin** link appears in the header, leading to the admin area with the following sections:
+Accounts with the `admin` role get **Admin** in the header. The **Dashboard** shows totals (climbs, registrations, pending confirmation, awaiting payment review, unpaid), recent registrations, a climbs overview, and quick links to every admin section below.
 
-### 13.1 Dashboard
+### 13.1 Climbs Management
 
-An overview of every climb — type, available slots, and confirmed/pending registration counts. Includes a one-click tool to import the season's full climb schedule into Firestore (useful for initial setup or reseeding).
+**Manage Climbs** lists every climb with its status, a **Completeness Check** of what is still to set up, and links to **Edit**, **View** (public page) and **Registrants**. **Change Status** moves a climb through Draft → Open ⇄ Closed → Completed, or Cancelled.
 
-### 13.2 Climbs Management
+The climb form covers:
 
-Create new climbs, edit existing ones, and control their registration state (open/closed). From here you can also:
+- Basic info, mountain profile, itinerary, trail photos, and trail maps (Google Maps, AllTrails, Komoot)
+- **Fees** — each fee can be **Optional**, a **Guest Fee** (joiners only), or **shareable** (split among members, see Service Sharing)
+- GCash account name, number, and QR code
+- Climb officers (link each to a member account so the climb shows on their My Climbs)
+- Required documents and their templates
+- Pre-climb meetings, resources for registrants, and announcements (announcements notify registrants through the bell)
+- Payment due date, cancellation policy, things to bring, donation drive, and whether the waitlist auto-promotes
+- Cancelling or postponing a climb, with a reason — every registrant and officer is emailed
 
-- Set GCash account details (name, number) and upload the GCash QR code image for a climb
-- Manage trail photos
-- Edit the itinerary and mountain profile fields
-- Assign or remove climb officers
+### 13.2 Payments
+
+**Manage Payments** shows each climb's money at a glance — Total Declared, Verified Collected, Awaiting Review, and Outstanding — split into upcoming and completed climbs. Each climb card has its cash flow, optional-service headcounts (e.g. who avails transportation), its fee schedule (**Edit Fees**), and its GCash details and QR code (**Upload / Replace QR Code**).
 
 ### 13.3 Climb Detail (per-climb registrants)
 
-Opened via **Registrants** from Dashboard or Climbs Management. Shows every registration for a single climb, where you can:
+Opened from **Registrants**. For one climb you can:
 
-- Open the public event page in a new tab
-- Download all registrations for that climb as a **CSV file**
-- Review each registrant's full submitted details and uploaded payment proof
-- **Confirm** a registration (officially accepts the participant)
-- **Waitlist** a registration
-- **Cancel** a registration
-- Mark payment status: **Verified**, **Rejected**, or reset to **Awaiting Review** for re-review
-- Add and save a private admin note per participant
-- Open a participant's printable waiver
-- **Add Joiner** — manually record a walk-in participant who didn't register through the app themselves. You can either type their details in directly, or pick **an existing member from the dropdown** to prefill their name and email and link the registration to that member's account (so it shows up under their own My Registrations and they receive the same status/reminder notifications as a self-registered member).
+- **Confirm**, **Waitlist**, or **Cancel** each registration; edit a registrant's details; add a private **admin note**; open their printable waiver
+- Review each payment and mark it **Verified** or **Rejected**, or **Reset to Submitted** for re-review; record a payment received in person; **Split Payment** when one member paid for others; **Record Refund**
+- See documents and compliance per registrant, and upload documents on someone's behalf
+- **Add Joiner** — record a walk-in, typing their details or linking an **existing member** so it shows on their own My Climbs
+- Mark **No-show** on climb day (or undo it)
+- **Service Sharing** — group members who share one unit of a shareable fee (e.g. a vehicle)
+- **Expenses** and **Where the Money Stands** — the climb's costs against what was collected, and the club's net funds
+- Open the printable **Climb-Day Sheet** (roster, contacts, emergency details, payment and waiver status) and the **Donations** page (record what was received and update the public totals)
 
-### 13.4 Payments
+### 13.4 All Registrations
 
-A cross-climb view for reviewing and managing GCash payments — verify or reject proof of payment, and manage each climb's GCash QR code and account details. Both the global summary and each climb's header show live counts for **Verified**, **Awaiting Review**, **Rejected**, and **Unpaid** registrations, so you can spot climbs that still need payment follow-up at a glance.
+**Manage Registrations** is one searchable table of every registration, filterable by climb, status, payment (including **Has Balance Due**), and **Missing Required Docs**, with **CSV export** of the filtered list and links to each waiver and climb.
 
-### 13.5 All Registrations
+### 13.5 User Management
 
-A single searchable table of every registration across all climbs, with:
+- Search users; **Add New User** creates the account and emails a password-setup link (**Create & Send Invite**)
+- Open a user to **Edit Profile** (name and login email — Auth and profile stay in sync), **Change Role**, see their climb history, or **Delete account**. Their past registrations are kept (with health and contact details removed); you can't delete your own account
+- **Permissions** shows whether an admin can email every member. Only the project owner grants it, outside the app; demoting an admin removes it
 
-- Free-text search
-- Filters by registration status and payment status
-- **CSV export** of the currently filtered list
-- Quick links to a participant's printable waiver or their climb's registrant page
+The first admin is set from the command line: `node scripts/set-admin.mjs <uid> "<Name>" <email>`.
 
-### 13.6 User Management
+### 13.6 Analytics
 
-- **Create a new user account** — this sends the new user a welcome/password-setup email
-- **Assign or change roles** — promote an existing user account to `admin`
-- **Edit Profile** — correct a user's display name or login email. Both the Firebase Auth login and the Firestore profile are updated together, so they never drift out of sync.
-- **Delete Account** — permanently removes a user's login and profile. Their past registrations are kept as historical records (with their name/email as submitted at the time), just no longer linked to a live account. You cannot delete your own account this way, as a safeguard against accidental admin lockout.
+Page views by guests, members, and admins over time, top pages, recent activity, and the **Failed Requests** log of errors the app recorded.
 
-You can also promote a user to admin from the command line during initial setup:
+### 13.7 App Insights
 
-```bash
-node scripts/set-admin.mjs your@email.com
-```
-
-### 13.7 Analytics
-
-A page-view traffic dashboard, broken down by guest, member, and admin visits over time — useful for understanding how members are using the site.
+Operational dashboards: registrations over time, payment-status breakdown and turnaround, oldest unpaid registrations, required-document compliance, stale draft climbs, email delivery (Brevo), storage use, Cloud Functions health, billing cost, repeated failures, and recent admin activity.
 
 ### 13.8 Release Notes
 
-Publish "what's new" updates for members from **Admin > Release Notes**:
+Publish "what's new" updates from **Release Notes**:
 
-- **Create a release note** — enter a title and body, and set its status to **Draft** while you're still writing, or **Published** to make it visible to members immediately.
-- **Generate from commits** — instead of writing from scratch, pick a commit range from the recent development history and click Generate to draft a title and grouped changelog body automatically. Review and edit the draft before publishing; nothing is saved until you save the note yourself.
-- Published notes appear on the member-facing **Release Notes** page for everyone signed in — see [Section 11](#11-whats-new-release-notes).
-- A release note must be **Published** before it can be emailed — the send button is disabled for drafts.
-- **Preview & Send** shows the exact email and how many members will get it before anything is sent; after you confirm, a progress bar shows the send as it happens.
-- Emailing everyone needs the **Can email every member** permission. The project owner grants it; the **Users** page shows who has it.
+- **Create a release note** — a title and body, saved as **Draft** or **Published** (visible to members immediately).
+- **Generate from commits** — pick a range of recent development history to draft a title and grouped changelog automatically. Review and edit it; nothing is saved until you save.
+- A note must be **Published** before it can be emailed.
+- **Preview & Send** shows the exact email and how many members will get it; after you confirm, a progress bar shows the send. If a large send stops partway, the card says so and sending again carries on with the members who haven't received it.
+- Emailing everyone needs the **Can email every member** permission, granted by the project owner; the **Users** page shows who has it.
 - **Delete** removes a note from the history page. Emails already sent can't be recalled.
 
 ---
@@ -370,22 +311,28 @@ Publish "what's new" updates for members from **Admin > Release Notes**:
 ## 14. Frequently Asked Questions
 
 **Do I need an account to see the climb schedule?**
-No. Browsing climbs and viewing event pages is open to everyone. You only need an account to register.
+No. The schedule and event pages are open to everyone; the itinerary, trail map, officers, and participant list need you to sign in, and registering needs an account.
 
 **Can I register for the same climb twice?**
-No. If you already have an active (non-cancelled) registration for a climb, opening that climb's registration form redirects you straight to **My Registrations**.
+No. With an active (non-cancelled) registration, opening the form takes you to **My Climbs**.
+
+**The climb is full — can I still sign up?**
+Yes: **Join the Waitlist**. If a slot opens, the oldest waitlisted registration moves up automatically and you're notified.
+
+**Do I have to pay when I register?**
+No. You can pay all, part, or none at registration and settle the rest from My Climbs.
 
 **What's the difference between "MMS Member" and "Joiner"?**
-This affects fee calculation — Joiners are typically charged a Guest Fee (if the climb has one configured) that Members are not.
+Joiners pay the Guest Fee (if the climb has one); Members don't.
 
 **How do I know if my payment was received?**
-Check **My Registrations** — your registration's payment status is updated by admins after they review your GCash proof. You'll also receive email updates as your registration status changes.
+Your card in **My Climbs** shows each payment's verdict and your remaining balance, and the bell notifies you when a payment is verified or rejected.
 
 **Can I cancel my registration myself?**
-Yes — use **Cancel Registration** in My Registrations, up until the climb takes place. Confirming, waitlisting and reinstating a cancelled registration are done by officers and admins.
+Yes — **Cancel Registration** in My Climbs, until the climb takes place. Confirming, waitlisting, and reinstating are done by officers and admins.
 
 **Is my medical information visible to other members?**
-No — medical information is only visible to climb officers and administrators managing that climb, and is used solely for emergency purposes.
+No — only to the climb's officers and administrators, for emergencies.
 
 ---
 
@@ -393,15 +340,15 @@ No — medical information is only visible to climb officers and administrators 
 
 | Problem | Likely Cause | What to Do |
 | --- | --- | --- |
-| Google Sign-In does nothing or errors out | You're in an in-app browser (opened from Facebook, Instagram, Messenger, etc.) | Open the app link directly in Chrome, Safari, or Edge instead |
-| "Registration failed" error on submit | Temporary network/connection issue | Check your internet connection and try again; contact an admin if it persists |
-| Payment proof won't upload | Unsupported file type or very large file | Use JPG, PNG, or PDF; wait for large uploads to finish before submitting |
-| Can't find the Register button | Registration is closed, full, or not yet open for that climb | Check back later, or contact the climb officers |
-| Redirected to "My Registrations" when trying to register | You already have an active registration for that climb | View your existing registration under **My Registrations** |
-| Didn't receive a confirmation or password-reset email | Email delayed or filtered | Check your spam/junk folder; wait a few minutes; confirm you used the correct email address |
-| Waiver signature field won't accept my name | Signature must be at least a few characters (a complete name) | Type your full legal name, not initials |
+| Google Sign-In does nothing or errors out | You're in an in-app browser (Facebook, Instagram, Messenger, etc.) | Tap **Open in Browser**, or open the link in Chrome, Safari, or Edge |
+| "Registration failed" on submit | Temporary network issue | Check your connection and try again; contact an admin if it persists |
+| Payment proof won't upload | Unsupported file type or very large file | Use an image (JPG, PNG) or PDF; wait for the upload to finish |
+| Can't find the Register button | Registration is closed, on hold, or the climb was cancelled | Check the note on the event page, or contact the climb officers |
+| Taken to My Climbs when trying to register | You already have an active registration for that climb | Use the existing registration in **My Climbs** |
+| Didn't receive a confirmation, verification, or password-reset email | Delayed or filtered | Check spam/junk; wait a few minutes; confirm the email address |
+| Signature field won't accept my name | It needs at least 3 characters | Type your full legal name, not initials |
 
-If none of the above resolves your issue, contact your climb officers or the MMS Open Climbs admin team.
+If none of the above helps, contact your climb officers or the club through its Facebook page.
 
 ---
 
@@ -409,16 +356,18 @@ If none of the above resolves your issue, contact your climb officers or the MMS
 
 | Term | Meaning |
 | --- | --- |
-| **Climb** | A scheduled mountaineering event/trip listed on the Schedule page |
-| **Minor / Major / Special** | Climb type/classification categories used to filter the schedule |
-| **Joiner** | A non-member participant registering for a climb |
-| **Waiver** | The Waiver & Release of Liability form you digitally sign when registering |
+| **Climb** | A scheduled mountaineering event listed on the Schedule page |
+| **Season** | One year's set of climbs; the schedule shows one season at a time |
+| **Minor / Major / Special** | Climb type categories used to filter the schedule |
+| **Joiner** | A non-member participant; pays the Guest Fee |
+| **Waiver** | The Waiver & Release of Liability you digitally sign when registering |
 | **Digital Signature** | Your typed full legal name, treated as a legally binding signature |
-| **Pending** | Registration submitted, awaiting review by a climb officer or admin |
+| **Pending** | Registration submitted, awaiting confirmation by an officer or admin |
 | **Confirmed** | Registration accepted — your slot is secured |
-| **Waitlisted** | Registration held pending an open slot |
+| **Waitlisted** | Registration held until a slot opens |
 | **Cancelled** | Registration withdrawn or declined |
-| **Payment Status** | Whether your GCash proof of payment is Unpaid, Awaiting Review, Verified, or Rejected |
-| **Officer** | A member assigned to help manage a specific climb's registrations |
-| **Admin** | A user account with full administrative access to all climbs, registrations, and users |
-| **Release Note** | A "what's new" announcement published by an admin, listed on the Release Notes page |
+| **Payment Status** | Unpaid, Awaiting Review (submitted), Verified, or Rejected |
+| **Balance** | What you still owe at the climb's current fees, after payments not rejected |
+| **Officer** | A member assigned to help run a specific climb |
+| **Admin** | An account with full administrative access |
+| **Release Note** | A "what's new" announcement listed on the Release Notes page |

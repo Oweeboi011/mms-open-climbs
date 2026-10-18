@@ -236,9 +236,12 @@ describe("sendReleaseNoteEmail callable", () => {
     sender();
     releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
     jobsStore["j0"] = { status: "sending", lastCursor: { at: 0, id: "m2" }, heartbeatAt: Date.now() - 30 * 60 * 1000 };
-    const { jobId } = await call({ releaseNoteId: "rn1" });
+    jobsStore["j0"].sent = 4;
+    const { jobId, total } = await call({ releaseNoteId: "rn1" });
     expect(jobsStore["j0"].status).toBe("failed");
-    expect(jobsStore[jobId].afterCursor).toEqual({ at: 0, id: "m2" });
+    expect(jobsStore[jobId]).toMatchObject({ afterCursor: { at: 0, id: "m2" }, sentBefore: 4 });
+    // Only the members after the cursor are left, and that is what's reported.
+    expect(total).toBe(jobsStore[jobId].total);
   });
 
   it("keeps the resume point when a resume job itself fails early", async () => {
@@ -268,6 +271,20 @@ describe("previewReleaseNoteEmail callable", () => {
     expect(result.subject).toBe("MMS Open Climbs Update: Maps");
     expect(result.html).toContain("Now with maps.");
     expect(result.recipients).toBe(2);
+    expect(result.resuming).toBe(false);
+  });
+
+  it("counts only the members left when the send would resume a stopped one", async () => {
+    const at = (ms) => ({ toMillis: () => ms });
+    usersStore["admin-1"] = { role: "admin", canEmailMembers: true, email: "me@a.com", createdAt: at(50) };
+    usersStore["m1"] = { email: "a@a.com", createdAt: at(100) };
+    usersStore["m2"] = { email: "b@a.com", createdAt: at(200) };
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "j0", status: "sending" } };
+    jobsStore["j0"] = { status: "sending", sent: 2, lastCursor: { at: 100, id: "m1" }, heartbeatAt: 0 };
+
+    const result = await index.previewReleaseNoteEmail({ auth: { uid: "admin-1" }, data: { releaseNoteId: "rn1" } });
+
+    expect(result).toMatchObject({ recipients: 1, resuming: true, alreadySent: 2 });
   });
 });
 
@@ -367,7 +384,17 @@ describe("release-note email job", () => {
     await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
     const to = global.fetch.mock.calls.map(([, init]) => JSON.parse(init.body).to[0].email);
     expect(to).toEqual(["m3@a.com", "new@a.com"]);
+    expect(releaseNotesStore["rn1"].emailSentCount).toBe(2);
     expect(jobsStore["job-9"]).toMatchObject({ status: "done", lastCursor: { at: 999, id: "a0" } });
+  });
+
+  it("counts members a stopped job already reached in the note's total", async () => {
+    releaseNotesStore["rn1"] = { status: "published", title: "T", body: "B", emailJob: { id: "job-9", status: "queued" } };
+    jobsStore["job-9"] = { releaseNoteId: "rn1", status: "queued", afterCursor: { at: 0, id: "m1" }, sentBefore: 1900 };
+    usersStore["m1"] = { email: "m1@a.com" };
+    usersStore["m2"] = { email: "m2@a.com" };
+    await runReleaseNoteEmailJob("job-9", jobsStore["job-9"], noSleep);
+    expect(releaseNotesStore["rn1"].emailSentCount).toBe(1901);
   });
 
   it("does not send a note that was unpublished after queueing", async () => {

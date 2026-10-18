@@ -1,13 +1,18 @@
+name: Create-Release
+
+# Runs semantic-release straight from npm: GitHub blocked the
+# codfish/semantic-release-action repository (ToS) in June 2026.
+# Config: tools/release.config.cjs.
+
 on:
-   push:
+  push:
     branches:
       - main
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
-
-name: Create-Release
 
 jobs:
   create-release:
@@ -16,49 +21,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: codfish/semantic-release-action@v4
-        id: semantic
+      - uses: actions/setup-node@v7
         with:
-          tag-format: 'v${version}'
-          additional-packages: |
-            ['conventional-changelog-conventionalcommits@7']
-          plugins: |
-            [
-              [
-                "@semantic-release/commit-analyzer",
-                {
-                  "preset": "conventionalcommits"
-                }
-              ],
-              [
-                "@semantic-release/release-notes-generator",
-                {
-                  "preset": "conventionalcommits",
-                  "presetConfig": {
-                    "types": [
-                      { type: 'feat', section: 'Features', hidden: false },
-                      { type: 'fix', section: 'Bug Fixes', hidden: false },
-                      { type: 'perf', section: 'Performance Improvements', hidden: false },
-                      { type: 'revert', section: 'Reverts', hidden: false },
-                      { type: 'docs', section: 'Other Updates', hidden: false },
-                      { type: 'style', section: 'Other Updates', hidden: false },
-                      { type: 'chore', section: 'Other Updates', hidden: false },
-                      { type: 'refactor', section: 'Other Updates', hidden: false },
-                      { type: 'test', section: 'Other Updates', hidden: false },
-                      { type: 'build', section: 'Other Updates', hidden: false },
-                      { type: 'ci', section: 'Other Updates', hidden: false }
-                    ]
-                  }
-                }
-              ],
-              '@semantic-release/github'
-            ]
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: echo ${{ steps.semantic.outputs.release-version }}
+          node-version: "22"
 
-      - run: echo "$OUTPUTS"
+      # Installed outside the project so the app's dependencies stay untouched;
+      # NODE_PATH lets the config's plugins resolve from there.
+      - name: Install semantic-release
+        run: >
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/release"
+          semantic-release@24 conventional-changelog-conventionalcommits@8
+
+      - name: Release
         env:
-          OUTPUTS: ${{ toJson(steps.semantic.outputs) }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_PATH: ${{ runner.temp }}/release/node_modules
+        run: >
+          "$RUNNER_TEMP/release/node_modules/.bin/semantic-release"
+          --extends ./tools/release.config.cjs
