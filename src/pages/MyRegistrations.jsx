@@ -1009,6 +1009,26 @@ function OfficerCard({ climb, currentUser }) {
   );
 }
 
+// Signed in the app, received offline by the organizers, or still to sign.
+function WaiverNotice({ reg, showPrep }) {
+  if (reg.waiverSigned) {
+    return (
+      <div className="reg-waiver-signed">
+        &#10003; Waiver signed as <em>&ldquo;{reg.waiverSignedName}&rdquo;</em>
+      </div>
+    );
+  }
+  if (reg.waiverReceivedOffline) {
+    return <div className="reg-waiver-signed">&#10003; Waiver received by the organizers (offline)</div>;
+  }
+  if (!showPrep) return null;
+  return (
+    <div className="alert alert-warning reg-waiver-missing">
+      <strong>Your waiver isn&rsquo;t signed yet.</strong> This is required before climb day — sign it below.
+    </div>
+  );
+}
+
 function RegCard({
   reg,
   climb,
@@ -1109,19 +1129,7 @@ function RegCard({
             </strong>
           </div>
         </div>
-        {reg.waiverSigned ? (
-          <div className="reg-waiver-signed">
-            &#10003; Waiver signed as{" "}
-            <em>&ldquo;{reg.waiverSignedName}&rdquo;</em>
-          </div>
-        ) : (
-          showPrep && (
-            <div className="alert alert-warning" style={{ marginTop: 12 }}>
-              <strong>Your waiver isn&rsquo;t signed yet.</strong> This is
-              required before climb day — sign it below.
-            </div>
-          )
-        )}
+        <WaiverNotice reg={reg} showPrep={showPrep} />
         {requiredDocs.length > 0 && (
           <ul
             className="info-list"
@@ -1170,7 +1178,7 @@ function RegCard({
             Print Waiver
           </Link>
         ) : (
-          showPrep && (
+          showPrep && !reg.waiverReceivedOffline && (
             <button className="btn btn-accent btn-sm" onClick={onSignWaiver}>
               Sign Waiver
             </button>

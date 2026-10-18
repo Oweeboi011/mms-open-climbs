@@ -1,4 +1,4 @@
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, waiverStatus } from "@/data/requiredDocTypes";
 import { getOutstanding } from "@/utils/registrationFees";
 
 // The climb-day sheet: everything leads need on the trail, printable for
@@ -44,7 +44,7 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
           }
         : null,
       medical: r.medicalConditions?.trim() || "",
-      waiverSigned: !!r.waiverSigned,
+      waiverStatus: waiverStatus(r),
       missingDocs,
       // Not chased for someone who isn't coming.
       balanceDue: expectedOnTrail ? getOutstanding(r, climb, serviceGroups) : 0,
@@ -77,7 +77,7 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
     owing: rows.filter((r) => r.balanceDue > 0).length,
     cashOnTheDay: rows.reduce((s, r) => s + r.cashOnTheDay, 0),
     itemDonors: rows.filter((r) => r.items).length,
-    unsignedWaivers: onTrail.filter((r) => !r.waiverSigned).length,
+    unsignedWaivers: onTrail.filter((r) => r.waiverStatus === "Not signed").length,
     withMedical: onTrail.filter((r) => r.medical && !/^(none|n\/?a|no)\.?$/i.test(r.medical)).length,
   };
   return { rows, totals };

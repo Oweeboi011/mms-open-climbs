@@ -42,6 +42,12 @@ describe("remindOutstandingPaperwork", () => {
 
   it("says nothing when the paperwork is done or there's no account", async () => {
     await remindOutstandingPaperwork({ userId: "u1", waiverSigned: true }, "r1", {}, "Kibungan");
+    await remindOutstandingPaperwork(
+      { userId: "u1", waiverSigned: false, waiverReceivedOffline: { note: "paper waiver" } },
+      "r3",
+      {},
+      "Kibungan",
+    );
     await remindOutstandingPaperwork({ userId: null, waiverSigned: false }, "r2", {}, "Kibungan");
     expect(mockCreateNotification).not.toHaveBeenCalled();
   });
@@ -55,6 +61,11 @@ describe("clearPaperworkReminders", () => {
       "r1",
     );
     expect(mockSet).toHaveBeenCalledWith(`${medCert.notificationPrefix}_r1`, { read: true }, { merge: true });
+    expect(mockSet).toHaveBeenCalledWith("waiver_r1", { read: true }, { merge: true });
+  });
+
+  it("clears the waiver reminder when an admin records it received offline", async () => {
+    await clearPaperworkReminders({}, { waiverReceivedOffline: { note: "paper waiver" } }, "r1");
     expect(mockSet).toHaveBeenCalledWith("waiver_r1", { read: true }, { merge: true });
   });
 

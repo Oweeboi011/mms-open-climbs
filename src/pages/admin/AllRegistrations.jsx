@@ -40,7 +40,7 @@ import {
   STATUS_STYLE,
   EXPERIENCE_LABELS,
 } from "@/components/admin/registrantShared";
-import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted, isWaiverDone } from "@/data/requiredDocTypes";
 
 const STATUS_OPTIONS = ["pending", "confirmed", "waitlisted", "cancelled"];
 
@@ -577,7 +577,7 @@ export default function AllRegistrations() {
                         climb,
                         serviceGroups,
                       );
-                      const hasWaiver = !!reg.waiverSignedName;
+                      const hasWaiver = isWaiverDone(reg);
                       const hasAllDocs = !hasMissingRequiredDocs(reg, climb);
                       // An admin-added participant starts with no waiver and
                       // no details, so both gaps have to show here.

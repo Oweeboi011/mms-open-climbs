@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
-import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted, isWaiverDone } from "@/data/requiredDocTypes";
 import { nowMs } from "@/utils/now";
 
 function toDate(value) {
@@ -222,7 +222,7 @@ export default function AppInsights() {
 
   const waiverRate = useMemo(() => {
     if (activeRegs.length === 0) return 0;
-    const signed = activeRegs.filter((r) => r.waiverSigned).length;
+    const signed = activeRegs.filter(isWaiverDone).length;
     return Math.round((signed / activeRegs.length) * 100);
   }, [activeRegs]);
 

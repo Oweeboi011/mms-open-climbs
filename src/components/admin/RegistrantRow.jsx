@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
 import ComplianceSummary from "@/components/admin/ComplianceSummary";
+import WaiverStatus from "@/components/admin/WaiverStatus";
 import PaymentHistory from "./PaymentHistory";
 import {
   getPaymentEntries,
@@ -48,6 +49,7 @@ export default function RegistrantRow({
   onRecordPayment,
   onViewReceipt,
   onManageDocuments,
+  onWaiverReceivedOffline,
   toggleOptionalFee,
   onEdit,
   deleteRegistration,
@@ -503,69 +505,9 @@ export default function RegistrantRow({
                 </div>
               )}
 
-              {/* Waiver section */}
-              <div
-                style={{
-                  background: reg.waiverSigned ? "#e8f5e9" : "#fce8e8",
-                  border: `1px solid ${reg.waiverSigned ? "#a7d7b2" : "#fca5a5"}`,
-                  borderRadius: 8,
-                  padding: "14px 16px",
-                  marginBottom: 16,
-                  display: "flex",
-                  gap: 16,
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <SectionLabel>
-                    {reg.waiverSigned ? "\u2713" : "\u26A0"} Waiver & Release of
-                    Liability
-                  </SectionLabel>
-                  {reg.waiverSigned ? (
-                    <>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          color: "#1a6b2c",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        &#10003; Signed as &ldquo;
-                        {reg.waiverSignedName}&rdquo;
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.78rem",
-                          color: "var(--ink-soft)",
-                          marginTop: 2,
-                        }}
-                      >
-                        {reg.waiverSignedAt
-                          ?.toDate?.()
-                          .toLocaleString("en-PH") || "Date not recorded"}
-                      </div>
-                    </>
-                  ) : (
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        color: "#b91c1c",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      &#10005; Waiver not yet signed
-                    </div>
-                  )}
-                </div>
-                <Link
-                  to={`/waiver/${reg.id}`}
-                  className="btn btn-outline btn-sm"
-                  target="_blank"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  View / Print Waiver
-                </Link>
+              {/* Waiver: signed, received offline, or missing */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <WaiverStatus reg={reg} onMarkOffline={onWaiverReceivedOffline} />
               </div>
 
               {/* Payment proof section */}

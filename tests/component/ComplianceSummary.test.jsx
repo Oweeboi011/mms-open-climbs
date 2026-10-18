@@ -43,6 +43,13 @@ describe("ComplianceSummary", () => {
     expect(screen.getByText("Complete")).toBeInTheDocument();
   });
 
+  it("counts a waiver an admin recorded as received offline", () => {
+    render(
+      <ComplianceSummary reg={{ waiverReceivedOffline: { note: "Paper waiver" } }} climb={{}} detailsComplete />,
+    );
+    expect(screen.getByText("Complete")).toBeInTheDocument();
+  });
+
   it("ignores documents this climb doesn't require", () => {
     render(<ComplianceSummary reg={{ waiverSigned: true }} climb={{}} detailsComplete />);
     expect(screen.getByText("Complete")).toBeInTheDocument();

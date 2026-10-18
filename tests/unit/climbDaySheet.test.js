@@ -69,7 +69,7 @@ describe("buildClimbDaySheet", () => {
     const ben = rows.find((r) => r.id === "b");
     expect(ben.emergency).toEqual({ name: "Mom", relationship: "Mother", mobile: "0918" });
     expect(ben.medical).toBe("Asthma — inhaler in lid");
-    expect(ben.waiverSigned).toBe(false);
+    expect(ben.waiverStatus).toBe("Not signed");
     expect(ben.missingDocs).toEqual(["Medical Certificate"]);
     expect(rows.find((r) => r.id === "a").emergency).toBeNull();
   });

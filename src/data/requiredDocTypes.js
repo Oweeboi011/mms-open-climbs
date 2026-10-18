@@ -125,3 +125,16 @@ export function describeOfflineDoc(upload) {
   const by = upload?.markedBy ? ` by ${upload.markedBy}` : "";
   return `received offline${by}${upload?.note ? `: ${upload.note}` : ""}`;
 }
+
+// The waiver is done when signed in the app, or when an admin recorded it as
+// received offline (a paper or in-person waiver) in waiverReceivedOffline.
+// waiverSigned itself only ever means a digital signature by the participant.
+export function isWaiverDone(reg) {
+  return !!reg?.waiverSigned || !!reg?.waiverReceivedOffline;
+}
+
+// "Signed", "Received offline" or "Not signed", for rosters and profiles.
+export function waiverStatus(reg) {
+  if (reg?.waiverSigned) return "Signed";
+  return reg?.waiverReceivedOffline ? "Received offline" : "Not signed";
+}

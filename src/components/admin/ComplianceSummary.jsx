@@ -1,12 +1,12 @@
 import { ComplianceCheck } from "@/components/admin/registrantShared";
-import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted, isWaiverDone } from "@/data/requiredDocTypes";
 
 // One registrant's paperwork for the registrant list, showing only what's
 // still missing so a full row stays one line tall. Hover lists every check;
 // the expanded row shows them all with links.
 export default function ComplianceSummary({ reg, climb, detailsComplete }) {
   const checks = [
-    { key: "waiver", label: "Waiver", ok: !!reg.waiverSigned },
+    { key: "waiver", label: "Waiver", ok: isWaiverDone(reg) },
     // An admin-added participant starts without details, so the gap has to
     // be visible to whoever chases them for it.
     { key: "details", label: "Details", ok: detailsComplete },

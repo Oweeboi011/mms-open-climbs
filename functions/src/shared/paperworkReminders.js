@@ -5,6 +5,8 @@ const { createNotification } = require("./registrationOps");
 const { db } = require("./admin");
 
 const waiverReminderId = (regId) => `waiver_${regId}`;
+// Signed in the app, or recorded by an admin as received offline.
+const waiverDone = (reg) => !!reg.waiverSigned || !!reg.waiverReceivedOffline;
 
 // Bell reminders for paperwork a registrant still owes: each required
 // document not yet uploaded, and the waiver when it isn't signed (someone an
@@ -23,7 +25,7 @@ async function remindOutstandingPaperwork(reg, regId, climb, climbTitle) {
       id: `${docType.notificationPrefix}_${regId}`,
     });
   }
-  if (!reg.waiverSigned) {
+  if (!waiverDone(reg)) {
     await createNotification({
       userId: reg.userId,
       type: "waiver_reminder",
@@ -40,7 +42,7 @@ async function clearPaperworkReminders(before, after, regId) {
   const done = REQUIRED_DOC_TYPES.filter(
     (docType) => !before[docType.uploadField] && after[docType.uploadField],
   ).map((docType) => `${docType.notificationPrefix}_${regId}`);
-  if (!before.waiverSigned && after.waiverSigned) done.push(waiverReminderId(regId));
+  if (!waiverDone(before) && waiverDone(after)) done.push(waiverReminderId(regId));
   for (const id of done) {
     await db.collection("notifications").doc(id).set({ read: true }, { merge: true }).catch(() => {});
   }

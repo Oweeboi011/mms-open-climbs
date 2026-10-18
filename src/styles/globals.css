@@ -6125,3 +6125,6 @@ details[open] > .myreg-collapsible::before {
   align-items: center;
   gap: 4px;
 }
+.reg-waiver-missing {
+  margin-top: 12px;
+}

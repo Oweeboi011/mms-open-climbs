@@ -228,7 +228,7 @@ export default function ClimbDaySheet() {
                   {r.medical || "—"}
                 </td>
                 <td>
-                  {r.waiverSigned ? "Signed" : <span className="daysheet-flag">NOT SIGNED</span>}
+                  {r.waiverStatus === "Not signed" ? <span className="daysheet-flag">NOT SIGNED</span> : r.waiverStatus}
                   {r.missingDocs.length > 0 && (
                     <div className="daysheet-muted">Missing: {r.missingDocs.join(", ")}</div>
                   )}
