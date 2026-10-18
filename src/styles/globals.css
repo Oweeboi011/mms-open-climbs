@@ -1866,6 +1866,10 @@ textarea {
   color: var(--green-dark);
   line-height: 1;
 }
+.admin-stat-of {
+  font-size: 1.2rem;
+  opacity: 0.55;
+}
 .admin-stat-label {
   font-size: 0.68rem;
   font-weight: 700;

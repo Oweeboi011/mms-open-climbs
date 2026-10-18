@@ -1009,6 +1009,25 @@ describe("Admin ClimbDetail", () => {
     expect(payload.waiverSigned).toBe(false);
   });
 
+  it("counts active members and guests in the stats row", async () => {
+    getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+    mockRegistrantSnapshot([
+      { id: "m1", data: { ...registrationFixture, name: "Ana", memberType: "member" } },
+      { id: "m2", data: { ...registrationFixture, name: "Ben", memberType: "member", status: "cancelled" } },
+      { id: "g1", data: { ...registrationFixture, name: "Cris", memberType: "joiner" } },
+      { id: "g2", data: { ...registrationFixture, name: "Dina" } },
+    ]);
+    render();
+
+    const tile = async (label) =>
+      (await screen.findByText(label, { selector: ".admin-stat-label" }))
+        .closest(".admin-stat-card")
+        .querySelector(".admin-stat-num").textContent;
+    expect(await tile("Members")).toBe("1");
+    expect(await tile("Guests")).toBe("2");
+    expect(await tile("Total")).toBe("4");
+  });
+
   describe("Remaining Balances card", () => {
     it("summarizes who still owes, right under Expenses", async () => {
       getDoc.mockResolvedValue(

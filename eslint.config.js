@@ -29,7 +29,7 @@ const LEGACY = {
   "src/pages/admin/Analytics.jsx": {functionLines: 1404, complexity: 24, fileLines: 1480},
   "src/pages/admin/AppInsights.jsx": {functionLines: 611, complexity: 43, fileLines: 708},
   "src/pages/admin/ClimbDaySheet.jsx": {functionLines: 223, complexity: 21},
-  "src/pages/admin/ClimbDetail.jsx": {functionLines: 1279, complexity: 45, fileLines: 1366},
+  "src/pages/admin/ClimbDetail.jsx": {functionLines: 1213, complexity: 39, fileLines: 1301},
   "src/pages/admin/ClimbDonations.jsx": {functionLines: 314},
   "src/pages/admin/ClimbsManage.jsx": {functionLines: 896, complexity: 40, fileLines: 930},
   "src/pages/admin/Dashboard.jsx": {functionLines: 942, complexity: 33, fileLines: 1052},
