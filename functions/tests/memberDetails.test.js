@@ -71,6 +71,27 @@ describe("latestDetails", () => {
     });
   });
 
+  it("lets the member's own answers win over a newer officer-added registration", () => {
+    const result = latestDetails([
+      reg({ createdAt: ts(1), climbTitle: "Pulag", memberType: "member", experienceLevel: "experienced" }),
+      {
+        userId: "u1",
+        addedByAdmin: true,
+        createdAt: ts(5),
+        climbTitle: "Apo",
+        memberType: "joiner",
+        experienceLevel: "beginner",
+        address: "Baguio",
+      },
+    ]);
+    expect(result).toMatchObject({
+      memberType: "member",
+      experienceLevel: "experienced",
+      address: "Baguio",
+      sourceClimbTitle: "Pulag",
+    });
+  });
+
   it("returns null when no registration has any details", () => {
     expect(latestDetails([{ userId: "u1" }])).toBeNull();
   });
