@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
+import ComplianceSummary from "@/components/admin/ComplianceSummary";
 import PaymentHistory from "./PaymentHistory";
 import {
   getPaymentEntries,
@@ -77,25 +78,9 @@ export default function RegistrantRow({
 
         {/* Participant — name, email, type badge, note indicator */}
         <td>
-          <div style={{ fontWeight: 600, fontSize: "0.84rem" }}>{reg.name}</div>
-          <div
-            style={{
-              fontSize: "0.72rem",
-              color: "var(--ink-soft)",
-              marginTop: 1,
-            }}
-          >
-            {reg.email}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 5,
-              marginTop: 4,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
+          {/* Name and badges share a line; the email sits under them. */}
+          <div className="registrant-name-line">
+            <span className="registrant-name">{reg.name}</span>
             {reg.memberType && (
               <span
                 style={{
@@ -156,33 +141,12 @@ export default function RegistrantRow({
               </span>
             )}
           </div>
+          <div className="registrant-email">{reg.email}</div>
         </td>
 
-        {/* Compliance — waiver + required docs stacked */}
+        {/* Compliance — only what's missing */}
         <td>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 3,
-            }}
-          >
-            <ComplianceCheck ok={reg.waiverSigned} label="Waiver" />
-            {/* An admin-added participant starts with neither, so the gap has
-                to be visible to whoever chases them for it. */}
-            <ComplianceCheck ok={!detailsIncomplete(reg)} label="Details" />
-            {REQUIRED_DOC_TYPES.filter(
-              (docType) => climb?.[docType.requiresField],
-            ).map((docType) => (
-              <ComplianceCheck
-                key={docType.key}
-                ok={!!reg[docType.uploadField]?.url}
-                label={docType.badgeLabel}
-                href={reg[docType.uploadField]?.url}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ))}
-          </div>
+          <ComplianceSummary reg={reg} climb={climb} detailsComplete={!detailsIncomplete(reg)} />
         </td>
 
         {/* Payment — badge + proof count */}
@@ -193,18 +157,12 @@ export default function RegistrantRow({
             const paymentCount = getPaymentEntries(reg).length;
             if (proofCount === 0 && paymentCount < 2) return null;
             return (
-              <div
-                style={{
-                  fontSize: "0.62rem",
-                  color: "var(--ink-soft)",
-                  marginTop: 3,
-                }}
-              >
+              <span className="registrant-payment-meta">
                 {paymentCount > 1 && `${paymentCount} payments`}
                 {paymentCount > 1 && proofCount > 0 && " · "}
                 {proofCount > 0 &&
                   `${proofCount} file${proofCount > 1 ? "s" : ""}`}
-              </div>
+              </span>
             );
           })()}
         </td>
