@@ -18,6 +18,7 @@ const Signup = lazy(() => import("@/pages/Signup"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const Register = lazy(() => import("@/pages/Register"));
 const MyRegistrations = lazy(() => import("@/pages/MyRegistrations"));
+const MyDetails = lazy(() => import("@/pages/MyDetails"));
 const ClimbFeedback = lazy(() => import("@/pages/ClimbFeedback"));
 const WaiverPrint = lazy(() => import("@/pages/WaiverPrint"));
 const ReleaseNotes = lazy(() => import("@/pages/ReleaseNotes"));
@@ -61,6 +62,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/register/:climbId" element={<Register />} />
             <Route path="/my-registrations" element={<MyRegistrations />} />
+            <Route path="/my-details" element={<MyDetails />} />
             <Route path="/waiver/:registrationId" element={<WaiverPrint />} />
             <Route path="/release-notes" element={<ReleaseNotes />} />
             <Route path="/privacy" element={<Privacy />} />

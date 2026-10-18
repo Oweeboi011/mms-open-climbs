@@ -161,6 +161,39 @@ describe("Admin ClimbDetail", () => {
     expect(payload.email).toBe("maria@example.com");
   });
 
+  it("fills in a picked member's saved details when adding them", async () => {
+    getDoc.mockImplementation((ref) =>
+      Promise.resolve(
+        String(ref?.path) === "memberDetails/user-2"
+          ? makeSnapshot("user-2", {
+              mobile: "+63 917 555 0102",
+              ecName: "Pedro Santos",
+              ecMobile: "+63 917 555 0103",
+              ecRelationship: "Father",
+              memberType: "member",
+              address: "Quezon City",
+            })
+          : makeSnapshot(climbFixture.id, climbFixture),
+      ),
+    );
+    render();
+    await screen.findByText("Juan Cruz");
+    fireEvent.click(screen.getByRole("button", { name: /Add Participant/i }));
+    await screen.findByRole("option", { name: /Maria Santos/i });
+
+    const memberSelect = screen
+      .getByText("Existing Member", { selector: "label" })
+      .closest(".form-group")
+      .querySelector("select");
+    fireEvent.change(memberSelect, { target: { value: "user-2" } });
+
+    expect(await screen.findByDisplayValue("+63 917 555 0102")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Pedro Santos")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Father")).toBeInTheDocument();
+    // The form has no address input, so a saved address isn't carried over.
+    expect(screen.queryByDisplayValue("Quezon City")).not.toBeInTheDocument();
+  });
+
   it("shows total paid and total outstanding stat tiles", async () => {
     mockRegistrantSnapshot([
       {

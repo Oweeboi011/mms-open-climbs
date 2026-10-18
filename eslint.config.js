@@ -14,7 +14,7 @@ const STRICT = { fileLines: 600, functionLines: 200, complexity: 20, depth: 4, p
 // only go down: lower it (or delete the entry) when a file is split, never
 // raise it. New files never belong here.
 const LEGACY = {
-  "src/components/admin/AddJoinerModal.jsx": {functionLines: 375},
+  "src/components/admin/AddJoinerModal.jsx": {functionLines: 372},
   "src/components/admin/ClimbOverviewCard.jsx": {complexity: 26},
   "src/components/admin/ClimbPaymentCard.jsx": {functionLines: 941, fileLines: 954},
   "src/components/admin/MemberProfile.jsx": {functionLines: 229, complexity: 27},

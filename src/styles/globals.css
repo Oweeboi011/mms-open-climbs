@@ -191,6 +191,17 @@ textarea {
   border-color: rgba(255, 255, 255, 0.6);
   color: #fff;
 }
+.header-user-name,
+.mobile-nav-username {
+  text-decoration: none;
+}
+.header-user-name:hover,
+.header-user-name:focus-visible,
+.mobile-nav-username:hover,
+.mobile-nav-username:focus-visible {
+  text-decoration: underline;
+  color: var(--gold-light);
+}
 .header-user-name {
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.8);
@@ -6015,4 +6026,14 @@ details[open] > .myreg-collapsible::before {
 }
 .season-select .form-select {
   width: auto;
+}
+
+/* My Details */
+.mydetails-intro {
+  color: var(--ink-soft);
+  margin: 8px 0 12px;
+}
+.mydetails-account {
+  font-weight: 600;
+  margin: 0 0 20px;
 }

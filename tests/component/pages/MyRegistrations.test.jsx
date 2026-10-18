@@ -37,11 +37,12 @@ describe("MyRegistrations page", () => {
     );
   });
 
-  it("shows user email in heading", async () => {
+  it("shows user email in heading, with a link to My Details", async () => {
     renderWithProviders(<MyRegistrations />, makeMemberAuth());
     await waitFor(() =>
-      expect(screen.getByText("climber@example.com")).toBeInTheDocument(),
+      expect(screen.getByText(/climber@example\.com/)).toBeInTheDocument(),
     );
+    expect(screen.getByRole("link", { name: "My Details" })).toHaveAttribute("href", "/my-details");
   });
 
   it("renders a registration card when registrations exist", async () => {

@@ -1,7 +1,7 @@
 // The privacy notice members agree to when registering. Bump the version
 // whenever the substance changes: each registration records the version it
 // was given, so the club can show what a member actually consented to.
-export const PRIVACY_NOTICE_VERSION = "2026-09-26";
+export const PRIVACY_NOTICE_VERSION = "2026-10-18";
 
 export const PRIVACY_NOTICE_SECTIONS = [
   {
@@ -32,6 +32,7 @@ export const PRIVACY_NOTICE_SECTIONS = [
       "For your safety on the trail: climb officers use your emergency contact and medical information if something goes wrong.",
       "To secure permits and meet the requirements of the mountain's managing office.",
       "To record and verify payments, refunds and donations.",
+      "To fill in your next registration: we keep your latest registration and safety details as My Details, which you can view and change at any time.",
     ],
   },
   {
@@ -57,8 +58,9 @@ export const PRIVACY_NOTICE_SECTIONS = [
     body:
       "Registration records are kept as the club's attendance and payment " +
       "history. Uploaded documents and receipts are deleted two years after " +
-      "upload. If your account is deleted, your health and contact details are " +
-      "removed from your registrations and your uploaded files are deleted.",
+      "upload. My Details is kept while you have an account. If your account is " +
+      "deleted, My Details is deleted, your health and contact details are " +
+      "removed from your registrations, and your uploaded files are deleted.",
   },
   {
     heading: "Your rights",

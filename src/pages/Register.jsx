@@ -23,7 +23,7 @@ export default function Register() {
   const {
     amountPaid, bindField, blockedReason, clearFieldError, climb, climbId, currentUser,
     doSubmit, docFiles, error, fieldErrors, form, handleSubmit, inputClass, loading, navigate,
-    optionalFeeSelections, paymentFiles, paymentNote, paymentPreviews, paymentUploading,
+    optionalFeeSelections, paymentFiles, paymentNote, paymentPreviews, paymentUploading, prefilledFrom,
     pledge, privacyConsent, qrModalOpen, setAmountPaid, setDocFiles, setField,
     setOptionalFeeSelections, setPaymentFiles, setPaymentNote, setPaymentPreviews, setPledge,
     setPrivacyConsent, setQrModalOpen, setShowConfirm, setSigName, setWaiverAgreed,
@@ -99,6 +99,13 @@ export default function Register() {
               be placed on the waitlist and notified if a slot opens.
             </div>
           )}
+
+        {prefilledFrom && (
+          <div className="alert alert-info" role="status">
+            We filled in your details from {prefilledFrom}. Please check they&rsquo;re
+            still correct, especially your medical information.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate>
           <PersonalInfoSection

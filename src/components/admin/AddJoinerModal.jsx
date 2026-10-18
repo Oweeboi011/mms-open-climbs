@@ -2,11 +2,17 @@ import { useState, useEffect } from "react";
 import { serverTimestamp, Timestamp } from "@/services/firestore";
 import { createRegistration } from "@/services/registrations";
 import { listUsersByName } from "@/services/users";
+import { getMemberDetails } from "@/services/memberDetails";
+import { detailsToFormFields } from "@/utils/memberDetails";
 import { logFailedRequest } from "@/services/logFailedRequest";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
 
 const EXPERIENCE_OPTIONS = ["beginner", "intermediate", "experienced"];
 const PAYMENT_OPTIONS = ["unpaid", "submitted", "verified", "rejected"];
+
+// Saved details this form has inputs for (it has no date of birth or address).
+const fieldsThisFormHas = (form, fields) =>
+  Object.fromEntries(Object.entries(fields).filter(([field]) => field in form));
 
 export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
   const [form, setForm] = useState({
@@ -37,16 +43,14 @@ export default function AddJoinerModal({ climb, climbId, onClose, onAdded }) {
     setForm((p) => ({ ...p, [field]: value }));
   }
 
-  function selectExistingUser(userId) {
+  async function selectExistingUser(userId) {
     setSelectedUserId(userId);
     const user = users.find((u) => u.id === userId);
-    if (user) {
-      setForm((p) => ({
-        ...p,
-        name: user.displayName || "",
-        email: user.email || "",
-      }));
-    }
+    if (!user) return;
+    setForm((p) => ({ ...p, name: user.displayName || "", email: user.email || "" }));
+    // Their saved details fill in the rest; a failed lookup just leaves it blank.
+    const saved = await getMemberDetails(userId).catch(() => null);
+    setForm((p) => ({ ...p, ...fieldsThisFormHas(p, detailsToFormFields(saved)) }));
   }
 
   async function handleSubmit(e) {
