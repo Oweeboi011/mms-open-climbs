@@ -1228,9 +1228,8 @@ describe("MyRegistrations page", () => {
       });
     });
 
-    it("will not save with medical conditions left blank", async () => {
-      // Blank must never be ambiguous between "nothing to declare" and
-      // "nobody asked" — "None" is the answer, not emptiness.
+    it("counts a record with no medical conditions as complete", async () => {
+      // Medical conditions are optional: blank means none stated, not a gap.
       mockThin({
         mobile: "+63 917 000 0000",
         emergencyContact: {
@@ -1241,21 +1240,9 @@ describe("MyRegistrations page", () => {
       });
       renderWithProviders(<MyRegistrations />, makeMemberAuth());
       await waitFor(() =>
-        screen.getByRole("button", { name: /Complete Your Details/i }),
+        expect(screen.getByRole("button", { name: /Update Details/i })).toBeInTheDocument(),
       );
-      fireEvent.click(
-        screen.getByRole("button", { name: /Complete Your Details/i }),
-      );
-      await waitFor(() => expect(saveDetails()).toBeInTheDocument());
-
-      fireEvent.click(saveDetails());
-      // The label and hint also say "medical conditions" — assert the alert.
-      await waitFor(() =>
-        expect(screen.getByRole("alert")).toHaveTextContent(
-          /medical conditions/i,
-        ),
-      );
-      expect(updateDoc).not.toHaveBeenCalled();
+      expect(screen.queryByRole("button", { name: /Complete Your Details/i })).not.toBeInTheDocument();
     });
 
     it("offers Update Details, not Complete, once the record is filled in", async () => {

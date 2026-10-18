@@ -395,11 +395,11 @@ export default function RegistrantRow({
                       : "Not provided yet"
                   }
                 />
-                {/* Never "None declared" for a blank: nothing was declared
+                {/* "None stated", not "None declared": a blank declares nothing
                     either way, and officers read this on the trail. */}
                 <InfoCell
                   label="Medical"
-                  value={reg.medicalConditions || "Not provided yet"}
+                  value={reg.medicalConditions || "None stated"}
                 />
               </div>
 
