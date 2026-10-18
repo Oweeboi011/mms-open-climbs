@@ -34,9 +34,14 @@ const millis = (ts) => (ts && typeof ts.toMillis === "function" ? ts.toMillis() 
 const regTime = (reg) => Math.max(millis(reg.updatedAt), millis(reg.createdAt));
 
 // Every registration of one member folded oldest → newest, so each field ends
-// up with its most recent non-blank answer. Returns null when there's nothing.
+// up with its most recent non-blank answer. Officer-added registrations go
+// first: their experience level and participant type may be the Add
+// Participant defaults, so they only fill gaps the member's own answers
+// leave. Returns null when there's nothing.
 function latestDetails(regs) {
-  const ordered = [...regs].sort((a, b) => regTime(a) - regTime(b));
+  const ordered = [...regs].sort(
+    (a, b) => Number(!a.addedByAdmin) - Number(!b.addedByAdmin) || regTime(a) - regTime(b),
+  );
   let details = {};
   let source = null;
   ordered.forEach((reg) => {
