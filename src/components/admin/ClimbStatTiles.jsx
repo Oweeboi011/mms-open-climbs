@@ -44,7 +44,6 @@ export default function ClimbStatTiles({ stats, climb, regs, docs }) {
         tone="gold"
         title="Payments submitted but not yet reviewed: check each receipt in the registrant list"
       />
-      <Tile value={peso(stats.totalPaid)} label="Total Paid" tone="accent" />
       <Tile value={peso(stats.totalMissing)} label="Total Outstanding" tone="danger" />
       {climb?.maxParticipants && (
         <Tile value={climb.maxParticipants - stats.confirmed} label="Open Slots" />

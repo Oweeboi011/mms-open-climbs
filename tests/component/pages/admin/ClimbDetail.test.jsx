@@ -194,7 +194,7 @@ describe("Admin ClimbDetail", () => {
     expect(screen.queryByDisplayValue("Quezon City")).not.toBeInTheDocument();
   });
 
-  it("shows total paid and total outstanding stat tiles", async () => {
+  it("shows verified payments and total outstanding stat tiles, with no Total Paid tile", async () => {
     mockRegistrantSnapshot([
       {
         id: registrationFixture.id,
@@ -221,8 +221,9 @@ describe("Admin ClimbDetail", () => {
     ]);
 
     render();
-    await waitFor(() => expect(screen.getByText("Total Paid")).toBeInTheDocument());
-    // Several cells legitimately show ₱500 in this fixture (Total Paid,
+    await waitFor(() => expect(screen.getByText("Verified Payments (1)")).toBeInTheDocument());
+    expect(screen.queryByText("Total Paid")).not.toBeInTheDocument();
+    // Several cells legitimately show ₱500 in this fixture (Verified Payments,
     // Total Outstanding, Juan's Paid cell, Maria's Outstanding cell) — just
     // confirm the value shows up rather than pinning an exact count.
     expect(screen.getAllByText("₱500").length).toBeGreaterThanOrEqual(3);
