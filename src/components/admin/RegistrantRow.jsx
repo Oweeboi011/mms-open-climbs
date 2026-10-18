@@ -24,7 +24,7 @@ import {
   STATUS_STYLE,
   PAYMENT_STYLE,
 } from "./registrantShared";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
 import { canMarkNoShow } from "@/utils/noShow";
 
 const statusStyleWithLabel = Object.fromEntries(
@@ -422,10 +422,10 @@ export default function RegistrantRow({
                     ).map((docType) => (
                       <ComplianceCheck
                         key={docType.key}
-                        ok={!!reg[docType.uploadField]?.url}
+                        ok={isDocSubmitted(reg[docType.uploadField])}
                         label={
-                          reg[docType.uploadField]?.url
-                            ? `${docType.panelLabel} Uploaded`
+                          isDocSubmitted(reg[docType.uploadField])
+                            ? `${docType.panelLabel} ${reg[docType.uploadField]?.url ? "Uploaded" : "Received"}`
                             : `${docType.panelLabel} Missing`
                         }
                         href={reg[docType.uploadField]?.url || undefined}

@@ -274,7 +274,8 @@ Opened from **Registrants**. For one climb you can:
 
 - **Confirm**, **Waitlist**, or **Cancel** each registration; edit a registrant's details; add a private **admin note**; open their printable waiver
 - Review each payment and mark it **Verified** or **Rejected**, or **Reset to Submitted** for re-review; record a payment received in person; **Split Payment** when one member paid for others; **Record Refund**
-- See documents and compliance per registrant, and upload documents on someone's behalf
+- See documents and compliance per registrant (the list shows only what's missing; hover for the full checklist), and upload documents on someone's behalf. With no file to upload, tick **Received without a file** and note how it was received (e.g. shown at the jump-off); it then counts as submitted.
+- Someone added through **Add Joiner** signs their own waiver from **My Climbs → Sign Waiver**; the bell reminds them daily until they do.
 - **Add Joiner** — record a walk-in, typing their details or linking an **existing member** so it shows on their own My Climbs. Picking a member fills in their saved mobile, emergency contact, experience, participant type and medical information
 - Mark **No-show** on climb day (or undo it)
 - **Service Sharing** — group members who share one unit of a shareable fee (e.g. a vehicle)

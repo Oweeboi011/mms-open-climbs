@@ -1,4 +1,4 @@
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
 
 // Cancelled registrants are dropped from the denominator — chasing a document
 // from someone who isn't climbing anymore would make the tally unreachable.
@@ -18,7 +18,7 @@ export function getDocCompliance(climb, regs = []) {
     (docType) => climb?.[docType.requiresField],
   ).map((docType) => {
     const submitted = expectedRegs.filter(
-      (reg) => reg[docType.uploadField]?.url,
+      (reg) => isDocSubmitted(reg[docType.uploadField]),
     ).length;
     return {
       key: docType.key,
@@ -46,8 +46,7 @@ export function getDocCompliance(climb, regs = []) {
       ? expectedRegs.filter((reg) =>
           types.some(
             (t) =>
-              !reg[REQUIRED_DOC_TYPES.find((d) => d.key === t.key).uploadField]
-                ?.url,
+              !isDocSubmitted(reg[REQUIRED_DOC_TYPES.find((d) => d.key === t.key).uploadField]),
           ),
         ).length
       : 0,

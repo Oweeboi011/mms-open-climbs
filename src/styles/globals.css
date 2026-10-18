@@ -6110,3 +6110,18 @@ details[open] > .myreg-collapsible::before {
   margin-left: 6px;
   white-space: nowrap;
 }
+
+/* Admin: document received without a file */
+.offline-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.offline-receipt-toggle {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

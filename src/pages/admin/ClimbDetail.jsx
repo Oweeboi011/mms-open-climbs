@@ -34,7 +34,7 @@ import { splitPayment, undoSplitPayment } from "@/services/splitPayment";
 import AdminDocumentModal from "@/components/admin/AdminDocumentModal";
 import ReceiptModal from "@/components/ReceiptModal";
 import { STATUS_OPTIONS } from "@/components/admin/registrantShared";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
 import {
   sanitizeFileNamePart,
   makeDatedDownloadName,
@@ -86,7 +86,7 @@ function missingCompliance(reg, climb) {
   if (!reg.waiverSigned) missing.push("waiver");
   if (detailsIncomplete(reg)) missing.push("details");
   REQUIRED_DOC_TYPES.forEach((docType) => {
-    if (climb?.[docType.requiresField] && !reg[docType.uploadField]?.url) {
+    if (climb?.[docType.requiresField] && !isDocSubmitted(reg[docType.uploadField])) {
       missing.push(`doc:${docType.key}`);
     }
   });

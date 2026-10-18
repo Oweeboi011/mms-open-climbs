@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
 import { nowMs } from "@/utils/now";
 
 function toDate(value) {
@@ -239,7 +239,7 @@ export default function AppInsights() {
       for (const stat of stats) {
         if (!climb[stat.docType.requiresField]) continue;
         stat.required++;
-        if (r[stat.docType.uploadField]?.url) stat.done++;
+        if (isDocSubmitted(r[stat.docType.uploadField])) stat.done++;
       }
     }
     return stats;

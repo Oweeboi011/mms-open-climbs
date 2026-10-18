@@ -932,6 +932,28 @@ describe("Admin ClimbDetail", () => {
     expect(patch.permitUpload).toMatchObject({ fileName: "permit.pdf" });
   });
 
+  it("lets an admin mark a required document received without a file, with a note", async () => {
+    getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, { ...climbFixture, requiresPermit: true }));
+    render();
+    fireEvent.click(await screen.findByText("Juan Cruz"));
+    fireEvent.click(await screen.findByRole("button", { name: /\+ Manage Documents/i }));
+    await screen.findByText("Manage Required Documents");
+
+    const group = screen
+      .getByText("Mountaineering / Trekking Permit", { selector: "label" })
+      .closest(".form-group");
+    fireEvent.click(within(group).getByLabelText("Received without a file"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Add a note saying how each document was received.")).toBeInTheDocument();
+
+    fireEvent.change(within(group).getByRole("textbox"), { target: { value: "Shown at the jump-off" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls.find((c) => c[1]?.permitUpload)?.[1];
+    expect(patch.permitUpload).toMatchObject({ receivedOffline: true, note: "Shown at the jump-off" });
+    expect(patch.permitUpload.url).toBeUndefined();
+  });
+
   it("shows submitted feedback with an average rating", async () => {
     mockLiveSnapshot(
       [{ id: registrationFixture.id, data: registrationFixture }],

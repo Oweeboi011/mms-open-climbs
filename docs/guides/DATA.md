@@ -83,7 +83,7 @@ editable by them.
 | `amountPaid` | Sum of non-rejected payments — what balance math uses |
 | | Write all three only through `buildPaymentPatch` / `setEntryStatus` / `setAllEntryStatuses` (`src/utils/payments.js`). Old docs with only `amountPaid` + `paymentProofs` are normalised by `getPaymentEntries` |
 | `feeBreakdown[]` | Fee snapshot at registration; used only when the climb has no fee schedule |
-| `…Upload` (`registrationForm`, `medicalCert`, `permit`, `waiverDoc`) | `{ url, fileName }` for each required document |
+| `…Upload` (`registrationForm`, `medicalCert`, `permit`, `waiverDoc`) | `{ url, fileName }` for each required document, or `{ receivedOffline: true, note, markedBy, markedAt }` when an admin recorded it as received without a file. Either counts as submitted (`isDocSubmitted`) |
 | `waiverSigned`, `waiverSignedName`, `waiverSignedAt` | Typed e-signature (separate from an uploaded waiver document) |
 | `privacyConsentAt`, `privacyNoticeVersion` | Data Privacy Act consent; absent on admin-added walk-ins |
 | `noShow`, `attended` (+ `…MarkedBy/At`) | Climb-day flags, not statuses — payments and counters untouched |

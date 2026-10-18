@@ -32,6 +32,17 @@ describe("ComplianceSummary", () => {
     expect(screen.queryByText("Waiver")).not.toBeInTheDocument();
   });
 
+  it("counts a document an admin marked received without a file", () => {
+    render(
+      <ComplianceSummary
+        reg={{ waiverSigned: true, [medCert.uploadField]: { receivedOffline: true, note: "Shown on climb day" } }}
+        climb={climb}
+        detailsComplete
+      />,
+    );
+    expect(screen.getByText("Complete")).toBeInTheDocument();
+  });
+
   it("ignores documents this climb doesn't require", () => {
     render(<ComplianceSummary reg={{ waiverSigned: true }} climb={{}} detailsComplete />);
     expect(screen.getByText("Complete")).toBeInTheDocument();

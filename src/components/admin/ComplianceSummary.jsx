@@ -1,5 +1,5 @@
 import { ComplianceCheck } from "@/components/admin/registrantShared";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { REQUIRED_DOC_TYPES, isDocSubmitted } from "@/data/requiredDocTypes";
 
 // One registrant's paperwork for the registrant list, showing only what's
 // still missing so a full row stays one line tall. Hover lists every check;
@@ -13,7 +13,7 @@ export default function ComplianceSummary({ reg, climb, detailsComplete }) {
     ...REQUIRED_DOC_TYPES.filter((docType) => climb?.[docType.requiresField]).map((docType) => ({
       key: docType.key,
       label: docType.badgeLabel,
-      ok: !!reg[docType.uploadField]?.url,
+      ok: isDocSubmitted(reg[docType.uploadField]),
     })),
   ];
   const missing = checks.filter((c) => !c.ok);
