@@ -1,3 +1,5 @@
+import { sumPaymentsByStatus } from "@/utils/payments";
+
 function Tile({ value, label, tone = "", title }) {
   return (
     <div className={`admin-stat-card ${tone}`.trim()} title={title}>
@@ -15,6 +17,7 @@ const peso = (n) => `₱${n.toLocaleString("en-PH")}`;
 export default function ClimbStatTiles({ stats, climb, regs, docs }) {
   const active = regs.filter((r) => r.status !== "cancelled");
   const members = active.filter((r) => r.memberType === "member").length;
+  const payments = sumPaymentsByStatus(regs);
   return (
     <div className="admin-stats">
       <Tile value={stats.total} label="Total" />
@@ -29,6 +32,18 @@ export default function ClimbStatTiles({ stats, climb, regs, docs }) {
       <Tile value={stats.waitlisted} label="Waitlisted" tone="accent" />
       <Tile value={stats.cancelled} label="Cancelled" tone="danger" />
       <Tile value={stats.awaitingPayment} label="Awaiting Payment Review" tone="gold" />
+      <Tile
+        value={peso(payments.verified.amount)}
+        label={`Verified Payments (${payments.verified.count})`}
+        tone="accent"
+        title="Payments an officer has checked and accepted, before refunds"
+      />
+      <Tile
+        value={peso(payments.submitted.amount)}
+        label={`Unverified Payments (${payments.submitted.count})`}
+        tone="gold"
+        title="Payments submitted but not yet reviewed: check each receipt in the registrant list"
+      />
       <Tile value={peso(stats.totalPaid)} label="Total Paid" tone="accent" />
       <Tile value={peso(stats.totalMissing)} label="Total Outstanding" tone="danger" />
       {climb?.maxParticipants && (

@@ -81,6 +81,25 @@ export function getCountedTotal(reg) {
     .reduce((sum, e) => sum + e.amount, 0);
 }
 
+// Amount and number of individual payments by review state, across a set of
+// registrations. Counted per payment, not per registration, since one
+// registration can hold a verified payment and another still awaiting review.
+export function sumPaymentsByStatus(regs) {
+  const totals = {
+    verified: { amount: 0, count: 0 },
+    submitted: { amount: 0, count: 0 },
+  };
+  (regs || []).forEach((reg) => {
+    getPaymentEntries(reg).forEach((entry) => {
+      const bucket = totals[entry.status];
+      if (!bucket) return;
+      bucket.amount = Math.round((bucket.amount + entry.amount) * 100) / 100;
+      bucket.count += 1;
+    });
+  });
+  return totals;
+}
+
 // The registration-level `paymentStatus`, rolled up from the individual
 // payments. Anything still awaiting review keeps the whole registration in
 // the admin's review queue; once every payment is reviewed, the registration

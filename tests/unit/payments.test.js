@@ -9,6 +9,7 @@ import {
   buildPaymentPatch,
   setEntryStatus,
   setAllEntryStatuses,
+  sumPaymentsByStatus,
 } from "@/utils/payments";
 
 const proof = (name) => ({ url: `https://x/${name}`, fileName: name });
@@ -253,5 +254,29 @@ describe("getAllProofs", () => {
 
   it("uses the legacy flat list when there's no history", () => {
     expect(getAllProofs({ paymentProofs: [proof("a.jpg")] })).toHaveLength(1);
+  });
+});
+
+describe("sumPaymentsByStatus", () => {
+  it("totals verified and unverified payments one payment at a time", () => {
+    const regs = [
+      { payments: [{ amount: 3000, status: "verified" }, { amount: 2530, status: "submitted" }] },
+      { payments: [{ amount: 5530, status: "verified" }] },
+      { payments: [{ amount: 500, status: "rejected" }] },
+      // A registration from before per-payment history: its status is the payment's.
+      { amountPaid: 1500, paymentStatus: "submitted" },
+      { paymentStatus: "unpaid" },
+    ];
+    expect(sumPaymentsByStatus(regs)).toEqual({
+      verified: { amount: 8530, count: 2 },
+      submitted: { amount: 4030, count: 2 },
+    });
+  });
+
+  it("is all zero with no registrations", () => {
+    expect(sumPaymentsByStatus(undefined)).toEqual({
+      verified: { amount: 0, count: 0 },
+      submitted: { amount: 0, count: 0 },
+    });
   });
 });

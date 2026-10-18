@@ -1042,6 +1042,31 @@ describe("Admin ClimbDetail", () => {
     expect(payload.waiverSigned).toBe(false);
   });
 
+  it("shows verified and unverified payment totals in the stats row", async () => {
+    getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
+    mockRegistrantSnapshot([
+      {
+        id: "r1",
+        data: {
+          ...registrationFixture,
+          payments: [
+            { amount: 3000, proofs: [], status: "verified" },
+            { amount: 2530, proofs: [], status: "submitted" },
+          ],
+        },
+      },
+      { id: "r2", data: { ...registrationFixture, name: "Ana", payments: [{ amount: 1000, proofs: [], status: "verified" }] } },
+    ]);
+    render();
+
+    const tile = async (label) =>
+      (await screen.findByText(label, { selector: ".admin-stat-label" }))
+        .closest(".admin-stat-card")
+        .querySelector(".admin-stat-num").textContent;
+    expect(await tile("Verified Payments (2)")).toBe("₱4,000");
+    expect(await tile("Unverified Payments (1)")).toBe("₱2,530");
+  });
+
   it("counts active members and guests in the stats row", async () => {
     getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, climbFixture));
     mockRegistrantSnapshot([
