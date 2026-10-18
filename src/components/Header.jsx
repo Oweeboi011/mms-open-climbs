@@ -85,9 +85,9 @@ export default function Header() {
           {currentUser ? (
             <>
               <NotificationBell />
-              <span className="header-user-name">
+              <Link to="/my-details" className="header-user-name" title="My Details">
                 {userProfile?.displayName || currentUser.email}
-              </span>
+              </Link>
               <button
                 className="header-btn header-btn-outline"
                 onClick={handleLogout}
@@ -192,9 +192,9 @@ export default function Header() {
                     currentUser.email ||
                     "?")[0].toUpperCase()}
                 </div>
-                <span className="mobile-nav-username">
+                <Link to="/my-details" className="mobile-nav-username" title="My Details">
                   {userProfile?.displayName || currentUser.email}
-                </span>
+                </Link>
                 <NotificationBell />
               </div>
               <button className="mobile-nav-signout" onClick={handleLogout}>

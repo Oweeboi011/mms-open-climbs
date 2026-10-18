@@ -113,6 +113,15 @@ stateDiagram-v2
   write it (`functions/scripts/grant-email-members.mjs`), and `syncAdminClaim`
   removes it when the account stops being an admin.
   `syncAdminClaim` mirrors it into an auth claim for Storage rules.
+- **memberDetails** — the member’s saved registration details (My Details):
+  `mobile`, `dateOfBirth`, `address`, `medicalConditions`, `experienceLevel`,
+  `memberType`, `ecName`, `ecMobile`, `ecRelationship`, `sourceClimbTitle`
+  (the climb they came from; blank when saved on My Details), `updatedAt`.
+  Field names match the registration form so they copy straight in. Kept apart
+  from `users` because it holds health and contact details.
+  `onRegistrationDetailsWritten` merges in each registration’s non-blank
+  answers; `deleteUserAccount` deletes it. Seeded once from past registrations
+  by `functions/scripts/backfill-member-details.mjs`.
 - **feedback** — `rating` integer 1–5 and `comments`. The deterministic id is
   the one-per-member rule: a second submit becomes an update, which the rules
   refuse.

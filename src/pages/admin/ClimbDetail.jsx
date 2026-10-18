@@ -54,6 +54,7 @@ import {
 import ServiceSharingCard from "@/components/admin/ServiceSharingCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
 import BalanceDueTable, { useClimbBalances } from "@/components/admin/BalanceDueTable";
+import ClimbStatTiles from "@/components/admin/ClimbStatTiles";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import {
   getPaymentEntries,
@@ -892,73 +893,7 @@ export default function AdminClimbDetail() {
               stats={stats}
             />
 
-            {/* Stats */}
-            <div className="admin-stats">
-              <div className="admin-stat-card">
-                <div className="admin-stat-num">{stats.total}</div>
-                <div className="admin-stat-label">Total</div>
-              </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-num">{stats.confirmed}</div>
-                <div className="admin-stat-label">Confirmed</div>
-              </div>
-              <div className="admin-stat-card gold">
-                <div className="admin-stat-num">{stats.pending}</div>
-                <div className="admin-stat-label">Pending</div>
-              </div>
-              <div className="admin-stat-card accent">
-                <div className="admin-stat-num">{stats.waitlisted}</div>
-                <div className="admin-stat-label">Waitlisted</div>
-              </div>
-              <div className="admin-stat-card danger">
-                <div className="admin-stat-num">{stats.cancelled}</div>
-                <div className="admin-stat-label">Cancelled</div>
-              </div>
-              <div className="admin-stat-card gold">
-                <div className="admin-stat-num">{stats.awaitingPayment}</div>
-                <div className="admin-stat-label">Awaiting Payment Review</div>
-              </div>
-              <div className="admin-stat-card accent">
-                <div className="admin-stat-num">
-                  ₱{stats.totalPaid.toLocaleString("en-PH")}
-                </div>
-                <div className="admin-stat-label">Total Paid</div>
-              </div>
-              <div className="admin-stat-card danger">
-                <div className="admin-stat-num">
-                  ₱{stats.totalMissing.toLocaleString("en-PH")}
-                </div>
-                <div className="admin-stat-label">Total Outstanding</div>
-              </div>
-              {climb?.maxParticipants && (
-                <div className="admin-stat-card">
-                  <div className="admin-stat-num">
-                    {climb.maxParticipants - stats.confirmed}
-                  </div>
-                  <div className="admin-stat-label">Open Slots</div>
-                </div>
-              )}
-              {stats.noShows > 0 && (
-                <div className="admin-stat-card danger">
-                  <div className="admin-stat-num">{stats.noShows}</div>
-                  <div className="admin-stat-label">No-shows</div>
-                </div>
-              )}
-              {docs.expected > 0 && (
-                <div
-                  className={`admin-stat-card ${docs.complete ? "" : "gold"}`}
-                  title={`${docs.submitted} of ${docs.expected} expected requirement documents have been submitted across ${docs.types.length} required document type${docs.types.length === 1 ? "" : "s"}. Cancelled registrants are excluded.`}
-                >
-                  <div className="admin-stat-num">
-                    {docs.submitted}
-                    <span style={{ fontSize: "1.2rem", opacity: 0.55 }}>
-                      /{docs.expected}
-                    </span>
-                  </div>
-                  <div className="admin-stat-label">Required Docs In</div>
-                </div>
-              )}
-            </div>
+            <ClimbStatTiles stats={stats} climb={climb} regs={regs} docs={docs} />
 
             <MoneyReconciliationCard
               regs={regs}

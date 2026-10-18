@@ -118,6 +118,8 @@ This only applies to email/password accounts. If you sign in with Google, your p
 
 If you already have an active registration for that climb, you're taken straight to **My Climbs** instead — one active registration per climb.
 
+**Filled in for you:** after your first climb, the form starts with your saved details from [My Details](#my-details): mobile, date of birth, address, experience level, participant type, emergency contact and medical information. A note says where they came from. Check them before submitting, especially your medical information.
+
 ### 7.1 Personal Information
 
 | Field | Required? | Notes |
@@ -217,6 +219,10 @@ If you have no registrations yet, you'll see **Browse Climbs**.
 
 **After the climb:** Confirmed participants receive a one-time thank-you email and a feedback request automatically.
 
+### My Details
+
+**My Details** (your name in the header, or the link under **My Climbs**) holds the details your registrations start with: mobile, date of birth, address, experience level, participant type, emergency contact and medical information. They are saved from each registration you submit or update, and you can change them here any time with **Save My Details**. Changes apply to future registrations; to correct a climb you're already registered for, use **Update Details** on its card. Only you and administrators can see them.
+
 ---
 
 ## 10. Your Signed Waiver
@@ -269,7 +275,7 @@ Opened from **Registrants**. For one climb you can:
 - **Confirm**, **Waitlist**, or **Cancel** each registration; edit a registrant's details; add a private **admin note**; open their printable waiver
 - Review each payment and mark it **Verified** or **Rejected**, or **Reset to Submitted** for re-review; record a payment received in person; **Split Payment** when one member paid for others; **Record Refund**
 - See documents and compliance per registrant, and upload documents on someone's behalf
-- **Add Joiner** — record a walk-in, typing their details or linking an **existing member** so it shows on their own My Climbs
+- **Add Joiner** — record a walk-in, typing their details or linking an **existing member** so it shows on their own My Climbs. Picking a member fills in their saved mobile, emergency contact, experience, participant type and medical information
 - Mark **No-show** on climb day (or undo it)
 - **Service Sharing** — group members who share one unit of a shareable fee (e.g. a vehicle)
 - **Expenses** and **Where the Money Stands** — the climb's costs against what was collected, and the club's net funds

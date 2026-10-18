@@ -1433,7 +1433,9 @@ export default function MyRegistrations() {
       <main className="myreg-main">
         <div className="myreg-heading">
           <h1 className="myreg-title">My Climbs</h1>
-          <p className="myreg-email">{currentUser.email}</p>
+          <p className="myreg-email">
+            {currentUser.email} · <Link to="/my-details">My Details</Link>
+          </p>
         </div>
 
         {loading ? (

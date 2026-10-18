@@ -5,6 +5,7 @@
 require("./shared/admin");
 
 const { onRegistrationCreated, onRegistrationUpdated, onRegistrationDeleted } = require("./triggers/registrations");
+const { onRegistrationDetailsWritten } = require("./triggers/memberDetails");
 const { onClimbUpdated } = require("./triggers/climbs");
 const { sendReminderNotifications } = require("./scheduled/reminders");
 const { syncAdminClaim } = require("./triggers/adminClaim");
@@ -21,6 +22,7 @@ const { getEmailStats, getStorageUsage, getFunctionHealth, getBillingCost } = re
 exports.onRegistrationCreated = onRegistrationCreated;
 exports.onRegistrationUpdated = onRegistrationUpdated;
 exports.onRegistrationDeleted = onRegistrationDeleted;
+exports.onRegistrationDetailsWritten = onRegistrationDetailsWritten;
 exports.onClimbUpdated = onClimbUpdated;
 exports.sendReminderNotifications = sendReminderNotifications;
 exports.syncAdminClaim = syncAdminClaim;

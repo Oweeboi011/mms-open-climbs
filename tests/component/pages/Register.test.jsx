@@ -56,6 +56,36 @@ describe("Register page", () => {
       });
     });
 
+    it("fills in saved details from the member's last climb, with a note to check them", async () => {
+      getDoc.mockImplementation((ref) =>
+        Promise.resolve(
+          String(ref?.path).startsWith("memberDetails/")
+            ? makeSnapshot("member-uid", {
+                mobile: "+63 917 555 0101",
+                ecName: "Ana Cruz",
+                ecRelationship: "Sister",
+                memberType: "member",
+                medicalConditions: "Asthma",
+                sourceClimbTitle: "Mt. Batulao",
+              })
+            : makeSnapshot(climbFixture.id, { ...climbFixture, status: "open" }),
+        ),
+      );
+      render();
+      expect(await screen.findByDisplayValue("+63 917 555 0101")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Ana Cruz")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Asthma")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "We filled in your details from your last climb (Mt. Batulao)",
+      );
+    });
+
+    it("shows no fill-in note when nothing is saved", async () => {
+      render();
+      await screen.findByText("Mt. Pulag");
+      expect(screen.queryByText(/We filled in your details/)).not.toBeInTheDocument();
+    });
+
     it("shows the waiver agreement checkbox", async () => {
       render();
       await waitFor(() =>

@@ -42,6 +42,7 @@ node scripts/set-admin.mjs <uid> "<Name>" <email>    # uses your firebase login
 node scripts/seed-climbs.mjs                          # sample climbs
 node functions/scripts/grant-email-members.mjs <uid|email> [--revoke]   # owner only: all-member email
 node functions/scripts/purge-admin-pageviews.mjs      # admin SDK scripts live in functions/scripts
+node functions/scripts/backfill-member-details.mjs [--apply]   # seed My Details from past registrations
 ```
 
 ## Architecture
@@ -68,14 +69,14 @@ node functions/scripts/purge-admin-pageviews.mjs      # admin SDK scripts live i
 ### Routes
 
 - **Public**: `/`, `/event/:climbId`, `/login`, `/signup`, `/forgot-password`
-- **Authenticated**: `/register/:climbId`, `/my-registrations`, `/waiver/:registrationId`, `/release-notes`, `/privacy`, `/feedback/:climbId`
+- **Authenticated**: `/register/:climbId`, `/my-registrations`, `/my-details`, `/waiver/:registrationId`, `/release-notes`, `/privacy`, `/feedback/:climbId`
 - **Admin** (`role: admin` on `users/{uid}`): `/admin/*`
 
 ### Data
 
 - Live data via `subscribeTo…` service functions; return the unsubscribe from `useEffect`.
 - Payment proofs and documents upload to `{prefix}/{climbId}/{userId|regId}/{timestamp}_{name}`; each payment is appended to the registration's `payments` array (see `src/utils/payments.js`).
-- Collections: `climbs`, `climbPrivate`, `climbInternal`, `climbExpenses`, `registrations`, `feedback`, `users`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, `releaseNotes`, `releaseNoteEmailJobs` — schema in `docs/guides/DATA.md`.
+- Collections: `climbs`, `climbPrivate`, `climbInternal`, `climbExpenses`, `registrations`, `feedback`, `users`, `memberDetails`, `pageViews`, `failedRequests`, `notifications`, `auditLog`, `releaseNotes`, `releaseNoteEmailJobs` — schema in `docs/guides/DATA.md`.
 - Firestore writes trigger Cloud Functions that email members, officers and admin CCs via Brevo.
 
 ## Testing

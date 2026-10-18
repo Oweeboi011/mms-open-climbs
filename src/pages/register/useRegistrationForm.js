@@ -11,6 +11,17 @@ import {
 import { getClimb } from "@/services/climbs";
 import { logFailedRequest } from "@/services/logFailedRequest";
 import { createRegistration, findUserRegistrationsForClimb } from "@/services/registrations";
+import { getMemberDetails } from "@/services/memberDetails";
+import { describeDetailsSource, detailsToFormFields } from "@/utils/memberDetails";
+
+// Saved details only save typing: if they can't load, the form starts blank.
+async function loadSavedDetails(uid) {
+  try {
+    return await getMemberDetails(uid);
+  } catch {
+    return null;
+  }
+}
 
 function reportFailure(type, source, err, { currentUser, userProfile, climbId }) {
   logFailedRequest({
@@ -35,6 +46,7 @@ export default function useRegistrationForm() {
   const [climb, setClimb] = useState(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(INITIAL_FORM);
+  const [prefilledFrom, setPrefilledFrom] = useState("");
   const [waiverAgreed, setWaiverAgreed] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [sigName, setSigName] = useState("");
@@ -94,10 +106,13 @@ export default function useRegistrationForm() {
         }
 
         setClimb(climbData);
+        const saved = await loadSavedDetails(currentUser.uid);
         setForm((p) => ({
           ...p,
           fullName: userProfile?.displayName || currentUser.displayName || "",
+          ...detailsToFormFields(saved),
         }));
+        if (Object.keys(detailsToFormFields(saved)).length) setPrefilledFrom(describeDetailsSource(saved));
       } catch (err) {
         console.error(err);
         setError("Could not load this climb. Please refresh and try again.");
@@ -203,7 +218,7 @@ export default function useRegistrationForm() {
   return {
     amountPaid, bindField, blockedReason, clearFieldError, climb, climbId, currentUser,
     doSubmit, docFiles, error, fieldErrors, form, handleSubmit, inputClass, loading, navigate,
-    optionalFeeSelections, paymentFiles, paymentNote, paymentPreviews, paymentUploading,
+    optionalFeeSelections, paymentFiles, paymentNote, paymentPreviews, paymentUploading, prefilledFrom,
     pledge, privacyConsent, qrModalOpen, setAmountPaid, setDocFiles, setField,
     setOptionalFeeSelections, setPaymentFiles, setPaymentNote, setPaymentPreviews, setPledge,
     setPrivacyConsent, setQrModalOpen, setShowConfirm, setSigName, setWaiverAgreed,

@@ -227,9 +227,9 @@ exports.updateUserProfile = onCall(async (request) => {
 
 // ── Helper: remove a deleted account's personal data ────────────────────────
 // Registrations stay — they are the club's payment and attendance record —
-// but the health and contact details on them, the member's notifications and
-// every file they uploaded (medical certificates, IDs, receipts) go with the
-// account. Best effort: a failure here is logged, never surfaced, since the
+// but the health and contact details on them, the member's saved details
+// (memberDetails), their notifications and every file they uploaded (medical
+// certificates, IDs, receipts) go with the account. Best effort: a failure here is logged, never surfaced, since the
 // account itself is already gone.
 const MEMBER_UPLOAD_PREFIXES = [
   "payment-proofs",
@@ -254,6 +254,8 @@ async function purgeUserPersonalData(uid) {
         }),
       ),
     );
+
+    await db.doc(`memberDetails/${uid}`).delete();
 
     const notifs = await db.collection("notifications").where("userId", "==", uid).get();
     await Promise.all(notifs.docs.map((d) => d.ref.delete()));

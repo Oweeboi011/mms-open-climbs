@@ -74,6 +74,34 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // A member's saved details, used to fill in their next registration. Kept
+    // apart from users/{uid}: it holds health and contact details, and only
+    // the member and admins may see it. The onRegistrationDetailsWritten
+    // trigger keeps it current; the member edits it on My Details.
+    function memberDetailsAreValid(d) {
+      return d.keys().hasOnly([
+          'mobile', 'dateOfBirth', 'address', 'medicalConditions', 'experienceLevel',
+          'memberType', 'ecName', 'ecMobile', 'ecRelationship', 'sourceClimbTitle', 'updatedAt'
+        ]) &&
+        (!('memberType' in d) || d.memberType in ['member', 'joiner']) &&
+        (!('experienceLevel' in d) || d.experienceLevel in ['beginner', 'intermediate', 'experienced']) &&
+        (!('medicalConditions' in d) || (d.medicalConditions is string && d.medicalConditions.size() <= 2000)) &&
+        (!('address' in d) || (d.address is string && d.address.size() <= 300)) &&
+        (!('mobile' in d) || (d.mobile is string && d.mobile.size() <= 40)) &&
+        (!('dateOfBirth' in d) || (d.dateOfBirth is string && d.dateOfBirth.size() <= 20)) &&
+        (!('ecName' in d) || (d.ecName is string && d.ecName.size() <= 120)) &&
+        (!('ecMobile' in d) || (d.ecMobile is string && d.ecMobile.size() <= 40)) &&
+        (!('ecRelationship' in d) || (d.ecRelationship is string && d.ecRelationship.size() <= 60)) &&
+        (!('sourceClimbTitle' in d) || (d.sourceClimbTitle is string && d.sourceClimbTitle.size() <= 200));
+    }
+
+    match /memberDetails/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow create, update: if (isAdmin() || isOwner(userId)) &&
+        memberDetailsAreValid(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
     match /climbs/{climbId} {
       allow read: if true;
       allow write: if isAdmin();

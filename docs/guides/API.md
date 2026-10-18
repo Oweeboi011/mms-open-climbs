@@ -39,6 +39,7 @@ graph LR
 | `onRegistrationCreated` | `triggers/registrations.js` | trigger | Seat count, auto-waitlist, duplicate drop, roster, reminders, confirmation + officer email |
 | `onRegistrationUpdated` | `triggers/registrations.js` | trigger (with auth context) | Forged-payment guard, payment/status notifications, counters, status email |
 | `onRegistrationDeleted` | `triggers/registrations.js` | trigger | Keeps roster and `docsCompleteCount` honest on hard delete; no email |
+| `onRegistrationDetailsWritten` | `triggers/memberDetails.js` | trigger (written) | Copies a registration’s non-blank details into `memberDetails/{userId}`; skips payment/status-only changes, walk-ins and deleted accounts |
 | `onClimbUpdated` | `triggers/climbs.js` | trigger | Requirement flips, cancellation/postponement email, announcements (bell only) |
 | `syncAdminClaim` | `triggers/adminClaim.js` | trigger | Mirrors `users/{uid}.role` into the `admin` custom claim Storage rules read; on demotion cuts the session and drops `canEmailMembers` |
 | `sendReminderNotifications` | `scheduled/reminders.js` | schedule | Daily nags, officer summary, one-time thank-you + feedback request |
