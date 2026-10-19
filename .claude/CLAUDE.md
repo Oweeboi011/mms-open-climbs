@@ -68,7 +68,7 @@ node functions/scripts/backfill-member-details.mjs [--apply]   # seed My Details
 
 ### Routes
 
-- **Public**: `/`, `/event/:climbId`, `/login`, `/signup`, `/forgot-password`
+- **Public**: `/`, `/event/:climbId`, `/login`, `/signup`, `/forgot-password`, `/help` (runbook in tabs; content in `src/data/helpGuides.js` and `helpAdminGuides.js`)
 - **Authenticated**: `/register/:climbId`, `/my-registrations`, `/my-details`, `/waiver/:registrationId`, `/release-notes`, `/privacy`, `/feedback/:climbId`
 - **Admin** (`role: admin` on `users/{uid}`): `/admin/*`
 

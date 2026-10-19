@@ -21,6 +21,8 @@ MMS Open Climbs lets you:
 
 The header has **Schedule**, **My Climbs**, **What's New** and, for administrators, **Admin**. Officers and administrators also get tools to run climbs — see [For Climb Officers](#12-for-climb-officers) and [For Administrators](#13-for-administrators).
 
+**Help page:** **Help** in the footer of every page opens a refresher in tabs: **Everyone**, **Members**, **Climb officers**, **Admins** (admins only, one guide per admin activity) and **Reference** (FAQ, troubleshooting, glossary). A search box finds any topic across every tab.
+
 **First-time welcome guide:** The first time you sign in, a step-by-step guide walks you through browsing climbs, registering, uploading payment proof, tracking your climbs, and printing your waiver (administrators see extra steps for climb management, payments, registrations/users, and analytics/release notes). It appears automatically once per account per browser; reopen it any time with the guide icon in the header.
 
 ---
@@ -266,7 +268,7 @@ The climb form covers:
 
 ### 13.2 Payments
 
-**Manage Payments** shows each climb's money at a glance — Total Declared, Verified Collected, Awaiting Review, and Outstanding — split into upcoming and completed climbs. Each climb card has its cash flow, optional-service headcounts (e.g. who avails transportation), its fee schedule (**Edit Fees**), and its GCash details and QR code (**Upload / Replace QR Code**).
+**Manage Payments** shows each climb's money at a glance — Total Declared, Verified Collected, Awaiting Review, and Outstanding — split into upcoming and completed climbs. Each climb card has its cash flow, optional-service headcounts (e.g. who avails transportation), its fee schedule (**Edit Fees**), and its GCash details and QR code (**Upload QR Code** / **Replace QR Code**).
 
 ### 13.3 Climb Detail (per-climb registrants)
 
@@ -288,7 +290,7 @@ Opened from **Registrants**. For one climb you can:
 
 ### 13.5 User Management
 
-- Search users; **Add New User** creates the account and emails a password-setup link (**Create & Send Invite**)
+- Search users; **+ Add User** opens **Add New User**, which creates the account and emails a password-setup link (**Create & Send Invite**)
 - Open a user to **Edit Profile** (name and login email — Auth and profile stay in sync), **Change Role**, see their climb history, or **Delete account**. Their past registrations are kept (with health and contact details removed); you can't delete your own account
 - **Permissions** shows whether an admin can email every member. Only the project owner grants it, outside the app; demoting an admin removes it
 
@@ -307,7 +309,7 @@ Operational dashboards: registrations over time, payment-status breakdown and tu
 Publish "what's new" updates from **Release Notes**:
 
 - **Create a release note** — a title and body, saved as **Draft** or **Published** (visible to members immediately).
-- **Generate from commits** — pick a range of recent development history to draft a title and grouped changelog automatically. Review and edit it; nothing is saved until you save.
+- **Generate from Git History** — pick a range of recent development history to draft a title and grouped changelog automatically. Review and edit it; nothing is saved until you save.
 - A note must be **Published** before it can be emailed.
 - **Preview & Send** shows the exact email and how many members will get it; after you confirm, a progress bar shows the send. If a large send stops partway, the card says so and sending again carries on with the members who haven't received it.
 - Emailing everyone needs the **Can email every member** permission, granted by the project owner; the **Users** page shows who has it.
