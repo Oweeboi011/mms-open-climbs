@@ -21,6 +21,8 @@ MMS Open Climbs lets you:
 
 The header has **Schedule**, **My Climbs**, **What's New** and, for administrators, **Admin**. Officers and administrators also get tools to run climbs — see [For Climb Officers](#12-for-climb-officers) and [For Administrators](#13-for-administrators).
 
+**Help page:** **Help** in the footer of every page opens step-by-step guides: getting started, joining a climb, paying, after you register, climb officers, troubleshooting, and (for admins) running a climb.
+
 **First-time welcome guide:** The first time you sign in, a step-by-step guide walks you through browsing climbs, registering, uploading payment proof, tracking your climbs, and printing your waiver (administrators see extra steps for climb management, payments, registrations/users, and analytics/release notes). It appears automatically once per account per browser; reopen it any time with the guide icon in the header.
 
 ---

@@ -23,6 +23,7 @@ const ClimbFeedback = lazy(() => import("@/pages/ClimbFeedback"));
 const WaiverPrint = lazy(() => import("@/pages/WaiverPrint"));
 const ReleaseNotes = lazy(() => import("@/pages/ReleaseNotes"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
+const Help = lazy(() => import("@/pages/Help"));
 
 // Admin pages — lazy so anonymous landing traffic doesn't download the whole
 // admin surface (ClimbForm alone is ~2100 lines) just to read the schedule.
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/help" element={<Help />} />
 
           {/* Authenticated users */}
           <Route element={<ProtectedRoute />}>

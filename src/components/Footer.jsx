@@ -23,6 +23,10 @@ export default function Footer() {
           .
         </p>
         <p>
+          <Link to="/help" className="footer-link">
+            Help
+          </Link>
+          {" · "}
           <Link to="/privacy" className="footer-link">
             Privacy Notice
           </Link>

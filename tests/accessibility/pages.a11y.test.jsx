@@ -12,6 +12,7 @@ import { a11yViolations } from "./axe";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import ForgotPassword from "@/pages/ForgotPassword";
+import Help from "@/pages/Help";
 import Schedule from "@/pages/Schedule";
 import Event from "@/pages/Event";
 import Modal from "@/components/Modal";
@@ -21,7 +22,8 @@ describe("accessibility", () => {
     ["Login", Login],
     ["Signup", Signup],
     ["ForgotPassword", ForgotPassword],
-  ])("%s form has no axe violations", async (_name, Page) => {
+    ["Help", Help],
+  ])("%s page has no axe violations", async (_name, Page) => {
     const { container } = renderWithProviders(<Page />, makeGuestAuth());
     expect(await a11yViolations(container)).toEqual([]);
   });

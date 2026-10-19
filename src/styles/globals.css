@@ -6128,3 +6128,41 @@ details[open] > .myreg-collapsible::before {
 .reg-waiver-missing {
   margin-top: 12px;
 }
+
+/* Help (runbook) */
+.help-intro {
+  color: var(--ink-soft);
+  margin: 4px 0 16px;
+}
+.help-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.help-toc a {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--green-dark);
+  background: var(--green-pale);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px 12px;
+}
+.help-toc a:hover,
+.help-toc a:focus-visible {
+  background: var(--gold-pale);
+}
+.help-guide {
+  scroll-margin-top: 80px;
+}
+.help-steps {
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+}
+.help-contact {
+  margin-top: 28px;
+  color: var(--ink-soft);
+}
