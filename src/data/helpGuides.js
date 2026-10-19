@@ -1,9 +1,17 @@
-// The in-app runbook (/help). Each guide is a task, its steps in order, and
-// names the exact buttons in the app; **text** renders bold. A step can be a
-// string or { text, details: [...] } for sub-steps. `group` sets where it
-// sits in the contents; `adminOnly` guides show only to admins.
-// Keep in step with docs/guides/USER_MANUAL.md.
-export const HELP_GROUPS = ["Everyone", "Members", "Climb officers", "Admins", "Reference"];
+// The in-app runbook (/help), in tabs: a refresher for each kind of user.
+// Each guide is a task, its steps in order, naming the exact buttons in the
+// app; **text** renders bold. A step is a string or { text, details: [...] }
+// for sub-steps. `group` is the guide's tab; `adminOnly` tabs and guides
+// show only to admins. Keep in step with docs/guides/USER_MANUAL.md.
+import { ADMIN_HELP_GUIDES } from "@/data/helpAdminGuides";
+
+export const HELP_TABS = [
+  { id: "everyone", group: "Everyone", intro: "Finding climbs, reading an event page, and your account." },
+  { id: "members", group: "Members", intro: "Registering, paying, your waiver and documents, and everything after." },
+  { id: "officers", group: "Climb officers", intro: "What you see and do when you help run a climb." },
+  { id: "admins", group: "Admins", adminOnly: true, intro: "Every admin activity, from setting up a climb to climb day and beyond." },
+  { id: "reference", group: "Reference", intro: "Quick answers, fixes for common problems, and the words the app uses." },
+];
 
 export const HELP_GUIDES = [
   // ── Everyone ───────────────────────────────────────────────────────────
@@ -268,134 +276,6 @@ export const HELP_GUIDES = [
     ],
   },
 
-  // ── Admins ──────────────────────────────────────────────────────────────
-  {
-    id: "admin-climbs",
-    group: "Admins",
-    adminOnly: true,
-    title: "Setting up and managing climbs",
-    steps: [
-      "Open **Admin** in the header, then **Manage Climbs**. Tap **+ New Climb** to create one.",
-      "On the list, tap a climb’s name to open its registrants, the ↗ to open its public page, or **Edit** to change it. On a climb’s event page, admins also get **Registrants** and **Edit Climb**.",
-      "Each row shows what still needs attention: payments to review, money due, required documents, and a ⚠ count of set-up gaps (hover it). Expand a row for the **Completeness Check**, fee schedule and remaining balances.",
-      "**Change Status** moves a climb through Draft → Open ⇄ Closed → Completed, or Cancelled.",
-      {
-        text: "The climb form covers:",
-        details: [
-          "Basic info, mountain profile, itinerary, trail photos and trail maps (Google Maps, AllTrails, Komoot)",
-          "**Fees**: each can be optional, a **Guest Fee** (joiners only) or shareable (split among members, see Service Sharing)",
-          "GCash account name, number and QR code",
-          "Climb officers: link each to their member account so the climb shows on their My Climbs",
-          "Required documents and their templates",
-          "Pre-climb meetings, resources for registrants, and announcements (announcements notify registrants)",
-          "Payment due date, cancellation policy, things to bring, donation drive, and whether the waitlist promotes automatically",
-          "Cancelling or postponing, with a reason: every registrant and officer is emailed",
-        ],
-      },
-    ],
-  },
-  {
-    id: "admin-registrants",
-    group: "Admins",
-    adminOnly: true,
-    title: "Running a climb’s registrant list",
-    steps: [
-      {
-        text: "The stats row at the top counts:",
-        details: [
-          "Total registrations, then **Members** and **Guests** (active registrations)",
-          "Confirmed, Pending, Waitlisted, Cancelled and Awaiting Payment Review",
-          "**Verified Payments** and **Unverified Payments**: amounts and how many payments",
-          "Total Outstanding, Open Slots, No-shows and Required Docs In",
-        ],
-      },
-      "Search by name or email, and filter by status, payment (e.g. **Has Outstanding Balance**) and compliance (**Missing Anything**, **Missing Waiver**, **Missing Details** or a specific document).",
-      "Each row shows the participant, what’s missing (hover the Compliance column for the full checklist), payment status, balance and registration status. Tap a row to expand it.",
-      {
-        text: "In the expanded row:",
-        details: [
-          "**✎ Edit** their details, **✓ Confirm**, **Waitlist** or **✕ Cancel** the registration",
-          "Their details, emergency contact and medical information, and optional services",
-          "The waiver: signed, received offline, or **Mark received offline** (see Waivers and documents)",
-          "Payments and receipts (see Reviewing payments)",
-          "**+ Manage Documents** for required documents",
-          "**+ Add Note** / **Edit Note** for a private admin note",
-          "**Mark no-show** / **Undo no-show** after the climb",
-        ],
-      },
-      "**+ Add Participant** adds a walk-in. Type their details, or pick an **existing member** so it shows on their My Climbs; their saved details fill in. They sign their own waiver.",
-      "**Export CSV** downloads the list. **Donations** opens the donation drive page; **Climb-Day Sheet** opens the printable roster.",
-    ],
-  },
-  {
-    id: "admin-payments",
-    group: "Admins",
-    adminOnly: true,
-    title: "Reviewing payments",
-    steps: [
-      "Open the climb’s registrants and expand someone with a submitted payment (filter **Payment Submitted** to find them all).",
-      "Open the receipt and check it against GCash: the same amount, and their name as the reference.",
-      "Verify or reject each payment on its own with ✓ or ✕ in the payment history, or all at once with **✓ Verify Payment** / **✕ Reject Payment**. The participant is notified either way.",
-      "Marked the wrong one? **Reset to Submitted** puts it back for review.",
-      "**+ Record Payment** logs cash or money received outside the app.",
-      "One person paid for others? Use **Split** on that payment to move each person’s share onto their record (**Undo split** reverses it).",
-      "Sent money back? **Record Refund** logs it; it comes off what they paid.",
-      {
-        text: "Money summaries on the registrant page:",
-        details: [
-          "**Remaining Balances**: who still owes, biggest first",
-          "**Fully Paid**: who owes nothing",
-          "**Excess Payments**: who paid more than they owe; split or refund it",
-          "**Expenses** and **Where the Money Stands**: the climb’s costs against what was collected",
-          "**Service Sharing**: group members sharing one unit of a shareable fee, e.g. a vehicle",
-        ],
-      },
-      "Across every climb, **Admin → Manage Payments** shows each climb’s totals and its GCash details (**Edit Fees**, **Upload QR Code** / **Replace QR Code**).",
-    ],
-  },
-  {
-    id: "admin-paperwork",
-    group: "Admins",
-    adminOnly: true,
-    title: "Waivers and documents",
-    steps: [
-      "A participant signs their own waiver; no one can sign for them. Someone you added through Add Participant signs from My Climbs, and the bell reminds them daily.",
-      "If they gave a paper or in-person waiver, expand their row and tap **Mark received offline**, then note how (e.g. signed paper waiver at the jump-off) and save. It counts as done and shows as “Received offline” with your name and the date, never as a typed signature.",
-      "Documents: **+ Manage Documents** uploads a file on their behalf, or replaces one.",
-      "No file to upload? Tick **Received without a file** for that document and note how you saw it (e.g. shown at the jump-off). It then counts as submitted.",
-      "Details missing? **✎ Edit** their mobile and emergency contact. Medical information is optional.",
-    ],
-  },
-  {
-    id: "admin-climb-day",
-    group: "Admins",
-    adminOnly: true,
-    title: "Climb day",
-    steps: [
-      "Open the **Climb-Day Sheet** from the climb’s registrants: the roster, contacts, emergency details, medical notes, payment and waiver status. Print it or save it as PDF.",
-      "After the climb, use **Mark no-show** on anyone confirmed who didn’t come.",
-      "Record donations received on the **Donations** page; it updates the public totals.",
-    ],
-  },
-  {
-    id: "admin-registrations",
-    group: "Admins",
-    adminOnly: true,
-    title: "Every registration, users and settings",
-    steps: [
-      "**Manage Registrations** lists every registration in one table. Filter by climb, status, payment (including **Has Balance Due**) and **Missing Required Docs**, then **Export CSV**.",
-      {
-        text: "**Users**:",
-        details: [
-          "Search users; **Add New User** creates an account and emails a password-setup link (**Create & Send Invite**)",
-          "Open a user to **Edit Profile** (name and login email), **Change Role**, see their climb history, or **Delete account** (their registrations are kept without health and contact details)",
-        ],
-      },
-      "**Release Notes**: write a note, or use **Generate from Git History** to draft one. Publish it, then **Preview & Send** to email members (needs the “email every member” permission).",
-      "**Analytics** shows page views and the **Failed Requests** log; **App Insights** shows operational dashboards: registrations, payments, document compliance, email delivery, storage, functions and cost.",
-    ],
-  },
-
   // ── Reference ──────────────────────────────────────────────────────────
   {
     id: "faq",
@@ -441,4 +321,5 @@ export const HELP_GUIDES = [
       "**Officer**: a member helping run a specific climb. **Admin**: an account with full administrative access.",
     ],
   },
+  ...ADMIN_HELP_GUIDES,
 ];

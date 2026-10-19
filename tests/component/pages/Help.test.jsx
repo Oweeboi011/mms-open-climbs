@@ -1,59 +1,86 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { screen, within, fireEvent } from "@testing-library/react";
 import { renderWithProviders, makeGuestAuth, makeMemberAuth, makeAdminAuth } from "@tests/helpers";
 import Help from "@/pages/Help";
-import { HELP_GUIDES } from "@/data/helpGuides";
+import { HELP_GUIDES, HELP_TABS } from "@/data/helpGuides";
 
-const memberGuides = HELP_GUIDES.filter((g) => !g.adminOnly);
-const adminGuides = HELP_GUIDES.filter((g) => g.adminOnly);
+const guidesIn = (group) => HELP_GUIDES.filter((g) => g.group === group);
+const tab = (name) => screen.getByRole("tab", { name });
+
+afterEach(() => window.history.replaceState(null, "", "/"));
 
 describe("Help page", () => {
-  it("shows every member guide, with a contents link to each", () => {
+  it("opens on the Everyone tab, listing its guides with a link to each", () => {
     renderWithProviders(<Help />, makeGuestAuth());
-    const toc = screen.getByRole("navigation", { name: "Guides" });
-    memberGuides.forEach((guide) => {
-      expect(screen.getByRole("heading", { name: guide.title })).toBeInTheDocument();
-      expect(within(toc).getByRole("link", { name: guide.title })).toHaveAttribute("href", `#${guide.id}`);
+    expect(tab("Everyone")).toHaveAttribute("aria-selected", "true");
+    const panel = screen.getByRole("tabpanel");
+    guidesIn("Everyone").forEach((guide) => {
+      expect(within(panel).getByRole("heading", { name: guide.title })).toBeInTheDocument();
+      expect(within(panel).getByRole("link", { name: guide.title })).toHaveAttribute("href", `#${guide.id}`);
     });
+    expect(within(panel).queryByRole("heading", { name: "Paying with GCash" })).not.toBeInTheDocument();
   });
 
-  it("keeps the admin guides from members", () => {
+  it("switches tabs, showing only that tab's guides", () => {
     renderWithProviders(<Help />, makeMemberAuth());
-    adminGuides.forEach((guide) => {
-      expect(screen.queryByRole("heading", { name: guide.title })).not.toBeInTheDocument();
+    fireEvent.click(tab("Members"));
+    expect(tab("Members")).toHaveAttribute("aria-selected", "true");
+    const panel = screen.getByRole("tabpanel");
+    guidesIn("Members").forEach((guide) => {
+      expect(within(panel).getByRole("heading", { name: guide.title })).toBeInTheDocument();
     });
+    expect(within(panel).getAllByText("View OR", { selector: "strong" }).length).toBeGreaterThan(0);
+    expect(within(panel).queryByText(/\*\*/)).not.toBeInTheDocument();
   });
 
-  it("shows admins their guides", () => {
+  it("moves between tabs with the arrow keys", () => {
+    renderWithProviders(<Help />, makeGuestAuth());
+    fireEvent.keyDown(tab("Everyone"), { key: "ArrowRight" });
+    expect(tab("Members")).toHaveAttribute("aria-selected", "true");
+    expect(tab("Members")).toHaveFocus();
+    fireEvent.keyDown(tab("Members"), { key: "ArrowLeft" });
+    expect(tab("Everyone")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps the Admins tab from members", () => {
+    renderWithProviders(<Help />, makeMemberAuth());
+    expect(screen.queryByRole("tab", { name: "Admins" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(HELP_TABS.filter((t) => !t.adminOnly).length);
+  });
+
+  it("gives admins every admin activity, and opens it from /help#admins", () => {
+    window.history.replaceState(null, "", "/help#admins");
     renderWithProviders(<Help />, makeAdminAuth());
-    adminGuides.forEach((guide) => {
-      expect(screen.getByRole("heading", { name: guide.title })).toBeInTheDocument();
+    expect(tab("Admins")).toHaveAttribute("aria-selected", "true");
+    const panel = screen.getByRole("tabpanel");
+    guidesIn("Admins").forEach((guide) => {
+      expect(within(panel).getByRole("heading", { name: guide.title })).toBeInTheDocument();
     });
-    expect(screen.getAllByText("Mark received offline", { selector: "strong" }).length).toBeGreaterThan(0);
+    expect(guidesIn("Admins").length).toBeGreaterThanOrEqual(15);
   });
 
-  it("renders button names in bold and sub-steps as a list", () => {
+  it("opens the tab holding a guide linked directly, like /help#paying", () => {
+    window.history.replaceState(null, "", "/help#paying");
     renderWithProviders(<Help />, makeGuestAuth());
-    expect(screen.getAllByText("Register Now", { selector: "strong" }).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/\*\*/)).not.toBeInTheDocument();
-    const myClimbs = screen.getByRole("heading", { name: "Using My Climbs" }).closest("section");
-    expect(within(myClimbs).getByText("View OR", { selector: "strong" })).toBeInTheDocument();
+    expect(tab("Members")).toHaveAttribute("aria-selected", "true");
   });
 
-  it("narrows the guides to a search, and says when nothing matches", () => {
-    renderWithProviders(<Help />, makeGuestAuth());
+  it("searches every tab at once, and says when nothing matches", () => {
+    renderWithProviders(<Help />, makeAdminAuth());
     const search = screen.getByLabelText("Search the guides");
-    fireEvent.change(search, { target: { value: "gcash" } });
-    expect(screen.getByRole("heading", { name: "Paying with GCash" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Glossary" })).not.toBeInTheDocument();
+    fireEvent.change(search, { target: { value: "offline" } });
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Signing and printing your waiver" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Chasing waivers, details and documents" })).toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "zzqqxx" } });
-    expect(screen.getByText(/No guides mention/)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("No guides mention");
   });
 
-  it("gives every guide a unique id and a group", () => {
+  it("gives every guide a unique id and a tab", () => {
     const ids = HELP_GUIDES.map((g) => g.id);
     expect(new Set(ids).size).toBe(ids.length);
-    HELP_GUIDES.forEach((g) => expect(g.group).toBeTruthy());
+    const groups = new Set(HELP_TABS.map((t) => t.group));
+    HELP_GUIDES.forEach((g) => expect(groups.has(g.group)).toBe(true));
   });
 });

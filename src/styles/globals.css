@@ -6138,44 +6138,51 @@ details[open] > .myreg-collapsible::before {
   display: block;
   margin-bottom: 16px;
 }
-.help-toc {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 8px;
+.help-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
 }
-.help-toc-title,
-.help-group-title {
-  font-size: 0.68rem;
+.help-tab {
+  font: inherit;
+  font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.help-tab:hover {
+  color: var(--green-dark);
+}
+.help-tab.is-active {
+  color: var(--green-dark);
+  border-bottom-color: var(--gold);
+}
+.help-tab:focus-visible {
+  outline: 2px solid var(--green-light);
+  outline-offset: 2px;
+}
+.help-panel {
+  padding-top: 16px;
+}
+.help-panel-intro,
+.help-guide-intro,
+.help-results-count,
+.help-contact {
   color: var(--ink-soft);
 }
 .help-toc-links {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 4px;
+  margin: 8px 0 4px;
 }
-.help-group {
-  margin-top: 28px;
-  padding-top: 8px;
-  border-top: 2px solid var(--border);
-}
-.help-guide-intro {
-  color: var(--ink-soft);
-}
-.help-details {
-  margin: 6px 0 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 3px;
-  color: var(--ink-soft);
-}
-.help-empty {
-  color: var(--ink-soft);
-}
-.help-toc a {
+.help-toc-links a {
   font-size: 0.78rem;
   font-weight: 700;
   text-decoration: none;
@@ -6185,8 +6192,8 @@ details[open] > .myreg-collapsible::before {
   border-radius: 99px;
   padding: 4px 12px;
 }
-.help-toc a:hover,
-.help-toc a:focus-visible {
+.help-toc-links a:hover,
+.help-toc-links a:focus-visible {
   background: var(--gold-pale);
 }
 .help-guide {
@@ -6197,9 +6204,23 @@ details[open] > .myreg-collapsible::before {
   display: grid;
   gap: 8px;
 }
+.help-details {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  color: var(--ink-soft);
+}
+.help-result-tab {
+  margin-top: 24px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
 .help-contact {
   margin-top: 28px;
-  color: var(--ink-soft);
 }
 .sr-only {
   position: absolute;
