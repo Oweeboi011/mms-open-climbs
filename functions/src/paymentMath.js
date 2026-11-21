@@ -7,6 +7,8 @@
 // balance must mean the same thing in the admin table and in the reminder
 // that chases them for it.
 
+const { guestOwesFee } = require("./shared/guests");
+
 function parseAmount(amount) {
   const n = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
   return isNaN(n) ? 0 : n;
@@ -70,8 +72,17 @@ function getFeeItems(reg, climb) {
           if (stored) return !!stored.selected;
           return fee.isGuestFee && reg.memberType === "joiner";
         });
+  const guestItems =
+    climb && Array.isArray(climb.fees) && Array.isArray(reg && reg.guests)
+      ? reg.guests.flatMap((guest) =>
+          climb.fees.filter((fee) => {
+            const stored = (reg.feeBreakdown || []).find((f) => f.label === fee.label);
+            return guestOwesFee(guest, fee, climb, !!(stored && stored.selected));
+          }),
+        )
+      : [];
   const donation = getDonationFeeItem(reg, climb);
-  return donation ? [...fees, donation] : fees;
+  return donation ? [...fees, ...guestItems, donation] : [...fees, ...guestItems];
 }
 
 // A cash donation pledge the member chose to send with their GCash payment

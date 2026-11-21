@@ -258,6 +258,8 @@ service cloud.firestore {
         ]) &&
         pledgeIsValid(d.get('donation', null)) &&
         d.get('memberType', 'joiner') in ['member', 'joiner'] &&
+        // Guests ride on the member's slot count, so the list is bounded.
+        (!('guests' in d) || (d.guests is list && d.guests.size() <= 10)) &&
         // Confirmation emails go to this address, so it must be the
         // account's own — otherwise the club's mail server sends to anyone.
         d.email == request.auth.token.email &&

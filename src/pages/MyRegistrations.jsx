@@ -1,3 +1,4 @@
+import { getGuests } from "@/utils/guests";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { arrayUnion, serverTimestamp, Timestamp } from "@/services/firestore";
@@ -1112,6 +1113,12 @@ function RegCard({
             <span className="reg-detail-label">Name</span>
             <strong>{reg.name}</strong>
           </div>
+          {getGuests(reg).length > 0 && (
+            <div className="reg-detail-item">
+              <span className="reg-detail-label">Guests</span>
+              <strong>{getGuests(reg).map((g) => g.name).join(", ")}</strong>
+            </div>
+          )}
           <div className="reg-detail-item">
             <span className="reg-detail-label">Mobile</span>
             <strong>{reg.mobile}</strong>

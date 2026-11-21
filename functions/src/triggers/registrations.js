@@ -7,8 +7,9 @@ const { getPaymentEntries } = require("../paymentMath");
 const { REQUIRED_DOC_TYPES } = require("../requiredDocTypes");
 const { sendEmail } = require("../email/sendEmail");
 const { tplRegistrationConfirmation, tplStatusUpdate, tplOfficerNewRegistration, tplOfficerStatusUpdate } = require("../email/templates");
-const { updateRoster, syncParticipantList, SEAT_HOLDING_STATUSES, isClimbFull, promoteFromWaitlist, findOtherActiveRegistration, getNotifyLists, createNotification, logFailedRequest, regDocsComplete } = require("../shared/registrationOps");
+const { updateRoster, syncParticipantList, SEAT_HOLDING_STATUSES, isClimbFull, promoteFromWaitlist, findOtherActiveRegistration, getNotifyLists, createNotification, logFailedRequest, regDocsComplete, syncRegistrationSeats } = require("../shared/registrationOps");
 const { db } = require("../shared/admin");
+const { regHeadcount } = require("../shared/guests");
 const { remindOutstandingPaperwork, clearPaperworkReminders } = require("../shared/paperworkReminders");
 
 // ── Trigger: new registration → send confirmation email ───────────────────────
@@ -36,7 +37,7 @@ exports.onRegistrationCreated = onDocumentCreated(
       // below, which is gated on an active status + a real userId).
       await db
         .doc(`climbs/${climbId}`)
-        .update({ registrationCount: FieldValue.increment(1) });
+        .update({ registrationCount: FieldValue.increment(regHeadcount(reg)) });
 
       // A second live registration for the same climb is a duplicate: drop
       // it before anything is emailed. Counted above so the delete trigger's
@@ -68,7 +69,7 @@ exports.onRegistrationCreated = onDocumentCreated(
       // below is skipped. The client only warns; this is the enforcement.
       const autoWaitlisted =
         reg.status === "pending" &&
-        (await isClimbFull(climb, climbId, event.params.regId));
+        (await isClimbFull(climb, climbId, event.params.regId, regHeadcount(reg)));
       if (autoWaitlisted) {
         await db.doc(`registrations/${event.params.regId}`).update({
           status: "waitlisted",
@@ -402,13 +403,7 @@ exports.onRegistrationUpdated = onDocumentUpdatedWithAuthContext(
     // uses (walk-ins included, so no userId guard). Kept here — above the
     // notify early-returns — so reinstating a cancelled registration
     // re-increments, not just cancelling decrements.
-    const wasCounted = before.status !== "cancelled";
-    const isCounted = after.status !== "cancelled";
-    if (wasCounted !== isCounted && after.climbId) {
-      await db.doc(`climbs/${after.climbId}`).update({
-        registrationCount: FieldValue.increment(isCounted ? 1 : -1),
-      });
-    }
+    await syncRegistrationSeats(before, after);
 
     // Keep docsCompleteCount in sync (climb card progress badge) whenever a
     // status change or document upload could change whether this registrant
@@ -563,7 +558,7 @@ exports.onRegistrationDeleted = onDocumentDeleted(
       if (reg.status !== "cancelled") {
         await db
           .doc(`climbs/${reg.climbId}`)
-          .update({ registrationCount: FieldValue.increment(-1) });
+          .update({ registrationCount: FieldValue.increment(-regHeadcount(reg)) });
       }
 
       // registeredUserIds / docsCompleteCount track only the active set and

@@ -1,4 +1,4 @@
-import { getExpectedTotal, getFeeItems } from "@/utils/registrationFees";
+import { getExpectedTotal, getFeeItemLabel, getFeeItems } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
 
 // Read-only itemized fee table for admin review — shows a registrant's fee
@@ -50,7 +50,7 @@ export default function FeeBreakdownTable({
         <tbody>
           {items.map((item, i) => (
             <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
-              <td style={{ padding: "4px 0" }}>{item.label}</td>
+              <td style={{ padding: "4px 0" }}>{getFeeItemLabel(item)}</td>
               <td
                 style={{
                   padding: "4px 0",

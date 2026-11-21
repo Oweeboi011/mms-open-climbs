@@ -28,6 +28,7 @@ import {
 } from "./payments";
 import { sumFeeAmounts, parseFeeAmount } from "./feeSummary";
 import { getDonationFeeItem } from "@/utils/donations";
+import { getGuests, getHeadcount, guestOwesFee } from "@/utils/guests";
 
 // Sharing groups for shareable optional services (e.g. a porter split
 // between climbers), keyed by fee label: `{ [label]: string[][] }`, each
@@ -135,8 +136,27 @@ export function getFeeItems(reg, climb, serviceGroups = {}) {
       groupSize,
     };
   });
+  const withGuests = [...priced, ...getGuestFeeItems(reg, climb)];
   // A cash pledge sent with the GCash payment is owed alongside the fees.
-  return donation ? [...priced, donation] : priced;
+  return donation ? [...withGuests, donation] : withGuests;
+}
+
+// One line per fee per guest, tagged with `guestName`. They keep the fee's own
+// label so per-fee totals and headcounts (getFeeItemAggregates) fold guests in
+// with the member. Needs the climb's schedule — a deleted climb falls back to
+// the member's snapshot alone.
+function getGuestFeeItems(reg, climb) {
+  if (!climb?.fees?.length) return [];
+  return getGuests(reg).flatMap((guest) =>
+    climb.fees
+      .filter((fee) => guestOwesFee(guest, fee, climb, isAvailing(reg, fee.label)))
+      .map((fee) => ({ ...fee, guestName: guest.name || "Guest" })),
+  );
+}
+
+// "Transportation", or "Transportation — Mia" for a guest's line.
+export function getFeeItemLabel(item) {
+  return item.guestName ? `${item.label} — ${item.guestName}` : item.label;
 }
 
 // Sum of the fees this registrant actually owes, at current amounts.
@@ -296,9 +316,15 @@ export function getFeeItemAggregates(regs, climb, serviceGroups = {}) {
 // `availing` until any group is formed.
 export function getAvailmentCounts(regs, climb, serviceGroups = {}) {
   const active = (regs || []).filter((r) => r.status !== "cancelled");
+  const heads = active.reduce((sum, r) => sum + getHeadcount(r), 0);
   return getOptionalServices(climb).map((fee) => {
     const availingRegs = active.filter((r) => isAvailing(r, fee.label));
-    const availing = availingRegs.length;
+    // Guests who owe the service count too — an infant exempt by age needs no seat.
+    const availing = availingRegs.reduce(
+      (sum, r) =>
+        sum + 1 + getGuests(r).filter((g) => guestOwesFee(g, fee, climb, true)).length,
+      0,
+    );
     let unitsNeeded = availing;
     let groupsInUse = 0;
     if (fee.shareable) {
@@ -319,9 +345,9 @@ export function getAvailmentCounts(regs, climb, serviceGroups = {}) {
       availing,
       unitsNeeded,
       groupsInUse,
-      notAvailing: active.length - availing,
-      total: active.length,
-      pct: active.length ? Math.round((availing / active.length) * 100) : 0,
+      notAvailing: heads - availing,
+      total: heads,
+      pct: heads ? Math.round((availing / heads) * 100) : 0,
     };
   });
 }

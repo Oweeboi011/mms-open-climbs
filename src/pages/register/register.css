@@ -110,3 +110,34 @@
   color: var(--ink-soft);
   margin-top: 4px;
 }
+
+.guest-hint {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+.guest-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 12px;
+  align-items: end;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.guest-age {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+.guest-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  margin-top: 14px;
+  cursor: pointer;
+}
+.guest-consent input {
+  margin-top: 3px;
+}

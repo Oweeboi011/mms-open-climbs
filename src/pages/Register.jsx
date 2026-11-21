@@ -7,6 +7,7 @@ import ConfirmSubmitModal from "@/pages/register/ConfirmSubmitModal";
 import DonationPledgeSection from "@/pages/register/DonationPledgeSection";
 import EmergencyContactSection from "@/pages/register/EmergencyContactSection";
 import FeeBreakdownCard from "@/pages/register/FeeBreakdownCard";
+import GuestsSection from "@/pages/register/GuestsSection";
 import GcashPaymentSection from "@/pages/register/GcashPaymentSection";
 import GcashQrModal from "@/components/GcashQrModal";
 import MedicalSection from "@/pages/register/MedicalSection";
@@ -113,6 +114,14 @@ export default function Register() {
             fieldErrors={fieldErrors}
             form={form}
             inputClass={inputClass}
+            setField={setField}
+          />
+
+          <GuestsSection
+            bindField={bindField}
+            climb={climb}
+            fieldErrors={fieldErrors}
+            form={form}
             setField={setField}
           />
 

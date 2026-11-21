@@ -1,7 +1,7 @@
 import Modal from "@/components/Modal";
 import PaymentLog from "@/components/PaymentLog";
 import { getNetPaid, getRefundedTotal } from "@/utils/payments";
-import { getFeeItems, getOutstanding } from "@/utils/registrationFees";
+import { getFeeItemLabel, getFeeItems, getOutstanding } from "@/utils/registrationFees";
 import { sumFeeAmounts } from "@/utils/feeSummary";
 
 const RECEIPT_STATUS_LABEL = {
@@ -123,7 +123,7 @@ export default function ReceiptModal({
                     key={i}
                     style={{ borderBottom: "1px solid var(--border)" }}
                   >
-                    <td style={{ padding: "6px 0" }}>{e.label}</td>
+                    <td style={{ padding: "6px 0" }}>{getFeeItemLabel(e)}</td>
                     <td
                       style={{
                         padding: "6px 0",
