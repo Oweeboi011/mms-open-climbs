@@ -1,3 +1,4 @@
+import { DaySheetExpected, DaySheetName } from "@/components/admin/DaySheetParts";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { serverTimestamp } from "@/services/firestore";
@@ -121,10 +122,7 @@ export default function ClimbDaySheet() {
           {totals.waitlisted > 0 && `, ${totals.waitlisted} waitlisted`}
           {totals.cancelled > 0 && `, ${totals.cancelled} cancelled`}
         </span>
-        <span>
-          <strong>{totals.expectedPresent}</strong> of {totals.expectedCount} expected
-          present
-        </span>
+        <DaySheetExpected totals={totals} />
         {totals.presentNotConfirmed > 0 && (
           <span className="daysheet-flag">
             {totals.presentNotConfirmed} present but not confirmed
@@ -192,7 +190,7 @@ export default function ClimbDaySheet() {
                   />
                 </td>
                 <td>
-                  <strong>{r.name}</strong>
+                  <DaySheetName row={r} />
                   {r.status !== "confirmed" && (
                     <span className={`daysheet-status daysheet-status-${r.status}`}>
                       {r.status.toUpperCase()}

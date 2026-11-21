@@ -117,6 +117,7 @@ export const HELP_GUIDES = [
           "**Participant Type** (required): **MMS Member** or **Joiner**",
         ],
       },
+      "**Guests** (optional): bringing kids or family without an account? Tap **Add a guest** and enter their name and date of birth. Each guest takes a slot and pays the per-person fees, but a fee can be free for young children (e.g. no transportation fee for ages 4 and under). Tick the confirmation that you may register them; the waiver you sign covers them.",
       "**Emergency contact** (required): their name, mobile and your relationship to them (e.g. Parent, Spouse, Sibling).",
       "**Medical information** (optional): conditions, allergies or medicines relevant outdoors. Only the climb’s officers and admins see it, for emergencies. Leave it blank if you have none.",
       "**Required documents**: upload any the climb asks for (PDF, Word or an image) now, or later from **My Climbs**. They don’t block registration.",
