@@ -1,4 +1,5 @@
 import { REQUIRED_DOC_TYPES, waiverStatus } from "@/data/requiredDocTypes";
+import { getGuestAge, getGuests } from "@/utils/guests";
 import { getOutstanding } from "@/utils/registrationFees";
 
 // The climb-day sheet: everything leads need on the trail, printable for
@@ -34,6 +35,8 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
       // Turned up without a confirmed slot — leads need to sort it out.
       presentNotConfirmed: !!r.attended && r.status !== "confirmed",
       pending: r.status === "pending",
+      // Guests ride on this registration and each takes a place on the trail.
+      guests: getGuests(r).map((g) => `${g.name || "Guest"} (${getGuestAge(g, climb) ?? "?"})`),
       memberType: r.memberType === "member" ? "Member" : r.memberType ? "Joiner" : "",
       mobile: r.mobile || "",
       emergency: r.emergencyContact?.name
@@ -72,6 +75,7 @@ export function buildClimbDaySheet(regs = [], climb = {}, serviceGroups = {}) {
     present: rows.filter((r) => r.attended).length,
     expectedPresent: onTrail.filter((r) => r.attended).length,
     expectedCount: onTrail.length,
+    expectedHeadcount: onTrail.reduce((s, r) => s + 1 + r.guests.length, 0),
     presentNotConfirmed: rows.filter((r) => r.presentNotConfirmed).length,
     balanceDue: rows.reduce((s, r) => s + r.balanceDue, 0),
     owing: rows.filter((r) => r.balanceDue > 0).length,

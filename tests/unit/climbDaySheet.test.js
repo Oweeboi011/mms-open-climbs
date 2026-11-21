@@ -124,3 +124,18 @@ describe("attendance", () => {
     expect(buildAttendancePatch(false, "Lead", "TS")).toEqual({ attended: false, attendedMarkedBy: null, attendedMarkedAt: null });
   });
 });
+
+describe("buildClimbDaySheet — guests", () => {
+  it("lists guests with ages and counts them in the expected headcount", () => {
+    const withGuests = {
+      id: "g",
+      name: "Gina Guardian",
+      status: "confirmed",
+      guests: [{ name: "Mia", dateOfBirth: "2023-01-01" }],
+    };
+    const { rows, totals } = buildClimbDaySheet([withGuests], { ...climb, startDate: "2027-03-20" });
+    expect(rows[0].guests).toEqual(["Mia (4)"]);
+    expect(totals.expectedCount).toBe(1);
+    expect(totals.expectedHeadcount).toBe(2);
+  });
+});

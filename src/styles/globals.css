@@ -6267,3 +6267,8 @@ details[open] > .myreg-collapsible::before {
   color: #1a6b2c;
   border-color: #a7d7b2;
 }
+
+.daysheet-guests {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
