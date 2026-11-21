@@ -194,9 +194,28 @@ export function getOutstanding(reg, climb, serviceGroups = {}) {
 export function describeMemberTypeChange(reg, patch) {
   const before = reg?.memberType || "joiner";
   const after = patch?.memberType;
-  if (!after || after === before) return "";
   const label = (t) => (t === "member" ? "MMS Member" : "Joiner");
-  return ` — participant type ${label(before)} → ${label(after)}`;
+  const typeNote = after && after !== before ? ` — participant type ${label(before)} → ${label(after)}` : "";
+  // Guests change the headcount and what is owed, so they get a note too.
+  const guestsBefore = getGuests(reg).length;
+  const guestsAfter = Array.isArray(patch?.guests) ? patch.guests.length : guestsBefore;
+  const guestNote = guestsAfter !== guestsBefore ? ` — guests ${guestsBefore} → ${guestsAfter}` : "";
+  return typeNote + guestNote;
+}
+
+// What an edit of member type or guests does to the expected total:
+// { current, projected, note }, or null when nothing owed would change.
+export function getEditFeeDelta(reg, climb, form) {
+  if (!climb) return null;
+  const current = getExpectedTotal(reg, climb);
+  const projected = getExpectedTotal({ ...reg, memberType: form.memberType, guests: form.guests }, climb);
+  if (projected === current) return null;
+  const less = projected < current;
+  const typeChanged = form.memberType !== (reg.memberType || "joiner");
+  const note = typeChanged
+    ? less ? " — the guest fee no longer applies." : " — the guest fee now applies."
+    : less ? " — less is owed now." : " — more is owed now.";
+  return { current, projected, note };
 }
 
 // ── Optional services ────────────────────────────────────────────────────────
