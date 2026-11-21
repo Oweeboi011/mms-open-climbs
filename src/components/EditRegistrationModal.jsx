@@ -1,9 +1,11 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
 import { getPaymentEntries, getPaymentsTotal } from "@/utils/payments";
-import { getExpectedTotal } from "@/utils/registrationFees";
+import { getEditFeeDelta } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
 import TextField from "@/components/TextField";
+import GuestsFields from "@/components/GuestsFields";
+import { cleanGuests, validateGuests } from "@/utils/guests";
 
 export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -17,21 +19,18 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
     medicalConditions: reg.medicalConditions || "",
     amountPaid: reg.amountPaid ?? "",
     memberType: reg.memberType || "joiner",
+    guests: reg.guests || [],
   });
   const [saving, setSaving] = useState(false);
+  const guestProblem = validateGuests(form.guests);
 
   // Participant type drives the guest fee (registrationFees.js), so changing
   // it changes what this person owes. Show the delta rather than letting the
   // balance move silently after the modal closes.
-  const memberTypeChanged = form.memberType !== (reg.memberType || "joiner");
-  const currentExpected = climb ? getExpectedTotal(reg, climb) : null;
-  const projectedExpected = climb
-    ? getExpectedTotal({ ...reg, memberType: form.memberType }, climb)
-    : null;
-  const showFeeDelta =
-    memberTypeChanged &&
-    currentExpected !== null &&
-    projectedExpected !== currentExpected;
+  const feeDelta = getEditFeeDelta(reg, climb, form);
+  const currentExpected = feeDelta?.current;
+  const projectedExpected = feeDelta?.projected;
+  const showFeeDelta = !!feeDelta;
 
   function set(field, value) {
     setForm((p) => ({ ...p, [field]: value }));
@@ -39,6 +38,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (guestProblem) return;
     setSaving(true);
     try {
       await onSave(reg.id, {
@@ -54,6 +54,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
         medicalConditions: form.medicalConditions,
         amountPaid: form.amountPaid === "" ? null : Number(form.amountPaid),
         memberType: form.memberType,
+        guests: cleanGuests(form.guests),
       });
     } finally {
       setSaving(false);
@@ -114,9 +115,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
                 Expected total changes from{" "}
                 <strong>{formatPeso(currentExpected)}</strong> to{" "}
                 <strong>{formatPeso(projectedExpected)}</strong>
-                {projectedExpected < currentExpected
-                  ? " — the guest fee no longer applies."
-                  : " — the guest fee now applies."}{" "}
+                {feeDelta.note}{" "}
                 Their outstanding balance updates on save.
               </div>
             ) : (
@@ -126,6 +125,14 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
                 recalculates what they owe.
               </div>
             )}
+          </div>
+          <div className="form-group">
+            <label className="form-label">Guests ({form.guests.length})</label>
+            <GuestsFields guests={form.guests} onChange={(g) => set("guests", g)} climb={climb} />
+            {guestProblem && <div className="form-error-msg">{guestProblem}</div>}
+            <div className="form-hint">
+              Each guest takes a slot and owes the per-person fees. Fees can be waived by age.
+            </div>
           </div>
           <TextField label="Address" value={form.address} onChange={(v) => set("address", v)} />
           <div className="form-row">
