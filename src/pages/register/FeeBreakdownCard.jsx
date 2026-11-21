@@ -26,6 +26,10 @@ export default function FeeBreakdownCard({
     hasTba,
     donation: donationLine,
   } = expectedTotalFor(climb, form, optionalFeeSelections, pledge);
+  const guestCount = form.guests.length;
+  const guestsTotal = guestCount
+    ? expectedTotal - expectedTotalFor(climb, { ...form, guests: [] }, optionalFeeSelections, pledge).total
+    : 0;
   const totalDisplay = hasTba
     ? `₱${expectedTotal.toLocaleString("en-PH")} + TBA`
     : `₱${expectedTotal.toLocaleString("en-PH")}`;
@@ -87,6 +91,15 @@ export default function FeeBreakdownCard({
           optional={optional}
         />
         <tfoot>
+          {guestCount > 0 && (
+            <tr className="fee-donation-row">
+              <td></td>
+              <td>
+                {guestCount} guest{guestCount === 1 ? "" : "s"} (included in total)
+              </td>
+              <td>₱{guestsTotal.toLocaleString("en-PH")}</td>
+            </tr>
+          )}
           {donationLine && (
             <tr className="fee-donation-row">
               <td></td>

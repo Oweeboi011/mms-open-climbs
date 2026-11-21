@@ -7,6 +7,7 @@ const { sendEmail } = require("../email/sendEmail");
 const { tplOfficerStatusUpdate, tplWaitlistPromoted } = require("../email/templates");
 const { isClimbCancelled, isClimbPostponed } = require("../shared/climbStatus");
 const { db } = require("../shared/admin");
+const { regHeadcount } = require("../shared/guests");
 
 // ── Helper: registrant roster ─────────────────────────────────────────────────
 // The uids of a climb's active registrants, kept in admin-only
@@ -91,20 +92,21 @@ function getPaymentDueDate(climb) {
   return due.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 }
 
-// Whether every seat is taken: pending + confirmed registrations (other than
-// `regId`) at or above the climb's maxParticipants. No limit set = never full.
+// Whether a registration of `needed` seats (the member plus guests) no longer
+// fits: seats held by pending + confirmed registrations (other than `regId`)
+// plus `needed` would pass maxParticipants. No limit set = never full.
 const SEAT_HOLDING_STATUSES = ["pending", "confirmed"];
-async function isClimbFull(climb, climbId, regId) {
+async function isClimbFull(climb, climbId, regId, needed = 1) {
   const max = Number(climb?.maxParticipants);
   if (!max || max <= 0) return false;
   const snap = await db
     .collection("registrations")
     .where("climbId", "==", climbId)
     .get();
-  const taken = snap.docs.filter(
-    (d) => d.id !== regId && SEAT_HOLDING_STATUSES.includes(d.data().status),
-  ).length;
-  return taken >= max;
+  const taken = snap.docs
+    .filter((d) => d.id !== regId && SEAT_HOLDING_STATUSES.includes(d.data().status))
+    .reduce((sum, d) => sum + regHeadcount(d.data()), 0);
+  return taken + needed > max;
 }
 
 // ── Helper: fill freed seats from the waitlist ──────────────────────────────
@@ -116,6 +118,29 @@ async function isClimbFull(climb, climbId, regId) {
 function createdMillis(reg) {
   const t = reg.createdAt;
   return t?.toMillis ? t.toMillis() : t?.toDate ? t.toDate().getTime() : 0;
+}
+
+// Waitlisted registrations to promote into the seats left, longest-waiting
+// first. A group too big for the seats left is passed over so it doesn't
+// block smaller registrations behind it.
+function pickPromotions(regs, max) {
+  let free =
+    max -
+    regs
+      .filter((r) => SEAT_HOLDING_STATUSES.includes(r.status))
+      .reduce((sum, r) => sum + regHeadcount(r), 0);
+  const waiting = regs
+    .filter((r) => r.status === "waitlisted")
+    .sort((a, b) => createdMillis(a) - createdMillis(b) || a.id.localeCompare(b.id));
+  const promoted = [];
+  for (const r of waiting) {
+    const needed = regHeadcount(r);
+    if (free <= 0) break;
+    if (needed > free) continue;
+    promoted.push(r);
+    free -= needed;
+  }
+  return promoted;
 }
 
 async function promoteFromWaitlist(climbId) {
@@ -136,14 +161,7 @@ async function promoteFromWaitlist(climbId) {
       .where("climbId", "==", climbId)
       .get();
     const regs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const free =
-      max - regs.filter((r) => SEAT_HOLDING_STATUSES.includes(r.status)).length;
-    if (free <= 0) return [];
-
-    const promoted = regs
-      .filter((r) => r.status === "waitlisted")
-      .sort((a, b) => createdMillis(a) - createdMillis(b) || a.id.localeCompare(b.id))
-      .slice(0, free);
+    const promoted = pickPromotions(regs, max);
     if (promoted.length === 0) return [];
 
     const appUrl = process.env.APP_URL || "https://mms-open-climbs.web.app";
@@ -200,6 +218,24 @@ async function promoteFromWaitlist(climbId) {
   } catch (err) {
     logger.error("[promoteFromWaitlist] failed", { climbId, err: err.message });
     return [];
+  }
+}
+
+// Keeps the climb's registrationCount in step with a registration update: a
+// cancel/reinstate moves it by the whole party, and an admin editing the guest
+// list moves it by the difference. Fewer guests on a seat-holder frees seats
+// for the waitlist.
+async function syncRegistrationSeats(before, after) {
+  const counted = (r) => (r.status !== "cancelled" ? regHeadcount(r) : 0);
+  const delta = counted(after) - counted(before);
+  if (delta !== 0 && after.climbId) {
+    await db.doc(`climbs/${after.climbId}`).update({
+      registrationCount: FieldValue.increment(delta),
+    });
+  }
+  const holdsSeats = (r) => SEAT_HOLDING_STATUSES.includes(r.status);
+  if (holdsSeats(before) && holdsSeats(after) && regHeadcount(after) < regHeadcount(before)) {
+    await promoteFromWaitlist(after.climbId);
   }
 }
 
@@ -314,4 +350,4 @@ function regDocsComplete(climb, reg) {
   );
 }
 
-Object.assign(module.exports, { NO_SHOW_GRACE_MS, SEAT_HOLDING_STATUSES, createNotification, findOtherActiveRegistration, formatDueDate, getNotifyLists, getOfficerContacts, getPaymentDueDate, isClimbFull, logFailedRequest, promoteFromWaitlist, regDocsComplete, shortName, syncParticipantList, updateRoster });
+Object.assign(module.exports, { NO_SHOW_GRACE_MS, SEAT_HOLDING_STATUSES, createNotification, findOtherActiveRegistration, formatDueDate, getNotifyLists, getOfficerContacts, getPaymentDueDate, isClimbFull, logFailedRequest, promoteFromWaitlist, regDocsComplete, shortName, syncParticipantList, syncRegistrationSeats, updateRoster });

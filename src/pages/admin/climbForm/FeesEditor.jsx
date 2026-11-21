@@ -161,6 +161,21 @@ export default function FeesEditor({
               />
               Guest Fee
             </label>
+            <label className="fee-free-age" title="Guests this age or younger (on the climb's start date) don't pay this fee. Leave blank to charge every guest.">
+              Guests free up to age
+              <input
+                type="number"
+                min="0"
+                max="17"
+                className="form-input"
+                value={fee.guestFreeUpToAge ?? ""}
+                onChange={(e) => {
+                  const { guestFreeUpToAge: _drop, ...rest } = fee;
+                  const age = e.target.value;
+                  updateListItem("fees", i, age === "" ? rest : { ...rest, guestFreeUpToAge: Number(age) });
+                }}
+              />
+            </label>
             <ReorderButtons
               index={i}
               count={form.fees.length}

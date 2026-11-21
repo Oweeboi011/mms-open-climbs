@@ -7,6 +7,7 @@ export function expectedTotalFor(climb, form, optionalFeeSelections, pledge) {
   const fees = computeExpectedTotal(climb, {
     isJoiner: form.memberType === "joiner",
     optionalSelections: optionalFeeSelections,
+    guests: form.guests,
   });
   // A cash pledge sent with the GCash payment is part of what they transfer.
   const donation = getDonationFeeItem(
@@ -22,6 +23,7 @@ export function expectedTotalFor(climb, form, optionalFeeSelections, pledge) {
 export const FIELD_ORDER = [
   "fullName",
   "mobile",
+  "guests",
   "ecName",
   "ecMobile",
   "ecRelationship",
@@ -60,4 +62,6 @@ export const INITIAL_FORM = {
   medicalConditions: "",
   experienceLevel: "beginner",
   memberType: "joiner",
+  guests: [],
+  guestsAuthorized: false,
 };

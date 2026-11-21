@@ -14,6 +14,8 @@
 // fee are surfaced separately rather than folded in, which keeps these
 // displays consistent with the per-registrant math in registrationFees.js.
 
+import { guestOwesFee } from "@/utils/guests";
+
 export function parseFeeAmount(amount) {
   const n = parseFloat(String(amount ?? "").replace(/[^0-9.]/g, ""));
   return isNaN(n) ? null : n;
@@ -64,13 +66,19 @@ export function getClimbFeeModel(climb) {
 // keyed by fee label, matching the shape stored on a registration.
 export function computeExpectedTotal(
   climb,
-  { isJoiner = false, optionalSelections = {} } = {},
+  { isJoiner = false, optionalSelections = {}, guests = [] } = {},
 ) {
-  const { requiredFees, optionalFees, guestFee } = getClimbFeeModel(climb);
+  const { fees, requiredFees, optionalFees, guestFee } = getClimbFeeModel(climb);
+  // Each guest owes what the member does plus the guest fee, minus anything
+  // their age exempts (see utils/guests.js).
+  const guestFees = guests.flatMap((guest) =>
+    fees.filter((f) => guestOwesFee(guest, f, climb, !!optionalSelections[f.label])),
+  );
   const counted = [
     ...requiredFees,
     ...(isJoiner && guestFee ? [guestFee] : []),
     ...optionalFees.filter((f) => optionalSelections[f.label]),
+    ...guestFees,
   ];
   const { total, hasTba } = sumFeeAmounts(counted);
   return { total, hasTba };

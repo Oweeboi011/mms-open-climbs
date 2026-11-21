@@ -2,6 +2,7 @@ import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
 import { PRIVACY_NOTICE_VERSION } from "@/data/privacyNotice";
 import { serverTimestamp, Timestamp } from "@/services/firestore";
 import { uploadRegistrationFile } from "@/services/storage";
+import { cleanGuests, validateGuests } from "@/utils/guests";
 import { getNeededItems, isDonationDriveOn, normalizePledge } from "@/utils/donations";
 
 const parseAmount = (value) => parseFloat(String(value).replace(/[^0-9.]/g, ""));
@@ -23,6 +24,11 @@ export function validateRegistration({ form, waiverAgreed, privacyConsent, sigNa
   };
   for (const [key, [value, message]] of Object.entries(required)) {
     if (!value.trim()) errors[key] = message;
+  }
+  const guestProblem = validateGuests(form.guests);
+  if (guestProblem) errors.guests = guestProblem;
+  else if (form.guests.length > 0 && !form.guestsAuthorized) {
+    errors.guests = "Confirm you are allowed to register your guests and sign the waiver for them.";
   }
   if (!waiverAgreed) errors.waiverAgreed = "You must agree to the Waiver and Release of Liability.";
   if (!privacyConsent) {
@@ -126,6 +132,9 @@ export function buildRegistrationDoc({
     medicalConditions: form.medicalConditions,
     experienceLevel: form.experienceLevel,
     memberType: form.memberType,
+    // Guests ride on this account: one slot, one balance, one waiver each.
+    guests: cleanGuests(form.guests),
+    ...(form.guests.length > 0 ? { guestsAuthorized: true } : {}),
     // Data Privacy Act consent, with the notice version it was given on.
     privacyConsentAt: serverTimestamp(),
     privacyNoticeVersion: PRIVACY_NOTICE_VERSION,

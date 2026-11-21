@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import FeeBreakdownTable from "@/components/FeeBreakdownTable";
+import ParticipantBadges from "@/components/admin/ParticipantBadges";
 import { detailsIncomplete } from "@/components/DetailsPrompt";
 import ComplianceSummary from "@/components/admin/ComplianceSummary";
 import WaiverStatus from "@/components/admin/WaiverStatus";
@@ -83,29 +84,7 @@ export default function RegistrantRow({
           {/* Name and badges share a line; the email sits under them. */}
           <div className="registrant-name-line">
             <span className="registrant-name">{reg.name}</span>
-            {reg.memberType && (
-              <span
-                style={{
-                  fontSize: "0.6rem",
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
-                  background:
-                    reg.memberType === "member"
-                      ? "#e8f5e9"
-                      : "var(--surface-alt)",
-                  color:
-                    reg.memberType === "member" ? "#1a6b2c" : "var(--ink-soft)",
-                  border: "1px solid",
-                  borderColor:
-                    reg.memberType === "member" ? "#a7d7b2" : "var(--border)",
-                  borderRadius: 99,
-                  padding: "2px 8px",
-                  textTransform: "uppercase",
-                }}
-              >
-                {reg.memberType === "member" ? "Member" : "Joiner"}
-              </span>
-            )}
+            <ParticipantBadges reg={reg} climb={climb} />
             {reg.attended && (
               <span
                 className="present-badge"
