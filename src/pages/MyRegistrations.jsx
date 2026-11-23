@@ -1,3 +1,4 @@
+import UpdateServicesButton from "@/components/UpdateServicesButton";
 import { getGuests } from "@/utils/guests";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -1204,6 +1205,7 @@ function RegCard({
           </button>
         )}
         {showPay && (
+          <>
           <button
             className={`btn btn-sm ${
               hasPaymentOnRecord(reg) && !owesBalance
@@ -1219,6 +1221,8 @@ function RegCard({
           >
             {payActionLabel(reg)}
           </button>
+          <UpdateServicesButton reg={reg} />
+          </>
         )}
         {(reg.paymentStatus === "submitted" ||
           reg.paymentStatus === "verified" ||

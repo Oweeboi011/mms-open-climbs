@@ -154,6 +154,7 @@ export const HELP_GUIDES = [
           "Each payment is reviewed on its own and marked **Verified** or **Rejected**; the bell tells you",
           "Your card on My Climbs shows a **Payment Log** with every payment and its verdict, and your remaining balance",
           "Pay the rest, or add an optional fee later, with **Submit Payment** or **Add Fees / Pay More** on the card",
+          "Want to add or drop an optional fee (e.g. transportation) but not ready to pay? Tap **Update What I Pay**: your balance updates with no receipt needed, and you can pay later",
           "If the climb has a payment due date, the card shows **Due by …** or **Overdue**",
           "**View OR** shows the receipts you submitted",
         ],

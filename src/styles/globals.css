@@ -6272,3 +6272,37 @@ details[open] > .myreg-collapsible::before {
   font-size: 0.78rem;
   color: var(--ink-soft);
 }
+
+.update-services-title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+.update-services-hint {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+.update-services-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.update-services-amount {
+  margin-left: auto;
+  font-weight: 700;
+}
+.update-services-total {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  display: grid;
+  gap: 4px;
+}
+.update-services-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
