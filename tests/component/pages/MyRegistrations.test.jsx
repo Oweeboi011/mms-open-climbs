@@ -212,6 +212,33 @@ describe("MyRegistrations page", () => {
     await waitFor(() => expect(screen.getByText("₱800")).toBeInTheDocument());
   });
 
+  it("saves a draft of the chosen fees without a receipt or amount", async () => {
+    getDoc.mockResolvedValue(
+      makeSnapshot(climbFixture.id, {
+        ...climbFixture,
+        fees: [
+          { label: "Registration Fee", amount: "500", optional: false },
+          { label: "Transportation Fee", amount: "300", optional: true },
+        ],
+      }),
+    );
+    mockLiveSnapshot([
+      { id: registrationFixture.id, data: { ...registrationFixture, paymentStatus: "unpaid" } },
+    ]);
+
+    renderWithProviders(<MyRegistrations />, makeMemberAuth());
+    await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Submit Payment/i }));
+    await waitFor(() => expect(screen.getByText("Fee Breakdown")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    fireEvent.click(screen.getByRole("button", { name: /Save draft/i }));
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    const patch = updateDoc.mock.calls[0][1];
+    expect(Object.keys(patch).sort()).toEqual(["feeBreakdown", "updatedAt"]);
+    expect(patch.feeBreakdown.find((f) => f.label === "Transportation Fee").selected).toBe(true);
+  });
+
   it("never offers the guest fee as a checkbox — members aren't charged it", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, {

@@ -26,6 +26,7 @@ import {
   hasPaymentHistory,
 } from "@/utils/payments";
 import {
+  buildFeeBreakdown,
   getOutstanding,
   readClimbPrivate,
   serviceGroupsFromDoc,
@@ -210,6 +211,23 @@ function PayPrompt({ reg, onClose, onSaved }) {
     setShowConfirm(true);
   }
 
+  // Records what they intend to pay for, with no receipt or amount yet: only
+  // the fee choices are written, so the balance shows on the admin side.
+  async function saveDraft() {
+    setSaving(true);
+    setError("");
+    try {
+      await updateRegistration(reg.id, {
+        feeBreakdown: buildFeeBreakdown(reg, climb, selections),
+        updatedAt: serverTimestamp(),
+      });
+      onSaved();
+    } catch {
+      setError("Could not save your draft. Please try again.");
+      setSaving(false);
+    }
+  }
+
   async function doSubmit() {
     setShowConfirm(false);
     const parsedAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
@@ -218,20 +236,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
       const paymentProofs = await Promise.all(
         files.map((file) => uploadRegistrationFile("payment-proofs", reg, file)),
       );
-      const feeBreakdown = climb?.fees?.length
-        ? climb.fees.map((f) => ({
-            label: f.label,
-            amount: f.amount,
-            optional: !!f.optional,
-            // Guest fee follows member type, not a checkbox — same rule the
-            // registration form and the admin totals apply.
-            selected: f.isGuestFee
-              ? reg.memberType === "joiner"
-              : f.optional
-                ? !!selections[f.label]
-                : true,
-          }))
-        : reg.feeBreakdown;
+      const feeBreakdown = buildFeeBreakdown(reg, climb, selections);
       // Each submission is its own entry in the history — this may be a
       // downpayment's balance or an extra fee on top of an already-verified
       // payment, so the amount entered here adds to what's already recorded
@@ -726,6 +731,16 @@ function PayPrompt({ reg, onClose, onSaved }) {
               style={{ flex: 1 }}
             >
               Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={saveDraft}
+              disabled={saving || !climb?.fees?.length}
+              title="Save what you're paying for now, and upload your receipt later"
+              style={{ flex: 1 }}
+            >
+              Save draft
             </button>
             <button
               type="submit"
