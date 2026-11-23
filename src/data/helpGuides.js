@@ -155,6 +155,7 @@ export const HELP_GUIDES = [
           "Your card on My Climbs shows a **Payment Log** with every payment and its verdict, and your remaining balance",
           "Pay the rest, or add an optional fee later, with **Submit Payment** or **Add Fees / Pay More** on the card",
           "Want to add or drop an optional fee (e.g. transportation) but not ready to pay? Tap **Update What I Pay**: your balance updates with no receipt needed, and you can pay later",
+          "Not ready to upload your receipt? In **Submit Payment**, tick what you’re paying for and tap **Save draft**: the officers can see it and you finish the payment later",
           "If the climb has a payment due date, the card shows **Due by …** or **Overdue**",
           "**View OR** shows the receipts you submitted",
         ],

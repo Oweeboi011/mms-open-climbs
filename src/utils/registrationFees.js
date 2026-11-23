@@ -203,6 +203,20 @@ export function describeMemberTypeChange(reg, patch) {
   return typeNote + guestNote;
 }
 
+// The feeBreakdown to store for a registrant's choices: every fee on the
+// climb's current schedule, with `selections` ({ [label]: bool }) deciding the
+// optional ones. The guest fee follows member type, never a checkbox. Without
+// a fee schedule (climb gone) the stored snapshot is kept as is.
+export function buildFeeBreakdown(reg, climb, selections) {
+  if (!climb?.fees?.length) return reg.feeBreakdown;
+  return climb.fees.map((f) => ({
+    label: f.label,
+    amount: f.amount,
+    optional: !!f.optional,
+    selected: f.isGuestFee ? reg.memberType === "joiner" : f.optional ? !!selections[f.label] : true,
+  }));
+}
+
 // What an edit of member type or guests does to the expected total:
 // { current, projected, note }, or null when nothing owed would change.
 export function getEditFeeDelta(reg, climb, form) {
