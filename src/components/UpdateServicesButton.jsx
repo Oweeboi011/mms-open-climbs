@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Modal from "@/components/Modal";
 import { subscribeToClimb } from "@/services/climbs";
 import { serverTimestamp } from "@/services/firestore";
@@ -135,7 +136,9 @@ export default function UpdateServicesButton({ reg }) {
       >
         Update What I Pay
       </button>
-      {open && <ServicesModal reg={reg} onClose={() => setOpen(false)} />}
+      {/* Portaled out of the card: .reg-card clips overflow and shifts on hover,
+          which would trap and distort a fixed-position dialog rendered inside it. */}
+      {open && createPortal(<ServicesModal reg={reg} onClose={() => setOpen(false)} />, document.body)}
     </>
   );
 }
