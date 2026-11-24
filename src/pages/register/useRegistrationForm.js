@@ -139,7 +139,7 @@ export default function useRegistrationForm() {
   }
 
   function validate() {
-    return validateRegistration({ form, waiverAgreed, privacyConsent, sigName, amountPaid, paymentFiles });
+    return validateRegistration({ form, waiverAgreed, privacyConsent, sigName, amountPaid, paymentFiles, climb, docFiles });
   }
 
   function handleSubmit(e) {

@@ -32,7 +32,8 @@ import {
   serviceGroupsFromDoc,
 } from "@/utils/registrationFees";
 import { getClimbFeeModel, sumFeeAmounts } from "@/utils/feeSummary";
-import { REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import { MEDICAL_CERT, medCertNeededForPayment, REQUIRED_DOC_TYPES } from "@/data/requiredDocTypes";
+import MedCertField from "@/components/MedCertField";
 import DonationPledgeModal from "@/components/DonationPledgeModal";
 import { isDonationDriveOn } from "@/utils/donations";
 import CancelRegistrationModal from "@/components/CancelRegistrationModal";
@@ -112,6 +113,7 @@ function computeSelectedTotal(climb, reg, selections) {
 
 function PayPrompt({ reg, onClose, onSaved }) {
   const [files, setFiles] = useState([]);
+  const [medCertFile, setMedCertFile] = useState(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -191,6 +193,8 @@ function PayPrompt({ reg, onClose, onSaved }) {
     }
   }
 
+  const needsMedCert = medCertNeededForPayment(climb, reg.medicalCertUpload);
+
   function toggleFee(label) {
     setSelections((p) => ({ ...p, [label]: !p[label] }));
   }
@@ -205,6 +209,10 @@ function PayPrompt({ reg, onClose, onSaved }) {
     const parsedAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
     if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
       setError("Please enter the exact amount you paid via GCash.");
+      return;
+    }
+    if (needsMedCert && !medCertFile) {
+      setError(MEDICAL_CERT.validationMessage);
       return;
     }
     // Recap the climb and what happens next before actually writing anything.
@@ -236,6 +244,9 @@ function PayPrompt({ reg, onClose, onSaved }) {
       const paymentProofs = await Promise.all(
         files.map((file) => uploadRegistrationFile("payment-proofs", reg, file)),
       );
+      const medCertPatch = needsMedCert
+        ? { medicalCertUpload: await uploadRegistrationFile(MEDICAL_CERT.storagePrefixUpload, reg, medCertFile) }
+        : {};
       const feeBreakdown = buildFeeBreakdown(reg, climb, selections);
       // Each submission is its own entry in the history — this may be a
       // downpayment's balance or an extra fee on top of an already-verified
@@ -276,6 +287,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
         verifiedAt: null,
         verifiedBy: null,
         ...(feeBreakdown ? { feeBreakdown } : {}),
+        ...medCertPatch,
       });
       onSaved();
     } catch (err) {
@@ -702,6 +714,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
               </div>
             )}
           </div>
+          {needsMedCert && <MedCertField climb={climb} file={medCertFile} onChange={setMedCertFile} />}
           <div className="form-group">
             <label className="form-label">Payment Notes (Optional)</label>
             <textarea

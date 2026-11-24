@@ -111,6 +111,8 @@ export const REQUIRED_DOC_TYPES = [
   },
 ];
 
+export const MEDICAL_CERT = REQUIRED_DOC_TYPES.find((d) => d.key === "medicalCert");
+
 // A required document counts as submitted when a file was uploaded, or when
 // an admin recorded it as received without one (shown on climb day, handed
 // over on paper). The offline record sits in the same registration field as
@@ -118,6 +120,13 @@ export const REQUIRED_DOC_TYPES = [
 // checks that only ask "is anything there?" count it too.
 export function isDocSubmitted(upload) {
   return !!(upload && (upload.url || upload.receivedOffline));
+}
+
+// Paying for a climb needs the medical certificate on file: a climb that asks
+// for one, and a registration that has none yet (a file or an admin's offline
+// record), means a payment can't be submitted without attaching it.
+export function medCertNeededForPayment(climb, medicalCertUpload) {
+  return !!climb?.requiresMedicalCert && !isDocSubmitted(medicalCertUpload);
 }
 
 // How to describe a submitted document that has no file to open.

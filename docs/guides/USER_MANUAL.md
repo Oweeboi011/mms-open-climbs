@@ -147,7 +147,7 @@ List any medical conditions, allergies, or medications relevant to outdoor activ
 
 ### 7.4 Required Documents
 
-If the climb requires documents (registration form, medical certificate, permit, or a waiver document), you can upload them here — PDF, Word, or an image. They are **not** needed to submit: upload them later from **My Climbs**, and the notification bell reminds you of anything still missing.
+If the climb requires documents (registration form, medical certificate, permit, or a waiver document), you can upload them here — PDF, Word, or an image. They are **not** needed to submit: upload them later from **My Climbs**, and the notification bell reminds you of anything still missing. The exception is the **medical certificate**: if the climb requires it, you must attach it to submit a payment (at registration or later from My Climbs). An admin recording the certificate as received counts too.
 
 ### 7.5 Fee Breakdown
 

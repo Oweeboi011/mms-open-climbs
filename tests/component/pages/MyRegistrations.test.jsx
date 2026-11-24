@@ -274,6 +274,41 @@ describe("MyRegistrations page", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
+  describe("medical certificate with a payment", () => {
+    async function openPay(climbExtra, regExtra) {
+      getDoc.mockResolvedValue(makeSnapshot(climbFixture.id, { ...climbFixture, ...climbExtra }));
+      mockLiveSnapshot([
+        { id: registrationFixture.id, data: { ...registrationFixture, paymentStatus: "unpaid", ...regExtra } },
+      ]);
+      renderWithProviders(<MyRegistrations />, makeMemberAuth());
+      await waitFor(() => expect(screen.getByText("Mt. Pulag")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: /Submit Payment/i }));
+    }
+
+    it("asks for it, and blocks the payment until it is attached", async () => {
+      await openPay({ requiresMedicalCert: true }, { medicalCertUpload: null });
+      const cert = await screen.findByLabelText(/Medical Certificate/i);
+      expect(cert).toBeInTheDocument();
+      const receipt = new File(["x"], "receipt.png", { type: "image/png" });
+      fireEvent.change(document.querySelector('input[type="file"][multiple]'), { target: { files: [receipt] } });
+      fireEvent.change(screen.getByPlaceholderText("0.00"), { target: { value: "500" } });
+      fireEvent.click(screen.getByRole("button", { name: /^Submit$/ }));
+      expect(await screen.findByText(/Upload your medical certificate/i)).toBeInTheDocument();
+    });
+
+    it("doesn't ask when it is already on file", async () => {
+      await openPay({ requiresMedicalCert: true }, { medicalCertUpload: { url: "https://x/cert.pdf" } });
+      await screen.findByText("Payment Notes (Optional)");
+      expect(screen.queryByLabelText(/Medical Certificate/i)).not.toBeInTheDocument();
+    });
+
+    it("doesn't ask when the climb doesn't need one", async () => {
+      await openPay({ requiresMedicalCert: false }, {});
+      await screen.findByText("Payment Notes (Optional)");
+      expect(screen.queryByLabelText(/Medical Certificate/i)).not.toBeInTheDocument();
+    });
+  });
+
   it("charges a joiner the guest fee as a required line they can't untick", async () => {
     getDoc.mockResolvedValue(
       makeSnapshot(climbFixture.id, {

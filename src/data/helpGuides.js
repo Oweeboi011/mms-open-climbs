@@ -206,6 +206,7 @@ export const HELP_GUIDES = [
     title: "Submitting required documents",
     steps: [
       "Some climbs need documents: a registration form, medical certificate, permit or a waiver document. The event page lists them under **Requirements**, and may offer a template to download.",
+      "The one exception is the **medical certificate**: if the climb requires it, you must attach it to submit a payment, whether at registration or later from **My Climbs**. Registering without paying doesn’t need it yet.",
       "Upload them on the registration form, or later with **Submit Required Documents** on the climb’s card in My Climbs. PDF, Word or an image all work.",
       "**View Submitted Documents** shows what you’ve sent. The bell reminds you about anything still missing.",
       "If you showed a document in person instead, the organizers can mark it received; it then shows as received offline.",

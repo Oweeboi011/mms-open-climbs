@@ -19,6 +19,12 @@ export default function RequiredDocsSection({
           <p className="form-hint required-docs-intro">
             You can upload these now, or later from <strong>My Climbs</strong> — we&rsquo;ll remind you in the
             notification bell until they&rsquo;re in.
+            {climb.requiresMedicalCert && (
+              <>
+                {" "}
+                <strong>The medical certificate is required if you submit a payment.</strong>
+              </>
+            )}
           </p>
 
           {REQUIRED_DOC_TYPES.filter((docType) => climb[docType.requiresField]).map((docType) => (
