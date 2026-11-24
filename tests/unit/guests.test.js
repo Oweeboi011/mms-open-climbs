@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageOn, getHeadcount, validateGuests } from "@/utils/guests";
+import { ageOn, getGuestAge, getHeadcount, validateGuests } from "@/utils/guests";
 import { computeExpectedTotal } from "@/utils/feeSummary";
 import { getAvailmentCounts, getExpectedTotal, getFeeItems } from "@/utils/registrationFees";
 
@@ -75,5 +75,26 @@ describe("headcount and validation", () => {
     expect(validateGuests([{ name: "", dateOfBirth: "2020-01-01" }])).toMatch(/name/);
     expect(validateGuests([{ name: "A", dateOfBirth: "" }])).toMatch(/date of birth/);
     expect(validateGuests([kid("A", "2020-01-01")])).toBe("");
+  });
+});
+
+describe("guests recorded by age", () => {
+  it("uses the stored age when there is no birthdate", () => {
+    expect(getGuestAge({ name: "Mia", age: 4 }, climb)).toBe(4);
+    expect(getGuestAge({ name: "Mia", age: "" }, climb)).toBeNull();
+  });
+  it("exempts a guest aged 4 from transport and charges a 5-year-old", () => {
+    const names = (age) =>
+      getFeeItems(reg([{ name: "K", age, relationship: "" }]), climb)
+        .filter((i) => i.guestName === "K")
+        .map((i) => i.label);
+    expect(names(4)).not.toContain("Transportation");
+    expect(names(5)).toContain("Transportation");
+  });
+  it("accepts an age in place of a birthdate only when asked", () => {
+    const g = [{ name: "Mia", age: 4, relationship: "" }];
+    expect(validateGuests(g, "2027-03-20", { byAge: true })).toBe("");
+    expect(validateGuests(g, "2027-03-20")).toMatch(/date of birth/);
+    expect(validateGuests([{ name: "Mia", age: "" }], "2027-03-20", { byAge: true })).toMatch(/enter their age/);
   });
 });

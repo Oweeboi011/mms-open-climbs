@@ -38,7 +38,11 @@ function guestOwesFee(guest, fee, climb, memberAvails) {
     return true;
   }
   const onIso = climbStartIso(climb) || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
-  const age = ageOn(guest && guest.dateOfBirth, onIso);
+  const age = parseIso(guest && guest.dateOfBirth)
+    ? ageOn(guest.dateOfBirth, onIso)
+    : Number.isInteger(guest && guest.age) && guest.age >= 0 && guest.age <= 120
+      ? guest.age
+      : null;
   return age === null || age > freeUpTo;
 }
 
