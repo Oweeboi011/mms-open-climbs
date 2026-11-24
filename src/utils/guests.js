@@ -59,7 +59,7 @@ export function getHeadcount(reg) {
 }
 
 // An admin can record just an age (on the climb date) instead of a birthdate.
-export function isValidAge(age) {
+function isValidAge(age) {
   return Number.isInteger(age) && age >= 0 && age <= 120;
 }
 
