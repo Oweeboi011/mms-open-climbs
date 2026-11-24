@@ -22,7 +22,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
     guests: reg.guests || [],
   });
   const [saving, setSaving] = useState(false);
-  const guestProblem = validateGuests(form.guests);
+  const guestProblem = validateGuests(form.guests, undefined, { byAge: true });
 
   // Participant type drives the guest fee (registrationFees.js), so changing
   // it changes what this person owes. Show the delta rather than letting the
@@ -128,7 +128,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
           </div>
           <div className="form-group">
             <label className="form-label">Guests ({form.guests.length})</label>
-            <GuestsFields guests={form.guests} onChange={(g) => set("guests", g)} climb={climb} />
+            <GuestsFields guests={form.guests} onChange={(g) => set("guests", g)} climb={climb} byAge />
             {guestProblem && <div className="form-error-msg">{guestProblem}</div>}
             <div className="form-hint">
               Each guest takes a slot and owes the per-person fees. Fees can be waived by age.

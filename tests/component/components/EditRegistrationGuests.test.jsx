@@ -35,25 +35,23 @@ describe("EditRegistrationModal — guests", () => {
     const { onSave } = setup();
     fireEvent.click(screen.getByRole("button", { name: /add a guest/i }));
     fireEvent.change(screen.getByLabelText(/guest 1 name/i), { target: { value: "Mia" } });
-    fireEvent.change(screen.getByLabelText(/date of birth/i, { selector: "#guest-dob-0" }), {
-      target: { value: "2023-01-01" },
-    });
+    fireEvent.change(screen.getByLabelText(/age on the climb/i), { target: { value: "4" } });
     expect(screen.getByText(/more is owed now/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0][1].guests).toEqual([
-      { name: "Mia", dateOfBirth: "2023-01-01", relationship: "" },
+      { name: "Mia", age: 4, relationship: "" },
     ]);
   });
 
-  it("won't save a guest without a birthdate", () => {
+  it("won't save a guest without an age", () => {
     const { onSave } = setup();
     fireEvent.click(screen.getByRole("button", { name: /add a guest/i }));
     fireEvent.change(screen.getByLabelText(/guest 1 name/i), { target: { value: "Mia" } });
     fireEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText(/enter their date of birth/i)).toBeInTheDocument();
+    expect(screen.getByText(/enter their age/i)).toBeInTheDocument();
   });
 
   it("removes an existing guest", async () => {

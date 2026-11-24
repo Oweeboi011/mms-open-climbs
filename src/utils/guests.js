@@ -19,7 +19,10 @@ function parseIsoDate(value) {
   if (!m) return null;
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const date = new Date(Date.UTC(y, mo - 1, d));
-  const valid = date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+  const valid =
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === mo - 1 &&
+    date.getUTCDate() === d;
   return valid ? { y, mo, d } : null;
 }
 
@@ -55,8 +58,15 @@ export function getHeadcount(reg) {
   return 1 + getGuests(reg).length;
 }
 
+// An admin can record just an age (on the climb date) instead of a birthdate.
+function isValidAge(age) {
+  return Number.isInteger(age) && age >= 0 && age <= 120;
+}
+
 export function getGuestAge(guest, climb) {
-  return ageOn(guest?.dateOfBirth, climbStartIso(climb) || todayIso());
+  if (parseIsoDate(guest?.dateOfBirth))
+    return ageOn(guest.dateOfBirth, climbStartIso(climb) || todayIso());
+  return isValidAge(guest?.age) ? guest.age : null;
 }
 
 // Whether `guest` owes `fee`. `memberAvails` is whether the member ticked it
@@ -72,14 +82,26 @@ export function guestOwesFee(guest, fee, climb, memberAvails) {
 }
 
 // What the register form needs to say about the guests entered so far.
-export function validateGuests(guests, onIso = todayIso()) {
-  if (guests.length > MAX_GUESTS) return `You can add up to ${MAX_GUESTS} guests.`;
+export function validateGuests(
+  guests,
+  onIso = todayIso(),
+  { byAge = false } = {},
+) {
+  if (guests.length > MAX_GUESTS)
+    return `You can add up to ${MAX_GUESTS} guests.`;
   for (let i = 0; i < guests.length; i += 1) {
     const g = guests[i];
     const label = `Guest ${i + 1}`;
     if (!String(g.name || "").trim()) return `${label}: enter their name.`;
-    if (!parseIsoDate(g.dateOfBirth)) return `${label}: enter their date of birth — their age decides some fees.`;
-    if (ageOn(g.dateOfBirth, onIso) === null) return `${label}: the date of birth can't be in the future.`;
+    if (byAge && !parseIsoDate(g.dateOfBirth)) {
+      if (!isValidAge(g.age))
+        return `${label}: enter their age on the climb — it decides some fees.`;
+      continue;
+    }
+    if (!parseIsoDate(g.dateOfBirth))
+      return `${label}: enter their date of birth — their age decides some fees.`;
+    if (ageOn(g.dateOfBirth, onIso) === null)
+      return `${label}: the date of birth can't be in the future.`;
   }
   return "";
 }
@@ -88,7 +110,9 @@ export function validateGuests(guests, onIso = todayIso()) {
 export function cleanGuests(guests) {
   return (guests || []).map((g) => ({
     name: String(g.name || "").trim(),
-    dateOfBirth: g.dateOfBirth,
+    ...(parseIsoDate(g.dateOfBirth)
+      ? { dateOfBirth: g.dateOfBirth }
+      : { age: g.age }),
     relationship: String(g.relationship || "").trim(),
   }));
 }
