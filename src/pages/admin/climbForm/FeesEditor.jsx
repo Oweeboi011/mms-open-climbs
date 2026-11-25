@@ -1,5 +1,30 @@
 import ReorderButtons from "@/components/admin/ReorderButtons";
 
+// Marks a fee as one only climbers pay, so only they must attach a med cert.
+function MedCertFlag({ fee, onChange }) {
+  const { requiresMedCert: _drop, ...rest } = fee;
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: "0.8rem",
+        whiteSpace: "nowrap",
+        cursor: "pointer",
+      }}
+      title="Only needed when the climb requires a medical certificate. If any fee is flagged, only people who pay for a flagged fee must attach one; if none are flagged, everyone paying must."
+    >
+      <input
+        type="checkbox"
+        checked={!!fee.requiresMedCert}
+        onChange={(e) => onChange(e.target.checked ? { ...rest, requiresMedCert: true } : rest)}
+      />
+      Climbing fee (med cert)
+    </label>
+  );
+}
+
 export default function FeesEditor({
   addListItem,
   form,
@@ -161,6 +186,12 @@ export default function FeesEditor({
               />
               Guest Fee
             </label>
+            {!fee.isGuestFee && (
+              <MedCertFlag
+                fee={fee}
+                onChange={(next) => updateListItem("fees", i, next)}
+              />
+            )}
             <label className="fee-free-age" title="Guests this age or younger (on the climb's start date) don't pay this fee. Leave blank to charge every guest.">
               Guests free up to age
               <input

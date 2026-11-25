@@ -193,7 +193,7 @@ function PayPrompt({ reg, onClose, onSaved }) {
     }
   }
 
-  const needsMedCert = medCertNeededForPayment(climb, reg.medicalCertUpload);
+  const needsMedCert = medCertNeededForPayment(climb, reg.medicalCertUpload, selections);
 
   function toggleFee(label) {
     setSelections((p) => ({ ...p, [label]: !p[label] }));
