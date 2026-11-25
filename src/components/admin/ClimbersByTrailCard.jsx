@@ -3,7 +3,6 @@ import {
   getOwnTransport,
   getTransportRiders,
   groupClimbersByTrail,
-  groupRidersByPickup,
 } from "@/utils/climbers";
 
 const PAY_LABEL = { paid: "paid", partial: "partly paid", unpaid: "not paid" };
@@ -69,33 +68,6 @@ function Column({ title, regs, riders, climb }) {
   );
 }
 
-// Transport riders, split by pickup point when the climb has any.
-function TransportColumns({ riders, climb }) {
-  const { groups, unset } = groupRidersByPickup(riders, climb);
-  if (groups.length === 0) {
-    return <Column title="Transportation" riders={riders} climb={climb} />;
-  }
-  return (
-    <>
-      {groups.map((g) => (
-        <Column
-          key={g.name}
-          title={`Pickup: ${g.name}`}
-          riders={g.riders}
-          climb={climb}
-        />
-      ))}
-      {unset.length > 0 && (
-        <Column
-          title="Transportation, no pickup set"
-          riders={unset}
-          climb={climb}
-        />
-      )}
-    </>
-  );
-}
-
 // Who is climbing each trail and who is riding the organized transport, from
 // the fees each registrant has chosen. Counts are people, guests included.
 export default function ClimbersByTrailCard({
@@ -112,19 +84,14 @@ export default function ClimbersByTrailCard({
       <div className="admin-card-title">Who&apos;s Climbing</div>
       <p className="climbers-note">
         Based on the fees each registrant has chosen. Guests are listed under
-        the member who registered them and follow that member&apos;s trails and
-        transport; counts include guests. The payment tag shows whether the
-        member&apos;s payment covers their whole bill. Anyone who hasn&apos;t
-        chosen fees yet appears under &quot;No trail fees chosen&quot; and
-        &quot;Own transportation&quot;.
+        the member who registered them and follow that member&apos;s trails;
+        counts include guests. Anyone who hasn&apos;t chosen fees yet appears
+        under &quot;No trail fees chosen&quot; and &quot;Own transportation&quot;.
       </p>
       <div className="climbers-grid">
         {trails.map((t) => (
           <Column key={t.name} title={t.name} regs={t.climbers} climb={climb} />
         ))}
-        {riders.length > 0 && (
-          <TransportColumns riders={riders} climb={climb} />
-        )}
         {riders.length > 0 && (
           <Column title="Own transportation" regs={own} climb={climb} />
         )}
