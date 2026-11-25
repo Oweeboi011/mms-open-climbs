@@ -1,3 +1,4 @@
+import { getGuestAge, getGuests, getHeadcount } from "@/utils/guests";
 import {
   getOwnTransport,
   getTransportRiders,
@@ -5,29 +6,66 @@ import {
   groupRidersByPickup,
 } from "@/utils/climbers";
 
-function NameList({ regs }) {
+const PAY_LABEL = { paid: "paid", partial: "partly paid", unpaid: "not paid" };
+
+const headcount = (regs) => regs.reduce((n, reg) => n + getHeadcount(reg), 0);
+
+// Guests ride on their member's registration, so they follow the member:
+// the same trails, the same transport and pickup point.
+function GuestLines({ reg, climb }) {
+  return getGuests(reg).map((g, i) => {
+    const age = getGuestAge(g, climb);
+    return (
+      <div className="climbers-guest" key={i}>
+        + {g.name} (guest{age === null ? "" : `, ${age}`})
+      </div>
+    );
+  });
+}
+
+function NameList({ regs, climb }) {
   return (
     <ul className="climbers-list">
       {regs.map((reg) => (
-        <li key={reg.id}>{reg.name}</li>
+        <li key={reg.id}>
+          {reg.name}
+          <GuestLines reg={reg} climb={climb} />
+        </li>
       ))}
     </ul>
   );
 }
 
-// Who is climbing each trail of a multi-trail climb, from the trail fees on
-// each registrant's bill. Renders nothing when the climb has no trail fees.
-const PAY_LABEL = { paid: "paid", partial: "partly paid", unpaid: "not paid" };
-
-function RiderItems({ riders }) {
+function RiderItems({ riders, climb }) {
   return (
     <ul className="climbers-list">
       {riders.map(({ reg, payStatus }) => (
         <li key={reg.id}>
-          {reg.name} <span className="climbers-pay">({PAY_LABEL[payStatus]})</span>
+          {reg.name}{" "}
+          <span className="climbers-pay">({PAY_LABEL[payStatus]})</span>
+          <GuestLines reg={reg} climb={climb} />
         </li>
       ))}
     </ul>
+  );
+}
+
+function Column({ title, regs, riders, climb }) {
+  const list = riders || regs;
+  const people = riders ? headcount(riders.map((r) => r.reg)) : headcount(regs);
+  return (
+    <div className="climbers-col">
+      <div className="climbers-col-title">
+        {title} — {people}
+      </div>
+      {list.length === 0 && <p>—</p>}
+      {list.length > 0 &&
+        (riders ? (
+          <RiderItems riders={riders} climb={climb} />
+        ) : (
+          <NameList regs={regs} climb={climb} />
+        ))}
+    </div>
   );
 }
 
@@ -35,36 +73,36 @@ function RiderItems({ riders }) {
 function TransportColumns({ riders, climb }) {
   const { groups, unset } = groupRidersByPickup(riders, climb);
   if (groups.length === 0) {
-    return (
-      <div className="climbers-col">
-        <div className="climbers-col-title">Transportation — {riders.length}</div>
-        <RiderItems riders={riders} />
-      </div>
-    );
+    return <Column title="Transportation" riders={riders} climb={climb} />;
   }
   return (
     <>
       {groups.map((g) => (
-        <div key={g.name} className="climbers-col">
-          <div className="climbers-col-title">
-            Pickup: {g.name} — {g.riders.length}
-          </div>
-          {g.riders.length ? <RiderItems riders={g.riders} /> : <p>—</p>}
-        </div>
+        <Column
+          key={g.name}
+          title={`Pickup: ${g.name}`}
+          riders={g.riders}
+          climb={climb}
+        />
       ))}
       {unset.length > 0 && (
-        <div className="climbers-col">
-          <div className="climbers-col-title">
-            Transportation, no pickup set — {unset.length}
-          </div>
-          <RiderItems riders={unset} />
-        </div>
+        <Column
+          title="Transportation, no pickup set"
+          riders={unset}
+          climb={climb}
+        />
       )}
     </>
   );
 }
 
-export default function ClimbersByTrailCard({ regs, climb, serviceGroups = {} }) {
+// Who is climbing each trail and who is riding the organized transport, from
+// the fees each registrant has chosen. Counts are people, guests included.
+export default function ClimbersByTrailCard({
+  regs,
+  climb,
+  serviceGroups = {},
+}) {
   const { trails, none } = groupClimbersByTrail(regs, climb);
   const riders = getTransportRiders(regs, climb, serviceGroups);
   const own = riders.length ? getOwnTransport(regs, climb, serviceGroups) : [];
@@ -73,35 +111,25 @@ export default function ClimbersByTrailCard({ regs, climb, serviceGroups = {} })
     <div className="admin-card climbers-card">
       <div className="admin-card-title">Who&apos;s Climbing</div>
       <p className="climbers-note">
-        Based on the fees each registrant has chosen. Own transportation is everyone without the Transportation Fee, including anyone who hasn't chosen fees yet. Transportation shows
-        whether their payment covers their whole bill. Someone who hasn&apos;t chosen any yet is listed under
-        &quot;No trail fees chosen&quot;.
+        Based on the fees each registrant has chosen. Guests are listed under
+        the member who registered them and follow that member&apos;s trails and
+        transport; counts include guests. The payment tag shows whether the
+        member&apos;s payment covers their whole bill. Anyone who hasn&apos;t
+        chosen fees yet appears under &quot;No trail fees chosen&quot; and
+        &quot;Own transportation&quot;.
       </p>
       <div className="climbers-grid">
         {trails.map((t) => (
-          <div key={t.name} className="climbers-col">
-            <div className="climbers-col-title">
-              {t.name} — {t.climbers.length}
-            </div>
-            {t.climbers.length ? <NameList regs={t.climbers} /> : <p>—</p>}
-          </div>
+          <Column key={t.name} title={t.name} regs={t.climbers} climb={climb} />
         ))}
-        {riders.length > 0 && <TransportColumns riders={riders} climb={climb} />}
         {riders.length > 0 && (
-          <div className="climbers-col">
-            <div className="climbers-col-title">
-              Own transportation — {own.length}
-            </div>
-            {own.length ? <NameList regs={own} /> : <p>—</p>}
-          </div>
+          <TransportColumns riders={riders} climb={climb} />
+        )}
+        {riders.length > 0 && (
+          <Column title="Own transportation" regs={own} climb={climb} />
         )}
         {trails.length > 0 && (
-        <div className="climbers-col">
-          <div className="climbers-col-title">
-            No trail fees chosen — {none.length}
-          </div>
-          {none.length ? <NameList regs={none} /> : <p>—</p>}
-        </div>
+          <Column title="No trail fees chosen" regs={none} climb={climb} />
         )}
       </div>
     </div>

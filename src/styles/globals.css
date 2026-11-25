@@ -6315,3 +6315,4 @@ details[open] > .myreg-collapsible::before {
 .climbers-col p { margin: 0; color: var(--ink-soft); }
 .climbers-pay { color: var(--ink-soft); font-size: 0.78rem; }
 .pickup-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.climbers-guest { color: var(--ink-soft); font-size: 0.78rem; margin-left: 4px; }
