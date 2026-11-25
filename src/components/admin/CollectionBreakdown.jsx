@@ -1,3 +1,4 @@
+import ClimbersByTrailCard from "@/components/admin/ClimbersByTrailCard";
 import { getFeeItemAggregates } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
 
@@ -18,8 +19,11 @@ export default function CollectionBreakdown({
 
   if (items.length === 0) return null;
 
-
+  // The per-trail roster sits with the collection figures: both come from
+  // the fees each registrant has chosen.
   return (
+    <>
+    <ClimbersByTrailCard regs={regs} climb={climb} />
     <div className="admin-card" style={{ marginBottom: 28 }}>
       <div className="admin-card-title">Expected Collection Breakdown</div>
       <p
@@ -155,5 +159,6 @@ export default function CollectionBreakdown({
         Money Stands&rdquo;.
       </p>
     </div>
+    </>
   );
 }

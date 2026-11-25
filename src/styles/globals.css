@@ -6306,3 +6306,10 @@ details[open] > .myreg-collapsible::before {
   margin-top: 16px;
   justify-content: flex-end;
 }
+
+.climbers-card { margin-bottom: 28px; }
+.climbers-note { font-size: 0.82rem; color: var(--ink-soft); margin: 0 0 16px; }
+.climbers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.climbers-col-title { font-weight: 700; font-size: 0.86rem; margin-bottom: 6px; }
+.climbers-list { margin: 0; padding-left: 18px; font-size: 0.84rem; }
+.climbers-col p { margin: 0; color: var(--ink-soft); }
