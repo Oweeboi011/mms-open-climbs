@@ -35,3 +35,22 @@ describe("groupClimbersByTrail", () => {
     expect(groupClimbersByTrail([], { fees: [{ label: "Guide Fee" }] }).trails).toEqual([]);
   });
 });
+
+import { getTransportRiders } from "@/utils/climbers";
+describe("getTransportRiders", () => {
+  const c = { fees: [{ label: "Transportation Fee", optional: true, amount: "3000" }] };
+  const rider = (id, name, paid) => ({
+    id, name, status: "confirmed", amountPaid: paid,
+    feeBreakdown: [{ label: "Transportation Fee", selected: true }],
+  });
+  it("lists riders with their payment standing", () => {
+    const out = getTransportRiders(
+      [rider("1", "Ana", 3000), rider("2", "Ben", 1000), rider("3", "Cy", 0),
+       { id: "4", name: "Di", status: "confirmed", feeBreakdown: [] }],
+      c,
+    );
+    expect(out.map((r) => [r.reg.name, r.payStatus])).toEqual([
+      ["Ana", "paid"], ["Ben", "partial"], ["Cy", "unpaid"],
+    ]);
+  });
+});
