@@ -105,6 +105,7 @@ export function buildClimbDocs(form) {
     officerIds: (form.officers || []).map((o) => o.userId).filter(Boolean),
     officers: publicOfficers,
     trailMaps,
+    pickupPoints: (form.pickupPoints || []).map((p) => p.trim()).filter(Boolean),
     // Legacy single-trail fields mirror the first trail so older readers
     // (e.g. the weather location lookup) still resolve.
     googleMapsUrl: trailMaps[0]?.googleMapsUrl || "",

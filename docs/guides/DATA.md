@@ -43,7 +43,8 @@ because `climbs` is world-readable: anything private needs its own document.
 | `cancellationStatus` | `cancelled` / `postponed` / empty. **Derived** from `status: "cancelled"` at every write site; `postponed` is set directly. A change fires `onClimbUpdated` emails |
 | `registrationCount`, `docsCompleteCount` | Maintained by triggers with atomic increments — **never write from the client** |
 | `maxParticipants`, `waitlistAutoPromote` | Capacity; auto-promotion from the waitlist is on unless `false` |
-| `fees[]` | `{ label, amount, note, optional, isGuestFee, shareable }`. `isGuestFee` = charged only to `memberType: "joiner"` (flag, not label). `shareable` optional fees can be split via `climbPrivate.serviceGroups`. `guestFreeUpToAge` (number, optional) = registration guests that age or younger on the climb's start date skip the fee |
+| `fees[]` | `{ label, amount, note, optional, isGuestFee, shareable }`. `isGuestFee` = charged only to `memberType: "joiner"` (flag, not label). `shareable` optional fees can be split via `climbPrivate.serviceGroups`. `guestFreeUpToAge` (number, optional) = registration guests that age or younger on the climb's start date skip the fee. `requiresMedCert` (flag, optional) = a climbing fee: when the climb requires a med cert, only payers of flagged fees must attach one (none flagged = everyone) |
+| `pickupPoints[]` | Transportation pickup points (strings) admins assign riders to |
 | `officers[]` | `{ name, role, contact, userId }` — public. Emails are stripped on save into `climbInternal.officerEmails`; the phone `contact` stays public (the sign-in lock on the event page is cosmetic) |
 | `requires{RegistrationForm,MedicalCert,Permit,WaiverDoc}` + `…Url`/`…FileName` | Per-climb required documents and their templates; pairs with `REQUIRED_DOC_TYPES` |
 | `announcements[]` | `{ message, pinned, createdAt }`; `createdAt` is epoch ms (no `serverTimestamp()` in arrays). Markdown subset via `src/utils/markdownLite.jsx` — React nodes only |
@@ -78,6 +79,7 @@ editable by them.
 |---|---|
 | `status` | `pending` / `confirmed` / `waitlisted` / `cancelled` (diagram below) |
 | `memberType` | `member` / `joiner` (non-member; pays the guest fee) |
+| `pickupPoint` | Admin-set transportation pickup point, one of the climb's `pickupPoints` |
 | `guests[]` | `{ name, dateOfBirth (YYYY-MM-DD) or age (whole years on the climb date, admin edits only), relationship }`, max 10. Family registered under the member's account: each takes a slot (`registrationCount`, capacity and waitlist count `1 + guests.length`) and owes the per-person fees minus age exemptions (`src/utils/guests.js`, mirrored in `functions/src/shared/guests.js`). `guestsAuthorized` records the guardian confirmation. Members set them at registration; only admins edit them afterwards |
 | `payments[]` | `{ amount, proofs[{url,fileName}], submittedAt, status, note?, recordedBy?, reviewedBy?, paidBy?, splitTo? }`, oldest first; each reviewed on its own |
 | `paymentStatus` | **Derived** from `payments[].status`: any awaiting review ⇒ `submitted`; else `verified` if one stands; else `rejected`; none ⇒ `unpaid` |

@@ -5,7 +5,13 @@ import { getEditFeeDelta } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
 import TextField from "@/components/TextField";
 import GuestsFields from "@/components/GuestsFields";
+import PickupPointField from "@/components/PickupPointField";
 import { cleanGuests, validateGuests } from "@/utils/guests";
+
+// Only touch the pickup point on climbs that have points to choose from.
+function pickupPatch(climb, form) {
+  return climb?.pickupPoints?.length ? { pickupPoint: form.pickupPoint } : {};
+}
 
 export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -20,6 +26,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
     amountPaid: reg.amountPaid ?? "",
     memberType: reg.memberType || "joiner",
     guests: reg.guests || [],
+    pickupPoint: reg.pickupPoint || "",
   });
   const [saving, setSaving] = useState(false);
   const guestProblem = validateGuests(form.guests, undefined, { byAge: true });
@@ -55,6 +62,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
         amountPaid: form.amountPaid === "" ? null : Number(form.amountPaid),
         memberType: form.memberType,
         guests: cleanGuests(form.guests),
+        ...pickupPatch(climb, form),
       });
     } finally {
       setSaving(false);
@@ -126,6 +134,11 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
               </div>
             )}
           </div>
+          <PickupPointField
+            points={climb?.pickupPoints}
+            value={form.pickupPoint}
+            onChange={(v) => set("pickupPoint", v)}
+          />
           <div className="form-group">
             <label className="form-label">Guests ({form.guests.length})</label>
             <GuestsFields guests={form.guests} onChange={(g) => set("guests", g)} climb={climb} byAge />

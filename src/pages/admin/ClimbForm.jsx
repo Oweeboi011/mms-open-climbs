@@ -5,6 +5,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import AnnouncementsEditor from "@/pages/admin/climbForm/AnnouncementsEditor";
 import BasicInfoFields from "@/pages/admin/climbForm/BasicInfoFields";
 import FeesEditor from "@/pages/admin/climbForm/FeesEditor";
+import PickupPointsEditor from "@/pages/admin/climbForm/PickupPointsEditor";
 import GcashFields from "@/pages/admin/climbForm/GcashFields";
 import ItineraryEditor from "@/pages/admin/climbForm/ItineraryEditor";
 import MountainProfileFields from "@/pages/admin/climbForm/MountainProfileFields";
@@ -103,6 +104,8 @@ export default function AdminClimbForm() {
             removeListItem={removeListItem}
             updateListItem={updateListItem}
           />
+
+          <PickupPointsEditor form={form} set={set} />
 
           <OfficersEditor
             addListItem={addListItem}
