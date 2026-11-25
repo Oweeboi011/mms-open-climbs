@@ -41,3 +41,22 @@ describe("registering with a payment", () => {
     expect(validateRegistration({ ...paying, climb: {} }).errors).toEqual({});
   });
 });
+
+describe("medCertNeededForPayment with flagged climbing fees", () => {
+  const climb = {
+    requiresMedicalCert: true,
+    fees: [
+      { label: "Transportation Fee", optional: true },
+      { label: "Guide Fee", optional: true, requiresMedCert: true },
+      { label: "Environment Fee", optional: false, requiresMedCert: true },
+    ],
+  };
+  it("always asks when a required fee is flagged", () => {
+    expect(medCertNeededForPayment(climb, null, {})).toBe(true);
+  });
+  it("asks only when an optional flagged fee is ticked", () => {
+    const optionalOnly = { ...climb, fees: climb.fees.slice(0, 2) };
+    expect(medCertNeededForPayment(optionalOnly, null, { "Transportation Fee": true })).toBe(false);
+    expect(medCertNeededForPayment(optionalOnly, null, { "Guide Fee": true })).toBe(true);
+  });
+});

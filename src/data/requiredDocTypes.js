@@ -124,9 +124,14 @@ export function isDocSubmitted(upload) {
 
 // Paying for a climb needs the medical certificate on file: a climb that asks
 // for one, and a registration that has none yet (a file or an admin's offline
-// record), means a payment can't be submitted without attaching it.
-export function medCertNeededForPayment(climb, medicalCertUpload) {
-  return !!climb?.requiresMedicalCert && !isDocSubmitted(medicalCertUpload);
+// record), means a payment can't be submitted without attaching it. When the
+// admin flags some fees as "climbing" (`requiresMedCert`), only people who pay
+// for one of those are asked — transport- or homestay-only payers are not.
+export function medCertNeededForPayment(climb, medicalCertUpload, selected = {}) {
+  if (!climb?.requiresMedicalCert || isDocSubmitted(medicalCertUpload)) return false;
+  const flagged = (climb.fees || []).filter((f) => f.requiresMedCert);
+  if (flagged.length === 0) return true;
+  return flagged.some((f) => !f.optional || !!selected[f.label]);
 }
 
 // How to describe a submitted document that has no file to open.

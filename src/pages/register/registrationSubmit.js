@@ -18,7 +18,7 @@ const parseAmount = (value) =>
 // Payment is optional at registration — but if they started on it, both the
 // amount and the receipt are needed together, plus the medical certificate
 // when the climb asks for one.
-function paymentErrors({ hasAmount, paymentFiles, climb, docFiles }) {
+function paymentErrors({ hasAmount, paymentFiles, climb, docFiles, optionalFeeSelections }) {
   const errors = {};
   if (paymentFiles.length > 0 && !hasAmount) {
     errors.amountPaid =
@@ -30,7 +30,7 @@ function paymentErrors({ hasAmount, paymentFiles, climb, docFiles }) {
   }
   if (
     (hasAmount || paymentFiles.length > 0) &&
-    medCertNeededForPayment(climb, null) &&
+    medCertNeededForPayment(climb, null, optionalFeeSelections) &&
     !docFiles.medicalCert
   ) {
     errors.medicalCert = "Attach your medical certificate to submit a payment.";
@@ -52,6 +52,7 @@ export function validateRegistration({
   paymentFiles,
   climb,
   docFiles = {},
+  optionalFeeSelections = {},
 }) {
   const errors = {};
   const parsedAmount = parseAmount(amountPaid);
@@ -88,7 +89,7 @@ export function validateRegistration({
     errors.sigName = "Enter your complete name — at least 3 characters.";
   Object.assign(
     errors,
-    paymentErrors({ hasAmount, paymentFiles, climb, docFiles }),
+    paymentErrors({ hasAmount, paymentFiles, climb, docFiles, optionalFeeSelections }),
   );
   return { errors, parsedAmount };
 }
