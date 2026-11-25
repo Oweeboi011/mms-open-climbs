@@ -23,7 +23,7 @@ export default function CollectionBreakdown({
   // the fees each registrant has chosen.
   return (
     <>
-    <ClimbersByTrailCard regs={regs} climb={climb} />
+    <ClimbersByTrailCard regs={regs} climb={climb} serviceGroups={serviceGroups} />
     <div className="admin-card" style={{ marginBottom: 28 }}>
       <div className="admin-card-title">Expected Collection Breakdown</div>
       <p
