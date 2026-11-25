@@ -1,4 +1,5 @@
 import ClimbersByTrailCard from "@/components/admin/ClimbersByTrailCard";
+import TransportBreakdownCard from "@/components/admin/TransportBreakdownCard";
 import TransportRosterCard from "@/components/admin/TransportRosterCard";
 import { getFeeItemAggregates } from "@/utils/registrationFees";
 import { formatPeso } from "@/utils/feeSummary";
@@ -25,7 +26,8 @@ export default function CollectionBreakdown({
   return (
     <>
     <TransportRosterCard regs={regs} climb={climb} serviceGroups={serviceGroups} />
-    <ClimbersByTrailCard regs={regs} climb={climb} serviceGroups={serviceGroups} />
+    <ClimbersByTrailCard regs={regs} climb={climb} />
+    <TransportBreakdownCard regs={regs} climb={climb} serviceGroups={serviceGroups} />
     <div className="admin-card" style={{ marginBottom: 28 }}>
       <div className="admin-card-title">Expected Collection Breakdown</div>
       <p
