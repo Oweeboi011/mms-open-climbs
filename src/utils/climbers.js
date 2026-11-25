@@ -36,7 +36,8 @@ export function groupClimbersByTrail(regs, climb) {
   return { trails, none };
 }
 
-// Active registrants with the climb's transportation fee on their bill, each
+// Active registrants with the climb's transportation fee on their bill — or a
+// pickup point an admin assigned, which means they ride too — each
 // with where their payment stands overall (a payment covers the whole bill,
 // not one fee): "paid" with nothing left to pay, "partial" with something
 // paid, else "unpaid".
@@ -44,7 +45,11 @@ export function getTransportRiders(regs, climb, serviceGroups = {}) {
   const isTransport = (f) => !trailOf(f.label) && /transp/i.test(f.label || "");
   return (regs || [])
     .filter((reg) => reg.status !== "cancelled")
-    .filter((reg) => getFeeItems(reg, climb, serviceGroups).some(isTransport))
+    .filter(
+      (reg) =>
+        !!reg.pickupPoint ||
+        getFeeItems(reg, climb, serviceGroups).some(isTransport),
+    )
     .map((reg) => {
       const left = getOutstanding(reg, climb, serviceGroups);
       const paid = getCountedPaid(reg);

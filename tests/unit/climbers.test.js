@@ -80,3 +80,12 @@ describe("groupRidersByPickup", () => {
     expect(unset.map((x) => x.reg.id)).toEqual(["3"]);
   });
 });
+
+describe("riders with a pickup point", () => {
+  it("counts an assigned pickup point as riding even without the fee ticked", () => {
+    const c = { fees: [{ label: "Transportation Fee", optional: true, amount: "3000" }] };
+    const regs = [{ id: "1", name: "Ana", status: "confirmed", pickupPoint: "Cubao", feeBreakdown: [] }];
+    expect(getTransportRiders(regs, c).map((r) => r.reg.name)).toEqual(["Ana"]);
+    expect(getOwnTransport(regs, c)).toEqual([]);
+  });
+});
