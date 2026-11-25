@@ -53,3 +53,26 @@ export function getTransportRiders(regs, climb, serviceGroups = {}) {
     })
     .sort((a, b) => (a.reg.name || "").localeCompare(b.reg.name || ""));
 }
+
+// Active registrants without the transportation fee on their bill — they get
+// to the climb on their own. Only meaningful when the climb sells transport.
+export function getOwnTransport(regs, climb, serviceGroups = {}) {
+  const riding = new Set(
+    getTransportRiders(regs, climb, serviceGroups).map((r) => r.reg.id),
+  );
+  return (regs || [])
+    .filter((reg) => reg.status !== "cancelled" && !riding.has(reg.id))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+}
+
+// Transport riders grouped by pickup point: the climb's points in order, then
+// anyone not assigned one yet.
+export function groupRidersByPickup(riders, climb) {
+  const points = climb?.pickupPoints || [];
+  const groups = points.map((name) => ({
+    name,
+    riders: riders.filter((r) => r.reg.pickupPoint === name),
+  }));
+  const unset = riders.filter((r) => !points.includes(r.reg.pickupPoint));
+  return { groups, unset };
+}

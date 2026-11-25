@@ -54,3 +54,29 @@ describe("getTransportRiders", () => {
     ]);
   });
 });
+
+import { getOwnTransport } from "@/utils/climbers";
+describe("getOwnTransport", () => {
+  it("lists active registrants without the transport fee", () => {
+    const c = { fees: [{ label: "Transportation Fee", optional: true, amount: "3000" }] };
+    const regs = [
+      { id: "1", name: "Ana", status: "confirmed", feeBreakdown: [{ label: "Transportation Fee", selected: true }] },
+      { id: "2", name: "Ben", status: "confirmed", feeBreakdown: [] },
+      { id: "3", name: "Cy", status: "cancelled", feeBreakdown: [] },
+    ];
+    expect(getOwnTransport(regs, c).map((r) => r.name)).toEqual(["Ben"]);
+  });
+});
+
+import { groupRidersByPickup } from "@/utils/climbers";
+describe("groupRidersByPickup", () => {
+  it("splits riders by point and keeps the unassigned apart", () => {
+    const r = (id, pickupPoint) => ({ reg: { id, pickupPoint }, payStatus: "paid" });
+    const { groups, unset } = groupRidersByPickup(
+      [r("1", "Cubao"), r("2", "Baguio"), r("3", undefined), r("4", "Cubao")],
+      { pickupPoints: ["Baguio", "Buendia", "Cubao"] },
+    );
+    expect(groups.map((g) => [g.name, g.riders.length])).toEqual([["Baguio", 1], ["Buendia", 0], ["Cubao", 2]]);
+    expect(unset.map((x) => x.reg.id)).toEqual(["3"]);
+  });
+});
