@@ -69,10 +69,17 @@ export function getGuestAge(guest, climb) {
   return isValidAge(guest?.age) ? guest.age : null;
 }
 
+// An admin can take a guest out of specific fees — a child who isn't climbing
+// skips the trail fees but still rides the van.
+export function isExcluded(guest, label) {
+  return Array.isArray(guest?.excludedFees) && guest.excludedFees.includes(label);
+}
+
 // Whether `guest` owes `fee`. `memberAvails` is whether the member ticked it
 // (only consulted for optional services).
 export function guestOwesFee(guest, fee, climb, memberAvails) {
   if (fee.shareable) return false;
+  if (isExcluded(guest, fee.label)) return false;
   if (fee.optional && !fee.isGuestFee && !memberAvails) return false;
   const freeUpTo = parseFloat(fee.guestFreeUpToAge);
   if (!Number.isFinite(freeUpTo)) return true;
@@ -114,5 +121,6 @@ export function cleanGuests(guests) {
       ? { dateOfBirth: g.dateOfBirth }
       : { age: g.age }),
     relationship: String(g.relationship || "").trim(),
+    ...(g.excludedFees?.length ? { excludedFees: g.excludedFees } : {}),
   }));
 }

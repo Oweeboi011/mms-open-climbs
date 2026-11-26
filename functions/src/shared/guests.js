@@ -32,6 +32,7 @@ function ageOn(dateOfBirth, onIso) {
 
 function guestOwesFee(guest, fee, climb, memberAvails) {
   if (fee.shareable) return false;
+  if (guest && Array.isArray(guest.excludedFees) && guest.excludedFees.includes(fee.label)) return false;
   if (fee.optional && !fee.isGuestFee && !memberAvails) return false;
   const freeUpTo = Number(fee.guestFreeUpToAge);
   if (fee.guestFreeUpToAge === undefined || fee.guestFreeUpToAge === null || !Number.isFinite(freeUpTo)) {

@@ -1,6 +1,8 @@
 import { Column } from "@/components/admin/ClimberColumns";
+import { getGuests } from "@/utils/guests";
 import {
   getOwnTransport,
+  guestRides,
   getTransportRiders,
   groupRidersByPickup,
 } from "@/utils/climbers";
@@ -16,6 +18,17 @@ export default function TransportBreakdownCard({
   if (riders.length === 0) return null;
   const own = getOwnTransport(regs, climb, serviceGroups);
   const { groups, unset } = groupRidersByPickup(riders, climb);
+  const rides = (g) => guestRides(g, climb);
+  // A rider's guest who isn't taking the van travels on their own.
+  const ownGuests = riders.flatMap(({ reg }) =>
+    getGuests(reg)
+      .filter((g) => !rides(g))
+      .map((g, i) => ({
+        id: `${reg.id}-guest-${i}`,
+        name: `${g.name} (guest of ${reg.name})`,
+        status: reg.status,
+      })),
+  );
   return (
     <div className="admin-card climbers-card">
       <div className="admin-card-title">Transportation Breakdown</div>
@@ -31,6 +44,7 @@ export default function TransportBreakdownCard({
             title={`Pickup: ${g.name}`}
             riders={g.riders}
             climb={climb}
+            keep={rides}
           />
         ))}
         {(groups.length === 0 || unset.length > 0) && (
@@ -42,9 +56,14 @@ export default function TransportBreakdownCard({
             }
             riders={unset}
             climb={climb}
+            keep={rides}
           />
         )}
-        <Column title="Own transportation" regs={own} climb={climb} />
+        <Column
+          title="Own transportation"
+          regs={[...own, ...ownGuests]}
+          climb={climb}
+        />
       </div>
     </div>
   );
