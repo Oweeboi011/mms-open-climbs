@@ -182,7 +182,7 @@ export default function PaymentLog({ reg, emptyText }) {
         );
       })}
 
-      {/* Money the club sent back — without it the member's own payments
+      {/* Money the org sent back — without it the member's own payments
           add up to more than their receipt says they've paid. */}
       {refunds.map((r, k) => (
         <div key={r.id || k} className="payment-refund">

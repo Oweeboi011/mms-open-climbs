@@ -1,5 +1,5 @@
-// The club-wide cancellation & refund policy, used for any climb that
-// doesn't set its own in ClimbForm. DRAFT wording for the club to confirm —
+// The organization-wide cancellation & refund policy, used for any climb that
+// doesn't set its own in ClimbForm. DRAFT wording for the organization to confirm —
 // the windows and percentages are policy decisions, not app behaviour.
 export const DEFAULT_CANCELLATION_POLICY = [
   "To cancel, use Cancel Registration in My Climbs (or message the climb officers).",

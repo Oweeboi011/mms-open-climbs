@@ -21,6 +21,6 @@ describe("MoneyReconciliationCard", () => {
     fireEvent.click(screen.getByText(/Paid more than they owe/));
     expect(screen.getByText("Admer D.")).toBeInTheDocument();
     expect(screen.getByText(/paid ₱2,000, owes ₱1,000/)).toBeInTheDocument();
-    expect(screen.getByText("Club net funds").nextSibling.textContent).toBe("₱2,950");
+    expect(screen.getByText("Org net funds").nextSibling.textContent).toBe("₱2,950");
   });
 });

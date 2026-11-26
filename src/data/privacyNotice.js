@@ -1,6 +1,6 @@
 // The privacy notice members agree to when registering. Bump the version
 // whenever the substance changes: each registration records the version it
-// was given, so the club can show what a member actually consented to.
+// was given, so the organization can show what a member actually consented to.
 export const PRIVACY_NOTICE_VERSION = "2026-10-18";
 
 export const PRIVACY_NOTICE_SECTIONS = [
@@ -56,7 +56,7 @@ export const PRIVACY_NOTICE_SECTIONS = [
   {
     heading: "How long we keep it",
     body:
-      "Registration records are kept as the club's attendance and payment " +
+      "Registration records are kept as the organization's attendance and payment " +
       "history. Uploaded documents and receipts are deleted two years after " +
       "upload. My Details is kept while you have an account. If your account is " +
       "deleted, My Details is deleted, your health and contact details are " +
@@ -66,7 +66,7 @@ export const PRIVACY_NOTICE_SECTIONS = [
     heading: "Your rights",
     body:
       "You may ask to see, correct or delete your personal information, or " +
-      "withdraw your consent, by contacting the club. You can correct your " +
+      "withdraw your consent, by contacting the organization. You can correct your " +
       "contact and medical details yourself from My Climbs. Withdrawing consent " +
       "may mean we can no longer register you for climbs.",
   },

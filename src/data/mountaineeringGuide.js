@@ -142,7 +142,7 @@ export const MOUNTAINEERING_GUIDE_SECTIONS = [
     critical: true,
     paragraphs: [
       "MMS Open Climbs are open to everyone. You don't need to be an MMS member to join.",
-      "**MMS members** have completed the club's membership process (application, induction, dues). **Joiners** (guests) are non-members who register for a specific climb — most first-timers start here.",
+      "**MMS members** have completed the organization's membership process (application, induction, dues). **Joiners** (guests) are non-members who register for a specific climb — most first-timers start here.",
     ],
     bullets: [
       "Joiners pay a small **guest fee** per climb (shown on each event's Fees card); members don't.",

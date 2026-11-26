@@ -41,7 +41,7 @@ describe("orgContact resolver", () => {
 });
 
 describe("orgContact (configured)", () => {
-  it("points to the club's Facebook page with a readable label", () => {
+  it("points to the org's Facebook page with a readable label", () => {
     expect(contactHref("anything")).toBe(
       "https://www.facebook.com/metropolitanmountaineeringsociety/",
     );

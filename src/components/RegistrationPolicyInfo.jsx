@@ -5,8 +5,8 @@ import {
 } from "@/utils/registrationPolicy";
 
 // The climb's payment due date and cancellation policy, wherever a member
-// is deciding to register or pay. Both fall back to the club defaults (due
-// 5 days before the climb; the club-wide policy).
+// is deciding to register or pay. Both fall back to the org defaults (due
+// 5 days before the climb; the org-wide policy).
 export default function RegistrationPolicyInfo({ climb, className = "policy-info" }) {
   const due = formatDueDate(getPaymentDueDate(climb));
   const policy = getCancellationPolicy(climb);

@@ -18,7 +18,7 @@ const reg = {
 };
 
 describe("fees the party pays directly", () => {
-  it("are not owed to the club", () => {
+  it("are not owed to the org", () => {
     expect(getExpectedTotal(reg, climb)).toBe(100);
     expect(getExpectedTotal({ ...reg, selfPaidFees: [] }, climb)).toBe(400);
   });

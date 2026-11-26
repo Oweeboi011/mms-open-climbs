@@ -3,7 +3,7 @@ import { logAuditEvent } from "@/services/auditLog";
 import { updateRegistration } from "@/services/registrations";
 import { uploadRegistrationFile } from "@/services/storage";
 
-// Records money the club sent back to a registrant — typically the excess on
+// Records money the org sent back to a registrant — typically the excess on
 // a payment that covered more than they owed. Refunds live in their own
 // `refunds` array (see getRefunds in utils/payments for why), which only
 // admins can write; the member is notified by onRegistrationUpdated.

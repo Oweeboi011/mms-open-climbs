@@ -6324,3 +6324,4 @@ details[open] > .myreg-collapsible::before {
 .guest-exclusions { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin: 4px 0 12px; }
 .guest-exclusions legend { font-size: 0.78rem; color: var(--ink-soft); padding: 0 4px; }
 .guest-exclusion { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 2px 0; cursor: pointer; }
+.balance-breakdown { width: 100%; margin: 8px 0 12px; font-size: 0.84rem; }

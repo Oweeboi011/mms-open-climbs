@@ -59,7 +59,7 @@ rotate it — removing it from history is not enough.
 
 ### Rotation
 
-The club treasurer or tech lead owns these; rotate **every January** (start
+The organization treasurer or tech lead owns these; rotate **every January** (start
 of season), when someone with access leaves, or immediately if exposed.
 
 | Secret | Rotate by | Then |
