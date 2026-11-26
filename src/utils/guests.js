@@ -91,8 +91,6 @@ export function seatsFor(reg) {
 // (only consulted for optional services).
 export function guestOwesFee(guest, fee, climb, memberAvails) {
   if (fee.shareable) return false;
-  // The Guest Fee is for joiners; a member's own guests ride free of it.
-  if (fee.isGuestFee) return false;
   if (isExcluded(guest, fee.label)) return false;
   if (fee.optional && !fee.isGuestFee && !memberAvails) return false;
   const freeUpTo = parseFloat(fee.guestFreeUpToAge);

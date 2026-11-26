@@ -21,7 +21,9 @@ describe("guestOwesFee exclusions", () => {
 
 describe("guestOwesFee guest fee", () => {
   const { guestOwesFee } = require("../src/shared/guests");
-  it("never charges a member's own guest the joiner Guest Fee", () => {
-    expect(guestOwesFee({ name: "K" }, { label: "Guest Fee", isGuestFee: true, optional: true }, {}, false)).toBe(false);
+  const gf = { label: "Guest Fee", isGuestFee: true, optional: true };
+  it("charges a member's guest the Guest Fee unless an admin waived it", () => {
+    expect(guestOwesFee({ name: "K" }, gf, {}, false)).toBe(true);
+    expect(guestOwesFee({ name: "K", excludedFees: ["Guest Fee"] }, gf, {}, false)).toBe(false);
   });
 });
