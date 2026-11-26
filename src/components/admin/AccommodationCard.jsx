@@ -22,6 +22,7 @@ export default function AccommodationCard({ regs, climb }) {
             regs={stay}
             climb={climb}
             keep={(g) => guestStays(g, fee.label)}
+            labels={[fee.label]}
           />
         ))}
         <Column title="No accommodation chosen" regs={none} climb={climb} />

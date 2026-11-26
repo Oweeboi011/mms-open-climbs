@@ -26,7 +26,9 @@ export function groupClimbersByTrail(regs, climb) {
     .filter((reg) => reg.status !== "cancelled")
     .forEach((reg) => {
       const mine = new Set(
-        getFeeItems(reg, climb).map((f) => trailOf(f.label)).filter(Boolean),
+        getFeeItems(reg, climb, {}, { includeSelfPaid: true })
+          .map((f) => trailOf(f.label))
+          .filter(Boolean),
       );
       trails.forEach((t) => mine.has(t.name) && t.climbers.push(reg));
       if (mine.size === 0) none.push(reg);
@@ -49,7 +51,7 @@ export function getTransportRiders(regs, climb, serviceGroups = {}) {
     .filter(
       (reg) =>
         !!reg.pickupPoint ||
-        getFeeItems(reg, climb, serviceGroups).some(isTransport),
+        getFeeItems(reg, climb, serviceGroups, { includeSelfPaid: true }).some(isTransport),
     )
     .map((reg) => {
       const left = getOutstanding(reg, climb, serviceGroups);
@@ -85,11 +87,11 @@ export function groupRidersByPickup(riders, climb) {
 
 // What an admin can take a guest out of: one entry per trail (all of its
 // fees together) and one per other per-person fee.
-export function guestFeeUnits(climb) {
+export function guestFeeUnits(climb, { shareable = false } = {}) {
   const units = [];
   const byTrail = {};
   (climb?.fees || []).forEach((fee) => {
-    if (fee.shareable || fee.isGuestFee) return;
+    if ((fee.shareable && !shareable) || fee.isGuestFee) return;
     const trail = trailOf(fee.label);
     if (!trail) {
       units.push({ key: fee.label, label: fee.label, labels: [fee.label] });
@@ -137,7 +139,9 @@ export function groupByAccommodation(regs, climb) {
   (regs || [])
     .filter((reg) => reg.status !== "cancelled")
     .forEach((reg) => {
-      const mine = new Set(getFeeItems(reg, climb).map((f) => f.label));
+      const mine = new Set(
+        getFeeItems(reg, climb, {}, { includeSelfPaid: true }).map((f) => f.label),
+      );
       const picked = options.filter((o) => mine.has(o.fee.label));
       picked.forEach((o) => o.regs.push(reg));
       if (picked.length === 0) none.push(reg);

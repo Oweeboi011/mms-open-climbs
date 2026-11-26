@@ -1,5 +1,9 @@
 import { Column } from "@/components/admin/ClimberColumns";
-import { groupClimbersByTrail, guestJoinsTrail } from "@/utils/climbers";
+import {
+  groupClimbersByTrail,
+  guestJoinsTrail,
+  trailOf,
+} from "@/utils/climbers";
 
 // Who is climbing each trail, from the fees each registrant has chosen. Counts are people, guests included.
 export default function ClimbersByTrailCard({ regs, climb }) {
@@ -22,6 +26,9 @@ export default function ClimbersByTrailCard({ regs, climb }) {
             regs={t.climbers}
             climb={climb}
             keep={(g) => guestJoinsTrail(g, climb, t.name)}
+            labels={(climb.fees || [])
+              .filter((f) => trailOf(f.label) === t.name)
+              .map((f) => f.label)}
           />
         ))}
         <Column title="No trail fees chosen" regs={none} climb={climb} />

@@ -109,7 +109,25 @@ export function getGroupmates(reg, regs, serviceGroups, label) {
 // size, so a display can still show "₱250 (÷2 of ₱500)" rather than just the
 // discounted figure. Solo registrants (or a climb with no groups formed yet)
 // pay the fee's listed amount, unchanged.
-export function getFeeItems(reg, climb, serviceGroups = {}) {
+//
+// Fees an admin marked as paid directly (`reg.selfPaidFees`) — the party pays
+// the venue, not the club — are left out of what is owed, so balances and
+// collection totals ignore them. `includeSelfPaid` keeps them in, for lists
+// of who takes part.
+export function getFeeItems(reg, climb, serviceGroups = {}, { includeSelfPaid = false } = {}) {
+  const all = allFeeItems(reg, climb, serviceGroups);
+  const own = includeSelfPaid ? [] : reg.selfPaidFees || [];
+  return own.length ? all.filter((item) => !own.includes(item.label)) : all;
+}
+
+// What the party pays directly instead of through the club, at current amounts.
+export function getSelfPaidItems(reg, climb, serviceGroups = {}) {
+  const own = reg.selfPaidFees || [];
+  if (!own.length) return [];
+  return allFeeItems(reg, climb, serviceGroups).filter((item) => own.includes(item.label));
+}
+
+function allFeeItems(reg, climb, serviceGroups) {
   const items = !climb?.fees?.length
     ? reg.feeBreakdown?.length
       ? reg.feeBreakdown.filter((f) => f.selected)

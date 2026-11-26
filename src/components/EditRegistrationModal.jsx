@@ -6,6 +6,7 @@ import { formatPeso } from "@/utils/feeSummary";
 import TextField from "@/components/TextField";
 import GuestsFields from "@/components/GuestsFields";
 import PickupPointField from "@/components/PickupPointField";
+import SelfPaidFeesField from "@/components/SelfPaidFeesField";
 import { cleanGuests, validateGuests } from "@/utils/guests";
 
 // Only touch the pickup point on climbs that have points to choose from.
@@ -13,21 +14,27 @@ function pickupPatch(climb, form) {
   return climb?.pickupPoints?.length ? { pickupPoint: form.pickupPoint } : {};
 }
 
+// What the form starts from: the registration's current values.
+function initialForm(reg) {
+  return {
+  name: reg.name || "",
+  mobile: reg.mobile || "",
+  dateOfBirth: reg.dateOfBirth || "",
+  address: reg.address || "",
+  ecName: reg.emergencyContact?.name || "",
+  ecMobile: reg.emergencyContact?.mobile || "",
+  ecRelationship: reg.emergencyContact?.relationship || "",
+  medicalConditions: reg.medicalConditions || "",
+  amountPaid: reg.amountPaid ?? "",
+  memberType: reg.memberType || "joiner",
+  guests: reg.guests || [],
+  pickupPoint: reg.pickupPoint || "",
+  selfPaidFees: reg.selfPaidFees || [],
+};
+}
+
 export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
-  const [form, setForm] = useState({
-    name: reg.name || "",
-    mobile: reg.mobile || "",
-    dateOfBirth: reg.dateOfBirth || "",
-    address: reg.address || "",
-    ecName: reg.emergencyContact?.name || "",
-    ecMobile: reg.emergencyContact?.mobile || "",
-    ecRelationship: reg.emergencyContact?.relationship || "",
-    medicalConditions: reg.medicalConditions || "",
-    amountPaid: reg.amountPaid ?? "",
-    memberType: reg.memberType || "joiner",
-    guests: reg.guests || [],
-    pickupPoint: reg.pickupPoint || "",
-  });
+  const [form, setForm] = useState(() => initialForm(reg));
   const [saving, setSaving] = useState(false);
   const guestProblem = validateGuests(form.guests, undefined, { byAge: true });
 
@@ -63,6 +70,7 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
         memberType: form.memberType,
         guests: cleanGuests(form.guests),
         ...pickupPatch(climb, form),
+        selfPaidFees: form.selfPaidFees,
       });
     } finally {
       setSaving(false);
@@ -134,6 +142,11 @@ export default function EditRegistrationModal({ reg, climb, onClose, onSave }) {
               </div>
             )}
           </div>
+          <SelfPaidFeesField
+            climb={climb}
+            value={form.selfPaidFees}
+            onChange={(v) => set("selfPaidFees", v)}
+          />
           <PickupPointField
             points={climb?.pickupPoints}
             value={form.pickupPoint}

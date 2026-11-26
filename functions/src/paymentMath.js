@@ -82,7 +82,10 @@ function getFeeItems(reg, climb) {
         )
       : [];
   const donation = getDonationFeeItem(reg, climb);
-  return donation ? [...fees, ...guestItems, donation] : [...fees, ...guestItems];
+  const all = donation ? [...fees, ...guestItems, donation] : [...fees, ...guestItems];
+  // Fees the party pays directly (not through the club) aren't owed.
+  const own = Array.isArray(reg && reg.selfPaidFees) ? reg.selfPaidFees : [];
+  return own.length ? all.filter((item) => !own.includes(item.label)) : all;
 }
 
 // A cash donation pledge the member chose to send with their GCash payment
