@@ -43,3 +43,14 @@ describe("paymentMath with guests", () => {
     expect(getOutstanding(reg([older, toddler]), climb)).toBe(4600);
   });
 });
+
+describe("fees paid directly", () => {
+  const { getFeeItems } = require("../src/paymentMath");
+  const getExpectedTotal = (r, c) => getFeeItems(r, c).reduce((n, i) => n + Number(i.amount), 0);
+  it("are not part of what the club is owed", () => {
+    const climb = { fees: [{ label: "Env", optional: false, amount: "100" }, { label: "Tent", optional: true, amount: "300" }] };
+    const reg = { feeBreakdown: [{ label: "Tent", selected: true }], selfPaidFees: ["Tent"] };
+    expect(getExpectedTotal(reg, climb)).toBe(100);
+    expect(getExpectedTotal({ ...reg, selfPaidFees: [] }, climb)).toBe(400);
+  });
+});

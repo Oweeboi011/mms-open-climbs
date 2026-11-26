@@ -1,4 +1,5 @@
 import ClimbersByTrailCard from "@/components/admin/ClimbersByTrailCard";
+import SelfPaidCard from "@/components/admin/SelfPaidCard";
 import AccommodationCard from "@/components/admin/AccommodationCard";
 import TransportBreakdownCard from "@/components/admin/TransportBreakdownCard";
 import TransportRosterCard from "@/components/admin/TransportRosterCard";
@@ -30,6 +31,7 @@ export default function CollectionBreakdown({
     <ClimbersByTrailCard regs={regs} climb={climb} />
     <TransportBreakdownCard regs={regs} climb={climb} serviceGroups={serviceGroups} />
     <AccommodationCard regs={regs} climb={climb} />
+    <SelfPaidCard regs={regs} climb={climb} serviceGroups={serviceGroups} />
     <div className="admin-card" style={{ marginBottom: 28 }}>
       <div className="admin-card-title">Expected Collection Breakdown</div>
       <p

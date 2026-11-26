@@ -3,6 +3,7 @@ import { getGuests } from "@/utils/guests";
 import {
   getOwnTransport,
   guestRides,
+  trailOf,
   getTransportRiders,
   groupRidersByPickup,
 } from "@/utils/climbers";
@@ -19,6 +20,9 @@ export default function TransportBreakdownCard({
   const own = getOwnTransport(regs, climb, serviceGroups);
   const { groups, unset } = groupRidersByPickup(riders, climb);
   const rides = (g) => guestRides(g, climb);
+  const transportLabels = (climb?.fees || [])
+    .filter((f) => !trailOf(f.label) && /transp/i.test(f.label || ""))
+    .map((f) => f.label);
   // A rider's guest who isn't taking the van travels on their own.
   const ownGuests = riders.flatMap(({ reg }) =>
     getGuests(reg)
@@ -45,6 +49,7 @@ export default function TransportBreakdownCard({
             riders={g.riders}
             climb={climb}
             keep={rides}
+            labels={transportLabels}
           />
         ))}
         {(groups.length === 0 || unset.length > 0) && (
@@ -57,6 +62,7 @@ export default function TransportBreakdownCard({
             riders={unset}
             climb={climb}
             keep={rides}
+            labels={transportLabels}
           />
         )}
         <Column

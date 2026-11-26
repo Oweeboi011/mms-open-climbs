@@ -22,12 +22,19 @@ function GuestLines({ reg, climb, keep }) {
   });
 }
 
-function NameList({ regs, climb, keep }) {
+// "(pays own)" when the party pays any of this column's fees directly.
+function OwnTag({ reg, labels }) {
+  const own = labels && (reg.selfPaidFees || []).some((l) => labels.includes(l));
+  return own ? <span className="climbers-pay"> (pays own)</span> : null;
+}
+
+function NameList({ regs, climb, keep, labels }) {
   return (
     <ul className="climbers-list">
       {regs.map((reg) => (
         <li key={reg.id}>
           {reg.name}
+          <OwnTag reg={reg} labels={labels} />
           <GuestLines reg={reg} climb={climb} keep={keep} />
         </li>
       ))}
@@ -35,13 +42,14 @@ function NameList({ regs, climb, keep }) {
   );
 }
 
-function RiderItems({ riders, climb, keep }) {
+function RiderItems({ riders, climb, keep, labels }) {
   return (
     <ul className="climbers-list">
       {riders.map(({ reg, payStatus }) => (
         <li key={reg.id}>
           {reg.name}{" "}
           <span className="climbers-pay">({PAY_LABEL[payStatus]})</span>
+          <OwnTag reg={reg} labels={labels} />
           <GuestLines reg={reg} climb={climb} keep={keep} />
         </li>
       ))}
@@ -50,7 +58,14 @@ function RiderItems({ riders, climb, keep }) {
 }
 
 // `keep` decides which of a member's guests belong in this column.
-export function Column({ title, regs, riders, climb, keep = everyGuest }) {
+export function Column({
+  title,
+  regs,
+  riders,
+  climb,
+  keep = everyGuest,
+  labels,
+}) {
   const list = riders || regs;
   const people = headcount(riders ? riders.map((r) => r.reg) : regs, keep);
   return (
@@ -61,9 +76,9 @@ export function Column({ title, regs, riders, climb, keep = everyGuest }) {
       {list.length === 0 && <p>—</p>}
       {list.length > 0 &&
         (riders ? (
-          <RiderItems riders={riders} climb={climb} keep={keep} />
+          <RiderItems riders={riders} climb={climb} keep={keep} labels={labels} />
         ) : (
-          <NameList regs={regs} climb={climb} keep={keep} />
+          <NameList regs={regs} climb={climb} keep={keep} labels={labels} />
         ))}
     </div>
   );

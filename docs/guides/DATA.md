@@ -79,6 +79,7 @@ editable by them.
 |---|---|
 | `status` | `pending` / `confirmed` / `waitlisted` / `cancelled` (diagram below) |
 | `memberType` | `member` / `joiner` (non-member; pays the guest fee) |
+| `selfPaidFees[]` | Fee labels this party pays directly (venue/locals), not through the club. Left out of what the registration owes (`getFeeItems`, mirrored in `functions/src/paymentMath.js`) but kept in the who-takes-part lists. Admin edits only |
 | `pickupPoint` | Admin-set transportation pickup point, one of the climb's `pickupPoints` |
 | `guests[]` | `{ name, dateOfBirth (YYYY-MM-DD) or age (whole years on the climb date, admin edits only), relationship, excludedFees[] (fee labels an admin took off this guest, e.g. a child who isn't climbing) }`, max 10. Family registered under the member's account: each takes a slot (`registrationCount`, capacity and waitlist count `1 + guests.length`) and owes the per-person fees minus age exemptions (`src/utils/guests.js`, mirrored in `functions/src/shared/guests.js`). `guestsAuthorized` records the guardian confirmation. Members set them at registration; only admins edit them afterwards |
 | `payments[]` | `{ amount, proofs[{url,fileName}], submittedAt, status, note?, recordedBy?, reviewedBy?, paidBy?, splitTo? }`, oldest first; each reviewed on its own |
