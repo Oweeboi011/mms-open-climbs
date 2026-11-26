@@ -1,4 +1,5 @@
 import { sumPaymentsByStatus } from "@/utils/payments";
+import { getGuests } from "@/utils/guests";
 
 function Tile({ value, label, tone = "", title }) {
   return (
@@ -17,15 +18,16 @@ const peso = (n) => `₱${n.toLocaleString("en-PH")}`;
 export default function ClimbStatTiles({ stats, climb, regs, docs }) {
   const active = regs.filter((r) => r.status !== "cancelled");
   const members = active.filter((r) => r.memberType === "member").length;
+  const addedGuests = active.reduce((n, r) => n + getGuests(r).length, 0);
   const payments = sumPaymentsByStatus(regs);
   return (
     <div className="admin-stats">
       <Tile value={stats.total} label="Total" />
       <Tile value={members} label="Members" title="MMS members, cancelled registrations excluded" />
       <Tile
-        value={active.length - members}
+        value={active.length - members + addedGuests}
         label="Guests"
-        title="Joiners (non-members, who pay the Guest Fee), cancelled registrations excluded"
+        title="Joiners (non-members, who pay the Guest Fee) plus guests members added to their registration, cancelled registrations excluded"
       />
       <Tile value={stats.confirmed} label="Confirmed" />
       <Tile value={stats.pending} label="Pending" tone="gold" />

@@ -15,6 +15,7 @@ import { getMissingFields } from "@/utils/climbCompleteness";
 import { getFeeSummary } from "@/utils/feeSummary";
 import { getEffectiveStatus } from "@/utils/climbStatus";
 import ResponsiveTable from "@/components/admin/ResponsiveTable";
+import { seatsFor } from "@/utils/guests";
 import {
   StatusBadge,
   SectionLabel,
@@ -150,20 +151,12 @@ export default function AdminDashboard() {
       for (const reg of allRegs) {
         if (!reg.climbId) continue;
         if (!breakdown[reg.climbId]) {
-          breakdown[reg.climbId] = {
-            total: 0,
-            confirmed: 0,
-            pending: 0,
-            waitlisted: 0,
-            cancelled: 0,
-            paymentSubmitted: 0,
-            paymentUnpaid: 0,
-          };
+          breakdown[reg.climbId] = { total: 0, confirmed: 0, pending: 0, waitlisted: 0, cancelled: 0, paymentSubmitted: 0, paymentUnpaid: 0 };
         }
         breakdown[reg.climbId].total++;
         if (reg.status)
           breakdown[reg.climbId][reg.status] =
-            (breakdown[reg.climbId][reg.status] || 0) + 1;
+            (breakdown[reg.climbId][reg.status] || 0) + seatsFor(reg);
         if (reg.paymentStatus === "submitted")
           breakdown[reg.climbId].paymentSubmitted++;
         if (reg.paymentStatus === "unpaid" && reg.status !== "cancelled")

@@ -1,4 +1,5 @@
 import { getGuestAge, getGuests } from "@/utils/guests";
+import { certificateCount } from "@/utils/climbers";
 
 // Name columns shared by the "Who's Climbing" and transportation breakdown
 // cards. Counts are people, guests included.
@@ -28,13 +29,21 @@ function OwnTag({ reg, labels }) {
   return own ? <span className="climbers-pay"> (pays own)</span> : null;
 }
 
-function NameList({ regs, climb, keep, labels }) {
+// Flags who asked for a finisher certificate on this trail.
+function CertTag({ reg, climb, certLabels }) {
+  const n = certificateCount(reg, climb, certLabels);
+  if (n === 0) return null;
+  return <span className="climbers-cert"> (certificate{n > 1 ? ` ×${n}` : ""})</span>;
+}
+
+function NameList({ regs, climb, keep, labels, certLabels }) {
   return (
     <ul className="climbers-list">
       {regs.map((reg) => (
         <li key={reg.id}>
           {reg.name}
           <OwnTag reg={reg} labels={labels} />
+          <CertTag reg={reg} climb={climb} certLabels={certLabels} />
           <GuestLines reg={reg} climb={climb} keep={keep} />
         </li>
       ))}
@@ -65,6 +74,7 @@ export function Column({
   climb,
   keep = everyGuest,
   labels,
+  certLabels,
 }) {
   const list = riders || regs;
   const people = headcount(riders ? riders.map((r) => r.reg) : regs, keep);
@@ -78,7 +88,7 @@ export function Column({
         (riders ? (
           <RiderItems riders={riders} climb={climb} keep={keep} labels={labels} />
         ) : (
-          <NameList regs={regs} climb={climb} keep={keep} labels={labels} />
+          <NameList regs={regs} climb={climb} keep={keep} labels={labels} certLabels={certLabels} />
         ))}
     </div>
   );

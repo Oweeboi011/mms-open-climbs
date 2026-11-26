@@ -145,3 +145,28 @@ describe("groupByAccommodation", () => {
     expect(guestStays({}, "Accomodation (Tent)")).toBe(true);
   });
 });
+
+import { certificateLabels, certificateCount } from "@/utils/climbers";
+describe("finisher certificates", () => {
+  const climb = {
+    fees: [
+      { label: "Mt. A - Guide Fee", amount: "100" },
+      { label: "Mt. A - Finisher Certificate", amount: "50", optional: true },
+      { label: "Medical Certificate", amount: "0", optional: true },
+    ],
+  };
+  it("finds a trail's certificate fee, not the medical certificate", () => {
+    expect(certificateLabels(climb, "Mt. A")).toEqual(["Mt. A - Finisher Certificate"]);
+  });
+  it("counts the ones a registration ordered", () => {
+    const reg = {
+      memberType: "member",
+      feeBreakdown: [
+        { label: "Mt. A - Guide Fee", amount: "100", selected: true },
+        { label: "Mt. A - Finisher Certificate", amount: "50", optional: true, selected: true },
+      ],
+    };
+    expect(certificateCount(reg, climb, certificateLabels(climb, "Mt. A"))).toBe(1);
+    expect(certificateCount({ ...reg, feeBreakdown: [] }, climb, certificateLabels(climb, "Mt. A"))).toBe(0);
+  });
+});

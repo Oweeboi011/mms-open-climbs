@@ -13,6 +13,22 @@ export function trailOf(label) {
   return i > 0 ? label.slice(0, i).trim() : null;
 }
 
+// Fees on `trail` that buy a finisher certificate (the medical certificate is
+// a document requirement, not one of these).
+export function certificateLabels(climb, trail) {
+  return (climb?.fees || [])
+    .filter((f) => trailOf(f.label) === trail && /certificate/i.test(f.label) && !/medic/i.test(f.label))
+    .map((f) => f.label);
+}
+
+// How many certificates a registration ordered among `labels`, guests included.
+export function certificateCount(reg, climb, labels) {
+  if (!labels?.length) return 0;
+  return getFeeItems(reg, climb, {}, { includeSelfPaid: true }).filter((i) =>
+    labels.includes(i.label),
+  ).length;
+}
+
 // { trails: [{ name, climbers: [reg] }], none: [reg] } for active registrants.
 export function groupClimbersByTrail(regs, climb) {
   const names = [];
