@@ -1,3 +1,4 @@
+import GuestExclusions from "@/components/GuestExclusions";
 import { getGuestAge, MAX_GUESTS } from "@/utils/guests";
 
 // The editable list of guests (name, date of birth, relationship) shared by
@@ -107,6 +108,14 @@ export default function GuestsFields({
             >
               Remove guest {i + 1}
             </button>
+            {byAge && (
+              <GuestExclusions
+                guest={guest}
+                index={i}
+                climb={climb}
+                onChange={(excludedFees) => update(i, { excludedFees })}
+              />
+            )}
           </div>
         );
       })}

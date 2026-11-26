@@ -1,15 +1,18 @@
-import { getGuestAge, getGuests, getHeadcount } from "@/utils/guests";
+import { getGuestAge, getGuests } from "@/utils/guests";
 
 // Name columns shared by the "Who's Climbing" and transportation breakdown
 // cards. Counts are people, guests included.
 const PAY_LABEL = { paid: "paid", partial: "partly paid", unpaid: "not paid" };
 
-const headcount = (regs) => regs.reduce((n, reg) => n + getHeadcount(reg), 0);
+const everyGuest = () => true;
+const guestsOf = (reg, keep) => getGuests(reg).filter((g) => keep(g));
+const headcount = (regs, keep) =>
+  regs.reduce((n, reg) => n + 1 + guestsOf(reg, keep).length, 0);
 
 // Guests ride on their member's registration, so they follow the member:
 // the same trails, the same transport and pickup point.
-function GuestLines({ reg, climb }) {
-  return getGuests(reg).map((g, i) => {
+function GuestLines({ reg, climb, keep }) {
+  return guestsOf(reg, keep).map((g, i) => {
     const age = getGuestAge(g, climb);
     return (
       <div className="climbers-guest" key={i}>
@@ -19,36 +22,37 @@ function GuestLines({ reg, climb }) {
   });
 }
 
-function NameList({ regs, climb }) {
+function NameList({ regs, climb, keep }) {
   return (
     <ul className="climbers-list">
       {regs.map((reg) => (
         <li key={reg.id}>
           {reg.name}
-          <GuestLines reg={reg} climb={climb} />
+          <GuestLines reg={reg} climb={climb} keep={keep} />
         </li>
       ))}
     </ul>
   );
 }
 
-function RiderItems({ riders, climb }) {
+function RiderItems({ riders, climb, keep }) {
   return (
     <ul className="climbers-list">
       {riders.map(({ reg, payStatus }) => (
         <li key={reg.id}>
           {reg.name}{" "}
           <span className="climbers-pay">({PAY_LABEL[payStatus]})</span>
-          <GuestLines reg={reg} climb={climb} />
+          <GuestLines reg={reg} climb={climb} keep={keep} />
         </li>
       ))}
     </ul>
   );
 }
 
-export function Column({ title, regs, riders, climb }) {
+// `keep` decides which of a member's guests belong in this column.
+export function Column({ title, regs, riders, climb, keep = everyGuest }) {
   const list = riders || regs;
-  const people = riders ? headcount(riders.map((r) => r.reg)) : headcount(regs);
+  const people = headcount(riders ? riders.map((r) => r.reg) : regs, keep);
   return (
     <div className="climbers-col">
       <div className="climbers-col-title">
@@ -57,9 +61,9 @@ export function Column({ title, regs, riders, climb }) {
       {list.length === 0 && <p>—</p>}
       {list.length > 0 &&
         (riders ? (
-          <RiderItems riders={riders} climb={climb} />
+          <RiderItems riders={riders} climb={climb} keep={keep} />
         ) : (
-          <NameList regs={regs} climb={climb} />
+          <NameList regs={regs} climb={climb} keep={keep} />
         ))}
     </div>
   );

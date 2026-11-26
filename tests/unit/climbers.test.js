@@ -89,3 +89,59 @@ describe("riders with a pickup point", () => {
     expect(getOwnTransport(regs, c)).toEqual([]);
   });
 });
+
+import { guestFeeUnits, guestJoinsTrail, guestRides } from "@/utils/climbers";
+describe("guest exclusions in the lists", () => {
+  const c = {
+    fees: [
+      { label: "Transportation Fee", optional: true },
+      { label: "Mt. A - Guide Fee", optional: true },
+      { label: "Mt. A - Entrance", optional: true },
+      { label: "Mt. B - Guide Fee", optional: true },
+    ],
+  };
+  it("groups a trail's fees into one unit", () => {
+    expect(guestFeeUnits(c).map((u) => u.labels.length)).toEqual([1, 2, 1]);
+  });
+  it("drops a guest from a trail only when every fee of it is excluded", () => {
+    const g = { excludedFees: ["Mt. A - Guide Fee", "Mt. A - Entrance"] };
+    expect(guestJoinsTrail(g, c, "Mt. A")).toBe(false);
+    expect(guestJoinsTrail(g, c, "Mt. B")).toBe(true);
+    expect(guestJoinsTrail({ excludedFees: ["Mt. A - Guide Fee"] }, c, "Mt. A")).toBe(true);
+  });
+  it("drops a guest from the van when transport is excluded", () => {
+    expect(guestRides({ excludedFees: ["Transportation Fee"] }, c)).toBe(false);
+    expect(guestRides({}, c)).toBe(true);
+  });
+});
+
+import { groupByAccommodation, guestStays } from "@/utils/climbers";
+describe("groupByAccommodation", () => {
+  const c = {
+    fees: [
+      { label: "Accomodation (Homestay)", optional: true, amount: "1000" },
+      { label: "Accomodation (Tent)", optional: true, amount: "300" },
+      { label: "Transportation Fee", optional: true },
+    ],
+  };
+  const reg = (id, name, picks, status = "confirmed") => ({
+    id, name, status, feeBreakdown: picks.map((label) => ({ label, selected: true })),
+  });
+  it("groups active registrants by stay, with the undecided apart", () => {
+    const { options, none } = groupByAccommodation(
+      [
+        reg("1", "Ana", ["Accomodation (Tent)"]),
+        reg("2", "Ben", ["Accomodation (Homestay)", "Transportation Fee"]),
+        reg("3", "Cy", ["Transportation Fee"]),
+        reg("4", "Di", ["Accomodation (Tent)"], "cancelled"),
+      ],
+      c,
+    );
+    expect(options.map((o) => o.regs.map((r) => r.name))).toEqual([["Ben"], ["Ana"]]);
+    expect(none.map((r) => r.name)).toEqual(["Cy"]);
+  });
+  it("lets a guest be taken off a stay", () => {
+    expect(guestStays({ excludedFees: ["Accomodation (Tent)"] }, "Accomodation (Tent)")).toBe(false);
+    expect(guestStays({}, "Accomodation (Tent)")).toBe(true);
+  });
+});

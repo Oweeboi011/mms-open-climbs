@@ -73,6 +73,7 @@ export const ADMIN_HELP_GUIDES = [
       },
       "Guests a member registers pay every per-person fee (and the Guest Fee) plus the optional fees the member ticked, except where their age exempts them. Shareable fees are not charged per guest.",
       "To change a registration’s guests, use **Edit** on the registrant: add, change or remove guests and see the balance change before saving. Each guest takes a slot, so the climb’s count and waitlist follow the whole party.",
+      "Under each guest, **doesn’t take part in** lets you take them off a trail, the van, accommodation or any other per-person fee, e.g. a child who isn’t climbing. Ticked items come off the member’s balance, and the guest drops out of that trail’s or the van’s list on the climb page.",
       "A fee still TBA keeps that part of a member’s balance open; nobody counts as fully paid until it’s set.",
       "You can correct a fee later; members’ balances follow the current amounts.",
       "Fill in **GCash Account Name**, **GCash Number** and the **GCash QR Code Image**. Each climb has its own.",

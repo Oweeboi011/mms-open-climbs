@@ -98,3 +98,18 @@ describe("guests recorded by age", () => {
     expect(validateGuests([{ name: "Mia", age: "" }], "2027-03-20", { byAge: true })).toMatch(/enter their age/);
   });
 });
+
+import { guestOwesFee, cleanGuests } from "@/utils/guests";
+describe("per-guest fee exclusions", () => {
+  const fee = { label: "Mt. A - Guide Fee", optional: true, amount: "250" };
+  it("skips a fee the admin took off the guest", () => {
+    const guest = { name: "Percy", age: 2, excludedFees: ["Mt. A - Guide Fee"] };
+    expect(guestOwesFee(guest, fee, {}, true)).toBe(false);
+    expect(guestOwesFee({ name: "Kray", age: 9 }, fee, {}, true)).toBe(true);
+  });
+  it("keeps exclusions when cleaning guests", () => {
+    const [g] = cleanGuests([{ name: " Percy ", age: 2, excludedFees: ["x"] }]);
+    expect(g.excludedFees).toEqual(["x"]);
+    expect(cleanGuests([{ name: "A", age: 3, excludedFees: [] }])[0]).not.toHaveProperty("excludedFees");
+  });
+});

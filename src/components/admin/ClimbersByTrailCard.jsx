@@ -1,5 +1,5 @@
 import { Column } from "@/components/admin/ClimberColumns";
-import { groupClimbersByTrail } from "@/utils/climbers";
+import { groupClimbersByTrail, guestJoinsTrail } from "@/utils/climbers";
 
 // Who is climbing each trail, from the fees each registrant has chosen. Counts are people, guests included.
 export default function ClimbersByTrailCard({ regs, climb }) {
@@ -16,7 +16,13 @@ export default function ClimbersByTrailCard({ regs, climb }) {
       </p>
       <div className="climbers-grid">
         {trails.map((t) => (
-          <Column key={t.name} title={t.name} regs={t.climbers} climb={climb} />
+          <Column
+            key={t.name}
+            title={t.name}
+            regs={t.climbers}
+            climb={climb}
+            keep={(g) => guestJoinsTrail(g, climb, t.name)}
+          />
         ))}
         <Column title="No trail fees chosen" regs={none} climb={climb} />
       </div>

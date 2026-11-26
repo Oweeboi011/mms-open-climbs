@@ -1,6 +1,7 @@
 // Who is climbing which trail on a multi-trail climb. A trail's fees share a
 // label prefix before " - " ("Mt. TENGLAWAN - Guide Fee"); a registrant
 // climbs a trail when any of its fees is on their bill. Pure — no I/O.
+import { isExcluded } from "@/utils/guests";
 import {
   getCountedPaid,
   getFeeItems,
@@ -81,3 +82,70 @@ export function groupRidersByPickup(riders, climb) {
   const unset = riders.filter((r) => !points.includes(r.reg.pickupPoint));
   return { groups, unset };
 }
+
+// What an admin can take a guest out of: one entry per trail (all of its
+// fees together) and one per other per-person fee.
+export function guestFeeUnits(climb) {
+  const units = [];
+  const byTrail = {};
+  (climb?.fees || []).forEach((fee) => {
+    if (fee.shareable || fee.isGuestFee) return;
+    const trail = trailOf(fee.label);
+    if (!trail) {
+      units.push({ key: fee.label, label: fee.label, labels: [fee.label] });
+      return;
+    }
+    if (!byTrail[trail]) {
+      byTrail[trail] = { key: trail, label: `${trail} (climbing)`, labels: [], trail: true };
+      units.push(byTrail[trail]);
+    }
+    byTrail[trail].labels.push(fee.label);
+  });
+  return units;
+}
+
+const skipsAll = (guest, labels) =>
+  labels.length > 0 && labels.every((l) => isExcluded(guest, l));
+
+// Whether a guest is on a trail: their member's trail, unless every fee of
+// that trail has been taken off the guest.
+export function guestJoinsTrail(guest, climb, trail) {
+  const labels = (climb?.fees || [])
+    .filter((f) => trailOf(f.label) === trail)
+    .map((f) => f.label);
+  return !skipsAll(guest, labels);
+}
+
+// Whether a guest rides the van their member rides.
+export function guestRides(guest, climb) {
+  const labels = (climb?.fees || [])
+    .filter((f) => !trailOf(f.label) && /transp/i.test(f.label || ""))
+    .map((f) => f.label);
+  return !skipsAll(guest, labels);
+}
+
+const isAccommodation = (fee) =>
+  !fee.isGuestFee && !trailOf(fee.label) && /accom/i.test(fee.label || "");
+
+// Who is staying where: one group per accommodation option the climb sells,
+// plus active registrants who have picked none. Guests follow their member
+// unless an admin took the stay off them (see guestStays).
+export function groupByAccommodation(regs, climb) {
+  const fees = (climb?.fees || []).filter(isAccommodation);
+  const options = fees.map((fee) => ({ fee, guests: [], regs: [] }));
+  const none = [];
+  (regs || [])
+    .filter((reg) => reg.status !== "cancelled")
+    .forEach((reg) => {
+      const mine = new Set(getFeeItems(reg, climb).map((f) => f.label));
+      const picked = options.filter((o) => mine.has(o.fee.label));
+      picked.forEach((o) => o.regs.push(reg));
+      if (picked.length === 0) none.push(reg);
+    });
+  const byName = (a, b) => (a.name || "").localeCompare(b.name || "");
+  options.forEach((o) => o.regs.sort(byName));
+  none.sort(byName);
+  return { options, none };
+}
+
+export const guestStays = (guest, label) => !isExcluded(guest, label);

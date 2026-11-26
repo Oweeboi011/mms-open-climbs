@@ -9,3 +9,12 @@ describe("regHeadcount", () => {
     expect(regHeadcount({ guests: "bad" })).toBe(1);
   });
 });
+
+describe("guestOwesFee exclusions", () => {
+  const { guestOwesFee } = require("../src/shared/guests");
+  it("skips fees the admin took off the guest", () => {
+    const fee = { label: "Mt. A - Guide Fee", optional: true };
+    expect(guestOwesFee({ excludedFees: ["Mt. A - Guide Fee"] }, fee, {}, true)).toBe(false);
+    expect(guestOwesFee({}, fee, {}, true)).toBe(true);
+  });
+});

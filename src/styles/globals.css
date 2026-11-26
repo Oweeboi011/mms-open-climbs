@@ -6320,3 +6320,6 @@ details[open] > .myreg-collapsible::before {
 .transport-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .transport-table th { text-align: left; padding: 4px 8px 4px 0; border-bottom: 2px solid var(--border); }
 .transport-table td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+.guest-exclusions { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin: 4px 0 12px; }
+.guest-exclusions legend { font-size: 0.78rem; color: var(--ink-soft); padding: 0 4px; }
+.guest-exclusion { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 2px 0; cursor: pointer; }
