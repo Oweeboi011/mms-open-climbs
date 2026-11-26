@@ -34,7 +34,7 @@ describe("guest fees", () => {
   it("exempts a 4-year-old from transport but not other fees", () => {
     const items = getFeeItems(reg([kid("Mia", "2023-03-20")]), climb);
     const mine = items.filter((i) => i.guestName === "Mia").map((i) => i.label);
-    expect(mine).toEqual(["Registration"]);
+    expect(mine).toEqual(["Registration", "Guest Fee"]);
   });
   it("charges a 5-year-old transport", () => {
     const items = getFeeItems(reg([kid("Leo", "2022-03-20")]), climb);
@@ -45,9 +45,9 @@ describe("guest fees", () => {
     expect(items.some((i) => i.label === "Transportation")).toBe(false);
   });
   it("totals member plus guests", () => {
-    // member 500 + 800; Leo 500 + 800; Mia 500 (Guest Fee is for joiners only)
+    // member 500 + 800; Leo 500 + 800 + 200; Mia 500 + 200
     const r = reg([kid("Leo", "2015-01-01"), kid("Mia", "2023-03-20")]);
-    expect(getExpectedTotal(r, climb)).toBe(1300 + 1300 + 500);
+    expect(getExpectedTotal(r, climb)).toBe(1300 + 1500 + 700);
   });
   it("matches the register form's live total", () => {
     const guests = [kid("Leo", "2015-01-01"), kid("Mia", "2023-03-20")];

@@ -107,7 +107,7 @@ export function guestFeeUnits(climb, { shareable = false } = {}) {
   const units = [];
   const byTrail = {};
   (climb?.fees || []).forEach((fee) => {
-    if ((fee.shareable && !shareable) || fee.isGuestFee) return;
+    if (fee.shareable && !shareable) return;
     const trail = trailOf(fee.label);
     if (!trail) {
       units.push({ key: fee.label, label: fee.label, labels: [fee.label] });
