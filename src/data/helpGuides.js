@@ -222,7 +222,7 @@ export const HELP_GUIDES = [
       "It holds your mobile, date of birth, address, experience level, participant type, emergency contact and medical information.",
       "It updates itself from each registration you submit or update. You can also change it any time and tap **Save My Details**.",
       "Changes here apply to future registrations. To fix a climb you’re already registered for, use **Update Details** on its card in My Climbs.",
-      "Only you and the club’s admins can see it. It’s deleted if your account is deleted.",
+      "Only you and the organization’s admins can see it. It’s deleted if your account is deleted.",
     ],
   },
   {

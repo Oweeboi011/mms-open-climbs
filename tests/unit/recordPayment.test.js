@@ -1,5 +1,5 @@
 /**
- * Tests for recordManualPayment — money the club received outside the app.
+ * Tests for recordManualPayment — money the org received outside the app.
  *
  * Shared by climb detail, all registrations and manage payments, so the write
  * and its audit entry can't drift between the three.

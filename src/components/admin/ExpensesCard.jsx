@@ -3,7 +3,7 @@ import { sumExpenses, getNetFunds } from "@/utils/climbExpenses";
 import { formatPeso } from "@/utils/feeSummary";
 
 // Lets an admin log what a climb actually cost (permits, guide fees,
-// transport bookings, etc.) so the club can tally net funds — verified
+// transport bookings, etc.) so the org can tally net funds — verified
 // collections minus logged expenses — rather than only seeing what came in.
 // Admin-only data (see firestore.rules climbExpenses): registrants never see
 // this breakdown, only their own owed/paid figures elsewhere on the page.

@@ -111,7 +111,7 @@ export function getGroupmates(reg, regs, serviceGroups, label) {
 // pay the fee's listed amount, unchanged.
 //
 // Fees an admin marked as paid directly (`reg.selfPaidFees`) — the party pays
-// the venue, not the club — are left out of what is owed, so balances and
+// the venue, not the org — are left out of what is owed, so balances and
 // collection totals ignore them. `includeSelfPaid` keeps them in, for lists
 // of who takes part.
 export function getFeeItems(reg, climb, serviceGroups = {}, { includeSelfPaid = false } = {}) {
@@ -120,7 +120,7 @@ export function getFeeItems(reg, climb, serviceGroups = {}, { includeSelfPaid = 
   return own.length ? all.filter((item) => !own.includes(item.label)) : all;
 }
 
-// What the party pays directly instead of through the club, at current amounts.
+// What the party pays directly instead of through the org, at current amounts.
 export function getSelfPaidItems(reg, climb, serviceGroups = {}) {
   const own = reg.selfPaidFees || [];
   if (!own.length) return [];

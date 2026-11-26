@@ -4,7 +4,7 @@
  * Server-rendered social previews for /event/:climbId.
  *
  * The app is a client-rendered SPA, so a climb link pasted into Messenger or
- * Facebook — the club's main distribution channel — used to render as a bare
+ * Facebook — the org's main distribution channel — used to render as a bare
  * URL with no title, no description and no image. Crawlers do not run JS.
  *
  * This function sits in front of /event/** (see the hosting rewrite in

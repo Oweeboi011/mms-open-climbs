@@ -10,6 +10,7 @@ import { getPaymentEntries } from "@/utils/payments";
 import {
   getCountedPaid,
   getExpectedTotal,
+  getFeeItemLabel,
   getFeeItems,
   getOutstanding,
 } from "@/utils/registrationFees";
@@ -27,7 +28,8 @@ export function getBalancesDue(regs, climb, serviceGroups) {
       const balance = getOutstanding(reg, climb, serviceGroups);
       // Only rows with a balance are kept, so nobody here has overpaid and
       // what counts as paid is exactly the difference.
-      return { reg, expected, paid: expected - balance, amount: balance };
+      const items = getFeeItems(reg, climb, serviceGroups);
+      return { reg, expected, paid: expected - balance, amount: balance, items };
     })
     .filter((row) => row.amount > 0)
     .sort((a, b) => b.amount - a.amount);
@@ -66,6 +68,58 @@ export function getFullyPaid(regs, climb, serviceGroups) {
     })
     .filter(Boolean)
     .sort((a, b) => (a.reg.name || "").localeCompare(b.reg.name || ""));
+}
+
+// The registrant's bill line by line, so an admin can see what the balance is
+// made of. Payments are lump sums, so they're shown as one "Paid" line.
+function BalanceBreakdown({ row }) {
+  if (!row.items?.length) return null;
+  const lines = (row.items || []).map((item, i) => {
+    const { total, hasTba } = sumFeeAmounts([item]);
+    return (
+      <tr key={i}>
+        <td>{getFeeItemLabel(item)}</td>
+        <td className="balance-due-money">{hasTba ? "TBA" : formatPeso(total)}</td>
+      </tr>
+    );
+  });
+  return (
+    <table className="admin-table balance-breakdown">
+      <thead>
+        <tr>
+          <th>What they owe</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {lines}
+        <tr>
+          <td>Paid so far</td>
+          <td className="balance-due-money">− {formatPeso(row.paid)}</td>
+        </tr>
+        <tr>
+          <td><strong>Not paid yet</strong></td>
+          <td className="balance-due-amount"><strong>{formatPeso(row.amount)}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function HistorySummary({ row, config }) {
+  return (
+    <p className="balance-history-summary">
+      Fees {formatPeso(row.expected)} · Paid {formatPeso(row.paid)}
+      {config.amountLabel && (
+        <>
+          {" · "}
+          <strong className={config.amountClass}>
+            {config.amountLabel} {formatPeso(row.amount)}
+          </strong>
+        </>
+      )}
+    </p>
+  );
 }
 
 // The three lists for one climb's money cards, recomputed as payments land.
@@ -195,17 +249,8 @@ export default function BalanceDueTable({
       <h3 className="balance-history-title">
         {viewing.reg.name || "Registrant"}
       </h3>
-      <p className="balance-history-summary">
-        Fees {formatPeso(viewing.expected)} · Paid {formatPeso(viewing.paid)}
-        {config.amountLabel && (
-          <>
-            {" · "}
-            <strong className={config.amountClass}>
-              {config.amountLabel} {formatPeso(viewing.amount)}
-            </strong>
-          </>
-        )}
-      </p>
+      <HistorySummary row={viewing} config={config} />
+      {kind === "due" && <BalanceBreakdown row={viewing} />}
       {kind === "excess" && (onSplitEntry || onRecordRefund) && (
         <p className="balance-history-summary">
           If a payment covered someone else on this climb, use Split on it to

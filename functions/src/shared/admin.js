@@ -9,7 +9,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 
 initializeApp();
 
-// A club-sized app never needs more than a handful of concurrent instances;
+// A org-sized app never needs more than a handful of concurrent instances;
 // the cap bounds what a runaway trigger loop or a flood of calls can bill.
 // No minInstances — idle warm instances are charged around the clock.
 setGlobalOptions({ maxInstances: 5, memory: "256MiB" });

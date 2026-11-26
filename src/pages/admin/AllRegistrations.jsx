@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { countHeads } from "@/utils/guests";
 import { Link, useSearchParams } from "react-router-dom";
 import { serverTimestamp, Timestamp } from "@/services/firestore";
 import { deleteRegistration as removeRegistration, updateRegistration } from "@/services/registrations";
@@ -307,10 +308,8 @@ export default function AllRegistrations() {
     () => ({
       total: scoped.length,
       pending: scoped.filter((r) => r.status === "pending").length,
-      confirmed: scoped.filter((r) => r.status === "confirmed").length,
-      paymentPending: scoped.filter(
-        (r) => r.paymentStatus === "submitted" && r.status === "pending",
-      ).length,
+      confirmed: countHeads(scoped, "confirmed"),
+      paymentPending: scoped.filter((r) => r.paymentStatus === "submitted" && r.status === "pending").length,
       missingDocs: scoped.filter((r) =>
         hasMissingRequiredDocs(r, climbById[r.climbId]),
       ).length,

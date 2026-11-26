@@ -6,7 +6,7 @@
 // default) — it then appears as a "Donation" line on what they owe, so the
 // balance, receipt and reminders all include it — or handed to the leads on
 // climb day, where leads *record* what actually arrived. Either way it is the
-// beneficiary's money, so it is kept out of the club's net funds.
+// beneficiary's money, so it is kept out of the org's net funds.
 
 const MAX_CASH_PLEDGE = 1_000_000;
 const MAX_IN_KIND_LENGTH = 500;
@@ -89,7 +89,7 @@ export function getDonationFeeItem(reg, climb) {
 
 // How much of a member's payments is their with-fees donation: whatever they
 // paid beyond their fees, up to the pledge. Fees are settled first, so a
-// part-payment is never counted as donated money the club still needs.
+// part-payment is never counted as donated money the org still needs.
 export function getDonationPaidWithFees(reg, feesOnlyTotal, countedPaid) {
   if (!reg?.donation?.payWithFees) return 0;
   const pledge = Number(reg.donation.cashPledge) || 0;

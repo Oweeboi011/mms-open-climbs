@@ -660,7 +660,7 @@ export default function AdminClimbDetail() {
   );
 
   // The part of a member's GCash payments that is their donation (sent with
-  // their fees) rather than the club's money.
+  // their fees) rather than the org's money.
   const donationPaidWithFees = useCallback(
     (reg) =>
       getDonationPaidWithFees(

@@ -331,7 +331,8 @@ describe("Admin ClimbsManage", () => {
       });
       expect(within(dialog).getByText("Balance ₱500")).toBeInTheDocument();
       expect(within(dialog).getByText("Payment 1")).toBeInTheDocument();
-      expect(within(dialog).getByText("₱700")).toBeInTheDocument();
+      expect(within(dialog).getAllByText("₱700").length).toBeGreaterThan(0);
+      expect(within(dialog).getByText("Not paid yet")).toBeInTheDocument();
 
       fireEvent.click(within(dialog).getByText("Close", { selector: "button" }));
       await waitFor(() =>

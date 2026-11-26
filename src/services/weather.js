@@ -11,7 +11,7 @@ async function searchPlaces(name) {
 }
 
 // Matches on the rest of the location ("Benguet" in "Kibungan, Benguet")
-// first, then on the club's home country.
+// first, then on the org's home country.
 function scorePlace(place, context) {
   const regions = [place.admin1, place.admin2, place.admin3, place.country]
     .filter(Boolean)

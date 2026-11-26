@@ -2,7 +2,7 @@ import { getSelfPaidItems } from "@/utils/registrationFees";
 import { formatPeso, sumFeeAmounts } from "@/utils/feeSummary";
 
 // What parties pay directly (to the venue or locals) instead of through the
-// club: per fee, how many people and how much the club is NOT collecting.
+// org: per fee, how many people and how much the org is NOT collecting.
 export default function SelfPaidCard({ regs, climb, serviceGroups = {} }) {
   const rows = new Map();
   (regs || [])
@@ -24,10 +24,10 @@ export default function SelfPaidCard({ regs, climb, serviceGroups = {} }) {
   const total = list.reduce((n, r) => n + sumFeeAmounts(r.items).total, 0);
   return (
     <div className="admin-card climbers-card">
-      <div className="admin-card-title">Paid Directly, Not Through the Club</div>
+      <div className="admin-card-title">Paid Directly, Not Through the Org</div>
       <p className="climbers-note">
         Fees these parties pay the venue or locals themselves. They still take
-        part, but the club doesn&apos;t collect these amounts. Total not
+        part, but the org doesn&apos;t collect these amounts. Total not
         collected: <strong>{formatPeso(total)}</strong>.
       </p>
       <div className="transport-table-wrap">

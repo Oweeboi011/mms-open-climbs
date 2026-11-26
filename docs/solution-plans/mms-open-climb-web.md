@@ -6,7 +6,7 @@ How the web app is delivered and run, and what's next. What it is:
 
 ## Goal
 
-A portal the club reuses every year with a different set of climbs: members
+A portal the organization reuses every year with a different set of climbs: members
 browse, register, sign the waiver and send GCash proof from a phone; admins
 verify payments and run each climb. Everything stays **year-neutral** (no
 season baked into code or copy) and works on phone, tablet and desktop.
@@ -26,7 +26,7 @@ flowchart LR
   ratchets, rules tests, e2e journeys) are what stand between a merge and
   production. Details: [DEPLOYMENT.md](../guides/DEPLOYMENT.md),
   [CODE-QUALITY.md](../guides/CODE-QUALITY.md).
-- Cost is pay-per-use and small at club scale. Guards in place: TTL on
+- Cost is pay-per-use and small at organization scale. Guards in place: TTL on
   `pageViews`/`failedRequests` (90 days), upload lifecycle (2 years), image
   downscaling in the browser, `maxInstances` on functions, immutable caching
   of hashed assets, Artifact Registry cleanup, a monthly budget alert.

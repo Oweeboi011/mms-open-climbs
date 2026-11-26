@@ -226,7 +226,7 @@ exports.updateUserProfile = onCall(async (request) => {
 });
 
 // ── Helper: remove a deleted account's personal data ────────────────────────
-// Registrations stay — they are the club's payment and attendance record —
+// Registrations stay — they are the org's payment and attendance record —
 // but the health and contact details on them, the member's saved details
 // (memberDetails), their notifications and every file they uploaded (medical
 // certificates, IDs, receipts) go with the account. Best effort: a failure here is logged, never surfaced, since the

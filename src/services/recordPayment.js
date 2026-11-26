@@ -5,7 +5,7 @@ import { updateRegistration } from "@/services/registrations";
 import { uploadRegistrationFile } from "@/services/storage";
 
 /**
- * Log a payment the club received outside the app — cash at the jump-off, a
+ * Log a payment the org received outside the app — cash at the jump-off, a
  * bank transfer, someone settling a friend's balance.
  *
  * It appends to the same history members build up with their GCash

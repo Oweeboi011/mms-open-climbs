@@ -6,7 +6,7 @@
 // Template arguments are plain values — names, climb titles, reasons — and
 // several (a registrant's name, their email) are typed by members. Unescaped,
 // a name like `<a href="…">Verify payment</a>` becomes a working link in an
-// email the club really sent to its officers and admins.
+// email the org really sent to its officers and admins.
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")

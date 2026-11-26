@@ -3,7 +3,7 @@ import { DEFAULT_CANCELLATION_POLICY } from "@/data/defaultCancellationPolicy";
 
 // Per-climb registration policy: a payment due date and a cancellation /
 // refund policy, both set by admins in ClimbForm and shown to members before
-// they register and on My Climbs. The wording is the club's; the app only
+// they register and on My Climbs. The wording is the org's; the app only
 // carries it.
 
 // `paymentDueDate` is stored as "YYYY-MM-DD" (same as preClimbMeetings).
@@ -55,7 +55,7 @@ export function isDefaultDueDate(climb) {
   return !climb?.paymentDueDate && !!getPaymentDueDate(climb);
 }
 
-// The climb's own policy, else the club-wide default.
+// The climb's own policy, else the org-wide default.
 export function getCancellationPolicy(climb) {
   return climb?.cancellationPolicy?.trim() || DEFAULT_CANCELLATION_POLICY;
 }

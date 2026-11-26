@@ -13,7 +13,7 @@ import {
 } from "@/utils/donations";
 
 // The part of a member's GCash payments that is their donation (sent with
-// their fees) rather than the club's money. Lives here, not in donations.js,
+// their fees) rather than the org's money. Lives here, not in donations.js,
 // because it needs the fee maths (which itself imports donations.js).
 export function makePaidWithFees(climb, serviceGroups = {}) {
   return (reg) =>

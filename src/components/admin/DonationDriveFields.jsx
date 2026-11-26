@@ -38,7 +38,7 @@ export default function DonationDriveFields({ form, setForm }) {
         For climbs with a community or outreach activity. Members pledge cash
         (with their GCash payment or on the day) and the items below; leads
         track the collection from the climb&rsquo;s Donations page. Donations
-        never count toward fees or the club&rsquo;s funds.
+        never count toward fees or the org&rsquo;s funds.
       </p>
       <label className="form-check">
         <input

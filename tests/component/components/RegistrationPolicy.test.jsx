@@ -20,7 +20,7 @@ describe("registrationPolicy utils", () => {
     expect(getPaymentDueDate({})).toBe("");
   });
 
-  it("uses the club default policy unless the climb has its own", () => {
+  it("uses the org default policy unless the climb has its own", () => {
     expect(getCancellationPolicy({})).toMatch(/15 days or more/);
     expect(getCancellationPolicy({ cancellationPolicy: "  Own policy " })).toBe("Own policy");
   });
@@ -62,7 +62,7 @@ describe("registrationPolicy utils", () => {
 });
 
 describe("RegistrationPolicyInfo", () => {
-  it("falls back to the club defaults when the climb sets neither", () => {
+  it("falls back to the org defaults when the climb sets neither", () => {
     render(<RegistrationPolicyInfo climb={{ startDate: "2026-10-10" }} />);
     expect(screen.getByText(/Oct 5, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/15 days or more before the climb/)).toBeInTheDocument();

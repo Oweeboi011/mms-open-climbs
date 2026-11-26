@@ -55,7 +55,7 @@ sequenceDiagram
 ## Alternatives rejected
 
 - **Cloud Tasks queue** — more infrastructure (queue, IAM, task handler) for a
-  club that sends a handful of these a year; a Firestore job document gives
+  organization that sends a handful of these a year; a Firestore job document gives
   the same decoupling and doubles as the progress feed.
 - **A separate "release manager" role** — a new role touches every rule and
   guard; one capability flag on admins covers the actual risk.

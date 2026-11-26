@@ -55,7 +55,7 @@ export default function ClimbOverviewCard({ climb, climbPrivate, officerEmails, 
         </Fact>
         <Fact label="Cancellation policy">
           {isDefaultPolicy(climb) ? (
-            "Club default"
+            "Org default"
           ) : (
             <span className="overview-clamp">{climb.cancellationPolicy}</span>
           )}

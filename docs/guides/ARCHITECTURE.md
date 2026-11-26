@@ -92,10 +92,10 @@ sequenceDiagram
 
 | Decision | Why |
 |---|---|
-| Serverless only | Nothing to patch or scale for a volunteer-run club |
+| Serverless only | Nothing to patch or scale for a volunteer-run organization |
 | Named database `openclimbs` | Keeps app data apart from the project's default DB |
 | Counters (`registrationCount`, `docsCompleteCount`) kept by triggers | Atomic increments; no client read-modify-write races |
-| GCash proof, not card processing | Fits how the club takes money; the app records, admins verify |
+| GCash proof, not card processing | Fits how the organization takes money; the app records, admins verify |
 | Brevo instead of a Firebase extension | Full control of HTML, CC rules and officer routing |
 | JavaScript, not TypeScript | Small team; ESLint, layering and tests are the safety net ([ADR 0003](../adr/0003-minimum-viable-quality-harness.md)) |
 | Bulk email as a Firestore job document, not Cloud Tasks | The job doc is lock, progress feed and resume point in one ([ADR 0005](../adr/0005-release-note-email-jobs.md)) |

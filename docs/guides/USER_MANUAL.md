@@ -281,7 +281,7 @@ Opened from **Registrants**. For one climb you can:
 - **Add Joiner** — record a walk-in, typing their details or linking an **existing member** so it shows on their own My Climbs. Picking a member fills in their saved mobile, emergency contact, experience, participant type and medical information
 - Mark **No-show** on climb day (or undo it)
 - **Service Sharing** — group members who share one unit of a shareable fee (e.g. a vehicle)
-- **Expenses** and **Where the Money Stands** — the climb's costs against what was collected, and the club's net funds
+- **Expenses** and **Where the Money Stands** — the climb's costs against what was collected, and the organization's net funds
 - Open the printable **Climb-Day Sheet** (roster, contacts, emergency details, payment and waiver status) and the **Donations** page (record what was received and update the public totals)
 
 ### 13.4 All Registrations
@@ -357,7 +357,7 @@ No — only to the climb's officers and administrators, for emergencies.
 | Didn't receive a confirmation, verification, or password-reset email | Delayed or filtered | Check spam/junk; wait a few minutes; confirm the email address |
 | Signature field won't accept my name | It needs at least 3 characters | Type your full legal name, not initials |
 
-If none of the above helps, contact your climb officers or the club through its Facebook page.
+If none of the above helps, contact your climb officers or the organization through its Facebook page.
 
 ---
 

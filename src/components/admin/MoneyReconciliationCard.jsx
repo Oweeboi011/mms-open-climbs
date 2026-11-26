@@ -90,7 +90,7 @@ export default function MoneyReconciliationCard({
         <div className="money-after">
           {donationsInPayments > 0 && (
             <div className="money-row">
-              <span>− Donations paid with fees (the beneficiary&rsquo;s, not the club&rsquo;s)</span>
+              <span>− Donations paid with fees (the beneficiary&rsquo;s, not the org&rsquo;s)</span>
               <span className="money-amount">−{formatPeso(donationsInPayments)}</span>
             </div>
           )}
@@ -101,7 +101,7 @@ export default function MoneyReconciliationCard({
             </div>
           )}
           <div className="money-row money-total">
-            <span>Club net funds</span>
+            <span>Org net funds</span>
             <span className="money-amount">{formatPeso(clubCollected - expensesTotal)}</span>
           </div>
         </div>
