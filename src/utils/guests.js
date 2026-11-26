@@ -75,10 +75,24 @@ export function isExcluded(guest, label) {
   return Array.isArray(guest?.excludedFees) && guest.excludedFees.includes(label);
 }
 
+// People (members plus their guests) across the registrations in `status`.
+export function countHeads(regs, status) {
+  return (regs || [])
+    .filter((r) => r.status === status)
+    .reduce((n, r) => n + getHeadcount(r), 0);
+}
+
+// A confirmed registration fills a seat per person; other statuses count once.
+export function seatsFor(reg) {
+  return reg.status === "confirmed" ? getHeadcount(reg) : 1;
+}
+
 // Whether `guest` owes `fee`. `memberAvails` is whether the member ticked it
 // (only consulted for optional services).
 export function guestOwesFee(guest, fee, climb, memberAvails) {
   if (fee.shareable) return false;
+  // The Guest Fee is for joiners; a member's own guests ride free of it.
+  if (fee.isGuestFee) return false;
   if (isExcluded(guest, fee.label)) return false;
   if (fee.optional && !fee.isGuestFee && !memberAvails) return false;
   const freeUpTo = parseFloat(fee.guestFreeUpToAge);

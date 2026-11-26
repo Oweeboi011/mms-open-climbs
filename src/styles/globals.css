@@ -6314,6 +6314,7 @@ details[open] > .myreg-collapsible::before {
 .climbers-list { margin: 0; padding-left: 18px; font-size: 0.84rem; }
 .climbers-col p { margin: 0; color: var(--ink-soft); }
 .climbers-pay { color: var(--ink-soft); font-size: 0.78rem; }
+.climbers-cert { color: var(--accent); font-size: 0.78rem; font-weight: 600; }
 .pickup-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .climbers-guest { color: var(--ink-soft); font-size: 0.78rem; margin-left: 4px; }
 .transport-table-wrap { overflow-x: auto; }

@@ -1,6 +1,7 @@
 import { Column } from "@/components/admin/ClimberColumns";
 import {
   groupClimbersByTrail,
+  certificateLabels,
   guestJoinsTrail,
   trailOf,
 } from "@/utils/climbers";
@@ -15,7 +16,7 @@ export default function ClimbersByTrailCard({ regs, climb }) {
       <p className="climbers-note">
         Based on the fees each registrant has chosen. Guests are listed under
         the member who registered them and follow that member&apos;s trails;
-        counts include guests. Anyone who hasn&apos;t chosen fees yet appears
+        counts include guests. Anyone who ordered a finisher certificate is flagged. Anyone who hasn&apos;t chosen fees yet appears
         under &quot;No trail fees chosen&quot;.
       </p>
       <div className="climbers-grid">
@@ -29,6 +30,7 @@ export default function ClimbersByTrailCard({ regs, climb }) {
             labels={(climb.fees || [])
               .filter((f) => trailOf(f.label) === t.name)
               .map((f) => f.label)}
+            certLabels={certificateLabels(climb, t.name)}
           />
         ))}
         <Column title="No trail fees chosen" regs={none} climb={climb} />

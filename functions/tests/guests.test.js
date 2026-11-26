@@ -18,3 +18,10 @@ describe("guestOwesFee exclusions", () => {
     expect(guestOwesFee({}, fee, {}, true)).toBe(true);
   });
 });
+
+describe("guestOwesFee guest fee", () => {
+  const { guestOwesFee } = require("../src/shared/guests");
+  it("never charges a member's own guest the joiner Guest Fee", () => {
+    expect(guestOwesFee({ name: "K" }, { label: "Guest Fee", isGuestFee: true, optional: true }, {}, false)).toBe(false);
+  });
+});

@@ -72,6 +72,7 @@ import {
 } from "@/utils/donations";
 import MoneyReconciliationCard from "@/components/admin/MoneyReconciliationCard";
 import { sumExpenses } from "@/utils/climbExpenses";
+import { countHeads } from "@/utils/guests";
 import ClimbOverviewCard from "@/components/admin/ClimbOverviewCard";
 import ClimbHistoryCard from "@/components/admin/ClimbHistoryCard";
 import { buildParticipantList, participantListDiffers } from "@/utils/participantList";
@@ -699,22 +700,13 @@ export default function AdminClimbDetail() {
         }
         return matchSearch && matchStatus && matchPayment && matchCompliance;
       }),
-    [
-      regs,
-      search,
-      filterStatus,
-      filterPayment,
-      filterCompliance,
-      climb,
-      getOutstanding,
-    ],
+    [regs, search, filterStatus, filterPayment, filterCompliance, climb, getOutstanding],
   );
-
   const stats = useMemo(
     () => ({
       total: regs.length,
-      confirmed: regs.filter((r) => r.status === "confirmed").length,
-      pending: regs.filter((r) => r.status === "pending").length,
+      confirmed: countHeads(regs, "confirmed"),
+      pending: countHeads(regs, "pending"),
       waitlisted: regs.filter((r) => r.status === "waitlisted").length,
       cancelled: regs.filter((r) => r.status === "cancelled").length,
       noShows: regs.filter((r) => r.noShow).length,
